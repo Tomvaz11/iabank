@@ -1,4 +1,4 @@
-ANTIGO# Output: Geração de Cenários de Teste de Aceitação do Usuário (UAT) v1.0
+# Output: Geração de Cenários de Teste de Aceitação do Usuário (UAT) v1.0
 
 Com base exclusivamente no Blueprint Arquitetural fornecido, aqui estão os cenários de teste de aceitação do usuário (UAT) para a aplicação Fotix.
 
