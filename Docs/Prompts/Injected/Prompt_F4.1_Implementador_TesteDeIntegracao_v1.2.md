@@ -5,21 +5,21 @@
 **Contexto Essencial (Fornecido pelo Coordenador):**
 
 1.  **Módulos Alvo da Integração (O Grupo Atual):**
-    *   `fotix.ui.*` (todos os componentes).
+    *   `iabank.domain.models`, `iabank.application.ports`, `iabank.infrastructure.repositories`, `iabank.application.services`, `iabank.api`.
     *   *(Instrução para Coordenador: Anexar os arquivos .py destes módulos.)*
-2.  **Blueprint Arquitetural (Fonte da Verdade Arquitetural):** @Output_BluePrint_Arquitetural_Tocrisna_v7.0.md
-3.  **Ordem de Implementação e Plano de Testes (Fonte da Verdade dos Cenários):** @Output_Ordem_Para_Implementacao_Geral_v6.0.md
+2.  **Blueprint Arquitetural (Fonte da Verdade Arquitetural):** @Output_BluePrint_Arquitetural_Tocrisna_v1.0.md
+3.  **Ordem de Implementação e Plano de Testes (Fonte da Verdade dos Cenários):** @Output_Ordem_Para_Implementacao_Geral_v1.0.md
 4.  **Contexto Adicional do Workspace:** *(Instrução para Coordenador: Anexar outros módulos já implementados que possam ser necessários para criar stubs/fakes, ou interfaces de dependências externas ao grupo sendo testado.)*
 
 **Instruções Detalhadas para a IA (IntegradorTester):**
 
 1.  **Identificar Escopo e Cenários Definidos:**
     *   Analise a lista de "Módulos Alvo da Integração".
-    *   No arquivo `@Output_Ordem_e_Testes.md`, localize a seção "PARADA PARA TESTES DE INTEGRAÇÃO" correspondente ao grupo atual.
+    *   No arquivo `@Output_Ordem_Para_Implementacao_Geral_v1.0.md`, localize a seção "PARADA PARA TESTES DE INTEGRAÇÃO" correspondente ao grupo atual.
     *   Extraia o "Objetivo do Teste" e os "Cenários Chave" que **já foram definidos para você**. Sua tarefa é implementar testes que cubram fielmente estes cenários.
 
 2.  **Analisar Blueprint, Módulos Alvo e Interfaces:**
-    *   Consulte o `@Blueprint_Arquitetural.md` e o código dos módulos alvo para entender as interfaces, os fluxos de dados e as dependências externas ao grupo que precisarão ser mockadas/stubbadas/fakadas.
+    *   Consulte o `@Output_BluePrint_Arquitetural_Tocrisna_v1.0.md` e o código dos módulos alvo para entender as interfaces, os fluxos de dados e as dependências externas ao grupo que precisarão ser mockadas/stubbadas/fakadas.
 
 3.  **Implementar Testes de Integração:**
     *   Escreva o código dos testes (`pytest`) nos arquivos corretos.
