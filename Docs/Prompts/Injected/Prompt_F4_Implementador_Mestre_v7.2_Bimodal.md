@@ -90,14 +90,8 @@ O formato do seu resumo final dependerá da modalidade executada:
     1.  Execute `pip install -e .[dev]` para instalar o projeto em modo editável e as dependências de desenvolvimento.
     2.  Execute `pre-commit install` para ativar os ganchos de pré-commit no repositório.
 
-*   **Relatório de Conformidade (Desvios e Adições):**
-    Nesta seção, você deve relatar de forma transparente qualquer divergência em relação às instruções e ao Blueprint.
-    
-    *   **Desvios ou Bloqueios:** Liste aqui quaisquer instruções que você não conseguiu seguir ou problemas que encontrou e que exigiram uma suposição crítica para continuar.
-    
-    *   **Adições Proativas (Melhores Práticas):** Liste aqui **TODO e QUALQUER** arquivo, pasta ou configuração que você adicionou ao projeto e que **NÃO** estava explicitamente definido no Blueprint. Para cada item, forneça uma justificativa de uma linha (ex: `Makefile - Adicionado para automatizar comandos Docker comuns.`).
-    
-    Se não houver nada a relatar em ambas as categorias, escreva: 'Nenhuma divergência ou adição proativa a relatar. O Blueprint foi seguido com 100% de fidelidade.' 
+*   **Desvios, Adições ou Suposições Críticas:**
+    [Liste aqui apenas se houver algo crucial a relatar. Caso contrário, escreva: 'Nenhum.']
 ```
 
 ---
@@ -117,12 +111,6 @@ O formato do seu resumo final dependerá da modalidade executada:
 *   **Confirmação de Documentação:**
     Todo o código de produção foi documentado com docstrings de módulo e de função/classe, conforme as diretrizes.    
 
-*   **Relatório de Conformidade (Desvios e Adições):**
-    Nesta seção, você deve relatar de forma transparente qualquer divergência em relação às instruções e ao Blueprint.
-    
-    *   **Desvios ou Bloqueios:** Liste aqui quaisquer instruções que você não conseguiu seguir ou problemas que encontrou e que exigiram uma suposição crítica para continuar.
-    
-    *   **Adições Proativas (Melhores Práticas):** Liste aqui **TODO e QUALQUER** arquivo, pasta ou configuração que você adicionou ao projeto e que **NÃO** estava explicitamente definido no Blueprint. Para cada item, forneça uma justificativa de uma linha (ex: `Makefile - Adicionado para automatizar comandos Docker comuns.`).
-    
-    Se não houver nada a relatar em ambas as categorias, escreva: 'Nenhuma divergência ou adição proativa a relatar. O Blueprint foi seguido com 100% de fidelidade.'
+*   **Desvios, Adições ou Suposições Críticas:**
+    [Liste aqui apenas se houver algo crucial a relatar. Caso contrário, escreva: 'Nenhum.']
 ```
