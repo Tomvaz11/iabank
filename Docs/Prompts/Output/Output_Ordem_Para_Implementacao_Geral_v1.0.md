@@ -1,78 +1,55 @@
 # Output: Ordem de Implementação e Cenários de Teste
 
-## Para: Coordenador de Projeto
+## Instruções para o Coordenador
 
-A seguir, a ordem de implementação sequencial e os pontos de verificação para os Testes de Integração, derivados do `Blueprint_Arquitetural.md`.
+Este documento define a ordem de implementação sequencial e os pontos de verificação para os Testes de Integração. A sequência foi derivada do `@Blueprint_Arquitetural.md` e deve ser seguida para garantir uma construção lógica e incremental do sistema.
 
----
-
-## Módulos Base Identificados
-
-*   `iabank.core`
-*   `iabank.domain.models`
-*   `iabank.application.ports`
-*   `iabank.infrastructure.auth` (Representando o middleware de Auth/Tenant)
-*   `iabank.infrastructure.repositories`
-*   `iabank.application.services`
-*   `iabank.api` (Views, Serializers, URLs)
-*   `iabank.infrastructure.tasks` (Celery)
-*   `iabank.infrastructure.adapters`
-*   `frontend.setup` (Estrutura base, libs, API client)
-*   `frontend.features.loans.components.NewLoanWizard`
-*   `frontend.features.loans.components.LoansPanel`
-
----
-
-## Ordem de Implementação e Pontos de Teste
+## Ordem de Implementação
 
 1.  **Alvo 0: Setup do Projeto Profissional**
-2.  `iabank.domain.models`
-3.  `iabank.application.ports`
-4.  `iabank.core` (Configuração do Django, settings)
-5.  `iabank.infrastructure.auth` (Implementação do middleware de Autenticação JWT, Autorização RBAC e Injeção do `tenant_id`)
+2.  `backend.src.iabank.settings` (Configuração base do Django e `django-environ`)
+3.  `backend.src.iabank.domain.models` (Foco inicial em `Tenant` e `User`)
+4.  `backend.src.iabank.api` (Autenticação, tratamento de erro padronizado e versionamento `v1`)
+5.  `backend.src.iabank.infrastructure` (Middleware e managers para isolamento de Tenant)
 
-`>>> PARADA PARA TESTES DE INTEGRAÇÃO (SETUP, SEGURANÇA E MULTI-TENANCY) <<<`
-*   **Módulos no Grupo:** `iabank.domain.models`, `iabank.application.ports`, `iabank.core`, `iabank.infrastructure.auth`.
-*   **Objetivo do Teste:** Validar que a estrutura base do projeto está funcional e que os mecanismos de segurança e isolamento de dados (multi-tenancy) estão operando corretamente a nível de requisição, antes de implementar qualquer lógica de negócio.
+`>>> PARADA PARA TESTES DE INTEGRAÇÃO (SUBSISTEMA DE FUNDAÇÃO E CORE) <<<`
+*   **Módulos no Grupo:** `Alvo 0`, `iabank.settings`, `iabank.domain.models (Tenant, User)`, `iabank.api (Auth, Errors)`, `iabank.infrastructure (Tenancy)`
+*   **Objetivo do Teste:** Validar que a estrutura base da aplicação está operacional, segura e pronta para a lógica de negócio, garantindo que a autenticação, o tratamento de erros e o isolamento de dados por tenant funcionem corretamente como uma fundação.
 *   **Cenários Chave:**
-    1.  **Cenário de Acesso Negado:** Realizar uma requisição a um endpoint protegido (mesmo que um placeholder) sem um token JWT válido. A API DEVE retornar um status `401 Unauthorized`.
-    2.  **Cenário de Autorização Falha (RBAC):** Realizar uma requisição com um token JWT válido de um usuário com `role='consultant'` a um endpoint que exija `role='admin'`. A API DEVE retornar um status `403 Forbidden`.
-    3.  **Cenário de Contexto de Tenant:** Criar dois tenants (Tenant A, Tenant B) e dois usuários (Usuário A no Tenant A, Usuário B no Tenant B) no banco de dados. Realizar uma requisição autenticada com o Usuário A e verificar, através de um ponto de depuração no middleware, que o `tenant_id` do Tenant A foi corretamente associado à requisição.
-    4.  **Cenário de Inicialização:** Verificar se o projeto Django inicializa sem erros e que as configurações básicas (banco de dados, static files) estão carregadas corretamente.
+    1.  **Autenticação e Obtenção de Token:** Um usuário com credenciais válidas faz uma requisição a um endpoint de login e recebe um token de acesso JWT. Uma tentativa com credenciais inválidas retorna um erro `401 Unauthorized` padronizado.
+    2.  **Acesso Protegido e Não Autorizado:** Uma requisição a um endpoint protegido sem um token válido falha com um erro `401/403` padronizado. Uma requisição com um token válido é bem-sucedida.
+    3.  **Criação com Isolamento de Tenant:** Um usuário autenticado do `Tenant A` cria um recurso (ex: um `User` ou `Client` inicial). Verificar diretamente no banco de dados que o novo registro foi criado com o `tenant_id` correto (`A`).
+    4.  **Leitura com Isolamento de Tenant:** Um usuário autenticado do `Tenant B` tenta acessar o recurso criado pelo usuário do `Tenant A` e recebe uma resposta `404 Not Found`, confirmando que não consegue "ver" dados de outros tenants.
 
-6.  `iabank.infrastructure.repositories`
-7.  `iabank.application.services`
-8.  `iabank.api` (Views, Serializers, URLs para o fluxo de Empréstimos)
+6.  `backend.src.iabank.domain.models` (Modelos restantes: `Client`, `Loan`, `Installment`)
+7.  `backend.src.iabank.domain.ports` (Definição das interfaces de repositório, ex: `ILoanRepository`)
+8.  `backend.src.iabank.infrastructure.repositories` (Implementações concretas dos repositórios com Django ORM)
+9.  `backend.src.iabank.application.dtos` (Data Transfer Objects com Pydantic para os casos de uso)
+10. `backend.src.iabank.application.services` (Implementação dos casos de uso, ex: `LoanApplicationService`)
+11. `backend.src.iabank.api.serializers` (Serializers do DRF para `Client`, `Loan`, `Installment`)
+12. `backend.src.iabank.api.views` (Endpoints `ViewSet` para as operações CRUD de Empréstimos)
+13. `backend.src.iabank.api.urls` (Mapeamento das novas rotas da API v1)
 
-`>>> PARADA PARA TESTES DE INTEGRAÇÃO (FLUXO DE CRIAÇÃO DE EMPRÉSTIMO - API) <<<`
-*   **Módulos no Grupo:** `iabank.infrastructure.repositories`, `iabank.application.services`, `iabank.api`.
-*   **Objetivo do Teste:** Validar o fluxo funcional completo de criação e consulta de um empréstimo, desde o recebimento da requisição na API até a persistência correta dos dados no banco de dados, respeitando o isolamento de tenants.
+`>>> PARADA PARA TESTES DE INTEGRAÇÃO (FLUXO CRUD DE EMPRÉSTIMOS) <<<`
+*   **Módulos no Grupo:** `iabank.domain`, `iabank.infrastructure.repositories`, `iabank.application`, `iabank.api.serializers`, `iabank.api.views`, `iabank.api.urls`
+*   **Objetivo do Teste:** Validar o fluxo de dados completo (end-to-end), desde a requisição HTTP na API até a persistência no banco de dados, para a funcionalidade principal de gestão de empréstimos, garantindo que todas as camadas (Apresentação, Aplicação, Domínio, Infra) interajam corretamente.
 *   **Cenários Chave:**
-    1.  **Cenário de Criação bem-sucedida:** Autenticado como um usuário do Tenant A, enviar uma requisição `POST` para `/api/loans/` com dados válidos para um novo empréstimo. Verificar se a API retorna `201 Created` com os dados do empréstimo criado e se os registros correspondentes (`Loan`, `LoanInstallment`, `Customer`) foram salvos no banco de dados com o `tenant_id` correto do Tenant A.
-    2.  **Cenário de Violação de Regra de Negócio:** Enviar uma requisição `POST` para criar um empréstimo com dados que violem uma regra de negócio (ex: `principal_amount` negativo). Verificar se o `LoanApplicationService` impede a criação e a API retorna um status `400 Bad Request` com uma mensagem de erro clara.
-    3.  **Cenário de Isolamento de Dados na Consulta:** Criar empréstimos para o Tenant A e para o Tenant B. Autenticado como um usuário do Tenant A, fazer uma requisição `GET` para `/api/loans/`. A resposta DEVE conter apenas os empréstimos do Tenant A e NUNCA os do Tenant B.
-    4.  **Cenário de Consulta por ID:** Autenticado como usuário do Tenant A, fazer uma requisição `GET` para `/api/loans/{loan_id_do_tenant_A}/`. A API DEVE retornar os detalhes do empréstimo. Fazer uma requisição `GET` para `/api/loans/{loan_id_do_tenant_B}/`. A API DEVE retornar `404 Not Found`.
+    1.  **Criação de Empréstimo End-to-End:** Enviar uma requisição `POST` para `/api/v1/loans/` com dados válidos. Verificar se (a) o `Loan` e suas `Installments` são criados corretamente no banco de dados, associados ao `Client` e ao `Tenant` corretos, (b) a resposta é `201 Created` e contém os dados serializados do empréstimo.
+    2.  **Listagem de Empréstimos com Isolamento:** Dois usuários de tenants diferentes (`A` e `B`) fazem uma requisição `GET` para `/api/v1/loans/`. Validar que cada um recebe na resposta **apenas** a lista de empréstimos pertencentes ao seu respectivo tenant.
+    3.  **Validação de Regra de Negócio na API:** Tentar criar um empréstimo com dados que violam uma regra de negócio (ex: `principal_amount` como zero ou negativo). Verificar se a API retorna um erro `422 Unprocessable Entity` (ou `400 Bad Request`) com uma mensagem clara sobre o erro de validação.
+    4.  **Consulta de Detalhe:** Fazer uma requisição `GET` para `/api/v1/loans/{loan_id}/` para um empréstimo existente. Verificar se a resposta `200 OK` contém todos os detalhes esperados do empréstimo, incluindo informações do cliente associado.
 
-9.  `iabank.infrastructure.tasks`
-10. `iabank.infrastructure.adapters`
+14. `frontend.shared.ui` (Biblioteca de componentes de UI puros: `Button`, `Input`, `Table`)
+15. `frontend.shared.api` (Configuração do cliente de API e `TanStack Query`)
+16. `frontend.entities.loan.model` (Definição de tipos e hooks, como `LoanViewRow`)
+17. `frontend.entities.loan.ui` (Componentes de UI específicos, como `LoanRow` e `LoanStatusBadge`)
+18. `frontend.features.LoanFiltering` (Componentes e lógica para a filtragem da tabela de empréstimos)
+19. `frontend.pages.LoanListPage` (Composição da página que exibe o painel de gestão, integrando features e entities)
 
-`>>> PARADA PARA TESTES DE INTEGRAÇÃO (SERVIÇOS ASSÍNCRONOS E EXTERNOS) <<<`
-*   **Módulos no Grupo:** `iabank.infrastructure.tasks`, `iabank.infrastructure.adapters`.
-*   **Objetivo do Teste:** Validar que a integração com o broker de mensagens (Celery/Redis) está funcional e que os serviços de aplicação conseguem enfileirar tarefas assíncronas corretamente.
+`>>> PARADA PARA TESTES DE INTEGRAÇÃO (PAINEL DE GESTÃO DE EMPRÉSTIMOS UI) <<<`
+*   **Módulos no Grupo:** `frontend.shared`, `frontend.entities.loan`, `frontend.features.LoanFiltering`, `frontend.pages.LoanListPage`
+*   **Objetivo do Teste:** Garantir que a interface do usuário consiga se comunicar com a API do backend, buscar dados, renderizá-los corretamente conforme o view model e responder a interações do usuário, como a filtragem, atualizando a visualização de forma consistente.
 *   **Cenários Chave:**
-    1.  **Cenário de Enfileiramento de Tarefa:** Modificar o `LoanApplicationService` para, após criar um empréstimo, chamar um método `task_queue.enqueue("send_welcome_email", customer_id)`. Realizar o teste de criação de empréstimo e verificar se uma tarefa correspondente foi adicionada à fila do Celery.
-    2.  **Cenário de Execução de Tarefa:** Executar um worker do Celery. Enfileirar uma tarefa simples (ex: de log) e verificar se o worker a processa e executa com sucesso, confirmando a conexão com o Redis.
-    3.  **Cenário de Adapter Mockado:** Chamar um serviço da camada de aplicação que utilize um adapter para uma API externa (ex: consulta de bureau de crédito). O teste de integração deve "mockar" a chamada HTTP externa e verificar se o adapter processa a resposta mockada corretamente e a repassa para o serviço.
-
-11. `frontend.setup` (Estrutura base, libs, API client)
-12. `frontend.features.loans.components.NewLoanWizard`
-13. `frontend.features.loans.components.LoansPanel`
-
-`>>> PARADA PARA TESTES DE INTEGRAÇÃO (UI E FLUXO END-TO-END) <<<`
-*   **Módulos no Grupo:** `frontend.setup`, `frontend.features.loans.components.NewLoanWizard`, `frontend.features.loans.components.LoansPanel`.
-*   **Objetivo do Teste:** Validar o fluxo completo da aplicação do ponto de vista do usuário final, desde a interação com a UI no navegador até a comunicação com o backend e a correta renderização dos dados.
-*   **Cenários Chave:**
-    1.  **Cenário de Criação via UI:** No navegador, preencher o formulário do `NewLoanWizard` e submeter. Verificar se a chamada à API é feita corretamente, o empréstimo é criado no backend, e o usuário é redirecionado ou recebe uma mensagem de sucesso.
-    2.  **Cenário de Listagem e Renderização:** Após criar alguns empréstimos para um tenant, navegar para o `EmprestimosPainel`. Verificar se a UI faz a chamada `GET /api/loans/` e renderiza a tabela com os dados corretos, incluindo os campos formatados (`principalAmountFormatted`, `statusColor`, `installmentsSummary`) conforme o contrato de ViewModel especificado no Blueprint.
-    3.  **Cenário de Validação de Input na UI:** Tentar submeter o formulário do `NewLoanWizard` com dados inválidos (ex: campos em branco, valores não numéricos). Verificar se a UI exibe mensagens de erro apropriadas sem enviar uma requisição à API.
-    4.  **Cenário de Estado de Carregamento e Erro:** Simular uma resposta lenta ou de erro da API para o `EmprestimosPainel`. Verificar se a UI exibe um indicador de carregamento ("loading spinner") enquanto espera e uma mensagem de erro amigável caso a requisição falhe.
+    1.  **Carregamento e Renderização de Dados:** Ao acessar a página do painel de gestão, verificar se uma requisição `GET` é disparada para `/api/v1/loans/`. Após o recebimento dos dados, validar que a tabela na tela é preenchida e que os dados estão formatados corretamente (ex: `principalAmountFormatted` como "R$ X.XXX,XX", `statusLabel` como "Em Andamento").
+    2.  **Filtragem de Dados e Nova Requisição:** O usuário digita um termo no campo de busca/filtro. Verificar se, após um debounce, uma nova requisição `GET` é enviada à API com os parâmetros de query apropriados (ex: `?client_name=...`). A tabela deve se atualizar para exibir apenas os resultados retornados.
+    3.  **Tratamento de Estado de Carregamento e Erro:** Simular uma resposta lenta da API e verificar se um indicador de carregamento (spinner) é exibido na UI. Em seguida, simular uma falha na API (erro 500) e verificar se uma mensagem de erro amigável é exibida no lugar da tabela.
