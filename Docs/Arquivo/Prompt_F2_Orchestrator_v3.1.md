@@ -1,3 +1,11 @@
+# AGV Prompt: OrchestratorHelper v3.0 (Lean e Granular)
+
+**Tarefa Principal:** Analisar o `@Blueprint_Arquitetural.md`, que é a fonte única da verdade sobre a arquitetura. Suas responsabilidades são: (1) Derivar uma ordem de implementação lógica e (2) Gerar cenários chave para os Testes de Integração.
+
+**Input Principal (Blueprint Arquitetural):**
+
+## --- Conteúdo do Blueprint Arquitetural ---
+
 # **Blueprint Arquitetural: IABANK v1.0.0**
 
 Este documento define a arquitetura técnica e de produto para o `IABANK`, um sistema de gestão de empréstimos SaaS. Ele serve como a fonte única da verdade (SSOT) para o desenvolvimento do sistema, garantindo consistência, manutenibilidade e escalabilidade.
@@ -917,3 +925,54 @@ class AppServices:
 | **Técnico**     | **Débito técnico acumulado devido a prazos, dificultando a manutenção.**            |          4          |       3       |     12      | Adoção estrita dos Quality Gates (lint, testes, cobertura). Refatoração contínua como parte do processo de desenvolvimento (regra do escoteiro). Alocação de tempo (ex: 10% do sprint) para pagar débito técnico. |
 | **Performance** | **Gargalos no banco de dados com o aumento do volume de empréstimos e pagamentos.** |          3          |       4       |     12      | Monitoramento proativo de queries lentas (APM). Estratégia de indexação de banco de dados. Caching em nível de aplicação (Redis) para dados frequentemente acessados e de leitura intensiva.                      |
 | **Regulatório** | **Não conformidade com a LGPD ou futuras regulamentações financeiras.**             |          2          |       5       |     10      | Arquitetura projetada com LGPD em mente. Manter uma trilha de auditoria completa. Consultoria jurídica para revisar os fluxos de dados e políticas de retenção.                                                   |
+
+---
+
+**Diretrizes Essenciais:**
+
+1. **Análise de Dependências em Duas Camadas:** A ordem deve ser determinada por duas análises sequenciais:
+
+   a. **Primeiro, Módulos de Suporte Transversal (Cross-Cutting Concerns):** Analise o Blueprint e identifique os módulos que fornecem funcionalidades transversais, das quais outros módulos dependem para funcionar corretamente em tempo de execução, mesmo que não haja uma dependência de `import` direta. Exemplos incluem:
+
+   - Configuração central (`core/settings`)
+   - Autenticação e Autorização (`core/auth`)
+   - Logging
+   - Gerenciamento de Features (Feature Flags) \* Isolamento de Dados (Multi-tenancy)
+
+   **Estes módulos de suporte transversal DEVEM ser implementados primeiro. Ao ordená-los, você DEVE analisar as dependências lógicas e de tempo de execução entre eles. Por exemplo, um módulo de `Isolamento de Dados (Multi-tenancy)` que depende de um usuário autenticado para identificar o tenant DEVE ser implementado APÓS o módulo de `Autenticação e Autorização`. A ordem correta dentro deste bloco é crucial: Autenticação > Autorização > Multi-Tenancy > Logging/Auditoria.**
+
+   b. **Segundo, Dependências Diretas de Código:** Após ordenar os módulos de suporte, analise as dependências de `import` diretas entre os "Módulos Principais" restantes para definir a sequência final. Um módulo não pode ser implementado antes de suas dependências diretas.
+
+2. **Criação do "Alvo 0":** Sua primeira tarefa é SEMPRE gerar um item inicial na ordem de implementação chamado **"Alvo 0: Setup do Projeto Profissional"**. Os detalhes do que este alvo implica estão definidos no prompt do Implementador (`F4`).
+
+3. **Geração da Ordem Sequencial e Pontos de Teste:** Crie uma lista numerada de "Alvos de Implementação". Após o "Alvo 0", a sequência deve seguir a análise de dependências (suporte transversal primeiro, depois o resto).
+
+   - **Formato do Alvo:** Cada item da lista deve seguir o formato `**Alvo X:** nome_completo_do_modulo` para facilitar a referência.
+   - **Identificação de Paradas de Teste:** Após a implementação de **cada componente de infraestrutura crítico** (ex: autenticação, multi-tenancy, etc.) e **cada fluxo de negócio end-to-end completo**, insira um ponto de verificação.
+   - **Formato da Parada de Teste:** O ponto de verificação deve seguir o formato exato:
+     `>>> **PARADA DE TESTES DE INTEGRAÇÃO T<Número>** (Nome do Subsistema em Maiúsculas) <<<`
+     O `<Número>` deve ser sequencial, começando em 1 (T1, T2, T3, etc.).
+   - **Granularidade:** **Não agrupe múltiplos conceitos complexos de infraestrutura (ex: autenticação E multi-tenancy) no mesmo bloco de implementação sem uma parada de teste entre eles.** Cada um deve ter seu próprio ponto de validação.
+
+4. **Decomposição Granular da UI:** Ao definir os alvos para a Camada de Apresentação (UI), você **DEVE** criar alvos separados e sequenciais para cada camada lógica da arquitetura frontend (ex: Feature-Sliced Design). A ordem deve ser estritamente "bottom-up":
+
+   a. **Alvo para a Camada `shared`:** Implementação da biblioteca de componentes de UI puros, cliente de API e utilitários.
+   b. **Alvo para a Camada `entities`:** Implementação dos componentes e lógica de domínio do cliente.
+   c. **Alvo para a Camada `features`:** Implementação das funcionalidades de negócio.
+   d. **Alvo para a Camada `pages`:** Composição das telas finais.
+
+   **Adicione uma parada de testes intermediária para validar os componentes de UI de forma isolada antes de integrá-los nas funcionalidades completas.**
+
+5. **Geração de Cenários de Teste de Integração:**
+
+   - Para cada `>>> PARADA ... <<<` criada, você **DEVE** gerar uma seção detalhada logo abaixo dela.
+   - Esta seção deve conter:
+     - **Módulos no Grupo:** Liste os módulos principais implementados desde a última parada.
+     - **Objetivo do Teste:** Descreva em uma frase clara o que se espera validar com a integração deste grupo, baseando-se nas responsabilidades combinadas dos módulos conforme o Blueprint.
+     - **Cenários Chave:** Liste de 2 a 4 cenários de teste específicos e acionáveis que verifiquem as interações mais críticas. Para paradas que dependem de etapas anteriores (ex: testar uma funcionalidade que requer autenticação), os cenários devem mencionar o uso de simulação de pré-condições (ex: "Usando um usuário autenticado simulado...") em vez de repetir o fluxo completo.
+
+6. **Simplicidade do Output:** O resultado final deve ser um documento Markdown contendo apenas a lista numerada da "Ordem de Implementação" com os "Alvos" e as "Paradas de Teste" detalhadas. **Não inclua justificativas ou descrições adicionais; foque apenas no plano de ação.**
+
+**Resultado Esperado:**
+
+Um documento Markdown (`Output_Ordem_e_Testes.md`) contendo a ordem de implementação e, para cada ponto de TI, os detalhes (Módulos, Objetivo, Cenários) para guiar a próxima fase de testes.
