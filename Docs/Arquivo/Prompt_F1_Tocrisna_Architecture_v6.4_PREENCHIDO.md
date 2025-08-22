@@ -1,10 +1,10 @@
-# AGV Prompt Template: Tocrisna v6.1 - Definição da Arquitetura Técnica e de Produto
+# AGV Prompt Template: Tocrisna v6.4 - Definição da Arquitetura Técnica e de Produto
 
 ## Tarefa Principal
 
 Definir e documentar uma proposta de arquitetura de alto nível, cobrindo tanto os **aspectos técnicos (software)** quanto os de **produto (experiência do usuário)**. O resultado deve ser um Blueprint que sirva como a fonte única da verdade para a estrutura, componentes, contratos de serviço e, crucialmente, os contratos de apresentação de dados da UI. O foco é na modularidade, clareza, manutenibilidade e na criação de um "produto de engenharia" completo e profissional.
 
-## Contexto e Definições Iniciais do Projeto: (Fornecido por mim)
+## Contexto e Definições Iniciais do Projeto: (Fornecido pelo usuário)
 
 - **Nome do Projeto:** `IABANK`
 
@@ -333,32 +333,34 @@ Definir e documentar uma proposta de arquitetura de alto nível, cobrindo tanto 
     - **Servidor Web em Produção:** `Nginx`.
       - **Justificativa:** Servirá como reverse proxy, direcionando requisições `/api/*` para o Django e o restante para os arquivos estáticos do React.
 
-- **Requisitos Não Funcionais Iniciais:**
+- **Requisitos Não Funcionais Iniciais (se houver):**
 
   - **Multi-tenancy e Escalabilidade:** A arquitetura **deve ser multi-tenant desde o início**, mesmo que o primeiro "tenant" seja apenas a sua própria operação. Os dados de cada tenant devem ser estritamente isolados na camada de acesso a dados (ex: filtragem obrigatória por `tenant_id` em todas as queries). Isso é crucial para a viabilidade futura como SaaS.
-  - **Principais Restrições (se houver):** `[Ex: Orçamento limitado, Prazo curto, Deve integrar com API X existente]`
-  - **Definição de Escopo (Opcional - Recomendado para projetos complexos):** - **Dentro do Escopo:** `[Lista explícita do que SERÁ implementado. Ex: Módulo X, Feature Y, Integração Z]`
-  - **Fora do Escopo:** `[Lista explícita do que NÃO será implementado para evitar scope creep. Ex: App móvel nativo, Integração com sistema legado ABC]`
-
   - **Performance:** A UI deve ser fluida. APIs de consulta de dados devem responder em < 500ms para consultas padrão, com otimização de queries e uso de índices no banco de dados.
-
   - **Segurança (Nível FinTech Essencial):**
-
     - **Autenticação:** Sistema seguro baseado em tokens (JWT) com expiração e refresh.
     - **Autorização:** Controle de acesso granular baseado em papéis (RBAC) imposto no backend, replicando as permissões do módulo "Usuários".
     - **Proteção de Dados:** Hashing forte para senhas; criptografia para dados sensíveis em trânsito (HTTPS) e em repouso.
-
   - **Confiabilidade e Consistência:** Transações financeiras (criação/pagamento de empréstimos) devem ser atômicas (ACID) para garantir a integridade dos dados.
-
   - **Auditoria:** Implementação de uma trilha de auditoria completa para todas as ações críticas (Criação, Edição, Exclusão), conforme mapeado no módulo "Log de Atividades".
-
   - **Compliance (Fundação LGPD):** A plataforma deve ser construída com os princípios da LGPD em mente (ex: todos os dados pertencem a um "titular"). Embora a gestão completa de consentimento seja para fases futuras, a base de dados já deve suportar essa estrutura.
+
+- **Principais Restrições (se houver):** `[Ex: Orçamento limitado, Prazo curto, Deve integrar com API X existente]`
+
+- **Definição de Escopo (Opcional - Recomendado para projetos complexos):**
+  - **Dentro do Escopo:** A implementação completa da plataforma SaaS web, conforme descrito no "Mapeamento Completo do Sistema". Isso inclui todos os módulos, do Dashboard à Administração, para os usuários via navegador web.
+  - **Fora do Escopo:** A implementação de funcionalidades que dependem de integrações futuras. Especificamente, **NÃO** devem ser implementados nesta fase:
+    - Agentes de IA autônomos para análise de risco ou cobrança.
+    - Integrações diretas com bureaus de crédito, Open Finance ou Pix.
+    - Gestão do sistema via chatbot (WhatsApp ou similares).
+      A arquitetura deve, no entanto, ser projetada de forma a **não impedir** a adição dessas funcionalidades no futuro.
 
 ## Diretrizes e Princípios Arquiteturais (Filosofia AGV)
 
-1. **Modularidade e Separação de Responsabilidades (SRP):** Proponha uma divisão clara em módulos/componentes lógicos, cada um com uma responsabilidade bem definida. Minimize o acoplamento entre eles e maximize a coesão interna.
-2. **Clareza e Manutenibilidade:** A arquitetura deve ser fácil de entender, manter e evoluir. Prefira soluções mais simples (KISS) quando apropriado.
-3. **Definição Explícita de Interfaces e Construção de Componentes:** **CRUCIAL:**
+1. **Completude e Consistência (Diretriz Mestra):** Ao gerar os artefatos (Modelos, DTOs, ViewModels), sua tarefa não é apenas dar exemplos, mas ser **exaustivo**. Para **CADA** módulo de negócio principal definido no "Mapeamento Completo do Sistema" (Operacional, Financeiro, Cadastros Gerais, etc.), você **DEVE** aplicar os padrões de detalhamento solicitados. Se um padrão é definido para "Empréstimos", ele deve ser consistentemente aplicado para "Clientes", "Contas a Pagar", e assim por diante, para todas as entidades relevantes mapeadas.
+2. **Modularidade e Separação de Responsabilidades (SRP):** Proponha uma divisão clara em módulos/componentes lógicos, cada um com uma responsabilidade bem definida. Minimize o acoplamento entre eles e maximize a coesão interna.
+3. **Clareza e Manutenibilidade:** A arquitetura deve ser fácil de entender, manter e evoluir. Prefira soluções mais simples (KISS) quando apropriado.
+4. **Definição Explícita de Interfaces e Construção de Componentes:** **CRUCIAL:**
    - **Interfaces de Serviço (Contratos Funcionais):** Para os principais pontos de interação entre os módulos identificados, defina claramente as interfaces (contratos) que eles expõem ou consomem.
      - **Abstração da Infraestrutura:** Isto inclui, obrigatoriamente, abstrair interações com a infraestrutura. Prefira definir componentes wrapper (ex: `FileSystemService`, `ConcurrencyService`, `BackupService`) na camada de infraestrutura com interfaces claras, em vez de usar bibliotecas de baixo nível (como `pathlib`, `shutil`, `concurrent.futures`) diretamente nas camadas superiores (Core, Application) onde possível.
      - A definição da interface de serviço deve incluir:
@@ -370,13 +372,13 @@ Definir e documentar uma proposta de arquitetura de alto nível, cobrindo tanto 
      - **Priorize a passagem de parâmetros de configuração através do construtor (`__init__`) do componente.** Detalhe os parâmetros de configuração chave que o construtor deve aceitar.
      - Se, alternativamente, a configuração for obtida de um serviço de configuração centralizado ou por um método de configuração dedicado, mencione essa abordagem e a interface relevante.
      - O objetivo é garantir que o blueprint deixe claro como os componentes são instanciados com suas configurações necessárias, promovendo desacoplamento e testabilidade.
-4. **Listagem Explícita de Dependências Diretas:** **IMPORTANTE:** Para cada componente/módulo principal descrito, liste explicitamente os **outros arquivos `.py` ou módulos específicos** dos quais ele depende diretamente para importar e usar funcionalidades. Use caminhos relativos à raiz do projeto (ex: `fotix.domain.models`, `utils.helpers`).
-5. **Testabilidade:** A arquitetura deve facilitar a escrita de testes unitários e de integração (ex: permitir injeção de dependência onde fizer sentido).
-6. **Segurança Fundamental:** Incorpore princípios básicos de segurança desde o design (ex: onde a validação de input deve ocorrer, como dados sensíveis podem ser tratados – sugerir hashing/criptografia, necessidade de autenticação/autorização).
-7. **Aderência à Stack:** Utilize primariamente as tecnologias definidas na Stack Tecnológica. Se sugerir uma tecnologia _adicional_, justifique claramente a necessidade.
-8. **Padrões de Design:** Sugira e aplique padrões de design relevantes (ex: Repository, Service Layer, Observer, Strategy, etc.) onde eles agregarem valor à estrutura e manutenibilidade. Justifique brevemente a escolha.
-9. **Escalabilidade (Básica):** Considere como a arquitetura pode suportar um crescimento moderado no futuro (ex: design sem estado para serviços, possibilidade de paralelizar tarefas usando `concurrent.futures`).
-10. **Especificação de Tecnologias para Tipos de Componentes:** Para garantir consistência e aderência à stack definida, ao descrever os componentes/módulos, você DEVE especificar a tecnologia ou biblioteca principal a ser utilizada para certos tipos de artefatos, quando aplicável e relevante para a arquitetura. Por exemplo:
+5. **Listagem Explícita de Dependências Diretas:** **IMPORTANTE:** Para cada componente/módulo principal descrito, liste explicitamente os **outros arquivos `.py` ou módulos específicos** dos quais ele depende diretamente para importar e usar funcionalidades. Use caminhos relativos à raiz do projeto (ex: `fotix.domain.models`, `utils.helpers`).
+6. **Testabilidade:** A arquitetura deve facilitar a escrita de testes unitários e de integração (ex: permitir injeção de dependência onde fizer sentido).
+7. **Segurança Fundamental:** Incorpore princípios básicos de segurança desde o design (ex: onde a validação de input deve ocorrer, como dados sensíveis podem ser tratados – sugerir hashing/criptografia, necessidade de autenticação/autorização).
+8. **Aderência à Stack:** Utilize primariamente as tecnologias definidas na Stack Tecnológica. Se sugerir uma tecnologia _adicional_, justifique claramente a necessidade.
+9. **Padrões de Design:** Sugira e aplique padrões de design relevantes (ex: Repository, Service Layer, Observer, Strategy, etc.) onde eles agregarem valor à estrutura e manutenibilidade. Justifique brevemente a escolha.
+10. **Escalabilidade (Básica):** Considere como a arquitetura pode suportar um crescimento moderado no futuro (ex: design sem estado para serviços, possibilidade de paralelizar tarefas usando `concurrent.futures`).
+11. **Especificação de Tecnologias para Tipos de Componentes:** Para garantir consistência e aderência à stack definida, ao descrever os componentes/módulos, você DEVE especificar a tecnologia ou biblioteca principal a ser utilizada para certos tipos de artefatos, quando aplicável e relevante para a arquitetura. Por exemplo:
     - **Modelos de Dados (DTOs, entidades de domínio, configurações):** Especificar o uso de **Pydantic `BaseModel`** como a tecnologia padrão para sua definição, visando validação de dados e facilidades de serialização.
     - **Camada de Acesso a Dados (se houver BD):** Especificar o ORM (ex: SQLAlchemy) ou a biblioteca de acesso.
     - **APIs Web (se houver):** Especificar o framework (ex: FastAPI, Flask).
@@ -444,43 +446,40 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
 
    - Para cada componente principal:
 
-     - Nome claro (ex: `fotix.core.duplicate_finder`).
+     - Nome claro (ex: `iabank.loans.services`).
      - Responsabilidade principal.
-     - **Tecnologias Chave da Stack que Serão Usadas Nele:** Conforme a Diretriz 10 ("Especificação de Tecnologias para Tipos de Componentes"), indique a biblioteca ou framework principal para este componente (ex: "Pydantic `BaseModel`" para módulos de modelos de dados; "PySide6" para componentes de UI; "FastAPI" para um serviço de API; `logging` stdlib para um serviço de logging, etc.). Se for apenas lógica Python pura sem uma biblioteca externa dominante, indique "Python (Lógica Pura)".
+     - **Tecnologias Chave da Stack que Serão Usadas Nele:** Conforme a Diretriz 10 ("Especificação de Tecnologias para Tipos de Componentes"), indique a biblioteca ou framework principal para este componente (ex: "Modelos Django" para módulos de modelos de dados; "React/TypeScript" para componentes de UI; "DRF" para um serviço de API). Se for apenas lógica Python pura sem uma biblioteca externa dominante, indique "Python (Lógica Pura)".
      - **Dependências Diretas (Lista explícita - Diretriz 4).**
 
    - **3.1. Consistência dos Modelos de Dados (SSOT do Domínio):**
 
-     - Defina todos os seus modelos de dados principais (DTOs, entidades de domínio, etc.) em uma única seção dedicada (ex: "Camada de Domínio/Core - Models"). **Esta seção é a Fonte Única da Verdade (SSOT) para todas as estruturas de dados do projeto.**
-     - Ao definir as interfaces na Seção 4, os tipos de retorno e os parâmetros que forem objetos complexos **DEVEM OBRIGATORIAMENTE** referenciar os modelos definidos nesta seção "Models" (a SSOT do Domínio).
-     - Se um componente (como um serviço de infraestrutura) lida com uma fonte de dados externa (ex: uma API, metadados de um arquivo ZIP) que não corresponde exatamente ao modelo de domínio canônico, a **"Responsabilidade Principal"** desse componente deve incluir explicitamente a tarefa de **"mapear" ou "traduzir" os dados da fonte para o modelo de domínio oficial**. O Blueprint não deve criar um modelo de dados duplicado ou divergente para acomodar a fonte externa.
+     - Defina todos os seus modelos de dados principais (entidades de domínio do Django) em uma única seção dedicada (ex: "Camada de Domínio/Core - Models"). **Esta seção é a Fonte Única da Verdade (SSOT) para todas as estruturas de dados do projeto.**
+     - Você **DEVE** analisar o mapeamento detalhado das funcionalidades e telas fornecido. Para cada entidade principal (Cliente, Empréstimo, Consultor, Conta a Pagar, etc.), você **DEVE** derivar e detalhar **TODOS os campos de dados necessários** para suportar as funcionalidades descritas.
+       - Especifique os tipos de campo do Django (`CharField`, `DecimalField`, `ForeignKey`, etc.).
+       - Inclua opções importantes (`null=True`, `blank=True`, `default=...`).
+       - Para campos de status com opções fixas (ex: status do empréstimo), defina explicitamente as `choices` usando uma classe `TextChoices` do Django.
+     - Sua análise deve ser recursiva. Se um modelo principal (ex: `FinancialTransaction`) precisa de um relacionamento com um modelo de apoio (ex: `PaymentCategory` ou `Supplier` dos "Cadastros Gerais"), você **NÃO PODE** deixar esse relacionamento como um comentário ou placeholder. Você **DEVE** criar a definição completa do modelo de apoio (`PaymentCategory`, `Supplier`, etc.) na mesma seção, garantindo que todas as dependências de modelo sejam resolvidas e definidas explicitamente dentro do Blueprint. **Nenhuma chave estrangeira (ForeignKey) deve apontar para um modelo não definido.**
 
-   - **Para a Camada de Apresentação (UI) (ex: `fotix.ui`):**
+   - **3.1.1. Detalhamento dos DTOs e Casos de Uso:**
+
+     - Para cada entidade principal, defina a estrutura dos DTOs (Data Transfer Objects) que serão usados pela API, utilizando `pydantic.BaseModel`. Crie DTOs específicos para os principais casos de uso, quando necessário. Por exemplo:
+       - `CustomerCreateDTO`: Campos necessários para criar um novo cliente.
+       - `CustomerUpdateDTO`: Campos que podem ser atualizados em um cliente existente.
+       - `LoanListDTO`: Estrutura de dados retornada na listagem de empréstimos (pode ser similar ao ViewModel).
+     - Isso estabelece o contrato de dados explícito para a comunicação entre as camadas de serviço e a API.
+
+   - **Para a Camada de Apresentação (UI):**
 
      - Além da descrição geral da UI, **proponha uma decomposição em principais Telas/Views ou Componentes de UI reutilizáveis significativos.**
      - Para cada Tela/View/Componente de UI proposto:
 
        - Descreva brevemente seu propósito principal.
        - Liste os principais serviços da Camada de Aplicação com os quais ele provavelmente interagirá.
-       - Sugira se sua implementação pode ser considerada uma unidade de trabalho relativamente independente.
        - **Contrato de Dados da View (ViewModel):**
 
-         - Para componentes que exibem dados complexos (tabelas, listas, árvores), defina a estrutura de dados explícita que a View deve consumir. Esta definição serve como um "ViewModel" ou "Presentation Model" e é um contrato formal.
-         - **Estrutura de Dados da View:** Defina a estrutura usando sintaxe de `dataclass` ou `Pydantic Model` para clareza. Esta estrutura deve representar uma única unidade de exibição (ex: uma linha na tabela).
-         - **Mapeamento de Origem:** Explique claramente como essa estrutura de dados da view é derivada dos Modelos de Domínio canônicos (definidos na seção "SSOT do Domínio").
-         - **Exemplo de como isso deve ser formatado no Blueprint de saída:**
-
-         ```python
-         - Módulo: `fotix.ui.results_view`
-           - ... (outras descrições)
-           - Contrato de Dados da View (ViewModel):
-             - `ResultsViewRow(ViewModel)`: Representa uma única linha na tabela de resultados, correspondendo a um `DuplicateSet` completo.
-               - `keeper_name: str`
-               - `keeper_path: str`
-               - `duplicates_summary: str` (Ex: "duplicate1.jpg (1.2 MB), duplicate2.png (2.3 MB)")
-               - `space_saved_mb: float`
-             - Mapeamento de Origem: A camada de orquestração (ex: `MainWindow` ou um `Controller`) será responsável por iterar sobre a lista de `DuplicateSet` do `ScanResult` e, para cada um, criar uma instância de `ResultsViewRow`. Os campos são preenchidos a partir das propriedades do `DuplicateSet` e seus `MediaFile` associados.
-         ```
+         - Para **CADA TELA DE LISTAGEM PRINCIPAL** descrita no mapeamento (Empréstimos, Clientes, Consultores, Contas a Pagar, etc.), você **DEVE** criar um `ViewModel` correspondente.
+         - **Estrutura de Dados da View:** Defina a estrutura em TypeScript para cada ViewModel. Esta estrutura deve ser otimizada para exibição, contendo apenas os dados necessários para a tabela ou componente, já pré-formatados quando possível (ex: `principalAmountFormatted: "R$ 5.000,00"`).
+         - **Mapeamento de Origem:** Para cada ViewModel, explique brevemente como ele é derivado dos modelos de domínio do backend e montado pelo Serializer da API.
 
 4. **Descrição Detalhada da Arquitetura Frontend:** Descreva a arquitetura e a organização de diretórios propostas para a aplicação cliente (SPA). O objetivo é garantir modularidade, escalabilidade e uma clara separação de responsabilidades, independentemente do framework de UI escolhido. A descrição deve incluir:
 
@@ -538,6 +537,7 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
 
 15. **Estratégia de Testes Detalhada:** Elabore sobre a seção "Como Executar os Testes". Detalhe os diferentes tipos de testes a serem implementados (Unitários, Integração, End-to-End/API), em quais camadas da arquitetura cada um se aplica e as ferramentas recomendadas (pytest, APIClient do DRF, etc.). **Esta seção deve também incluir:**
 
+    - **Estrutura e Convenção de Nomenclatura de Testes:** Defina a estrutura de diretórios para os testes (ex: `tests/unit`, `tests/integration`). Para evitar conflitos de nomes de módulos, estabeleça uma convenção de nomenclatura explícita para os arquivos de teste, como `test_<nome_do_app>_<nome_do_modulo>.py` (ex: `test_users_models.py`, `test_loans_services.py`).
     - **Padrões de Teste de Integração:** Defina as convenções para escrever testes de integração robustos e de fácil manutenção:
       - **Uso de Factories:** Recomende o uso de uma biblioteca de "factories" (ex: `factory-boy` para Python, `Faker.js` para Node) para a criação de dados de teste complexos e consistentes, evitando a configuração manual de objetos em cada teste.
       - **Simulação de Autenticação:** Para testes que requerem um usuário autenticado, especifique o uso de métodos de simulação fornecidos pelo framework (ex: `force_authenticate` no DRF, `TestSecurityContextHolder` no Spring Security) em vez de simular o fluxo de login completo em cada teste. Isso isola o teste da lógica de autenticação.

@@ -1,4 +1,4 @@
-# AGV Prompt: IntegradorTester v1.2 - Geração de Testes de Integração Guiada
+# AGV Prompt: IntegradorTester v1.3 - Geração de Testes de Integração Guiada
 
 **Tarefa Principal:** Analisar o conjunto de módulos especificados, o Blueprint Arquitetural, e os **cenários de integração já definidos** para gerar testes de integração robustos (`pytest`) que verifiquem a correta colaboração entre esses módulos.
 
