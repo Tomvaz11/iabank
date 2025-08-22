@@ -1,4 +1,4 @@
-# AGV Prompt Template: Tocrisna v7.0 - Definição da Arquitetura Técnica e de Produto
+# AGV Prompt Template: Tocrisna v7.1 - Definição da Arquitetura Técnica e de Produto
 
 ## Tarefa Principal
 
@@ -510,7 +510,7 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
 
 5. **Definição das Interfaces Principais:** Detalhamento dos contratos de comunicação entre os componentes chave (conforme Diretriz 3), incluindo como os componentes recebem suas configurações iniciais (priorizando `__init__`).
 6. **Gerenciamento de Dados (se aplicável):** Como os dados serão persistidos e acessados (ex: Módulo data_access usando SQLAlchemy com padrão Repository, ou especificando Pydantic `BaseModel` para modelos de dados se não houver persistência complexa). Além da persistência, a seção deve descrever a estratégia para: Gerenciamento de Schema (confirmando o uso de migrações automáticas como as do Django) e Seed de Dados (como popular o banco de dados de desenvolvimento com dados iniciais/fictícios, ex: usando scripts customizados, fixtures ou bibliotecas como factory-boy).
-7. **Estrutura de Diretórios Proposta:** Uma sugestão inicial, **preferencialmente utilizando o layout `src` moderno** (com o código principal do pacote dentro de uma pasta `src/nome_do_pacote/`) para melhor organização e empacotamento, mostrando a organização das pastas e arquivos principais.
+7. **Estrutura de Diretórios Proposta:** Uma sugestão inicial, **preferencialmente utilizando o layout `src` moderno** (com o código principal do pacote dentro de uma pasta `src/nome_do_pacote/`) para melhor organização e empacotamento, mostrando a organização das pastas e arquivos principais. A estrutura deve refletir as melhores práticas para a stack tecnológica definida. Para projetos Python, isso significa priorizar o uso de pyproject.toml para gerenciamento de dependências e configuração de ferramentas (ex: Poetry, Ruff, Black, etc.), em vez de múltiplos arquivos de configuração legados.
 8. **Arquivo `.gitignore` Proposto:** Um conteúdo sugerido, **completo e pronto para uso**, para o arquivo `.gitignore` na raiz do projeto, apropriado para a "Stack Tecnológica Definida". Ele deve ser abrangente, cobrindo caches, ambientes virtuais, arquivos de IDEs comuns (VS Code, PyCharm), e arquivos específicos do SO.
 9. **Arquivo `README.md` Proposto:** A geração do **conteúdo completo** para um arquivo `README.md` inicial e profissional. O README deve seguir uma estrutura padrão, contendo, no mínimo:
    - O nome do projeto e uma descrição concisa.
@@ -538,7 +538,7 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
 
 15. **Estratégia de Testes Detalhada:** Elabore sobre a seção "Como Executar os Testes". Detalhe os diferentes tipos de testes a serem implementados (Unitários, Integração, End-to-End/API), em quais camadas da arquitetura cada um se aplica e as ferramentas recomendadas (pytest, APIClient do DRF, etc.). **Esta seção deve também incluir:**
 
-    - **Estrutura e Convenção de Nomenclatura de Testes:** Defina a estrutura de diretórios para os testes (ex: `tests/unit`, `tests/integration`). Para evitar conflitos de nomes de módulos, estabeleça uma convenção de nomenclatura explícita para os arquivos de teste, como `test_<nome_do_app>_<nome_do_modulo>.py` (ex: `test_users_models.py`, `test_loans_services.py`).
+    - **Estrutura e Convenção de Nomenclatura de Testes:** Defina a estrutura de diretórios para os testes. **Os testes unitários**, que validam a lógica interna de um único módulo, **devem residir dentro de cada app Django (`<app_name>/tests/`)**, mantendo-os próximos ao código-fonte que testam. **Os testes de integração**, que validam a colaboração entre múltiplos módulos ou apps, **devem residir em um diretório de alto nível dedicado (`tests/integration/`)** para evitar ambiguidades de dependência. Para evitar conflitos de nomes de módulos e garantir clareza, estabeleça uma convenção de nomenclatura explícita para os arquivos de teste: **`test_<nome_do_app>_<nome_do_modulo_ou_funcionalidade>.py`** (ex: `test_users_models.py`, `test_loans_services.py`, `test_api_loan_creation.py`). Esta convenção **DEVE** ser aplicada a todos os arquivos de teste, tanto unitários quanto de integração.
     - **Padrões de Teste de Integração:** Defina as convenções para escrever testes de integração robustos e de fácil manutenção:
       - **Uso de Factories:** Recomende o uso de uma biblioteca de "factories" (ex: `factory-boy` para Python, `Faker.js` para Node, etc.) para a criação de dados de teste complexos e consistentes, evitando a configuração manual de objetos em cada teste.
       - **Simulação de Autenticação:** Para testes que requerem um usuário autenticado, especifique o uso de métodos de simulação fornecidos pelo framework (ex: `force_authenticate` no DRF, `TestSecurityContextHolder` no Spring Security, etc.) em vez de simular o fluxo de login completo em cada teste. Isso isola o teste da lógica de autenticação.
@@ -623,3 +623,9 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
     - **Score:** Multiplicação para priorização (scores ≥12 são críticos)
 
     **Nota:** Foque nos 3-5 riscos mais relevantes. Esta análise deve ser revisada e atualizada periodicamente durante o projeto.
+
+25. **Conteúdo dos Arquivos de Ambiente e CI/CD:** A geração do **conteúdo completo** para arquivos que definem o ambiente de desenvolvimento e o pipeline.
+
+    - **`pyproject.toml` Proposto:** Um conteúdo inicial para o `pyproject.toml`, definindo as dependências principais da stack (django, djangorestframework, etc.) e a configuração inicial para ferramentas como `ruff`, `black`, etc.
+    - **`.pre-commit-config.yaml` Proposto:** A configuração inicial para os ganchos de pre-commit, alinhada com as ferramentas de qualidade definidas.
+    - **`Dockerfile`s Propostos:** O conteúdo completo para o `Dockerfile` do backend e do frontend, preferencialmente usando `multi-stage builds`, por exemplo.

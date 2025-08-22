@@ -1,165 +1,162 @@
-# Ordem de Implementação Lógica e Cenários de Teste para IABANK v1.0.0
-
-## Ordem de Implementação
+# Ordem de Implementação e Cenários de Teste
 
 **Alvo 0:** Setup do Projeto Profissional
 
-- **Responsabilidade:** Criar a estrutura do monorepo, configurar Docker (`docker-compose.yml`) e Dockerfiles, inicializar os projetos Django e React, configurar CI/CD (GitHub Actions), ferramentas de qualidade (`ruff`, `black`, `eslint`, `prettier`), `pre-commit`, e criar os arquivos de projeto (`README.md`, `.gitignore`, `LICENSE`, etc.).
+- **Responsabilidade:** Configurar a estrutura do monorepo (`backend/`, `frontend/`), inicializar os projetos Django e React, criar os arquivos de configuração (`docker-compose.yml`, `Dockerfile.*`, `pyproject.toml`, `.pre-commit-config.yaml`), e estabelecer o pipeline de CI/CD inicial (`.github/workflows/ci-cd.yml`).
 
-**Alvo 1:** iabank.core: Modelos e Estrutura Multi-Tenancy
+**Alvo 1:** `iabank.core`: Modelos e Migrações
 
-- **Responsabilidade:** Implementar os modelos `Tenant` e `TenantAwareModel`, e o `TenantAwareManager`.
+- **Responsabilidade:** Implementar os modelos `Tenant` e `TenantAwareModel`, que são a base para o isolamento de dados multi-tenant. Gerar as migrações iniciais.
 
-**Alvo 2:** iabank.users: Modelos e Migrações
+**Alvo 2:** `iabank.users`: Modelos e Migrações
 
-- **Responsabilidade:** Implementar os modelos `User` e `AuditLog` e gerar as migrações iniciais.
+- **Responsabilidade:** Implementar o modelo customizado `User` com a referência ao `Tenant` e gerar sua migração.
 
-**Alvo 3:** iabank.users: API de Autenticação JWT (Fase 1)
+**Alvo 3:** `iabank.users`: Fase 1 - API de Autenticação JWT
 
-- **Responsabilidade:** Implementar os serializers, views e URLs necessários para os endpoints de obtenção e refresh de token JWT (ex: `/api/v1/token/`).
+- **Responsabilidade:** Implementar os Serializers e Views (usando uma biblioteca como `djangorestframework-simplejwt`) para os endpoints `/api/v1/token/` e `/api/v1/token/refresh/`.
 
-> > > **PARADA DE TESTES DE INTEGRAÇÃO T1** (Validação do Fluxo de Autenticação Básico) <<<
+> > > **PARADA DE TESTES DE INTEGRAÇÃO T1** (Autenticação Básica) <<<
 
-- **Módulos no Grupo:** `iabank.core` (Modelos), `iabank.users` (Modelos, API de Autenticação).
-- **Objetivo do Teste:** Garantir que um usuário pode ser criado no sistema e pode se autenticar com sucesso para obter um token de acesso JWT válido.
+- **Módulos no Grupo:** `core`, `users` (Modelos e API de Autenticação).
+- **Objetivo do Teste:** Validar que um usuário pode ser criado no banco de dados e pode obter um par de tokens JWT (acesso e refresh) válido através da API.
 - **Cenários Chave:**
-  1. **Cenário de Sucesso:** Criar um `Tenant` e um `User` associado a ele diretamente no banco de dados. Enviar uma requisição `POST` para `/api/v1/token/` com as credenciais corretas e verificar se a resposta é `200 OK` e contém os tokens `access` and `refresh`.
-  2. **Cenário de Falha (Credenciais Inválidas):** Enviar uma requisição `POST` para `/api/v1/token/` com uma senha incorreta e verificar se a resposta é `401 Unauthorized` com a mensagem de erro apropriada.
-  3. **Cenário de Refresh de Token:** Usando o token `refresh` obtido no cenário 1, enviar uma requisição `POST` para `/api/v1/token/refresh/` e verificar se um novo token `access` é retornado com sucesso.
+  1.  **Sucesso na Autenticação:** Criar um `Tenant` e um `User` diretamente no banco de dados de teste. Fazer uma requisição `POST` para `/api/v1/token/` com as credenciais corretas e verificar se a resposta é `200 OK` e contém as chaves `access` e `refresh`.
+  2.  **Falha na Autenticação:** Fazer uma requisição `POST` para `/api/v1/token/` com uma senha incorreta e verificar se a resposta é `401 Unauthorized`.
+  3.  **Renovação de Token:** Usar o `refresh` token obtido no cenário 1 para fazer uma requisição `POST` para `/api/v1/token/refresh/` e verificar se a resposta é `200 OK` e contém uma nova chave `access`.
 
----
+**Alvo 4:** `iabank.users`: Fase 2 - API de Gestão de Usuários (CRUD)
 
-**Alvo 4:** iabank.users: Serializers para Gestão de Usuários
+- **Responsabilidade:** Implementar os Serializers e Views para os endpoints de gerenciamento de usuários, como `GET /api/v1/users/`, `POST /api/v1/users/`, e `GET /api/v1/users/me/`.
 
-- **Responsabilidade:** Implementar os serializers DRF para criar, listar, atualizar e visualizar usuários.
+**Alvo 5:** `iabank.core`: Lógica de Multi-Tenancy
 
-**Alvo 5:** iabank.users: Views e URLs para Gestão de Usuários e Autorização (Fase 2)
+- **Responsabilidade:** Implementar a lógica de isolamento de dados, provavelmente através de um `Manager` customizado no `TenantAwareModel` e/ou um middleware que associa o `Tenant` correto a cada requisição baseada no `request.user`.
 
-- **Responsabilidade:** Implementar os endpoints da API (ex: `/api/v1/users/`, `/api/v1/users/{id}/`, `/api/v1/users/me/`) para o CRUD de usuários, aplicando o isolamento de dados via `TenantAwareManager` e a lógica de permissões.
+**Alvo 6:** `iabank.administration`: Modelos e Migrações
 
-> > > **PARADA DE TESTES DE INTEGRAÇÃO T2** (Validação do CRUD de Usuários e Isolamento Multi-Tenancy) <<<
+- **Responsabilidade:** Implementar os modelos `AuditLog` e `SystemParameter` e gerar suas migrações.
 
-- **Módulos no Grupo:** `iabank.users` (API de CRUD), `iabank.core` (Lógica Multi-Tenancy).
-- **Objetivo do Teste:** Validar que um usuário autenticado pode gerenciar outros usuários dentro do seu próprio tenant, e que o sistema impede rigorosamente o acesso a dados de outros tenants.
+> > > **PARADA DE TESTES DE INTEGRAÇÃO T2** (Gestão de Usuários e Isolamento de Tenant) <<<
+
+- **Módulos no Grupo:** `users` (CRUD), `core` (Multi-Tenancy), `administration`.
+- **Objetivo do Teste:** Validar que os endpoints de gerenciamento de usuários funcionam corretamente e que a lógica de isolamento de dados previne vazamento de informações entre tenants.
 - **Cenários Chave:**
-  1. **Cenário de Sucesso (Listagem):** Usando um usuário autenticado simulado do `Tenant A`, fazer uma requisição `GET` para `/api/v1/users/`. Verificar se a resposta `200 OK` contém apenas os usuários pertencentes ao `Tenant A` e nenhum do `Tenant B`.
-  2. **Cenário de Sucesso (Criação):** Usando um usuário autenticado simulado do `Tenant A`, fazer uma requisição `POST` para `/api/v1/users/` com dados de um novo usuário. Verificar se a resposta é `201 Created` e se o novo usuário foi criado e associado corretamente ao `Tenant A`.
-  3. **Cenário de Segurança (Acesso Cruzado):** Criar um `User` no `Tenant B` e obter seu ID. Usando um usuário autenticado simulado do `Tenant A`, tentar fazer uma requisição `GET` para `/api/v1/users/{id_usuario_tenant_b}/`. Verificar se a resposta é `404 Not Found`.
+  1.  **Isolamento de Listagem:** Criar usuários em dois tenants distintos (`Tenant A` e `Tenant B`). Usando um usuário autenticado simulado do `Tenant A`, fazer uma requisição `GET` para `/api/v1/users/` e verificar se a lista contém _apenas_ os usuários do `Tenant A`.
+  2.  **Prevenção de Acesso Direto:** Usando um usuário autenticado simulado do `Tenant A`, tentar fazer um `GET` para `/api/v1/users/{id_usuario_tenant_b}/` e verificar se a resposta é `404 Not Found`.
+  3.  **Criação de Usuário no Tenant Correto:** Usando um usuário autenticado simulado do `Tenant A`, fazer um `POST` para `/api/v1/users/` para criar um novo usuário. Verificar no banco de dados se o novo usuário foi corretamente associado ao `Tenant A`.
+  4.  **Endpoint do Próprio Usuário:** Usando um usuário autenticado simulado, fazer um `GET` para `/api/v1/users/me/` e verificar se os dados retornados correspondem aos do usuário logado.
 
----
+**Alvo 7:** `iabank.operational`: Modelos `Customer` e `CustomerDocument`
 
-**Alvo 6:** iabank.financials: Modelos de Suporte e Cadastros Gerais
+- **Responsabilidade:** Implementar os modelos para representar clientes e seus documentos, herdando de `TenantAwareModel`. Gerar as migrações.
 
-- **Responsabilidade:** Implementar os modelos `Supplier`, `PaymentCategory`, `CostCenter`, `PaymentMethod` e `BankAccount`.
+**Alvo 8:** `iabank.operational`: Serviços de Aplicação para `Customer`
 
-**Alvo 7:** iabank.financials: API (CRUD Básico) para Cadastros Gerais
+- **Responsabilidade:** Implementar a classe de serviço que conterá a lógica de negócio para as operações de `Customer`.
 
-- **Responsabilidade:** Implementar serializers e views (ex: usando `ModelViewSet`) para fornecer operações CRUD básicas para os modelos de suporte, garantindo a aplicação do `TenantAwareManager`.
+**Alvo 9:** `iabank.operational`: Serializers para `Customer`
 
-> > > **PARADA DE TESTES DE INTEGRAÇÃO T3** (Validação dos Módulos de Suporte Financeiro) <<<
+- **Responsabilidade:** Implementar os serializers (DTOs) para validação de entrada (`CustomerCreateDTO`) e formatação de saída (`CustomerListDTO`).
 
-- **Módulos no Grupo:** `iabank.financials` (Modelos e API de CRUD).
-- **Objetivo do Teste:** Assegurar que as entidades de suporte do módulo financeiro podem ser criadas, lidas, atualizadas e excluídas através da API, respeitando o isolamento de tenant.
+**Alvo 10:** `iabank.operational`: Views e URLs para `Customer`
+
+- **Responsabilidade:** Implementar os endpoints da API para o ciclo de vida completo (CRUD) de um `Customer`.
+
+> > > **PARADA DE TESTES DE INTEGRAÇÃO T3** (CRUD de Clientes) <<<
+
+- **Módulos no Grupo:** `operational` (foco em Customer).
+- **Objetivo do Teste:** Validar o gerenciamento completo de entidades `Customer` através da API, garantindo que todas as operações respeitem o isolamento de tenant.
 - **Cenários Chave:**
-  1. **Cenário de Criação e Listagem:** Usando um usuário autenticado simulado, criar uma `BankAccount` via `POST /api/v1/bank-accounts/`. Em seguida, fazer um `GET` no mesmo endpoint e verificar se a conta recém-criada está na lista.
-  2. **Cenário de Vínculo e Proteção:** Criar uma `BankAccount` e uma `PaymentCategory`. Tentar deletar a `BankAccount` via `DELETE` e verificar sucesso. Em seguida, criar uma `FinancialTransaction` (modelo a ser criado no futuro) vinculada a essa conta e tentar deletar a conta novamente. O teste (a ser adaptado no futuro) deve verificar se a deleção é bloqueada (`409 Conflict` ou similar) devido à relação `on_delete=models.PROTECT`.
+  1.  **Criação de Cliente:** Usando um usuário autenticado simulado, fazer uma requisição `POST` para `/api/v1/customers/` com dados válidos. Verificar se a resposta é `201 Created` e se o cliente foi criado no banco associado ao tenant correto.
+  2.  **Validação de Dados:** Tentar criar um cliente com um `document` (CPF/CNPJ) que já existe no mesmo tenant e verificar se a API retorna um erro de validação (`400 Bad Request`).
+  3.  **Listagem por Tenant:** Criar clientes em dois tenants diferentes. Usando um usuário autenticado do `Tenant A`, listar os clientes e verificar se apenas os do `Tenant A` são retornados.
+  4.  **Atualização de Cliente:** Fazer uma requisição `PATCH` para atualizar o telefone de um cliente existente e verificar se o dado foi alterado corretamente no banco de dados.
 
----
+**Alvo 11:** `iabank.operational`: Modelos `Consultant`, `Loan`, `Installment`
 
-**Alvo 8:** iabank.loans: Modelos e Migrações
+- **Responsabilidade:** Implementar os modelos centrais para o negócio de empréstimos, incluindo suas relações e status. Gerar as migrações.
 
-- **Responsabilidade:** Implementar os modelos `Customer`, `Consultant`, `Lender`, `Loan` e `Installment` e gerar as migrações.
+**Alvo 12:** `iabank.financial`: Modelos
 
-**Alvo 9:** iabank.loans: Repositórios
+- **Responsabilidade:** Implementar todos os modelos do módulo financeiro (`BankAccount`, `PaymentCategory`, `FinancialTransaction`, etc.), pois estão interligados e a transação financeira está ligada à parcela. Gerar as migrações.
 
-- **Responsabilidade:** Implementar a camada de repositório (`LoanRepository`, `InstallmentRepository`, etc.) para encapsular a lógica de acesso a dados e consultas complexas ao ORM do Django.
+**Alvo 13:** `iabank.operational`: Serviço de Aplicação para `Loan`
 
-**Alvo 10:** iabank.loans: Serviços de Aplicação
+- **Responsabilidade:** Implementar a lógica de negócio no `LoanService`, focando no método `create_loan`, que deve criar o empréstimo e gerar todas as suas parcelas (`Installment`) de forma atômica.
 
-- **Responsabilidade:** Implementar a lógica de negócio na camada de serviço (`LoanService`), como o caso de uso `create_loan`, que orquestra a criação do empréstimo e a geração de todas as suas parcelas de forma atômica.
+**Alvo 14:** `iabank.operational`: Serializers e Views para `Loan`
 
-> > > **PARADA DE TESTES DE INTEGRAÇÃO T4** (Validação da Lógica de Negócio Core - Empréstimos) <<<
+- **Responsabilidade:** Implementar os serializers `LoanCreateDTO`, `LoanListDTO` e as Views para criação (`POST /api/v1/loans/`) e listagem (`GET /api/v1/loans/`).
 
-- **Módulos no Grupo:** `iabank.loans` (Modelos, Repositórios, Serviços).
-- **Objetivo do Teste:** Validar a lógica de negócio central do sistema (criação de empréstimos e cálculo de parcelas) em nível de serviço, sem depender da camada de API.
+> > > **PARADA DE TESTES DE INTEGRAÇÃO T4** (Criação de Empréstimos) <<<
+
+- **Módulos no Grupo:** `operational` (Loan, Installment), `financial` (Modelos).
+- **Objetivo do Teste:** Validar que o processo de criação de um empréstimo gera corretamente o registro principal (`Loan`) e todos os seus registros filhos (`Installment`) conforme as regras de negócio.
 - **Cenários Chave:**
-  1. **Cenário de Criação de Empréstimo:** Instanciar o `LoanService` diretamente no teste. Chamar o método `create_loan` com um DTO válido. Verificar se um objeto `Loan` é criado no banco de dados e se o número correto de objetos `Installment` é gerado, com valores e datas de vencimento calculados corretamente.
-  2. **Cenário de Transação Atômica:** Simular um erro (ex: lançar uma exceção) no meio da geração de parcelas dentro do `LoanService`. Verificar se a transação é revertida (rollback) e que nenhum objeto `Loan` ou `Installment` parcial foi persistido no banco de dados.
+  1.  **Criação de Empréstimo com Sucesso:** Dado um cliente existente criado via `CustomerFactory`, fazer um `POST` para `/api/v1/loans/` com dados válidos (valor, juros, nº de parcelas). Verificar se a resposta é `201 Created`, se um registro `Loan` foi criado e se exatamente o `number_of_installments` de registros `Installment` foram criados e associados a ele.
+  2.  **Validação de Negócio:** Tentar criar um empréstimo para um `customer_id` que pertence a outro tenant e verificar se a API retorna um erro `404 Not Found`.
+  3.  **Cálculo de Parcelas (Simplificado):** Verificar se o campo `due_date` da primeira parcela corresponde ao `first_installment_date` informado e se as datas das parcelas subsequentes estão com o intervalo de um mês.
+  4.  **Atomicidade da Criação:** Simular um erro durante a criação das parcelas (ex: mockando um método para levantar uma exceção) e verificar, usando `@transaction.atomic`, que nem o registro `Loan` nem nenhuma `Installment` foram persistidos no banco.
 
----
+**Alvo 15:** `iabank.financial`: Serviço de Aplicação para `FinancialTransaction`
 
-**Alvo 11:** iabank.loans: Serializers
+- **Responsabilidade:** Implementar a lógica de serviço para registrar transações financeiras, com foco especial no caso de uso de registrar um pagamento para uma `Installment`.
 
-- **Responsabilidade:** Implementar os serializers para a API de empréstimos, incluindo o `LoanCreateSerializer` (para o DTO), `LoanListSerializer` (otimizado para listagem) e `LoanDetailSerializer` (com detalhes completos e parcelas aninhadas).
+**Alvo 16:** `iabank.financial`: Serializers e Views para `FinancialTransaction`
 
-**Alvo 12:** iabank.loans: Views e URLs
+- **Responsabilidade:** Implementar os DTOs e endpoints da API para gerenciar transações, incluindo um endpoint específico para registrar o pagamento de uma parcela (ex: `POST /api/v1/installments/{id}/pay/`).
 
-- **Responsabilidade:** Implementar os endpoints da API para todas as operações de empréstimo (`POST /loans/`, `GET /loans/`, `GET /loans/{id}/`), conectando os DTOs e a camada de serviço.
+**Alvo 17:** `iabank.operational`: Modelo `CollectionLog` e sua API CRUD
 
-> > > **PARADA DE TESTES DE INTEGRAÇÃO T5** (Validação da API de Gestão de Empréstimos End-to-End) <<<
+- **Responsabilidade:** Implementar o modelo `CollectionLog` e seus endpoints básicos para permitir o registro de interações de cobrança.
 
-- **Módulos no Grupo:** `iabank.loans` (Toda a stack: Modelos, Repositórios, Serviços, Serializers, Views).
-- **Objetivo do Teste:** Garantir que o fluxo completo de criação e consulta de um empréstimo funciona corretamente através da API REST, desde a requisição HTTP até a persistência no banco de dados.
+> > > **PARADA DE TESTES DE INTEGRAÇÃO T5** (Registro de Pagamentos e Cobrança) <<<
+
+- **Módulos no Grupo:** `financial` (Serviços e API), `operational` (CollectionLog).
+- **Objetivo do Teste:** Validar o fluxo de registro de pagamento de uma parcela, incluindo a criação da transação financeira correspondente e a atualização de status da parcela e do empréstimo.
 - **Cenários Chave:**
-  1. **Cenário de Criação (Cliente Novo):** Usando um usuário autenticado simulado, enviar uma requisição `POST` para `/api/v1/loans/` contendo os dados do empréstimo e um objeto aninhado `new_customer`. Verificar se a resposta é `201 Created`, e se os objetos `Customer`, `Loan` e `Installment` foram criados corretamente no banco de dados.
-  2. **Cenário de Listagem e Filtragem:** Criar múltiplos empréstimos com status diferentes (`IN_PROGRESS`, `PAID_OFF`). Fazer uma requisição `GET` para `/api/v1/loans/?status=IN_PROGRESS` e verificar se a resposta `200 OK` contém apenas os empréstimos com esse status e se os dados estão formatados conforme o `LoanListItemViewModel`.
-  3. **Cenário de Detalhe:** Fazer uma requisição `GET` para `/api/v1/loans/{id}/` e verificar se a resposta `200 OK` contém todos os detalhes do empréstimo e a lista completa de suas parcelas aninhadas.
+  1.  **Pagamento Total da Parcela:** Dado um empréstimo com uma parcela `PENDING`, fazer uma requisição ao endpoint de pagamento. Verificar se o status da `Installment` muda para `PAID`, se seu campo `amount_paid` é atualizado e se uma `FinancialTransaction` do tipo `INCOME` é criada e vinculada à parcela.
+  2.  **Pagamento Parcial da Parcela:** Fazer uma requisição de pagamento com um valor menor que o total da parcela. Verificar se o status da `Installment` muda para `PARTIALLY_PAID` e se `amount_paid` reflete o valor pago.
+  3.  **Finalização do Empréstimo:** Realizar o pagamento da última parcela pendente de um empréstimo. Verificar se o status do `Loan` é automaticamente atualizado para `PAID_OFF` (lógica a ser implementada no serviço).
+  4.  **Registro de Cobrança:** Dado um empréstimo em atraso, fazer um `POST` para `/api/v1/collection_logs/` e verificar se a anotação de cobrança foi criada com sucesso e associada ao empréstimo correto.
 
----
+**Alvo 18:** UI - Alvo UI-1: Camada `shared/ui`
 
-**Alvo 13:** iabank.financials: Modelo `FinancialTransaction` e Lógica de Integração
+- **Responsabilidade:** Criar a biblioteca de componentes de UI puros e reutilizáveis (ex: `Button`, `Input`, `Table`, `Modal`, `Badge`) com base no design system.
 
-- **Responsabilidade:** Implementar o modelo `FinancialTransaction` e evoluir os serviços para criar automaticamente uma transação de receita quando uma parcela (`Installment`) é marcada como paga.
+**Alvo 19:** UI - Alvo UI-2: Camada `shared/api` e `shared/lib`
 
-**Alvo 14:** iabank.financials: API para Transações Financeiras
+- **Responsabilidade:** Configurar o cliente HTTP (Axios) com interceptors para autenticação. Criar funções utilitárias para formatação de datas, moedas, etc.
 
-- **Responsabilidade:** Implementar os serializers e views para o CRUD de `FinancialTransaction` e o endpoint para registrar o pagamento de uma parcela que dispara a criação da transação financeira.
+**Alvo 20:** UI - Alvo UI-3: Camada `entities`
 
-> > > **PARADA DE TESTES DE INTEGRAÇÃO T6** (Validação da Integração entre Módulos Loans e Financials) <<<
+- **Responsabilidade:** Implementar os componentes, tipos (ViewModels) e hooks de busca de dados (TanStack Query) para cada entidade principal: `user`, `customer`, `loan`, `financialTransaction`. Ex: `useGetLoans`, `LoanStatusBadge`.
 
-- **Módulos no Grupo:** `iabank.financials` (Modelo e API de Transações), `iabank.loans` (Serviço atualizado).
-- **Objetivo do Teste:** Verificar se as ações no domínio de Empréstimos (pagamento de parcela) disparam corretamente os eventos esperados no domínio Financeiro (criação de transação).
+> > > **PARADA DE TESTES DE INTEGRAÇÃO T6** (Fundação da UI e Conectividade com API) <<<
+
+- **Módulos no Grupo:** Frontend (`shared`, `entities`).
+- **Objetivo do Teste:** Validar que a base da UI está funcional, os componentes de entidade renderizam corretamente e os hooks de dados conseguem buscar informações da API backend.
 - **Cenários Chave:**
-  1. **Cenário de Pagamento de Parcela:** Dado um empréstimo existente com parcelas `PENDING`, fazer uma requisição `POST` para um endpoint como `/api/v1/installments/{id}/pay/`. Verificar se o status da `Installment` muda para `PAID`, a `payment_date` é preenchida e, crucialmente, se uma nova `FinancialTransaction` do tipo `INCOME` foi criada e vinculada a esta parcela.
-  2. **Cenário de Estorno (Exclusão):** Após o cenário 1, simular um estorno deletando a `FinancialTransaction` associada. Verificar se a lógica de negócio reverte o status da `Installment` para `PENDING` (ou outro estado apropriado).
+  1.  **(Component Test/Storybook):** Isolar e renderizar componentes como `LoanStatusBadge` e `CustomerListViewModel` com dados mocados para garantir que a lógica de formatação e visualização está correta.
+  2.  **Conectividade da API (Login):** Montar um componente de teste que utiliza um hook `useLogin`. Simular a submissão do formulário e verificar se uma chamada `POST` é feita para `/api/v1/token/` e se o token JWT retornado é salvo no estado global (Zustand).
+  3.  **Busca de Dados Autenticada:** Em um ambiente de teste onde um token de login já foi simulado no estado global, montar um componente que usa o hook `useGetLoans`. Verificar se o hook dispara uma requisição `GET` para `/api/v1/loans/` com o `Authorization header` correto.
+  4.  **Manipulação de Estado (Loading/Error):** Para o hook `useGetCustomers`, mocar a resposta da API para simular um estado de carregamento e depois um erro. Verificar se o componente que consome o hook renderiza corretamente os indicadores de `loading` e `error`.
 
----
+**Alvo 21:** UI - Alvo UI-4: Camada `features`
 
-**Alvo 15:** UI-1: Camada `shared/ui` (UI Kit)
+- **Responsabilidade:** Implementar a lógica de interação do usuário, como o formulário de login (`features/auth`), o wizard de criação de empréstimo (`features/create-loan`) e os filtros da tabela (`features/filter-loans`).
 
-- **Responsabilidade:** Implementar a biblioteca de componentes visuais puros e reutilizáveis (`Button`, `Input`, `Table`, `Badge`, `Modal`, etc.) com base no design system.
+**Alvo 22:** UI - Alvo UI-5: Camada `widgets`, `app` e `pages`
 
-**Alvo 16:** UI-2: Camada `shared/api` e `shared/lib` (Base da UI)
+- **Responsabilidade:** Compor os componentes das camadas inferiores para construir widgets complexos (`LoansTable`, `Header`) e montar as telas finais (`LoansPage`, `DashboardPage`). Configurar o roteamento da aplicação na camada `app`.
 
-- **Responsabilidade:** Configurar o cliente HTTP (Axios), a instância do TanStack Query, gerar tipos TypeScript a partir dos DTOs do backend, e criar funções utilitárias (formatação de data/moeda).
+> > > **PARADA DE TESTES DE INTEGRAÇÃO T7** (Fluxos de Usuário End-to-End) <<<
 
-> > > **PARADA DE TESTES DE INTEGRAÇÃO T7** (Validação da Base da UI e Componentes) <<<
-
-- **Módulos no Grupo:** `frontend/src/shared`.
-- **Objetivo do Teste:** Garantir que os componentes base da UI estão funcionais e visualmente corretos, e que a camada de comunicação com a API está pronta para ser consumida.
+- **Módulos no Grupo:** Frontend (todas as camadas).
+- **Objetivo do Teste:** Validar os fluxos de negócio completos da perspectiva do usuário, garantindo que a interação na UI se traduza nas operações corretas no backend e que a UI reaja adequadamente às respostas da API.
 - **Cenários Chave:**
-  1. **Cenário de Teste de Componentes (Visual):** Usar uma ferramenta como Storybook para renderizar cada componente do UI Kit em vários estados (ex: botão primário, secundário, desabilitado) e validar sua aparência e responsividade.
-  2. **Cenário de Hook de API:** Criar um teste de unidade para um hook customizado que usa TanStack Query (ex: `useLoansList`). Mockar a resposta da API e verificar se o hook gerencia corretamente os estados `isLoading`, `isSuccess`, `data` e `error`.
-
----
-
-**Alvo 17:** UI-3: Camada `entities`
-
-- **Responsabilidade:** Implementar os componentes que representam entidades de negócio, como `LoanRow` (uma linha na tabela de empréstimos), `CustomerCard`, e os hooks específicos para buscar dados dessas entidades (ex: `useLoanById`).
-
-**Alvo 18:** UI-4: Camada `features`
-
-- **Responsabilidade:** Implementar componentes que orquestram a interação do usuário, como `CreateLoanForm` (que contém a lógica de estado do formulário e a mutação para a API) e `LoansFilterPanel`.
-
-**Alvo 19:** UI-5: Camada `app` e `pages`
-
-- **Responsabilidade:** Configurar o roteador da aplicação, provedores globais (React Query, Zustand) e compor as páginas finais (ex: `LoansPage`, `CreateLoanPage`) juntando os componentes das camadas `features` e `entities`.
-
-> > > **PARADA DE TESTES DE INTEGRAÇÃO T8** (Validação do Fluxo de Usuário Completo na UI) <<<
-
-- **Módulos no Grupo:** `frontend/src/entities`, `frontend/src/features`, `frontend/src/pages`.
-- **Objetivo do Teste:** Validar os principais fluxos de usuário de ponta a ponta, desde a interação na interface até a confirmação de que os dados foram corretamente processados e persistidos pelo backend.
-- **Cenários Chave:**
-  1. **Cenário de Login e Navegação:** Simular um usuário preenchendo o formulário de login. Após o sucesso, verificar se o token é salvo, o usuário é redirecionado para o dashboard e se os dados do usuário (ex: nome) são exibidos corretamente na UI.
-  2. **Cenário de Listagem e Filtragem de Empréstimos:** Navegar para a página de empréstimos. Verificar se a tabela é preenchida com dados do backend. Interagir com um filtro (ex: selecionar status "Pago") e verificar se a lista de empréstimos é atualizada na tela para refletir a chamada de API correspondente.
-  3. **Cenário de Criação de Empréstimo (End-to-End):** Navegar para a página de criação de empréstimo. Preencher todos os campos do formulário `CreateLoanForm` e submeter. Verificar se uma mensagem de sucesso é exibida e se, ao navegar de volta para a lista de empréstimos, o novo empréstimo aparece na tabela.
+  1.  **Login e Visualização de Dados:** Acessar a página de login, preencher credenciais válidas e submeter. Verificar se o usuário é redirecionado para a `LoansPage`, se o `Header` exibe o nome do usuário e se a `LoansTable` é preenchida com os dados de empréstimos vindos da API.
+  2.  **Criação de Empréstimo (E2E):** Na `LoansPage`, clicar no botão "Novo Empréstimo". Preencher o formulário no wizard `create-loan`, selecionar um cliente existente, e submeter. Verificar se a UI exibe uma notificação de sucesso, a tabela de empréstimos é automaticamente atualizada (revalidada pelo TanStack Query) e o novo empréstimo aparece na lista.
+  3.  **Interação com a Tabela:** Na `LoansTable`, usar os filtros de status (ex: "Em Cobrança"). Verificar se uma nova chamada à API é feita com os parâmetros de filtro corretos e se a tabela é re-renderizada para mostrar apenas os resultados filtrados.
+  4.  **Navegação Protegida:** Sem estar logado, tentar acessar diretamente a URL `/loans`. Verificar se o sistema de roteamento redireciona o usuário para a página de login.
