@@ -7,8 +7,8 @@
 1. **Módulos Alvo da Integração (O Grupo Atual):**
    - `Alvo 0`, `iabank.core` (Modelos, Auth, Middleware, CRUD Usuários)
    - _(Instrução para Coordenador: Anexar os arquivos .py destes módulos.)_
-2. **Blueprint Arquitetural (Fonte da Verdade Arquitetural):** @Blueprint_Evolutivo_vX.X.md
-3. **Ordem de Implementação e Plano de Testes (Fonte da Verdade dos Cenários):** @Output_Ordem_Para_Implementacao_Geral_vX.X.md
+2. **Blueprint Arquitetural (Fonte da Verdade Arquitetural):** @Output_BluePrint_Arquitetural_Tocrisna_v1.0.md
+3. **Ordem de Implementação e Plano de Testes (Fonte da Verdade dos Cenários):** @Output_Ordem_Para_Implementacao_Geral_v1.0.md
 4. **Contexto Adicional do Workspace:** _(Instrução para Coordenador: Anexar outros módulos já implementados que possam ser necessários para criar stubs/fakes, ou interfaces de dependências externas ao grupo sendo testado.)_
 
 **Instruções Detalhadas para a IA (IntegradorTester):**
@@ -16,7 +16,7 @@
 1. **Identificar Escopo e Cenários Definidos:**
 
    - Analise a lista de "Módulos Alvo da Integração".
-   - No arquivo `@Output_Ordem_Para_Implementacao_Geral_vX.X.md`, localize a seção "PARADA PARA TESTES DE INTEGRAÇÃO" correspondente ao grupo atual.
+   - No arquivo `@Output_Ordem_Para_Implementacao_Geral_v1.0.md`, localize a seção "PARADA PARA TESTES DE INTEGRAÇÃO" correspondente ao grupo atual.
    - Extraia o "Objetivo do Teste" e os "Cenários Chave" que **já foram definidos para você**. Sua tarefa é implementar testes que cubram fielmente estes cenários.
 
 2. **Analisar Blueprint e Código Fonte:**

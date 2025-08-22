@@ -5,8 +5,8 @@
 **Contexto Essencial:**
 
 1. **Componente Alvo Principal:** Alvo 0: Setup do Projeto Profissional
-2. **Blueprint Arquitetural:** @Output_BluePrint_Arquitetural_vX.X.md
-3. **Ordem de Implementação:** @Output_Ordem_Para_Implementacao_Geral_vX.X.md
+2. **Blueprint Arquitetural:** @Output_BluePrint_Arquitetural_Tocrisna_v1.0.md
+3. **Ordem de Implementação:** @Output_Ordem_Para_Implementacao_Geral_v1.0.md
 
 ---
 

@@ -8,7 +8,7 @@ Sua tarefa é modificar um projeto de software existente para corrigir um bug, r
 
 ### **REGRAS FUNDAMENTAIS (NÃO NEGOCIÁVEIS)**
 
-1. **A Constituição do Projeto:** O arquivo `@Blueprint_Evolutivo_vX.X.md` é a **fonte única e autoritativa da verdade** para a arquitetura do projeto. Antes de escrever qualquer linha de código, você deve compreendê-lo profundamente. Sua principal diretriz é manter a integridade deste Blueprint.
+1. **A Constituição do Projeto:** O arquivo `@Output_BluePrint_Arquitetural_Tocrisna_v1.0.md` é a **fonte única e autoritativa da verdade** para a arquitetura do projeto. Antes de escrever qualquer linha de código, você deve compreendê-lo profundamente. Sua principal diretriz é manter a integridade deste Blueprint.
 
 2. **Proibição de Violação Arquitetural:** Suas modificações **NÃO PODEM**, em nenhuma circunstância, violar os contratos de interface, os modelos de domínio, os contratos de dados da view ou os princípios de separação de camadas definidos no Blueprint.
 
@@ -37,13 +37,13 @@ Sua tarefa é modificar um projeto de software existente para corrigir um bug, r
 Quero que voce faça uma analise profunda e minuciosa de todo o nosso fluxo a procura de algum problema que possa estar causando este comportamento e então resolva a raiz desse problema da forma mais inteligente e eficiente possivel.
 
 **2. Contexto Inicial (Arquivos Relevantes):**
-Para contexto @Blueprint_Arquitetural e tudo o que precisar na minha codebase.
+Para contexto `@Blueprint_Arquitetural` e tudo o que precisar na minha codebase.
 
 ---
 
 ### **FORMATO DO OUTPUT ESPERADO**
 
-Você deve fornecer um relatório claro e conciso seguido pelos blocos de código completos para cada arquivo modificado. Salve-o na pasta @Fase4_Evolucionista_Resumos.
+Você deve fornecer um relatório claro e conciso seguido pelos blocos de código completos para cada arquivo modificado. Salve-o na pasta `@Fase4_Evolucionista_Resumos`.
 
 ````markdown
 ### Resumo da Evolução
@@ -58,7 +58,7 @@ Você deve fornecer um relatório claro e conciso seguido pelos blocos de códig
   - `backend/tests/unit/iabank/test_operations_services.py`: Adicionado novo teste de regressão `test_calculate_interest_with_compound_rates` para validar a correção.]
 
 - **Confirmação de Conformidade:**
-  "Confirmo que todas as modificações aderem estritamente ao `@Blueprint_Arquitetural.md` fornecido e que nenhum princípio arquitetural foi violado."
+  "Confirmo que todas as modificações aderem estritamente ao `@Blueprint_Arquitetural` fornecido e que nenhum princípio arquitetural foi violado."
 
 - **Confirmação de Testes:**
   "Confirmo que os testes necessários foram adicionados/modificados para cobrir esta mudança, seguindo a estrutura e convenção de nomenclatura do projeto. A suíte de testes completa passará após estas modificações."
