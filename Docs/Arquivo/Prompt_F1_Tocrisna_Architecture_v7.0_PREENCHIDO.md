@@ -1,4 +1,4 @@
-# AGV Prompt Template: Tocrisna v6.4 - Definição da Arquitetura Técnica e de Produto
+# AGV Prompt Template: Tocrisna v7.0 - Definição da Arquitetura Técnica e de Produto
 
 ## Tarefa Principal
 
@@ -345,7 +345,7 @@ Definir e documentar uma proposta de arquitetura de alto nível, cobrindo tanto 
   - **Auditoria:** Implementação de uma trilha de auditoria completa para todas as ações críticas (Criação, Edição, Exclusão), conforme mapeado no módulo "Log de Atividades".
   - **Compliance (Fundação LGPD):** A plataforma deve ser construída com os princípios da LGPD em mente (ex: todos os dados pertencem a um "titular"). Embora a gestão completa de consentimento seja para fases futuras, a base de dados já deve suportar essa estrutura.
 
-- **Principais Restrições (se houver):** `[Ex: Orçamento limitado, Prazo curto, Deve integrar com API X existente]`
+- **Principais Restrições (se houver):** `[Ex: Orçamento limitado, Prazo curto, Deve integrar com API X existente, etc.]`
 
 - **Definição de Escopo (Opcional - Recomendado para projetos complexos):**
   - **Dentro do Escopo:** A implementação completa da plataforma SaaS web, conforme descrito no "Mapeamento Completo do Sistema". Isso inclui todos os módulos, do Dashboard à Administração, para os usuários via navegador web.
@@ -373,16 +373,17 @@ Definir e documentar uma proposta de arquitetura de alto nível, cobrindo tanto 
      - Se, alternativamente, a configuração for obtida de um serviço de configuração centralizado ou por um método de configuração dedicado, mencione essa abordagem e a interface relevante.
      - O objetivo é garantir que o blueprint deixe claro como os componentes são instanciados com suas configurações necessárias, promovendo desacoplamento e testabilidade.
 5. **Listagem Explícita de Dependências Diretas:** **IMPORTANTE:** Para cada componente/módulo principal descrito, liste explicitamente os **outros arquivos `.py` ou módulos específicos** dos quais ele depende diretamente para importar e usar funcionalidades. Use caminhos relativos à raiz do projeto (ex: `fotix.domain.models`, `utils.helpers`).
-6. **Testabilidade:** A arquitetura deve facilitar a escrita de testes unitários e de integração (ex: permitir injeção de dependência onde fizer sentido).
-7. **Segurança Fundamental:** Incorpore princípios básicos de segurança desde o design (ex: onde a validação de input deve ocorrer, como dados sensíveis podem ser tratados – sugerir hashing/criptografia, necessidade de autenticação/autorização).
+6. **Testabilidade:** A arquitetura deve facilitar a escrita de testes unitários e de integração (ex: permitir injeção de dependência, usar funções puras, etc.).
+7. **Segurança Fundamental:** Incorpore princípios básicos de segurança desde o design (ex: onde a validação de input deve ocorrer, como dados sensíveis podem ser tratados – sugerir hashing/criptografia, necessidade de autenticação/autorização, etc.).
 8. **Aderência à Stack:** Utilize primariamente as tecnologias definidas na Stack Tecnológica. Se sugerir uma tecnologia _adicional_, justifique claramente a necessidade.
 9. **Padrões de Design:** Sugira e aplique padrões de design relevantes (ex: Repository, Service Layer, Observer, Strategy, etc.) onde eles agregarem valor à estrutura e manutenibilidade. Justifique brevemente a escolha.
-10. **Escalabilidade (Básica):** Considere como a arquitetura pode suportar um crescimento moderado no futuro (ex: design sem estado para serviços, possibilidade de paralelizar tarefas usando `concurrent.futures`).
+10. **Escalabilidade (Básica):** Considere como a arquitetura pode suportar um crescimento moderado no futuro (ex: design sem estado para serviços, possibilidade de paralelizar tarefas, uso de caching, etc.).
 11. **Especificação de Tecnologias para Tipos de Componentes:** Para garantir consistência e aderência à stack definida, ao descrever os componentes/módulos, você DEVE especificar a tecnologia ou biblioteca principal a ser utilizada para certos tipos de artefatos, quando aplicável e relevante para a arquitetura. Por exemplo:
     - **Modelos de Dados (DTOs, entidades de domínio, configurações):** Especificar o uso de **Pydantic `BaseModel`** como a tecnologia padrão para sua definição, visando validação de dados e facilidades de serialização.
-    - **Camada de Acesso a Dados (se houver BD):** Especificar o ORM (ex: SQLAlchemy) ou a biblioteca de acesso.
-    - **APIs Web (se houver):** Especificar o framework (ex: FastAPI, Flask).
-    - **Interface de Usuário (se houver):** Especificar o framework de UI (ex: PySide6). \* (Adicionar outros tipos de componentes/tecnologias conforme a necessidade do projeto).
+    - **Camada de Acesso a Dados (se houver BD):** Especificar o ORM (ex: SQLAlchemy, etc.) ou a biblioteca de acesso.
+    - **APIs Web (se houver):** Especificar o framework (ex: FastAPI, Flask, etc.).
+    - **Interface de Usuário (se houver):** Especificar o framework de UI (ex: PySide6, etc.).
+    - Adicionar outros tipos de componentes/tecnologias conforme a necessidade do projeto.
       Estas especificações devem constar na descrição de cada componente relevante no Blueprint Arquitetural.
 
 ## Resultado Esperado (Blueprint Arquitetural)
@@ -410,7 +411,7 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
 
    - **2.2. Nível 2: Diagrama de Containers (C2)**
 
-     - **Objetivo:** Dar um "zoom" no Sistema, mostrando as principais "caixas" tecnológicas (containers) que o compõem e como elas se comunicam. Um container é uma unidade executável/implantável (ex: aplicação web, banco de dados, API).
+     - **Objetivo:** Dar um "zoom" no Sistema, mostrando as principais "caixas" tecnológicas (containers) que o compõem e como elas se comunicam. Um container é uma unidade executável/implantável (ex: aplicação web, banco de dados, API, etc.).
      - **Elementos a incluir:** Frontend, Backend API, Banco de Dados, Cache, Filas, etc.
      - **Exemplo de estrutura Mermaid:**
 
@@ -502,7 +503,7 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
    - **Estratégia de Gerenciamento de Estado:** Especifique claramente a abordagem para os diferentes tipos de estado:
 
      - **Estado do Servidor (Server State):** Como os dados vindos da API serão buscados, cacheados e sincronizados. Mencione o uso de bibliotecas especializadas (como TanStack Query, SWR, Apollo Client) como a fonte da verdade para esses dados.
-     - **Estado Global do Cliente (Global Client State):** Se e como o estado síncrono compartilhado entre diferentes partes da UI será gerenciado (ex: informações do usuário logado, tema da UI). Sugira ferramentas apropriadas para o ecossistema do framework (ex: Zustand, Jotai para React; Pinia para Vue; Stores para Svelte).
+     - **Estado Global do Cliente (Global Client State):** Se e como o estado síncrono compartilhado entre diferentes partes da UI será gerenciado (ex: informações do usuário logado, tema da UI). Sugira ferramentas apropriadas para o ecossistema do framework (ex: Zustand, Jotai para React; Pinia para Vue; Stores para Svelte, etc.).
      - **Estado Local do Componente (Local Component State):** Confirme que o estado efêmero e não compartilhado deve ser mantido localmente nos componentes usando os mecanismos nativos do framework.
 
    - **Fluxo de Dados:** Descreva brevemente o fluxo de dados típico na aplicação, desde a interação do usuário, passando pela camada de funcionalidades, a chamada à API, a atualização do estado do servidor, até a renderização final nos componentes de UI.
@@ -519,13 +520,13 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
    - Seção "Como Começar" (com instruções para instalar dependências e rodar o projeto).
    - Seção "Como Executar os Testes".
    - Seção "Estrutura do Projeto" (uma breve explicação das pastas principais).
-10. **Arquivo `LICENSE` Proposto:** Uma sugestão de licença de software (ex: MIT, Apache 2.0) e a geração do **texto completo** correspondente para o arquivo `LICENSE` na raiz do projeto. Se nenhuma for especificada, sugira a MIT como um padrão seguro.
-11. **Arquivo `CONTRIBUTING.md` Proposto:** A geração de um **template de conteúdo** para o `CONTRIBUTING.md`, descrevendo como contribuir para um projeto que segue o Método AGV (ex: seguir o blueprint, garantir testes, etc.). O documento deve também mencionar as políticas de qualidade de código, como o uso de linters (ex: Ruff, ESLint) e formatadores (ex: Black, Prettier), e sugerir a automação dessas checagens através de ganchos de pre-commit (mencionando o arquivo .pre-commit-config.yaml). Adicionalmente, o documento deve estabelecer um padrão mínimo para a documentação de código (ex: estilo de docstrings para funções públicas e classes) para garantir a manutenibilidade do projeto a longo prazo.
+10. **Arquivo `LICENSE` Proposto:** Uma sugestão de licença de software (ex: MIT, Apache 2.0, etc.) e a geração do **texto completo** correspondente para o arquivo `LICENSE` na raiz do projeto. Se nenhuma for especificada, sugira a MIT como um padrão seguro.
+11. **Arquivo `CONTRIBUTING.md` Proposto:** A geração de um **template de conteúdo** para o `CONTRIBUTING.md`, descrevendo como contribuir para um projeto que segue o Método AGV (ex: seguir o blueprint, garantir testes, etc.). O documento deve também mencionar as políticas de qualidade de código, como o uso de linters (ex: Ruff, ESLint, etc.) e formatadores (ex: Black, Prettier, etc.), e sugerir a automação dessas checagens através de ganchos de pre-commit (mencionando o arquivo .pre-commit-config.yaml). Adicionalmente, o documento deve estabelecer um padrão mínimo para a documentação de código (ex: estilo de docstrings para funções públicas e classes, etc.) para garantir a manutenibilidade do projeto a longo prazo.
 12. **Estrutura do `CHANGELOG.md`:** A geração de um arquivo `CHANGELOG.md` inicial, contendo apenas a estrutura padrão (ex: `## [Unreleased]`, `## [0.1.0] - YYYY-MM-DD`) para ser preenchido futuramente.
-13. **Estratégia de Configuração e Ambientes:** Descreva como as configurações da aplicação (segredos, conexões de banco de dados, etc.) serão gerenciadas em diferentes ambientes (desenvolvimento, homologação, produção). Sugira o uso de variáveis de ambiente e arquivos de configuração específicos por ambiente (ex: usando python-decouple ou django-environ).
+13. **Estratégia de Configuração e Ambientes:** Descreva como as configurações da aplicação (segredos, conexões de banco de dados, etc.) serão gerenciadas em diferentes ambientes (desenvolvimento, homologação, produção). Sugira o uso de variáveis de ambiente e arquivos de configuração específicos por ambiente (ex: usando python-decouple, django-environ, etc.).
 14. **Estratégia de Observabilidade Completa:** Detalhe uma abordagem abrangente para observabilidade do sistema em produção. A descrição deve incluir:
 
-    - **Logging Estruturado:** Defina a abordagem para logging de eventos e erros. Sugira o uso de logs estruturados (JSON) para facilitar a análise por ferramentas externas (ex: Sentry, Datadog, ELK Stack). Defina diferentes níveis de log para produção e desenvolvimento.
+    - **Logging Estruturado:** Defina a abordagem para logging de eventos e erros. Sugira o uso de logs estruturados (JSON) para facilitar a análise por ferramentas externas (ex: Sentry, Datadog, ELK Stack, etc.). Defina diferentes níveis de log para produção e desenvolvimento.
 
     - **Métricas de Negócio:** Defina métricas específicas do domínio que devem ser coletadas e como elas serão expostas e visualizadas. Especifique métricas que permitam monitorar a saúde do negócio, não apenas da infraestrutura.
 
@@ -539,13 +540,13 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
 
     - **Estrutura e Convenção de Nomenclatura de Testes:** Defina a estrutura de diretórios para os testes (ex: `tests/unit`, `tests/integration`). Para evitar conflitos de nomes de módulos, estabeleça uma convenção de nomenclatura explícita para os arquivos de teste, como `test_<nome_do_app>_<nome_do_modulo>.py` (ex: `test_users_models.py`, `test_loans_services.py`).
     - **Padrões de Teste de Integração:** Defina as convenções para escrever testes de integração robustos e de fácil manutenção:
-      - **Uso de Factories:** Recomende o uso de uma biblioteca de "factories" (ex: `factory-boy` para Python, `Faker.js` para Node) para a criação de dados de teste complexos e consistentes, evitando a configuração manual de objetos em cada teste.
-      - **Simulação de Autenticação:** Para testes que requerem um usuário autenticado, especifique o uso de métodos de simulação fornecidos pelo framework (ex: `force_authenticate` no DRF, `TestSecurityContextHolder` no Spring Security) em vez de simular o fluxo de login completo em cada teste. Isso isola o teste da lógica de autenticação.
+      - **Uso de Factories:** Recomende o uso de uma biblioteca de "factories" (ex: `factory-boy` para Python, `Faker.js` para Node, etc.) para a criação de dados de teste complexos e consistentes, evitando a configuração manual de objetos em cada teste.
+      - **Simulação de Autenticação:** Para testes que requerem um usuário autenticado, especifique o uso de métodos de simulação fornecidos pelo framework (ex: `force_authenticate` no DRF, `TestSecurityContextHolder` no Spring Security, etc.) em vez de simular o fluxo de login completo em cada teste. Isso isola o teste da lógica de autenticação.
       - **Escopo de Teste:** Enfatize que os testes de integração de uma funcionalidade (ex: CRUD de Empréstimos) devem focar em validar **essa** funcionalidade, tratando dependências já testadas (como autenticação e multi-tenancy) como "caixas-pretas" que podem ser simuladas ou pré-configuradas.
 
 16. **Estratégia de CI/CD (Integração e Implantação Contínuas):** Descreva uma estratégia de CI/CD de alto nível para automatizar a construção, teste e implantação da aplicação. A descrição deve incluir:
 
-    - **Ferramenta Sugerida:** Recomende uma ferramenta de CI/CD (ex: GitHub Actions, GitLab CI, Jenkins) e a criação de um arquivo de configuração de pipeline na raiz do projeto (ex: `.github/workflows/main.yml`).
+    - **Ferramenta Sugerida:** Recomende uma ferramenta de CI/CD (ex: GitHub Actions, GitLab CI, Jenkins, etc) e a criação de um arquivo de configuração de pipeline na raiz do projeto (ex: `.github/workflows/main.yml, etc.`).
 
     - **Gatilhos do Pipeline:** Defina quando o pipeline deve ser executado (ex: em cada push para o branch `main` e em cada abertura de Pull Request).
 
@@ -561,7 +562,7 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
 
     - **Threat Modeling Básico:** Identifique e documente as principais ameaças ao sistema baseadas no modelo de negócio e arquitetura proposta. Para cada ameaça identificada, sugira controles de mitigação específicos que devem ser implementados na arquitetura.
 
-    - **Estratégia de Secrets Management:** Defina como dados sensíveis (chaves de API, senhas de banco, certificados) serão armazenados, rotacionados e acessados em diferentes ambientes. Especifique se será usado um serviço dedicado (ex: HashiCorp Vault, AWS Secrets Manager) ou variáveis de ambiente criptografadas.
+    - **Estratégia de Secrets Management:** Defina como dados sensíveis (chaves de API, senhas de banco, certificados) serão armazenados, rotacionados e acessados em diferentes ambientes. Especifique se será usado um serviço dedicado (ex: HashiCorp Vault, AWS Secrets Manager, etc.) ou variáveis de ambiente criptografadas.
 
     - **Compliance Framework (se aplicável):** Se o projeto está sujeito a regulamentações específicas (LGPD, PCI DSS, SOX, HIPAA), detalhe os controles arquiteturais necessários para conformidade, incluindo:
 
@@ -602,7 +603,7 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
       - Todos os testes passando
       - Conformidade com padrões de código (linting)
 
-    - **Métricas de Performance:** Para componentes críticos, defina benchmarks de performance que devem ser mantidos (ex: tempo de resposta de APIs, throughput de processamento, uso de memória).
+    - **Métricas de Performance:** Para componentes críticos, defina benchmarks de performance que devem ser mantidos (ex: tempo de resposta de APIs, throughput de processamento, uso de memória, etc.).
 
 24. **Análise de Riscos e Plano de Mitigação (Opcional - Recomendado para projetos críticos):** Para projetos de alta criticidade, compliance regulatório ou sistemas financeiros, forneça uma análise estruturada dos principais riscos técnicos e de negócio que podem impactar o projeto. Use uma matriz de riscos para priorização.
 
