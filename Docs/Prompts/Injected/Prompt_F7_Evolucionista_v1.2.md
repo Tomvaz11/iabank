@@ -20,9 +20,7 @@ Sua tarefa é modificar um projeto de software existente para corrigir um bug, r
    - **Teste Unitário (Sempre):** Se a mudança envolve lógica dentro de uma classe ou função, você **DEVE** adicionar ou modificar um **teste unitário** para validar a mudança específica.
    - **Teste de Integração (Se Necessário):** Se a sua mudança introduz uma **nova interação significativa** entre componentes que não era testada antes, você **DEVE** adicionar um novo teste de integração.
    - **Teste de Regressão (Para Bugs):** No caso de uma correção de bug, o novo teste unitário que você criar deve ser projetado para falhar antes da sua correção e passar depois. Descreva brevemente no seu relatório como o teste valida a correção.
-   - **Estrutura de Testes:** Todos os novos arquivos de teste **DEVEM** seguir a estrutura e convenção de nomenclatura definidas no `Blueprint`:
-     - **Localização:** `backend/tests/unit/` ou `backend/tests/integration/`.
-     - **Nomenclatura:** `test_<nome_do_app>_<nome_do_modulo>.py` (ex: `test_operations_services.py`).
+   - **Estrutura de Testes:** Todos os novos arquivos de teste **DEVEM** seguir a estrutura e convenção de nomenclatura definidas no `Blueprint`.
 
 5. **Consistência e Qualidade:** Mantenha o estilo e os padrões do código existente (`ruff`, `black`, etc.). Adicione ou atualize docstrings (PEP 257) para qualquer código novo ou modificado.
 
@@ -52,10 +50,7 @@ Você deve fornecer um relatório claro e conciso seguido pelos blocos de códig
   [Sua análise concisa da causa raiz do bug ou da necessidade da mudança, com base na tarefa e nos arquivos de contexto.]
 
 - **Plano de Ação Executado:**
-  [Uma lista resumida, em formato de bullet points, das mudanças que você implementou, arquivo por arquivo. Ex:
-
-  - `backend/src/iabank/operations/services.py`: Modificado o método `calculate_interest` para corrigir o cálculo de juros compostos.
-  - `backend/tests/unit/iabank/test_operations_services.py`: Adicionado novo teste de regressão `test_calculate_interest_with_compound_rates` para validar a correção.]
+  [Uma lista resumida, em formato de bullet points, das mudanças que você implementou, arquivo por arquivo.]
 
 - **Confirmação de Conformidade:**
   "Confirmo que todas as modificações aderem estritamente ao `@Blueprint_Arquitetural` fornecido e que nenhum princípio arquitetural foi violado."

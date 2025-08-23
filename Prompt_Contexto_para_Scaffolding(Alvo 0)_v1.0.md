@@ -8,562 +8,576 @@ Você é um assistente especializado do Método AGV. Sua tarefa é analisar o `@
 
 - **Blueprint Mestre:**
 
-# **Blueprint Arquitetural: IABANK v1.0.0**
+# **Blueprint Arquitetural: IABANK v1.0**
+
+**Versão do Documento:** 1.0.0
+**Data:** 2025-08-23
+**Autores:** AGV Method
+
+---
 
 ## 1. Visão Geral da Arquitetura
 
-A arquitetura escolhida para o `IABANK` é uma **Arquitetura Monolítica em Camadas (Majestic Monolith)** para o backend, servindo uma aplicação **Single Page Application (SPA)** no frontend.
+A arquitetura do `IABANK` será baseada em uma abordagem de **Monólito Modular em Camadas**. Esta escolha visa equilibrar a velocidade de desenvolvimento inicial com a manutenibilidade e escalabilidade futuras.
 
-- **Backend:** Um único serviço Django que encapsula toda a lógica de negócio, acesso a dados e exposição de uma API RESTful. Esta abordagem maximiza a velocidade de desenvolvimento inicial, simplifica o deploy e mantém a coesão do domínio em um único lugar, o que é ideal para a fase atual do projeto. As camadas são:
+- **Backend:** Um único serviço Django que expõe uma API RESTful. Internamente, o código será organizado em "apps" Django que representam os domínios de negócio (ex: `loans`, `customers`, `finance`), promovendo alta coesão e baixo acoplamento entre os módulos. A arquitetura interna seguirá o padrão de Camadas (Apresentação, Aplicação, Domínio, Infraestrutura) para uma clara separação de responsabilidades.
+- **Frontend:** Uma Single Page Application (SPA) desenvolvida em React/TypeScript, que consome a API do backend. Ela será responsável por toda a renderização e experiência do usuário.
+- **Comunicação:** A comunicação entre Frontend e Backend será síncrona, via API RESTful (JSON sobre HTTPS). Tarefas assíncronas (como envio de e-mails) serão delegadas ao Celery com um broker Redis.
+- **Multi-tenancy:** A arquitetura será multi-tenant desde o início, utilizando uma estratégia de **isolamento de dados por chave estrangeira (`tenant_id`)**. Todos os dados de negócio serão particionados por Tenant no nível do banco de dados, e a camada de acesso a dados garantirá que nenhuma query possa vazar dados entre tenants.
 
-  1.  **Apresentação (API):** Construída com Django REST Framework (DRF), responsável por expor os endpoints, lidar com autenticação, serialização de dados (DTOs) e validação de requisições.
-  2.  **Aplicação (Serviços):** Orquestra a lógica de negócio, coordena a interação entre diferentes modelos de domínio e executa os casos de uso.
-  3.  **Domínio (Modelos):** O coração do sistema. Contém os modelos de dados do Django com toda a lógica de negócio intrínseca à entidade (validações, estados, etc.).
-  4.  **Infraestrutura:** Camada de acesso a dados (ORM do Django), comunicação com serviços externos (futuras integrações), cache (Redis) e tarefas assíncronas (Celery).
-
-- **Frontend:** Uma aplicação React (SPA) desacoplada que consome a API do backend. Isso permite que a equipe de frontend trabalhe de forma independente e oferece uma experiência de usuário rica e moderna.
-
-- **Organização do Código-Fonte:** Será utilizado um **Monorepo**, gerenciado com ferramentas como `npm workspaces` ou `pnpm` para o frontend. A estrutura conterá duas pastas principais na raiz: `backend/` e `frontend/`.
-  - **Justificativa:** Um monorepo facilita a gestão de dependências compartilhadas (ex: tipos de DTOs), simplifica o setup do ambiente de desenvolvimento e permite a execução de testes end-to-end de forma mais integrada. Para uma equipe coesa no início do projeto, os benefícios de coordenação superam a complexidade de múltiplos repositórios.
+**Organização do Código-Fonte:** Será utilizado um **monorepo**, gerenciado com ferramentas de workspace se necessário. Esta abordagem simplifica o desenvolvimento e o CI/CD, garantindo que o contrato entre a API do backend e o consumidor do frontend permaneça sempre sincronizado no mesmo commit. O repositório conterá duas pastas principais na raiz: `backend/` e `frontend/`.
 
 ## 2. Diagramas da Arquitetura (Modelo C4)
 
 ### 2.1. Nível 1: Diagrama de Contexto do Sistema (C1)
 
+Este diagrama mostra o sistema `IABANK` e suas interações com usuários e sistemas externos.
+
 ```mermaid
 graph TD
     subgraph "Ecossistema IABANK"
-        U1[Gestor / Administrador]
-        U2[Consultor / Cobrador]
-
-        System_IABANK[("IABANK Platform")]
-
-        U1 -- "Gerencia empréstimos, finanças e usuários via [Web App]" --> System_IABANK
-        U2 -- "Executa gestão de campo via [Web App]" --> System_IABANK
-
-        System_IABANK -- "Consulta dados de crédito (Futuro) via [API REST]" --> SE1[Bureaus de Crédito]
-        System_IABANK -- "Processa pagamentos (Futuro) via [API]" --> SE2[Plataformas Bancárias (Pix, Open Finance)]
-        System_IABANK -- "Envia notificações (Futuro) via [API]" --> SE3[Sistemas de Comunicação (WhatsApp, Email)]
+        style IABANK fill:#f9f,stroke:#333,stroke-width:4px
+        IABANK[("IABANK SaaS Platform")]
     end
 
-    style System_IABANK fill:#1E90FF,stroke:#333,stroke-width:2px,color:#fff
+    Admin[Gestor / Administrador] -- "Gerencia a plataforma via" --> WebApp
+    Consultant[Consultor / Cobrador] -- "Executa operações via" --> WebApp
+
+    subgraph "Navegador Web"
+        WebApp[Painel Web (React SPA)]
+    end
+
+    WebApp -- "Usa (HTTPS/REST API)" --> IABANK
+
+    IABANK -- "Envia e-mails via" --> SMTP[Sistema de E-mail (SMTP)]
+    IABANK -.->|Futuro: Consulta dados de crédito| CreditBureau[Bureaus de Crédito]
+    IABANK -.->|Futuro: Inicia transações| OpenFinance[Plataformas Bancárias (Open Finance, Pix)]
+
+    style CreditBureau fill:#ccc,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
+    style OpenFinance fill:#ccc,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
 ```
 
 ### 2.2. Nível 2: Diagrama de Containers (C2)
 
+Este diagrama detalha os principais blocos tecnológicos que compõem a plataforma `IABANK`.
+
 ```mermaid
 graph TD
-    subgraph "Sistema IABANK"
-        User[Usuário] -->|HTTPS via Navegador| FE[Frontend SPA\n[React + Vite]\nServe a interface web]
+    User[Usuário (Gestor, Consultor)] -- "Acessa via HTTPS" --> WebApp[Frontend SPA (React + TypeScript)]
 
-        FE -->|API REST (JSON/HTTPS)| API[Backend API\n[Python / Django]\nContém toda a lógica de negócio]
+    subgraph "Infraestrutura Cloud (Containerizada com Docker)"
+        WebApp -- "Consome API REST (HTTPS)" --> Nginx[Nginx Reverse Proxy]
+        Nginx -- "/api/*" --> BackendAPI[Backend API (Python/Django)]
+        Nginx -- "/*" --> WebApp
 
-        API -->|Leitura/Escrita via TCP/IP| DB[Banco de Dados\n[PostgreSQL]\nArmazena dados de empréstimos, clientes, etc.]
-        API -->|Comandos| Cache[Cache & Fila\n[Redis]\nArmazena sessões, cache e gerencia tarefas assíncronas]
-
-        Worker[Worker de Tarefas\n[Celery]\nProcessa tarefas em background] --> Cache
-        Cache --> Worker
-        Worker --> API
-        Worker --> DB
+        BackendAPI -- "Lê/Escreve dados (TCP/IP)" --> Database[(PostgreSQL DB)]
+        BackendAPI -- "Enfileira tarefas" --> Queue[Fila de Tarefas (Redis)]
+        Worker[Worker (Celery)] -- "Processa tarefas" --> Queue
+        Worker -- "Lê/Escreve dados" --> Database
     end
-
-    style FE fill:#00D8FF,stroke:#333
-    style API fill:#4CAF50,stroke:#333
-    style Worker fill:#FFC107,stroke:#333
-    style DB fill:#9C27B0,stroke:#333
-    style Cache fill:#F44336,stroke:#333
 ```
 
-### 2.3. Nível 3: Diagrama de Componentes (C3) - Backend API
+### 2.3. Nível 3: Diagrama de Componentes (C3) - Container Backend API
+
+Este diagrama detalha a organização interna do container `Backend API (Django)`.
 
 ```mermaid
 graph TD
     subgraph "Container: Backend API (Django)"
         direction LR
+        API[Camada de Apresentação (DRF Views/Serializers)]
+        Services[Camada de Aplicação (Services)]
+        Domain[Camada de Domínio (Django Models)]
+        Infra[Camada de Infraestrutura (ORM, Caching)]
 
-        Input[Requisições HTTP] --> C1[Apresentação (API Layer)\n[DRF: Views, Serializers, Routers]\nValida e serializa dados]
-
-        C1 --> C2[Aplicação (Service Layer)\n[Python: Services, Use Cases]\nOrquestra a lógica de negócio]
-
-        C2 --> C3[Domínio (Domain Layer)\n[Django: Models, Managers]\nContém as regras e estado do negócio]
-
-        C2 --> C4[Infraestrutura (Infrastructure Layer)\n[Django ORM, Celery Client, etc.]\nAbstrai acesso a DB, Cache, Filas]
-
-        C3 --> C4
-
-        C4 --> DB[(Database)]
-        C4 --> Cache[(Cache/Queue)]
+        API -- "Utiliza" --> Services
+        Services -- "Orquestra" --> Domain
+        Services -- "Acessa via" --> Infra
+        Infra -- "Persiste" --> Domain
     end
+
+    Nginx -- "Encaminha requisições HTTP" --> API
+    Infra -- "Conecta-se a" --> Database[(PostgreSQL)]
+    Infra -- "Conecta-se a" --> Cache[(Redis)]
 ```
 
 ## 3. Descrição dos Componentes, Interfaces e Modelos de Domínio
 
-### 3.1. Consistência dos Modelos de Dados (SSOT do Domínio)
+### 3.1. Consistência dos Modelos de Dados (SSOT do Domínio - Backend)
 
-Esta seção define todos os modelos de dados principais como **Modelos Django**. Eles formam o coração do sistema e são a fonte única da verdade.
+Esta seção é a Fonte Única da Verdade para todas as estruturas de dados do projeto. Todos os modelos são definidos como `models.Model` do Django.
+
+**Tecnologia Chave:** Modelos Django.
+
+#### **3.1.1. Core / Multi-Tenancy (`iabank.core`)**
 
 ```python
-# iabank/core/models/tenant.py
+# iabank/core/models.py
 from django.db import models
+from django.conf import settings
+import uuid
 
 class Tenant(models.Model):
-    name = models.CharField(max_length=255, unique=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=255, unique=True, verbose_name="Nome da Empresa")
     created_at = models.DateTimeField(auto_now_add=True)
-    # Outros campos de configuração específicos do tenant
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
 
 class TenantAwareModel(models.Model):
-    """Modelo abstrato para garantir isolamento de dados multi-tenant."""
+    """Modelo abstrato para garantir isolamento de dados por tenant."""
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE)
 
     class Meta:
         abstract = True
-        # Adicionar um índice composto para otimizar queries por tenant
-        indexes = [
-            models.Index(fields=['tenant']),
-        ]
 
+class AuditableModel(models.Model):
+    """Modelo abstrato para auditoria de criação/modificação."""
+    created_at = models.DateTimeField(auto_now_add=True, editable=False)
+    updated_at = models.DateTimeField(auto_now=True, editable=False)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='%(class)s_created', on_delete=models.SET_NULL, null=True, blank=True)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='%(class)s_updated', on_delete=models.SET_NULL, null=True, blank=True)
+
+    class Meta:
+        abstract = True
+```
+
+#### **3.1.2. Módulo de Usuários e Administração (`iabank.users`, `iabank.administration`)**
+
+```python
 # iabank/users/models.py
 from django.contrib.auth.models import AbstractUser
-from iabank.core.models.tenant import Tenant
+from django.db import models
+from iabank.core.models import Tenant
 
 class User(AbstractUser):
-    # Campos adicionais se necessário
+    # Adicionar campos customizados se necessário no futuro
     tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True)
-    # Perfil de acesso pode ser gerenciado com os Grupos do Django
+    # Role/Profile pode ser um campo aqui ou gerenciado por Grupos do Django
 
-# iabank/operational/models/customer.py
-from iabank.core.models.tenant import TenantAwareModel
+# iabank/administration/models.py
+from iabank.core.models import TenantAwareModel, AuditableModel
 
-class Customer(TenantAwareModel):
-    full_name = models.CharField(max_length=255)
-    document = models.CharField(max_length=18, unique=True) # CPF/CNPJ
-    birth_date = models.DateField(null=True, blank=True)
-    email = models.EmailField(max_length=255, null=True, blank=True)
-    phone = models.CharField(max_length=20, null=True, blank=True)
+class BankAccount(TenantAwareModel, AuditableModel):
+    name = models.CharField(max_length=100, verbose_name="Nome da Conta")
+    bank_name = models.CharField(max_length=100, verbose_name="Nome do Banco")
+    agency = models.CharField(max_length=20, verbose_name="Agência")
+    account_number = models.CharField(max_length=30, verbose_name="Número da Conta")
+    initial_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00, verbose_name="Saldo Inicial")
 
-    # Endereço
-    zip_code = models.CharField(max_length=9, null=True, blank=True)
-    street = models.CharField(max_length=255, null=True, blank=True)
-    number = models.CharField(max_length=20, null=True, blank=True)
-    complement = models.CharField(max_length=100, null=True, blank=True)
-    neighborhood = models.CharField(max_length=100, null=True, blank=True)
-    city = models.CharField(max_length=100, null=True, blank=True)
-    state = models.CharField(max_length=2, null=True, blank=True)
-
-    # Informações Profissionais/Financeiras
-    profession = models.CharField(max_length=100, null=True, blank=True)
-    income = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-class CustomerDocument(TenantAwareModel):
-    customer = models.ForeignKey(Customer, related_name='documents', on_delete=models.CASCADE)
-    file = models.FileField(upload_to='customer_documents/')
-    description = models.CharField(max_length=255)
-    uploaded_at = models.DateTimeField(auto_now_add=True)
-
-# iabank/operational/models/consultant.py
-class Consultant(TenantAwareModel):
-    user = models.OneToOneField(User, on_delete=models.PROTECT, related_name='consultant_profile')
-    full_name = models.CharField(max_length=255)
-    balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    # Configurações do app móvel/web
+class IOFParameter(TenantAwareModel, AuditableModel):
+    daily_rate = models.DecimalField(max_digits=10, decimal_places=5, verbose_name="Alíquota Diária (%)")
+    additional_rate = models.DecimalField(max_digits=10, decimal_places=5, verbose_name="Alíquota Adicional (%)")
     is_active = models.BooleanField(default=True)
 
-    def __str__(self):
-        return self.full_name
+class Holiday(TenantAwareModel):
+    date = models.DateField(unique=True, verbose_name="Data")
+    description = models.CharField(max_length=255, verbose_name="Descrição")
 
-# iabank/operational/models/loan.py
-class Loan(TenantAwareModel):
+class AuditLog(models.Model):
+    # Note: Pode não precisar ser TenantAware se logs forem centralizados
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    action = models.CharField(max_length=255, verbose_name="Ação")
+    timestamp = models.DateTimeField(auto_now_add=True)
+    details = models.JSONField(verbose_name="Detalhes")
+```
+
+#### **3.1.3. Módulo Operacional (`iabank.loans`, `iabank.customers`)**
+
+```python
+# iabank/customers/models.py
+from django.db import models
+from iabank.core.models import TenantAwareModel, AuditableModel
+
+class Customer(TenantAwareModel, AuditableModel):
+    full_name = models.CharField(max_length=255, verbose_name="Nome Completo")
+    document_number = models.CharField(max_length=18, unique=True, verbose_name="CPF/CNPJ")
+    birth_date = models.DateField(null=True, blank=True, verbose_name="Data de Nascimento")
+    # Endereço
+    zip_code = models.CharField(max_length=9, verbose_name="CEP")
+    street = models.CharField(max_length=255, verbose_name="Rua")
+    number = models.CharField(max_length=20, verbose_name="Número")
+    complement = models.CharField(max_length=100, blank=True, null=True, verbose_name="Complemento")
+    neighborhood = models.CharField(max_length=100, verbose_name="Bairro")
+    city = models.CharField(max_length=100, verbose_name="Cidade")
+    state = models.CharField(max_length=2, verbose_name="UF")
+    # Contato
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    email = models.EmailField(blank=True, null=True)
+    # Info Financeira
+    income = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Renda")
+    profession = models.CharField(max_length=100, blank=True, null=True, verbose_name="Profissão")
+
+# iabank/loans/models.py
+from django.db import models
+from iabank.core.models import TenantAwareModel, AuditableModel
+from iabank.customers.models import Customer
+from iabank.users.models import User # Supondo que consultores são Users ou um modelo relacionado
+
+class Consultant(TenantAwareModel, AuditableModel):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="consultant_profile")
+    balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00, verbose_name="Saldo")
+    # Outras configurações de app viriam aqui
+
+class PromissoryCreditor(TenantAwareModel, AuditableModel):
+    name = models.CharField(max_length=255, verbose_name="Nome")
+    document_number = models.CharField(max_length=18, verbose_name="CPF/CNPJ")
+    address = models.CharField(max_length=255, verbose_name="Endereço")
+
+class Loan(TenantAwareModel, AuditableModel):
     class LoanStatus(models.TextChoices):
         IN_PROGRESS = 'IN_PROGRESS', 'Em Andamento'
         PAID_OFF = 'PAID_OFF', 'Finalizado'
         IN_COLLECTION = 'IN_COLLECTION', 'Em Cobrança'
-        DEFAULTED = 'DEFAULTED', 'Inadimplente'
+        CANCELED = 'CANCELED', 'Cancelado'
 
-    customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name='loans')
-    consultant = models.ForeignKey(Consultant, on_delete=models.SET_NULL, null=True, blank=True, related_name='loans')
-
-    principal_amount = models.DecimalField(max_digits=12, decimal_places=2)
-    interest_rate = models.DecimalField(max_digits=5, decimal_places=2) # % ao mês
-    number_of_installments = models.PositiveIntegerField()
-    iof_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-
-    status = models.CharField(max_length=20, choices=LoanStatus.choices, default=LoanStatus.IN_PROGRESS)
-
-    contract_date = models.DateField(auto_now_add=True)
-    first_installment_date = models.DateField()
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name="loans", verbose_name="Cliente")
+    consultant = models.ForeignKey(Consultant, on_delete=models.PROTECT, related_name="loans", verbose_name="Consultor")
+    principal_amount = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor Principal")
+    interest_rate = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Taxa de Juros (% a.m.)")
+    num_installments = models.PositiveIntegerField(verbose_name="Nº de Parcelas")
+    first_installment_date = models.DateField(verbose_name="Data da 1ª Parcela")
+    status = models.CharField(max_length=20, choices=LoanStatus.choices, default=LoanStatus.IN_PROGRESS, verbose_name="Status")
+    contract_date = models.DateField(auto_now_add=True, verbose_name="Data do Contrato")
 
 class Installment(TenantAwareModel):
     class InstallmentStatus(models.TextChoices):
         PENDING = 'PENDING', 'Pendente'
-        PAID = 'PAID', 'Paga'
+        PAID = 'PAID', 'Pago'
         OVERDUE = 'OVERDUE', 'Vencida'
-        PARTIALLY_PAID = 'PARTIALLY_PAID', 'Paga Parcialmente'
 
-    loan = models.ForeignKey(Loan, on_delete=models.CASCADE, related_name='installments')
-    installment_number = models.PositiveIntegerField()
-    due_date = models.DateField()
-    amount_due = models.DecimalField(max_digits=10, decimal_places=2)
-    amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
-    payment_date = models.DateField(null=True, blank=True)
+    loan = models.ForeignKey(Loan, on_delete=models.CASCADE, related_name="installments", verbose_name="Empréstimo")
+    installment_number = models.PositiveIntegerField(verbose_name="Nº da Parcela")
+    due_date = models.DateField(verbose_name="Data de Vencimento")
+    amount = models.DecimalField(max_digits=15, decimal_places=2, verbose_name="Valor")
+    paid_date = models.DateField(null=True, blank=True, verbose_name="Data de Pagamento")
+    paid_amount = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True, verbose_name="Valor Pago")
     status = models.CharField(max_length=20, choices=InstallmentStatus.choices, default=InstallmentStatus.PENDING)
 
-# iabank/operational/models/collection.py
-class CollectionLog(TenantAwareModel):
-    loan = models.ForeignKey(Loan, on_delete=models.CASCADE, related_name='collection_logs')
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+class CollectionHistory(TenantAwareModel, AuditableModel):
+    loan = models.ForeignKey(Loan, on_delete=models.CASCADE, related_name="collection_history")
     interaction_date = models.DateTimeField(auto_now_add=True)
-    notes = models.TextField()
-    next_action_date = models.DateField(null=True, blank=True)
-    next_action_description = models.CharField(max_length=255, null=True, blank=True)
+    notes = models.TextField(verbose_name="Notas da Interação")
+    next_action_date = models.DateField(null=True, blank=True, verbose_name="Data da Próxima Ação")
+```
 
-# iabank/financial/models.py
-class BankAccount(TenantAwareModel):
-    name = models.CharField(max_length=100) # Ex: "Conta Principal Bradesco"
-    bank_name = models.CharField(max_length=100)
-    agency_number = models.CharField(max_length=10, null=True, blank=True)
-    account_number = models.CharField(max_length=20)
-    initial_balance = models.DecimalField(max_digits=15, decimal_places=2, default=0.00)
+#### **3.1.4. Módulo Financeiro e Cadastros Gerais (`iabank.finance`, `iabank.registrations`)**
 
-class PaymentCategory(TenantAwareModel):
-    name = models.CharField(max_length=100)
+```python
+# iabank/registrations/models.py
+from iabank.core.models import TenantAwareModel, AuditableModel
 
-    class Meta:
-        verbose_name_plural = "Payment Categories"
-
-class CostCenter(TenantAwareModel):
-    name = models.CharField(max_length=100)
-
-class Supplier(TenantAwareModel):
+class Supplier(TenantAwareModel, AuditableModel):
     name = models.CharField(max_length=255)
-    document = models.CharField(max_length=18, null=True, blank=True) # CPF/CNPJ
+    document_number = models.CharField(max_length=18, blank=True, null=True)
 
-class FinancialTransaction(TenantAwareModel):
+class PaymentCategory(TenantAwareModel, AuditableModel):
+    name = models.CharField(max_length=100)
+    type = models.CharField(max_length=10, choices=[('INCOME', 'Receita'), ('EXPENSE', 'Despesa')])
+
+class CostCenter(TenantAwareModel, AuditableModel):
+    name = models.CharField(max_length=100)
+
+class PaymentMethod(TenantAwareModel, AuditableModel):
+    name = models.CharField(max_length=100)
+
+# iabank/finance/models.py
+from django.db import models
+from iabank.core.models import TenantAwareModel, AuditableModel
+from iabank.registrations.models import Supplier, PaymentCategory, CostCenter
+from iabank.administration.models import BankAccount
+
+class FinancialTransaction(TenantAwareModel, AuditableModel):
     class TransactionType(models.TextChoices):
-        INCOME = 'INCOME', 'Receita'
-        EXPENSE = 'EXPENSE', 'Despesa'
-        TRANSFER = 'TRANSFER', 'Transferência'
+        INCOME = 'INCOME', 'A Receber'
+        EXPENSE = 'EXPENSE', 'A Pagar'
 
     class TransactionStatus(models.TextChoices):
         PENDING = 'PENDING', 'Pendente'
-        PAID = 'PAID', 'Pago/Recebido'
-        CANCELED = 'CANCELED', 'Cancelado'
+        PAID = 'PAID', 'Pago'
+        OVERDUE = 'OVERDUE', 'Vencido'
 
     description = models.CharField(max_length=255)
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
-    transaction_type = models.CharField(max_length=10, choices=TransactionType.choices)
-    status = models.CharField(max_length=10, choices=TransactionStatus.choices, default=TransactionStatus.PENDING)
-
+    type = models.CharField(max_length=10, choices=TransactionType.choices)
+    amount = models.DecimalField(max_digits=15, decimal_places=2)
     due_date = models.DateField()
     payment_date = models.DateField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=TransactionStatus.choices, default=TransactionStatus.PENDING)
 
     bank_account = models.ForeignKey(BankAccount, on_delete=models.PROTECT)
-    category = models.ForeignKey(PaymentCategory, on_delete=models.SET_NULL, null=True, blank=True)
+    category = models.ForeignKey(PaymentCategory, on_delete=models.PROTECT)
     cost_center = models.ForeignKey(CostCenter, on_delete=models.SET_NULL, null=True, blank=True)
     supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True)
-
-    # Para vincular pagamentos a parcelas de empréstimos
-    installment = models.ForeignKey(Installment, on_delete=models.SET_NULL, null=True, blank=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-
-# iabank/administration/models.py
-class AuditLog(models.Model):
-    # Não é TenantAware para que superusuários possam auditar todos os tenants
-    tenant = models.ForeignKey(Tenant, on_delete=models.CASCADE, null=True, blank=True)
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    action = models.CharField(max_length=255) # Ex: "Criou Empréstimo #123"
-    timestamp = models.DateTimeField(auto_now_add=True)
-    details = models.JSONField(null=True, blank=True) # Para armazenar payload, etc.
-
-class SystemParameter(TenantAwareModel):
-    key = models.CharField(max_length=50, unique=True)
-    value = models.JSONField()
-    description = models.TextField()
-
+    # Relação polimórfica para vincular à origem (ex: Parcela de Empréstimo)
+    # content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
+    # object_id = models.PositiveIntegerField(null=True)
+    # source_object = GenericForeignKey('content_type', 'object_id')
 ```
 
-### 3.1.1. Detalhamento dos DTOs e Casos de Uso
+### 3.1.5. Detalhamento dos DTOs e Casos de Uso
 
-Definidos com **Pydantic `BaseModel`**, estes DTOs formam o contrato da API.
+**Tecnologia Chave:** `pydantic.BaseModel`
+
+Estes DTOs definem os contratos de dados para a comunicação entre a camada de serviço e a API.
 
 ```python
-# iabank/operational/dtos.py
-from pydantic import BaseModel, Field, EmailStr
+# iabank/customers/dtos.py
+import pydantic
+from datetime import date
+
+class CustomerCreateDTO(pydantic.BaseModel):
+    full_name: str
+    document_number: str
+    zip_code: str
+    street: str
+    number: str
+    neighborhood: str
+    city: str
+    state: str
+    phone: str | None = None
+    email: pydantic.EmailStr | None = None
+
+# iabank/loans/dtos.py
+import pydantic
 from datetime import date
 from decimal import Decimal
-from typing import List, Optional
 
-# --- Customer DTOs ---
-class CustomerCreateDTO(BaseModel):
-    full_name: str = Field(..., max_length=255)
-    document: str = Field(..., max_length=18)
-    birth_date: Optional[date] = None
-    email: Optional[EmailStr] = None
-    phone: Optional[str] = Field(None, max_length=20)
-    zip_code: Optional[str] = Field(None, max_length=9)
-    # ... outros campos de endereço
-
-class CustomerUpdateDTO(BaseModel):
-    full_name: Optional[str] = Field(None, max_length=255)
-    # ... outros campos, todos opcionais
-
-class CustomerListDTO(BaseModel):
-    id: int
-    full_name: str
-    document: str
-    phone: Optional[str]
-    city: Optional[str]
-
-    class Config:
-        orm_mode = True
-
-# --- Loan DTOs ---
-class LoanCreateDTO(BaseModel):
+class LoanCreateDTO(pydantic.BaseModel):
     customer_id: int
-    consultant_id: Optional[int] = None
-    principal_amount: Decimal = Field(..., max_digits=12, decimal_places=2, gt=0)
-    interest_rate: Decimal = Field(..., max_digits=5, decimal_places=2, ge=0)
-    number_of_installments: int = Field(..., gt=0)
+    consultant_id: int
+    principal_amount: Decimal
+    interest_rate: Decimal
+    num_installments: int
     first_installment_date: date
 
-class LoanListDTO(BaseModel):
+class LoanListDTO(pydantic.BaseModel):
     id: int
     customer_name: str
     principal_amount: Decimal
-    number_of_installments: int
     status: str
     contract_date: date
+    num_installments: int
 
     class Config:
-        orm_mode = True
+        orm_mode = True # Permite mapeamento direto de modelos Django
 
-# ... DTOs para outras entidades (Consultant, FinancialTransaction, etc.) seguiriam o mesmo padrão.
+# iabank/finance/dtos.py
+class FinancialTransactionCreateDTO(pydantic.BaseModel):
+    description: str
+    type: str  # 'INCOME' or 'EXPENSE'
+    amount: Decimal
+    due_date: date
+    bank_account_id: int
+    category_id: int
+    cost_center_id: int | None = None
+    supplier_id: int | None = None
 ```
 
-### 3.2. Contratos de Dados da View (ViewModel) - Frontend
+### 3.2. Camada de Apresentação (UI) - Contratos de Dados (ViewModels)
 
-Para cada tela de listagem, definimos uma estrutura **TypeScript** otimizada para a UI.
+**Tecnologia Chave:** TypeScript
 
-**Tela de Empréstimos (4.2): `LoanListViewModel`**
+Estes são os contratos de dados que o Frontend espera receber da API para renderizar as telas.
+
+#### 3.2.1. ViewModel: `LoanListItemViewModel` (Tela de Empréstimos)
+
+Derivado do `LoanListDTO` do backend, formatado para exibição.
 
 ```typescript
-// src/features/loans/types/index.ts
-
-export interface LoanListViewModel {
-  id: number;
-  customerName: string;
-  principalAmountFormatted: string; // "R$ 5.000,00"
-  installmentsProgress: string; // "3/12"
-  status: "IN_PROGRESS" | "PAID_OFF" | "IN_COLLECTION" | "DEFAULTED";
-  contractDateFormatted: string; // "25/08/2023"
+// src/features/loans/types.ts
+export interface StatusBadge {
+  label: string; // 'Em Andamento', 'Finalizado', 'Em Cobrança'
+  color: "yellow" | "green" | "red" | "gray";
 }
 
-// Mapeamento de Origem:
-// Este ViewModel é montado no backend pelo LoanListSerializer do DRF.
-// - `customerName` vem de `loan.customer.full_name`.
-// - `principalAmountFormatted` é formatado a partir de `loan.principal_amount`.
-// - `installmentsProgress` é calculado contando parcelas pagas vs. totais.
-// - `status` é o valor do Enum `LoanStatus`.
-// - `contractDateFormatted` é formatado a partir de `loan.contract_date`.
+export interface LoanListItemViewModel {
+  id: number;
+  customerName: string;
+  principalAmountFormatted: string; // Ex: "R$ 5.000,00"
+  status: StatusBadge;
+  contractDateFormatted: string; // Ex: "15/08/2023"
+  installmentsSummary: string; // Ex: "12 Parcelas"
+}
 ```
 
-**Tela de Clientes (4.3): `CustomerListViewModel`**
+#### 3.2.2. ViewModel: `CustomerListItemViewModel` (Tela de Clientes)
 
 ```typescript
-// src/features/customers/types/index.ts
-
-export interface CustomerListViewModel {
+// src/features/customers/types.ts
+export interface CustomerListItemViewModel {
   id: number;
   fullName: string;
-  documentFormatted: string; // "123.456.789-00"
+  documentNumberFormatted: string; // Ex: "123.456.789-00"
+  cityState: string; // Ex: "São Paulo - SP"
   phone: string;
-  cityState: string; // "São Paulo - SP"
   activeLoansCount: number;
 }
 ```
 
-**Tela de Contas a Pagar (5.1): `PayableListViewModel`**
+#### 3.2.3. ViewModel: `FinancialTransactionListItemViewModel` (Telas de Contas a Pagar/Receber)
 
 ```typescript
-// src/features/financials/types/index.ts
+// src/features/finance/types.ts
+export interface StatusBadge {
+  // Reutilizável
+  label: string;
+  color: "yellow" | "green" | "red" | "gray";
+}
 
-export interface PayableListViewModel {
+export interface FinancialTransactionListItemViewModel {
   id: number;
   description: string;
-  supplierName: string | null;
-  amountFormatted: string; // "R$ 1.250,50"
-  dueDateFormatted: string; // "10/09/2023"
-  status: "PENDING" | "PAID" | "CANCELED";
-  isOverdue: boolean; // para destacar a linha na UI
+  categoryName: string;
+  amountFormatted: string; // Ex: "R$ 250,00"
+  dueDateFormatted: string; // Ex: "30/10/2023"
+  status: StatusBadge;
 }
 ```
 
 ## 4. Descrição Detalhada da Arquitetura Frontend
 
-- **Padrão Arquitetural:** Adotaremos a metodologia **Feature-Sliced Design (FSD)**. O código é organizado em camadas e fatias (features), promovendo baixo acoplamento e alta coesão.
+- **Padrão Arquitetural:** Será adotada uma arquitetura **Feature-Sliced Design**. O código é organizado por funcionalidades de negócio, promovendo alta coesão e baixo acoplamento. Cada _feature_ é autocontida, com seus próprios componentes de UI, lógica de estado e chamadas de API.
 
-- **Estrutura de Diretórios Proposta (`frontend/src/`):**
+- **Estrutura de Diretórios Proposta (`src/`):**
 
   ```
   src/
-  ├── app/                # 1. Camada de Aplicação: Configuração global
-  │   ├── providers/      # Provedores de contexto, React Query, Router
-  │   ├── styles/         # Estilos globais, configuração do Tailwind
-  │   └── main.tsx        # Ponto de entrada da aplicação
-  │
-  ├── pages/              # 2. Camada de Páginas: Compositor de features e widgets
-  │   ├── LoginPage.tsx
-  │   ├── DashboardPage.tsx
-  │   ├── LoansPage.tsx
-  │   └── ...
-  │
-  ├── widgets/            # 3. Camada de Widgets: Componentes complexos
-  │   ├── Header/
-  │   ├── SidebarMenu/
-  │   └── LoansTable/     # Widget que compõe a tabela de empréstimos
-  │
-  ├── features/           # 4. Camada de Funcionalidades: Lógica de negócio da UI
-  │   ├── auth/           # Ex: Login/Logout
-  │   ├── create-loan/    # Ex: O wizard de novo empréstimo
-  │   └── filter-loans/   # Ex: O componente de filtros avançados
-  │
-  ├── entities/           # 5. Camada de Entidades: Componentes e lógica de entidades
-  │   ├── loan/
-  │   │   ├── api/        # Hooks do TanStack Query (useGetLoans, useCreateLoan)
-  │   │   ├── model/      # Tipos (ViewModels), helpers
-  │   │   └── ui/         # Componentes de UI (ex: LoanStatusBadge)
-  │   ├── customer/
-  │   └── ...
-  │
-  └── shared/             # 6. Camada Compartilhada: Código reutilizável e agnóstico
-      ├── api/            # Configuração do cliente Axios, interceptors
-      ├── config/         # Constantes, variáveis de ambiente
-      ├── lib/            # Funções utilitárias (formatação de data, etc.)
-      ├── ui/             # Biblioteca de componentes UI Kit (Button, Input, Table)
+  |-- app/                # Configuração global: providers, router, store, styles
+  |-- pages/              # Componentes de página, que compõem layouts a partir das features
+  |-- features/           # Módulos de negócio (ex: loan-creation-wizard, loan-list)
+  |   |-- loan-list/
+  |   |   |-- api/        # Hooks e funções para chamadas à API (usando TanStack Query)
+  |   |   |-- components/ # Componentes de UI específicos da feature
+  |   |   |-- model/      # Lógica, estado e tipos da feature
+  |   |   |-- index.ts    # Ponto de entrada público do módulo
+  |-- entities/           # Entidades de negócio (ex: CustomerCard, LoanStatusBadge)
+  |-- shared/             # Código reutilizável e agnóstico de negócio
+  |   |-- api/            # Configuração do cliente Axios/Fetch, interceptors
+  |   |-- lib/            # Funções utilitárias (formatters, validators)
+  |   |-- ui/             # Biblioteca de componentes de UI (Button, Input, Table)
+  |   |-- assets/         # Imagens, fontes, etc.
   ```
 
 - **Estratégia de Gerenciamento de Estado:**
 
-  - **Estado do Servidor:** **TanStack Query (React Query)** será a fonte única da verdade para todos os dados que vêm da API. Ele gerenciará caching, revalidação, mutações (POST/PUT/DELETE) e estados de loading/error de forma declarativa.
-  - **Estado Global do Cliente:** Para estado síncrono e global (ex: dados do usuário logado, estado do menu lateral), usaremos **Zustand**. É uma solução leve, sem boilerplate e com uma API simples.
-  - **Estado Local do Componente:** O estado efêmero e não compartilhado será gerenciado com os hooks nativos do React (`useState`, `useReducer`).
+  - **Estado do Servidor:** Gerenciado exclusivamente pelo `TanStack Query (React Query)`. Ele será a fonte da verdade para todos os dados assíncronos vindos da API, tratando de caching, revalidação, e estados de loading/error.
+  - **Estado Global do Cliente:** Gerenciado pelo `Zustand`. Usado para estado síncrono e global, como informações do usuário autenticado, tema da UI, ou estado de um menu lateral. Sua simplicidade e API baseada em hooks são ideais.
+  - **Estado Local do Componente:** Utilizará os hooks nativos do React (`useState`, `useReducer`) para estado que não precisa ser compartilhado, como o controle de inputs em um formulário.
 
-- **Fluxo de Dados (Exemplo: Listagem de Empréstimos):**
-  1.  O usuário navega para a `LoansPage`.
-  2.  A `LoansPage` renderiza o widget `LoansTable`.
-  3.  O `LoansTable` usa o hook `useGetLoans` da `entities/loan/api`.
-  4.  `useGetLoans` (TanStack Query) verifica o cache. Se os dados estiverem obsoletos, ele dispara uma requisição GET para `/api/v1/loans/` usando o cliente Axios configurado em `shared/api`.
-  5.  A API responde com um array de `LoanListDTO`.
-  6.  O hook `useGetLoans` atualiza seu estado, fazendo com que o `LoansTable` re-renderize com os dados, formatando-os conforme o `LoanListViewModel`.
+- **Fluxo de Dados:**
+  1.  O usuário interage com um componente em uma `pages/`.
+  2.  A página invoca uma ação de um módulo em `features/`.
+  3.  A feature utiliza um hook do `TanStack Query` (de `features/.../api/`) para buscar ou modificar dados.
+  4.  O hook faz a chamada HTTP através do cliente configurado em `shared/api/`.
+  5.  O `TanStack Query` gerencia o cache e o estado da requisição.
+  6.  Componentes (`features/`, `entities/`, `shared/ui/`) que usam o hook reagem às mudanças de estado e re-renderizam para exibir os novos dados, feedback de loading ou erros.
 
 ## 5. Definição das Interfaces Principais
 
-Interfaces (usando `abc.ABC`) definem os contratos para os serviços da camada de aplicação.
+Os contratos de dados (DTOs e ViewModels) já foram definidos. As interfaces de serviço no backend seguirão um padrão claro.
+
+**Exemplo: Interface para o Serviço de Criação de Empréstimos**
+
+- **Componente:** `iabank.loans.services.LoanCreationService`
+- **Dependências Diretas:**
+  - `iabank.loans.models.Loan`
+  - `iabank.loans.models.Installment`
+  - `iabank.customers.models.Customer`
+  - `iabank.loans.dtos.LoanCreateDTO`
+- **Interface (Contrato Funcional):**
 
 ```python
-# iabank/operational/services/loan_service.py
-from abc import ABC, abstractmethod
-from .dtos import LoanCreateDTO
-from ..models import Loan
+# iabank/loans/services.py
 
-class ILoanService(ABC):
-    @abstractmethod
-    def __init__(self, user, tenant):
+class LoanCreationService:
+    def __init__(self, tenant: Tenant, user: User):
         """
-        Serviços são instanciados com o contexto da requisição (usuário, tenant).
+        Inicializa o serviço com o contexto de tenant e usuário necessários.
         """
-        pass
+        self.tenant = tenant
+        self.user = user
 
-    @abstractmethod
-    def create_loan(self, data: LoanCreateDTO) -> Loan:
+    def create_loan(self, dto: LoanCreateDTO) -> Loan:
         """
-        Cria um novo empréstimo e suas parcelas.
-        Retorna a instância do empréstimo criado.
+        Orquestra a criação de um novo empréstimo.
+        - Valida os dados do DTO.
+        - Busca o cliente e o consultor.
+        - Cria o objeto Loan.
+        - Gera o plano de parcelas (Installments).
+        - Retorna a instância do Empréstimo criado.
         """
-        pass
-
-    @abstractmethod
-    def transfer_loans(self, loan_ids: list[int], origin_consultant_id: int, destination_consultant_id: int):
-        """
-        Transfere uma lista de empréstimos entre consultores.
-        """
-        pass
+        # ... lógica de negócio ...
 ```
 
 ## 6. Gerenciamento de Dados
 
-- **Persistência:** O **ORM do Django** será usado para todas as interações com o banco de dados PostgreSQL. O padrão **Active Record** do Django é suficiente para a complexidade atual.
-- **Gerenciamento de Schema:** As migrações de banco de dados serão gerenciadas pelo sistema de **`makemigrations` e `migrate` do Django**, garantindo a evolução consistente do schema.
-- **Seed de Dados:** Para ambientes de desenvolvimento e teste, será utilizada a biblioteca **`factory-boy`** em conjunto com um comando de gerenciamento customizado do Django (`./manage.py seed_db`). Isso permitirá a criação de dados fictícios, mas realistas e consistentes, para popular a aplicação.
+- **Persistência:** Os dados serão persistidos no PostgreSQL através do ORM do Django. A lógica de acesso a dados será encapsulada dentro dos `managers` dos modelos Django ou, para lógica mais complexa, em uma camada de Repositório (se necessário).
+- **Gerenciamento de Schema:** As migrações de banco de dados serão gerenciadas pelo sistema nativo do Django (`makemigrations`, `migrate`). Cada mudança no schema será um novo arquivo de migração versionado no controle de código.
+- **Seed de Dados:** Para o ambiente de desenvolvimento, serão criados `management commands` do Django para popular o banco com dados fictícios (tenants, usuários, clientes, empréstimos). A biblioteca `factory-boy` será utilizada para gerar esses dados de forma consistente e realista.
 
 ## 7. Estrutura de Diretórios Proposta
 
 ```
-iabank/
+iabank-monorepo/
 ├── .github/
 │   └── workflows/
-│       └── ci-cd.yml
-├── .vscode/
-│   └── settings.json
+│       └── main.yml        # Pipeline de CI/CD
 ├── backend/
 │   ├── src/
-│   │   └── iabank/
-│   │       ├── __init__.py
-│   │       ├── administration/
-│   │       ├── core/
-│   │       ├── financial/
-│   │       ├── operational/
-│   │       ├── users/
-│   │       ├── settings.py
-│   │       ├── urls.py
-│   │       └── wsgi.py
-│   ├── manage.py
-│   └── tests/
-│       └── integration/
-│           └── test_api_loan_creation.py
+│   │   ├── iabank/
+│   │   │   ├── __init__.py
+│   │   │   ├── settings.py
+│   │   │   ├── urls.py
+│   │   │   ├── wsgi.py
+│   │   │   ├── asgi.py
+│   │   │   ├── core/         # App para Tenant, modelos base, etc.
+│   │   │   ├── users/        # App para Usuários, autenticação
+│   │   │   ├── customers/    # App para Clientes
+│   │   │   │   ├── models.py
+│   │   │   │   ├── services.py
+│   │   │   │   ├── views.py
+│   │   │   │   ├── serializers.py
+│   │   │   │   └── tests/
+│   │   │   │       └── test_customers_models.py
+│   │   │   │       └── test_customers_api.py
+│   │   │   ├── loans/        # App para Empréstimos
+│   │   │   └── finance/      # App para Financeiro
+│   │   └── manage.py
+│   ├── tests/
+│   │   └── integration/
+│   │       └── test_api_full_loan_lifecycle.py
+│   └── pyproject.toml
 ├── frontend/
 │   ├── public/
 │   ├── src/
 │   │   ├── app/
 │   │   ├── pages/
-│   │   ├── widgets/
 │   │   ├── features/
 │   │   ├── entities/
 │   │   └── shared/
 │   ├── package.json
-│   ├── tsconfig.json
-│   └── vite.config.ts
+│   └── tsconfig.json
 ├── .dockerignore
 ├── .gitignore
 ├── .pre-commit-config.yaml
-├── CONTRIBUTING.md
-├── CHANGELOG.md
 ├── docker-compose.yml
 ├── Dockerfile.backend
 ├── Dockerfile.frontend
 ├── LICENSE
-├── pyproject.toml
-└── README.md
+├── README.md
+└── CONTRIBUTING.md
 ```
 
 ## 8. Arquivo `.gitignore` Proposto
 
-```
-# Byte-compiled / optimized / DLL files
+```gitignore
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -577,189 +591,451 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
-
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-
-# Translations
-*.mo
 *.pot
-
-# Django stuff:
+*.pyo
 *.log
 local_settings.py
 db.sqlite3
-db.sqlite3-journal
-media/
-static_collected/
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# Environments
 .env
-.venv
-env/
+.venv/
 venv/
 ENV/
-env.bak
-venv.bak
+env/
+env.bak/
+venv.bak/
+
+# Node.js
+node_modules/
+dist/
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.DS_Store
 
 # IDEs
 .idea/
 .vscode/
 *.swp
-*.swo
+*~
 
 # Docker
-.dockerignore
-docker-compose.yml
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-.pnpm-store/
-dist/
-dist-ssr/
-.npm/
-
-# OS-specific
-.DS_Store
-Thumbs.db
+docker-compose.override.yml
 ```
 
 ## 9. Arquivo `README.md` Proposto
 
+(Conteúdo completo gerado abaixo)
+
+## 10. Arquivo `LICENSE` Proposto
+
+(Texto completo da licença MIT gerado abaixo)
+
+## 11. Arquivo `CONTRIBUTING.md` Proposto
+
+(Template de conteúdo gerado abaixo)
+
+## 12. Estrutura do `CHANGELOG.md`
+
+```markdown
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- Initial project structure based on AGV Blueprint.
+
+## [0.1.0] - YYYY-MM-DD
+
+### Added
+
+- First release features.
+```
+
+## 13. Estratégia de Configuração e Ambientes
+
+- **Tecnologia:** `django-environ`.
+- **Desenvolvimento:** As configurações serão lidas de um arquivo `.env` na raiz do projeto `backend/`, que **não** será versionado.
+- **Homologação/Produção:** As configurações serão injetadas exclusivamente via **variáveis de ambiente** no container Docker. Isso segue a prática recomendada do "The Twelve-Factor App".
+- **Segredos:** Chaves de API, senhas e outros segredos nunca serão codificados. Eles serão gerenciados via variáveis de ambiente.
+
+## 14. Estratégia de Observabilidade Completa
+
+- **Logging Estruturado:** Todos os logs da aplicação Django serão emitidos em formato JSON. A biblioteca `python-json-logger` será configurada para enriquecer os logs com contexto da requisição (ID do usuário, ID do tenant, trace ID). Níveis de log serão `INFO` para produção e `DEBUG` para desenvolvimento.
+- **Métricas de Negócio:** Serão expostas métricas via um endpoint `/metrics` (usando `django-prometheus`). Métricas chave:
+  - `iabank_loans_created_total`: Contador de novos empréstimos.
+  - `iabank_loan_principal_amount_total`: Soma do valor principal de novos empréstimos.
+  - `iabank_active_users`: Gauge de usuários ativos.
+  - `iabank_api_request_duration_seconds`: Histograma da latência da API, com labels por endpoint.
+- **Distributed Tracing:** Embora seja um monólito, a base para tracing será estabelecida com `OpenTelemetry`. Cada requisição receberá um `trace_id` único, que será incluído nos logs. Isso facilitará a depuração e a futura migração para microsserviços.
+- **Health Checks e SLIs/SLOs:**
+  - Um endpoint `/health/` será criado, verificando a conectividade com o banco de dados e o Redis.
+  - **SLI:** Disponibilidade da API (taxa de sucesso de respostas não-5xx). Latência do endpoint de criação de empréstimo.
+  - **SLO:** 99.9% de disponibilidade mensal. 95% das criações de empréstimo em < 300ms.
+- **Alerting Inteligente:** Alertas serão configurados em uma ferramenta externa (ex: Grafana, Sentry, Datadog) com base em anomalias (ex: aumento súbito na taxa de erros 5xx) e violações de SLO, não apenas em thresholds fixos.
+
+## 15. Estratégia de Testes Detalhada
+
+- **Ferramentas:** `pytest`, `pytest-django`, `factory-boy`, `DRF APIClient`.
+- **Estrutura e Nomenclatura:**
+  - **Testes Unitários:** Residem em `<app_name>/tests/` (ex: `backend/src/iabank/loans/tests/`). Eles testam a lógica de um único módulo isoladamente (ex: um método em um `service`). A nomenclatura será `test_<nome_do_app>_<nome_do_modulo>.py` (ex: `test_loans_services.py`, `test_customers_models.py`).
+  - **Testes de Integração:** Residem em `backend/tests/integration/`. Eles testam a colaboração entre múltiplos componentes, como o fluxo completo de uma requisição API até o banco de dados. A nomenclatura será `test_api_<nome_da_funcionalidade>.py` (ex: `test_api_loan_creation.py`).
+- **Padrões de Teste de Integração:**
+  - **Uso de Factories:** `factory-boy` será usado obrigatoriamente para criar dados de teste (Tenants, Users, Customers), garantindo consistência.
+  - **Simulação de Autenticação:** O `APIClient` do DRF será usado com `force_authenticate(user=self.user)` para simular um usuário autenticado, evitando testar o fluxo de login em cada endpoint protegido.
+  - **Escopo de Teste:** Um teste de integração para a API de empréstimos assume que a criação de clientes e a autenticação funcionam (já cobertos por seus próprios testes). O foco é validar o endpoint de empréstimo (validação, criação, resposta correta). O isolamento de tenant será testado em uma suíte de testes de integração dedicada à segurança de acesso.
+
+## 16. Estratégia de CI/CD
+
+- **Ferramenta:** GitHub Actions.
+- **Gatilhos:** A pipeline será executada em cada `push` para a branch `main` e em cada abertura/atualização de `Pull Request`.
+- **Estágios do Pipeline (`.github/workflows/main.yml`):**
+  1.  **Setup:** Checkout do código e configuração do ambiente (Python, Node.js).
+  2.  **Lint & Format:** Executa `ruff` e `black` no backend, e `eslint` e `prettier` no frontend para garantir a qualidade do código.
+  3.  **Backend Tests:** Instala dependências Python, sobe serviços (DB, Redis) e executa a suíte de testes com `pytest`, gerando um relatório de cobertura.
+  4.  **Frontend Tests:** Instala dependências Node, executa testes unitários/componentes.
+  5.  **Build:** Se os testes passarem, constrói as imagens Docker para o backend e o frontend usando `multi-stage builds`.
+  6.  **Push:** Envia as imagens para um registro de contêineres (ex: Docker Hub, GitHub Container Registry).
+  7.  **Deploy (manual/automático):** Em um `push` para `main`, um job (que pode ser de acionamento manual) se conectará ao ambiente de produção e atualizará os serviços com as novas imagens.
+
+## 17. Estratégia de Versionamento da API
+
+A API será versionada via URL para garantir clareza e evitar quebras de contrato com clientes futuros.
+
+- **Formato:** `https://api.iabank.com/api/v1/...`
+- **Implementação:** Em Django, isso será feito usando `namespaces` no `urls.py`. Cada versão da API terá seu próprio conjunto de URLs e, se necessário, Serializers.
+
+## 18. Padrão de Resposta da API e Tratamento de Erros
+
+Um formato de resposta JSON consistente será usado para todos os endpoints.
+
+- **Sucesso (2xx):**
+  ```json
+  {
+    "status": "success",
+    "data": { ... } // Objeto ou array de objetos
+  }
+  ```
+- **Erro de Cliente (4xx):**
+  ```json
+  {
+    "status": "fail",
+    "data": {
+      "field_name": ["Error message 1.", "Error message 2."]
+    }
+  }
+  ```
+- **Erro de Servidor (5xx) ou Erro Genérico:**
+  ```json
+  {
+    "status": "error",
+    "message": "An unexpected error occurred."
+  }
+  ```
+- **Implementação:** Um `exception handler` customizado do DRF será implementado para capturar todas as exceções e formatá-las nesta estrutura padrão.
+
+## 19. Estratégia de Segurança Abrangente
+
+- **Threat Modeling Básico:**
+  - **Ameaça:** Acesso não autorizado a dados de um tenant por outro.
+    - **Mitigação:** Validação rigorosa do `tenant_id` em toda query na camada de acesso a dados (manager customizado). Testes de integração específicos para garantir o isolamento.
+  - **Ameaça:** Injeção de SQL.
+    - **Mitigação:** Uso exclusivo do ORM do Django, que parametriza todas as queries.
+  - **Ameaça:** Cross-Site Scripting (XSS).
+    - **Mitigação:** Uso de React, que escapa dados por padrão. Configuração de cabeçalhos de segurança HTTP (CSP, X-Content-Type-Options).
+- **Estratégia de Secrets Management:** Em produção, os segredos serão gerenciados por um serviço de nuvem (ex: AWS Secrets Manager, GCP Secret Manager) ou injetados como variáveis de ambiente em um ambiente seguro. Nunca serão armazenados em arquivos `.env` em produção.
+- **Compliance Framework (LGPD):**
+  - **Auditoria:** O `AuditLog` registrará todas as ações críticas.
+  - **RBAC:** O sistema de Grupos e Permissões do Django será usado para implementar controle de acesso granular.
+  - **Criptografia:** HTTPS obrigatório (trânsito). Dados sensíveis em repouso (se houver, como documentos) serão criptografados.
+- **Security by Design:**
+  - **Validação de Entrada:** DRF Serializers e Pydantic DTOs no backend; `Zod` no frontend.
+  - **Menor Privilégio:** Usuários terão o mínimo de permissões necessárias para suas funções.
+  - **Dependências:** Scans de vulnerabilidade de dependências (ex: `pip-audit`, `npm audit`) serão parte do pipeline de CI.
+
+## 20. Justificativas e Trade-offs
+
+- **Monólito vs. Microsserviços:** A escolha do monólito modular é intencional para a fase inicial do projeto.
+  - **Justificativa:** Reduz a complexidade operacional, acelera o desenvolvimento e facilita transações ACID. A modularização interna prepara o terreno para uma futura extração de microsserviços quando a complexidade do domínio justificar.
+  - **Trade-off:** Menor escalabilidade granular e maior acoplamento de implantação em comparação com microsserviços.
+- **Monorepo vs. Multi-repo:**
+  - **Justificativa:** Simplifica a gestão de dependências e garante a consistência atômica entre as mudanças de API e do frontend.
+  - **Trade-off:** A pipeline de CI pode se tornar mais lenta com o tempo, pois precisa verificar ambas as partes do projeto.
+
+## 21. Exemplo de Bootstrapping/Inicialização
+
+```python
+# iabank/loans/views.py (Conceitual)
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .services import LoanCreationService
+from .dtos import LoanCreateDTO
+
+class LoanCreateAPIView(APIView):
+    # permission_classes = [IsAuthenticated, HasLoanCreationPermission]
+
+    def post(self, request, *args, **kwargs):
+        # O tenant e o usuário vêm do contexto da requisição (middleware)
+        current_tenant = request.tenant
+        current_user = request.user
+
+        # 1. Validação do payload da requisição
+        dto = LoanCreateDTO(**request.data)
+
+        # 2. Instanciação do serviço com suas dependências (configuração via __init__)
+        service = LoanCreationService(tenant=current_tenant, user=current_user)
+
+        # 3. Execução da lógica de negócio
+        try:
+            new_loan = service.create_loan(dto)
+            # ... serializar a resposta ...
+            return Response({"status": "success", "data": {"id": new_loan.id}})
+        except Exception as e:
+            # ... tratar exceção ...
+            return Response({"status": "error", "message": str(e)}, status=400)
+```
+
+## 22. Estratégia de Evolução do Blueprint
+
+- **Versionamento Semântico:** Este documento seguirá o SemVer (v1.0.0). Mudanças que não quebram a arquitetura (ex: adicionar um novo módulo) incrementam a versão menor (v1.1.0). Mudanças que quebram a arquitetura (ex: mudar de monólito para microsserviços) incrementam a versão maior (v2.0.0).
+- **Processo de Evolução:** Mudanças significativas serão propostas através de um "Architecture Decision Record" (ADR). Um ADR é um documento curto que descreve o contexto, a decisão e as consequências de uma mudança arquitetural. Os ADRs serão armazenados em uma pasta `docs/adr/` no repositório.
+- **Compatibilidade e Deprecação:** Quando uma interface de API (ex: v1) for substituída, ela será mantida por um período definido e marcada como `deprecated` na documentação.
+
+## 23. Métricas de Qualidade e Quality Gates
+
+- **Cobertura de Código:** Meta mínima de **85%** de cobertura de testes para o código do backend, medida com `pytest-cov`.
+- **Complexidade Ciclomática:** Nenhuma função/método deve exceder uma complexidade de **10**, medida com `ruff`.
+- **Quality Gates Automatizados (no Pull Request):**
+  1.  Pipeline de CI deve passar (lint, testes).
+  2.  Cobertura de testes não pode diminuir.
+  3.  Scan de vulnerabilidades (`pip-audit`) não pode encontrar vulnerabilidades de severidade `HIGH` ou `CRITICAL`.
+  4.  Análise de código estático (`ruff`) não pode reportar erros.
+
+## 24. Análise de Riscos e Plano de Mitigação
+
+| Categoria       | Risco Identificado                                                                                            | Probabilidade (1-5) | Impacto (1-5) | Score (P×I) | Estratégia de Mitigação                                                                                                                                                                        |
+| :-------------- | :------------------------------------------------------------------------------------------------------------ | :-----------------: | :-----------: | :---------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Segurança**   | **Violação de dados (Data Breach)** resultando em vazamento de informações financeiras sensíveis.             |          3          |       5       |   **15**    | Implementar defesa em profundidade: RBAC granular, criptografia, logs de auditoria, scans de vulnerabilidade no CI/CD, política de senhas fortes, 2FA.                                         |
+| **Técnico**     | **Vazamento de dados entre Tenants (Cross-Tenant Data Leakage)** devido a uma falha na lógica de isolamento.  |          2          |       5       |   **10**    | Implementar um `Manager` padrão do Django que aplica o filtro `tenant_id` automaticamente. Criar testes de integração específicos que tentam acessar dados de outro tenant e garantem a falha. |
+| **Negócio**     | **Baixa Adoção do Produto** devido a uma interface de usuário complexa ou a um fluxo de trabalho ineficiente. |          3          |       4       |   **12**    | Seguir rigorosamente os princípios de design da UI definidos no mapeamento. Realizar sessões de feedback com usuários-piloto (beta testers) antes do lançamento oficial.                       |
+| **Performance** | **Degradação de Performance** com o aumento do volume de dados, tornando as listagens e relatórios lentos.    |          4          |       3       |   **12**    | Indexação estratégica do banco de dados desde o início. Otimização de queries (uso de `select_related`, `prefetch_related`). Implementação de paginação em todas as APIs de listagem.          |
+
+---
+
+## 25. Conteúdo dos Arquivos de Ambiente e CI/CD
+
+### `pyproject.toml` Proposto
+
+```toml
+[tool.poetry]
+name = "iabank-backend"
+version = "0.1.0"
+description = "Backend for IABANK Loan Management System"
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^4.2"
+djangorestframework = "^3.15"
+psycopg2-binary = "^2.9.9"
+django-environ = "^0.11.2"
+celery = "^5.3.6"
+redis = "^5.0.1"
+pydantic = "^2.4.2"
+gunicorn = "^21.2.0"
+python-json-logger = "^2.0.7"
+django-prometheus = "^2.3.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+pytest-django = "^4.7.0"
+factory-boy = "^3.3.0"
+ruff = "^0.1.5"
+black = "^23.10.1"
+pip-audit = "^2.6.1"
+pytest-cov = "^4.1.0"
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "I", "C90"]
+
+[tool.black]
+line-length = 88
+```
+
+### `.pre-commit-config.yaml` Proposto
+
+```yaml
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+  - repo: https://github.com/psf/black
+    rev: 23.10.1
+    hooks:
+      - id: black
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: "v0.1.5"
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+```
+
+### `Dockerfile.backend` Proposto
+
+```dockerfile
+# Stage 1: Build
+FROM python:3.11-slim as builder
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+RUN pip install poetry
+COPY backend/pyproject.toml backend/poetry.lock ./
+RUN poetry config virtualenvs.create false && poetry install --no-dev --no-interaction --no-ansi
+
+# Stage 2: Final
+FROM python:3.11-slim
+WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY backend/src /app/
+
+# Add a non-root user for security
+RUN addgroup --system app && adduser --system --group app
+RUN chown -R app:app /app
+USER app
+
+EXPOSE 8000
+CMD ["gunicorn", "iabank.wsgi:application", "--bind", "0.0.0.0:8000"]
+```
+
+### `Dockerfile.frontend` Proposto
+
+```dockerfile
+# Stage 1: Build
+FROM node:18-alpine as builder
+WORKDIR /app
+COPY frontend/package.json frontend/yarn.lock ./
+RUN yarn install
+COPY frontend/ .
+RUN yarn build
+
+# Stage 2: Serve
+FROM nginx:1.25-alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+# COPY nginx.conf /etc/nginx/conf.d/default.conf # Optional: for custom nginx config
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+---
+
+## Anexos
+
+### `README.md`
+
 ````markdown
-# IABANK
+# IABANK - Sistema de Gestão de Empréstimos
 
-[![Status](https://img.shields.io/badge/status-em_desenvolvimento-yellow.svg)](https://shields.io/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](/LICENSE)
-[![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Django Version](https://img.shields.io/badge/django-4.x-green.svg)](https://www.djangoproject.com/)
-[![React Version](https://img.shields.io/badge/react-18%2B-blue.svg)](https://reactjs.org/)
+[![Status](https://img.shields.io/badge/status-em_desenvolvimento-yellowgreen.svg)](https://shields.io/)
+[![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Django Version](https://img.shields.io/badge/django-4.2-blue.svg)](https://www.djangoproject.com/)
+[![React Version](https://img.shields.io/badge/react-18+-blue.svg)](https://reactjs.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Sistema de gestão de empréstimos moderno e eficiente. Plataforma Web SaaS robusta e segura para a gestão completa do ciclo de vida de empréstimos (end-to-end).
+Plataforma Web SaaS robusta e segura, desenvolvida em Python e React, projetada para a gestão completa de empréstimos (end-to-end).
 
-## 🚀 Sobre o Projeto
+## Sobre o Projeto
 
-O IABANK é projetado para ser escalável, intuitivo e adaptável às necessidades de instituições financeiras de diversos portes. A visão futura do projeto inclui a integração com um ecossistema de agentes de IA para automatizar todo o ciclo de vida de um empréstimo.
+O `IABANK` é concebido para ser uma solução escalável, intuitiva e adaptável às necessidades de instituições financeiras de diversos portes. O objetivo é automatizar o ciclo de vida de um empréstimo, desde a originação até a cobrança, otimizando a eficiência operacional.
 
-## 🛠️ Stack Tecnológica
+A arquitetura do projeto está documentada no **Blueprint Arquitetural**, que serve como a fonte única da verdade para decisões técnicas e de produto.
 
-- **Backend:** Python 3.10+, Django, Django REST Framework, PostgreSQL, Celery, Redis
-- **Frontend:** React 18+, TypeScript, Vite, Tailwind CSS, TanStack Query
+## Stack Tecnológica
+
+- **Backend:** Python 3.11+, Django, Django REST Framework
+- **Frontend:** React 18+, TypeScript, Vite, Tailwind CSS
+- **Banco de Dados:** PostgreSQL
+- **Cache & Filas:** Redis, Celery
 - **Infraestrutura:** Docker, Nginx
 
-## 🏁 Como Começar
+## Como Começar
 
 ### Pré-requisitos
 
 - Docker e Docker Compose
-- Node.js e pnpm (ou npm/yarn)
-- Python 3.10+ e Poetry
+- Git
 
 ### Instalação e Execução
 
-1.  **Clone o repositório:**
+1.  Clone o repositório:
 
     ```bash
-    git clone https://github.com/seu-usuario/iabank.git
+    git clone https://github.com/your-org/iabank.git
     cd iabank
     ```
 
-2.  **Configure as variáveis de ambiente:**
-    Copie o arquivo `.env.example` para `.env` na pasta `backend/` e preencha as variáveis necessárias.
+2.  Crie os arquivos de ambiente. No diretório `backend/`, copie `.env.example` para `.env` e ajuste as variáveis.
 
-    ```bash
-    cp backend/.env.example backend/.env
-    ```
-
-3.  **Suba os contêineres Docker:**
-    Este comando irá construir as imagens e iniciar todos os serviços (backend, frontend, db, redis).
+3.  Suba os contêineres:
 
     ```bash
     docker-compose up --build
     ```
 
-4.  **Acesse a aplicação:**
-    - Frontend: `http://localhost:5173`
-    - Backend API: `http://localhost:8000/api/`
+4.  Acesse a aplicação:
+    - Frontend: `http://localhost:3000`
+    - Backend API: `http://localhost:8000/api/v1/`
 
-## 🧪 Como Executar os Testes
+## Como Executar os Testes
 
-Para executar os testes do backend, entre no contêiner da aplicação e use o `pytest`.
+Para executar os testes do backend, entre no contêiner da aplicação e rode o `pytest`:
 
-1.  **Acesse o shell do contêiner do backend:**
-
-    ```bash
-    docker-compose exec backend bash
-    ```
-
-2.  **Execute os testes:**
-    ```bash
-    pytest
-    ```
-
-## 📂 Estrutura do Projeto
-
-O projeto é um monorepo com a seguinte estrutura principal:
-
-- `backend/`: Contém a aplicação Django (API).
-- `frontend/`: Contém a aplicação React (SPA).
-- `docker-compose.yml`: Orquestra os serviços do ambiente de desenvolvimento.
-- `pyproject.toml`: Gerencia as dependências e ferramentas do projeto Python.
+```bash
+docker-compose exec backend pytest
+```
 ````
 
-## 10. Arquivo `LICENSE` Proposto
+## Estrutura do Projeto
 
-Sugere-se a licença **MIT**, que é permissiva e amplamente utilizada.
+O projeto utiliza um monorepo com a seguinte estrutura principal:
+
+- `backend/`: Contém a aplicação Django API.
+- `frontend/`: Contém a aplicação React SPA.
+- `docker-compose.yml`: Orquestra os serviços para o ambiente de desenvolvimento.
+
+Consulte o Blueprint Arquitetural para mais detalhes sobre a organização interna de cada parte.
 
 ```
+
+### `LICENSE`
+```
+
 MIT License
 
-Copyright (c) 2023 [Nome do Proprietário do Copyright]
+Copyright (c) 2023 [Nome do Proprietário do Projeto]
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -778,470 +1054,40 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-```
 
-## 11. Arquivo `CONTRIBUTING.md` Proposto
+````
 
-````markdown
+### `CONTRIBUTING.md`
+```markdown
 # Como Contribuir para o IABANK
 
-Agradecemos seu interesse em contribuir! Para garantir a qualidade e a consistência do projeto, pedimos que siga estas diretrizes.
+Agradecemos o seu interesse em contribuir! Para manter o projeto organizado e de alta qualidade, pedimos que siga estas diretrizes.
 
-## 📜 Filosofia de Desenvolvimento
+## Processo de Desenvolvimento
 
-Este projeto segue o **Método AGV (Architecture-Guided Vision)**. Todas as contribuições devem estar alinhadas com o **Blueprint Arquitetural** definido. Antes de iniciar uma nova feature ou uma refatoração significativa, consulte o blueprint para garantir que sua abordagem está em conformidade com os padrões e decisões arquiteturais estabelecidas.
+1.  **Siga o Blueprint Arquitetural:** Todas as contribuições devem estar alinhadas com as definições, padrões e contratos estabelecidos no Blueprint. Ele é a nossa fonte única da verdade.
+2.  **Crie uma Issue:** Antes de começar a trabalhar em uma nova funcionalidade ou correção, crie uma issue para discutir a proposta.
+3.  **Crie um Pull Request (PR):** Faça o fork do repositório, crie um branch para a sua feature (`feature/nome-da-feature`) e envie um PR para a branch `main`.
 
-## ✅ Qualidade de Código
+## Qualidade de Código
 
-Utilizamos ferramentas para manter um alto padrão de qualidade de código. É obrigatório que todo código submetido passe por essas verificações.
+A qualidade do código é fundamental. Automatizamos a verificação de qualidade para garantir consistência.
 
-- **Backend (Python):**
-  - **Formatador:** `Black`
-  - **Linter:** `Ruff`
-- **Frontend (TypeScript/React):**
-  - **Formatador:** `Prettier`
-  - **Linter:** `ESLint`
-
-### Hooks de Pre-commit
-
-Configuramos ganchos de `pre-commit` para automatizar essas verificações antes de cada commit. Para ativá-los, instale o `pre-commit` e rode o seguinte comando na raiz do projeto:
-
-```bash
-pip install pre-commit
-pre-commit install
-```
-````
-
-Isso garantirá que seu código seja formatado e validado automaticamente, evitando commits com problemas de estilo.
-
-## 📚 Documentação de Código
-
-- **Python:** Todas as funções, métodos e classes públicas devem ter **docstrings** no formato **Google Style**.
-- **TypeScript/React:** Use **JSDoc** para documentar props de componentes, funções complexas e hooks customizados.
-
-## 🔄 Fluxo de Contribuição
-
-1.  Crie um fork do repositório.
-2.  Crie um branch para sua feature (`git checkout -b feature/nome-da-feature`).
-3.  Implemente sua feature, garantindo a escrita de testes unitários e de integração correspondentes.
-4.  Certifique-se de que todos os testes estão passando (`pytest` no backend, `npm test` no frontend).
-5.  Faça o commit de suas mudanças (`git commit -m 'feat: Adiciona nova funcionalidade X'`).
-6.  Faça o push para o seu branch (`git push origin feature/nome-da-feature`).
-7.  Abra um Pull Request para o branch `main` do repositório original.
-
-````
-
-## 12. Estrutura do `CHANGELOG.md`
-
-```markdown
-# Changelog
-
-Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
-
-O formato é baseado em [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-e este projeto adere ao [Versionamento Semântico](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-
-### Added
--
-
-### Changed
--
-
-### Deprecated
--
-
-### Removed
--
-
-### Fixed
--
-
-### Security
--
-
-## [1.0.0] - YYYY-MM-DD
-
-### Added
-- Versão inicial do Blueprint Arquitetural.
-- Estrutura base do projeto com Backend (Django) e Frontend (React).
-````
-
-## 13. Estratégia de Configuração e Ambientes
-
-- **Ferramenta:** `django-environ`.
-- **Mecanismo:** As configurações serão lidas de variáveis de ambiente. Para o desenvolvimento local, um arquivo `.env` na raiz do projeto `backend/` será utilizado para definir essas variáveis.
-- **Estrutura:** O arquivo `iabank/settings.py` será configurado para ler chaves como `DATABASE_URL`, `SECRET_KEY`, `REDIS_URL`, `DEBUG`, etc., a partir do ambiente. Isso garante que nenhum segredo seja comitado no código-fonte.
-- **Ambientes:**
-  - **Desenvolvimento (local):** `DEBUG=True`, usa o `docker-compose.yml` com o banco de dados e Redis locais.
-  - **Homologação/Staging:** `DEBUG=False`, aponta para um banco de dados e Redis de staging.
-  - **Produção:** `DEBUG=False`, utiliza configurações otimizadas para performance e segurança, apontando para os serviços de produção.
-
-## 14. Estratégia de Observabilidade Completa
-
-- **Logging Estruturado:**
-
-  - **Backend:** Utilização da biblioteca `structlog` para gerar logs em formato JSON. Em desenvolvimento, os logs serão formatados para leitura humana no console. Em produção, serão enviados como JSON para serem ingeridos por um sistema de agregação de logs (ex: ELK Stack, Datadog).
-  - **Níveis:** `INFO` para eventos de negócio (ex: empréstimo criado), `WARNING` para situações anormais que não quebram o sistema, `ERROR` para exceções não tratadas, `CRITICAL` para falhas graves.
-
-- **Métricas de Negócio:**
-
-  - Será exposto um endpoint (ex: `/metrics`, protegido) no padrão Prometheus.
-  - **Métricas a coletar:**
-    - `loans_created_total`: Contador de novos empréstimos.
-    - `payments_received_total`: Soma dos valores de pagamentos recebidos.
-    - `active_users_gauge`: Número de usuários ativos na última hora.
-    - `api_request_latency_histogram`: Histograma da latência das requisições da API.
-
-- **Distributed Tracing (Preparação):**
-
-  - Embora seja um monolito, as requisições que envolvem tarefas assíncronas (Celery) se beneficiarão do tracing.
-  - Bibliotecas como `OpenTelemetry` serão integradas para propagar um `trace_id` entre a requisição HTTP e a tarefa Celery, permitindo rastrear o fluxo completo.
-
-- **Health Checks e SLIs/SLOs:**
-
-  - **Endpoint de Health Check:** `/api/health/`. Ele verificará a conectividade com o Banco de Dados e o Redis. Retornará `200 OK` se tudo estiver funcional.
-  - **SLI (Indicador):** Disponibilidade do endpoint de login.
-  - **SLO (Objetivo):** 99.9% de disponibilidade mensal para o endpoint de login.
-
-- **Alerting Inteligente:**
-  - Configuração de alertas em uma ferramenta como Grafana ou Sentry.
-  - **Exemplos:**
-    - Alertar se a taxa de erros 5xx da API ultrapassar 1% por mais de 5 minutos.
-    - Alertar se a fila do Celery crescer além de 100 tarefas pendentes.
-    - Alertar sobre anomalias no volume de criação de empréstimos (usando detecção de desvio padrão).
-
-## 15. Estratégia de Testes Detalhada
-
-- **Estrutura e Convenção de Nomenclatura:**
-
-  - **Testes Unitários:** Residirão dentro de cada app Django, em `backend/src/iabank/<app_name>/tests/`. Foco em testar modelos, serviços e lógica pura em isolamento.
-    - Exemplo de arquivo: `backend/src/iabank/operational/tests/test_loans_models.py`
-  - **Testes de Integração:** Residirão em um diretório de alto nível, `backend/tests/integration/`. Foco em testar o fluxo completo através da API, envolvendo múltiplos componentes (views, services, models, db).
-    - Exemplo de arquivo: `backend/tests/integration/test_api_loan_creation.py`
-  - **Convenção:** `test_<nome_do_app_ou_feature>_<nome_do_modulo>.py`.
-
-- **Padrões de Teste de Integração:**
-  - **Uso de Factories:** A biblioteca `factory-boy` será utilizada para criar instâncias dos modelos do Django de forma programática e reutilizável.
-    - Ex: `LoanFactory` que cria um `Loan` com um `Customer` e `Installments` associados.
-  - **Simulação de Autenticação:** Nos testes da API, o método `force_authenticate` do `APIClient` do DRF será usado para simular um usuário logado, evitando a necessidade de testar o endpoint de login em cada teste de endpoint protegido.
-  - **Escopo de Teste:** Um teste de integração para a criação de um empréstimo (`POST /api/v1/loans/`) validará:
-    1.  A resposta HTTP (status code, payload).
-    2.  A criação correta do objeto `Loan` no banco de dados.
-    3.  A criação correta das `Installments` associadas.
-    4.  A criação do `FinancialTransaction` de saída do valor.
-        Ele não re-testará a validação de campo do `Customer`, que já deve ter sido coberta por testes unitários.
-
-## 16. Estratégia de CI/CD
-
-- **Ferramenta:** GitHub Actions.
-- **Arquivo de Configuração:** `.github/workflows/ci-cd.yml`.
-- **Gatilhos:** Em cada `push` para `main` e em cada abertura/atualização de `Pull Request`.
-
-- **Estágios do Pipeline:**
-  1.  **CI - Validação (em Pull Requests e push):**
-      - **Setup:** Checkout do código, setup de Python e Node.js.
-      - **Lint & Format Check:** Executa `ruff check` e `black --check` (backend), `eslint` e `prettier --check` (frontend).
-      - **Tests:** Executa `pytest` com geração de relatório de cobertura (backend) e `npm test` (frontend).
-      - **Build:** Executa `npm run build` para o frontend para garantir que o build não quebra.
-  2.  **CD - Entrega (apenas em merge para `main`):**
-      - **Build & Push Docker Images:** Constrói as imagens Docker para `backend` e `frontend` (com tags da versão/commit) e as envia para um registro de contêineres (ex: Docker Hub, GitHub Container Registry).
-  3.  **CD - Implantação (acionado manualmente ou por tag):**
-      - **Deploy to Staging:** Um job manual ou automático (em push para um branch `staging`) que se conecta ao ambiente de staging e atualiza os serviços com as novas imagens Docker.
-      - **Deploy to Production:** Um job manual que executa o mesmo processo para o ambiente de produção.
-  4.  **Rollback:** A estratégia de implantação usará tags de imagem imutáveis. O rollback consistirá em re-implantar a tag da versão estável anterior.
-
-## 17. Estratégia de Versionamento da API
-
-A API será versionada via URL para garantir que futuras mudanças não quebrem os clientes existentes.
-
-- **Formato:** `/api/v1/...`
-- **Implementação:** Utilizando os `Namespaces` e `Routers` do Django REST Framework, será criado um `urls.py` principal para a API que inclui os roteadores da `v1`.
-
-  ```python
-  # iabank/urls.py
-  from django.urls import path, include
-
-  urlpatterns = [
-      # ...
-      path('api/v1/', include('iabank.api_v1.urls')),
-  ]
-  ```
-
-## 18. Padrão de Resposta da API e Tratamento de Erros
-
-- **Resposta de Sucesso (2xx):**
-
-  - Para `GET` (lista):
-    ```json
-    {
-      "count": 150,
-      "next": "http://.../?page=3",
-      "previous": "http://.../?page=1",
-      "results": [ ... ]
-    }
+-   **Formatação e Linting:** Utilizamos `Black` e `Ruff` para o backend (Python) e `Prettier` e `ESLint` para o frontend (TypeScript/React).
+-   **Ganchos de Pre-commit:** É altamente recomendado configurar os ganchos de pre-commit para formatar seu código automaticamente antes de cada commit. O arquivo `.pre-commit-config.yaml` já está configurado.
+    ```bash
+    pip install pre-commit
+    pre-commit install
     ```
-  - Para `GET` (detalhe), `POST`, `PUT`:
-    ```json
-    {
-      "data": { ... }
-    }
-    ```
+-   **Testes:** Toda nova lógica de negócio deve ser acompanhada de testes unitários e/ou de integração. O PR deve manter ou aumentar a cobertura de testes do projeto.
 
-- **Resposta de Erro (4xx, 5xx):**
-  Um `ExceptionHandler` customizado do DRF será implementado para padronizar todas as respostas de erro.
-  ```json
-  {
-    "error": {
-      "code": "validation_error", // ou "not_found", "authentication_failed", "server_error"
-      "message": "Ocorreu um erro de validação.",
-      "details": {
-        // opcional, para erros de validação
-        "document": ["Este campo não pode ser em branco."],
-        "principal_amount": ["Deve ser um número positivo."]
-      }
-    }
-  }
-  ```
+## Documentação de Código
 
-## 19. Estratégia de Segurança Abrangente
+-   **Docstrings:** Funções, classes e métodos públicos no backend devem ter docstrings claras explicando seu propósito, argumentos e o que retornam.
+-   **Comentários:** Use comentários para explicar partes complexas ou não óbvias do código, mas prefira um código claro e autoexplicativo.
 
-- **Threat Modeling Básico:**
-
-  - **Ameaça 1:** Acesso não autorizado a dados de outro tenant.
-    - **Mitigação:** Implementação rigorosa do `TenantAwareModel` com filtragem automática em um `Manager` customizado para garantir que nenhuma query vaze dados. Testes de integração específicos para validar o isolamento.
-  - **Ameaça 2:** Injeção de SQL.
-    - **Mitigação:** Uso exclusivo do ORM do Django, que parametriza todas as queries, prevenindo esta classe de ataque.
-  - **Ameaça 3:** Vazamento de dados sensíveis do cliente (documento, renda).
-    - **Mitigação:** Criptografia de dados sensíveis em repouso (usando `django-cryptography` ou `pgcrypto`). Controle de acesso granular (RBAC) para limitar quem pode ver esses dados.
-
-- **Estratégia de Secrets Management:**
-
-  - **Desenvolvimento:** Arquivos `.env` locais, não comitados.
-  - **Produção:** Variáveis de ambiente injetadas pelo orquestrador de contêineres (ex: Kubernetes Secrets, AWS Secrets Manager, variaveis de ambiente do serviço de PaaS).
-
-- **Compliance Framework (LGPD):**
-
-  - **Auditoria:** O modelo `AuditLog` registrará todas as operações CRUD em dados pessoais.
-  - **RBAC:** O sistema de permissões do Django será usado para implementar o "princípio do menor privilégio".
-  - **Retenção de Dados:** Serão implementados scripts (comandos de gerenciamento) para anonimização ou exclusão de dados de clientes mediante solicitação, conforme a LGPD.
-
-- **Security by Design:**
-  - **DRF:** Utilização das validações, throttling e permissions built-in do framework.
-  - **Django:** Proteções contra CSRF, XSS e Clickjacking ativadas por padrão.
-  - **Dependências:** Uso de ferramentas como `pip-audit` ou `Dependabot` do GitHub para monitorar e alertar sobre vulnerabilidades em dependências.
-
-## 20. Justificativas e Trade-offs
-
-- **Monólito vs. Microsserviços:**
-
-  - **Decisão:** Adotar uma arquitetura monolítica (Majestic Monolith).
-  - **Justificativa:** Para a fase inicial do projeto, a complexidade operacional de uma arquitetura de microsserviços (deploy, monitoramento, comunicação inter-serviços) superaria os benefícios. O monolito permite um desenvolvimento mais rápido, transações ACID mais simples e um único ponto de implantação. A modularização interna em apps Django (operational, financial, etc.) prepara o terreno para uma futura extração para microsserviços, se necessário.
-  - **Trade-off:** Escalabilidade granular é sacrificada. Se um módulo (ex: relatórios) se tornar um gargalo, toda a aplicação precisa ser escalada. Este é um trade-off aceitável no início.
-
-- **Monorepo vs. Multi-repo:**
-  - **Decisão:** Monorepo.
-  - **Justificativa:** Simplifica o setup do ambiente e a consistência entre frontend e backend. Facilita refatorações que afetam ambas as bases de código.
-  - **Trade-off:** O pipeline de CI/CD pode se tornar mais lento com o tempo, pois testa e constrói tudo a cada mudança. Isso pode ser mitigado com pipelines inteligentes que executam jobs apenas para as partes do código que foram alteradas.
-
-## 21. Exemplo de Bootstrapping/Inicialização
-
-A inicialização e injeção de dependência em Django são gerenciadas pelo próprio framework. Um exemplo conceitual de como um serviço seria usado em uma View do DRF demonstra a simplicidade da abordagem:
-
-```python
-# iabank/operational/views.py
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from .services import LoanService  # Implementação concreta de ILoanService
-from .dtos import LoanCreateDTO
-
-class LoanCreateAPIView(APIView):
-    def post(self, request, *args, **kwargs):
-        # O framework injeta 'request', que contém user e tenant (via middleware)
-        loan_service = LoanService(user=request.user, tenant=request.tenant)
-
-        try:
-            dto = LoanCreateDTO(**request.data)
-            loan = loan_service.create_loan(dto)
-            # Serializa a resposta
-            return Response({"data": {"id": loan.id}}, status=status.HTTP_201_CREATED)
-        except Exception as e:
-            # Tratamento de erro
-            return Response({"error": ...}, status=status.HTTP_400_BAD_REQUEST)
-
-```
-
-A configuração do `LoanService` (`__init__`) recebe suas dependências essenciais (contexto do usuário e tenant) no momento da instanciação, garantindo que ele opere dentro do contexto correto.
-
-## 22. Estratégia de Evolução do Blueprint
-
-- **Versionamento Semântico:** Este blueprint será versionado (ex: `IABANK Blueprint v1.0.0`). Mudanças que adicionam funcionalidades sem quebrar a estrutura são `MINOR` (v1.1.0). Mudanças que alteram fundamentalmente a arquitetura (ex: migrar para microsserviços) são `MAJOR` (v2.0.0).
-- **Processo de Evolução:** Mudanças arquiteturais significativas devem ser propostas através de um **Architectural Decision Record (ADR)**. Um ADR é um documento curto em Markdown que descreve a decisão, o contexto, as alternativas consideradas e as consequências. Os ADRs serão armazenados em uma pasta `docs/adr/` no repositório.
-- **Compatibilidade:** Para mudanças na API, a estratégia de versionamento (Seção 17) garante a compatibilidade. Componentes internos depreciados devem ser marcados com `warnings.warn` e removidos em uma versão `MAJOR` futura.
-
-## 23. Métricas de Qualidade e Quality Gates
-
-- **Cobertura de Código:**
-  - **Meta:** Mínimo de **85%** de cobertura de testes para todo o código do backend.
-  - **Exclusões:** Arquivos de migração, `manage.py`, `settings.py`.
-  - **Ferramenta:** `pytest-cov`.
-- **Complexidade:**
-  - **Métrica:** Complexidade Ciclomática.
-  - **Limite:** Nenhuma função/método pode ter uma complexidade maior que **12**.
-  - **Ferramenta:** `Ruff` (com o plugin `mccabe`).
-- **Quality Gates Automatizados (no CI):**
-  - O Pull Request será **bloqueado** se qualquer um dos seguintes critérios for atendido:
-    1.  A cobertura total de testes cair abaixo de 85%.
-    2.  O linter (`Ruff`) reportar qualquer erro.
-    3.  Qualquer teste (unitário ou de integração) falhar.
-    4.  Uma varredura de segurança (ex: `pip-audit`) encontrar uma vulnerabilidade de alta criticidade.
-
-## 24. Análise de Riscos e Plano de Mitigação
-
-| Categoria       | Risco Identificado                                                                              | Probabilidade (1-5) | Impacto (1-5) | Score (P×I) | Estratégia de Mitigação                                                                                                                                                                                                                                               |
-| :-------------- | :---------------------------------------------------------------------------------------------- | :-----------------: | :-----------: | :---------: | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Segurança**   | **Violação de dados (data breach) devido a falha no isolamento Multi-tenant.**                  |        **3**        |     **5**     |   **15**    | Implementar camada de acesso a dados tenant-aware obrigatória. Testes de integração rigorosos para validar que um usuário do tenant A não consegue acessar dados do tenant B sob nenhuma circunstância. Auditoria de logs de acesso.                                  |
-| **Técnico**     | **Débito técnico excessivo devido à velocidade inicial, tornando a manutenção futura custosa.** |        **4**        |     **3**     |   **12**    | Adoção rigorosa de quality gates (linting, testes, cobertura). Processo de code review obrigatório para todos os PRs. Alocação de tempo para refatoração técnica em cada ciclo de desenvolvimento.                                                                    |
-| **Performance** | **Consultas lentas em tabelas grandes (empréstimos, transações) impactando a UX.**              |        **3**        |     **4**     |   **12**    | Design de schema com índices apropriados desde o início. Uso do `Django Debug Toolbar` para identificar queries lentas em desenvolvimento. Implementação de paginação em todos os endpoints de listagem. Caching para dados frequentemente acessados e que não mudam. |
-| **Negócio**     | **Falha em atender a requisitos regulatórios (LGPD, Bacen), resultando em multas.**             |        **2**        |     **5**     |   **10**    | Consultoria jurídica para mapear requisitos. Construir a plataforma com princípios de Privacy by Design. Implementar trilha de auditoria completa e mecanismos de gestão de consentimento e dados do titular.                                                         |
-| **Operacional** | **Perda de dados financeiros por falha de backup ou transação não atômica.**                    |        **2**        |     **5**     |   **10**    | Utilizar transações atômicas (`@transaction.atomic`) do Django para todas as operações financeiras críticas. Configurar backups automáticos e point-in-time recovery (PITR) no PostgreSQL. Realizar testes de restauração de backup periodicamente.                   |
-
-## 25. Conteúdo dos Arquivos de Ambiente e CI/CD
-
-### `pyproject.toml` Proposto
-
-```toml
-[tool.poetry]
-name = "iabank-backend"
-version = "0.1.0"
-description = "Backend for IABANK Loan Management System"
-authors = ["Your Name <you@example.com>"]
-readme = "README.md"
-packages = [{include = "iabank", from = "src"}]
-
-[tool.poetry.dependencies]
-python = "^3.10"
-django = "^4.2"
-djangorestframework = "^3.14"
-psycopg2-binary = "^2.9"
-django-environ = "^0.11"
-celery = {extras = ["redis"], version = "^5.3"}
-redis = "^5.0"
-pydantic = {extras = ["email"], version = "^2.3"}
-structlog = "^23.1"
-gunicorn = "^21.2"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.4"
-pytest-django = "^4.7"
-pytest-cov = "^4.1"
-factory-boy = "^3.3"
-black = "^23.9"
-ruff = "^0.0.290"
-pre-commit = "^3.4"
-pip-audit = "^2.6"
-
-[tool.black]
-line-length = 88
-target-version = ['py310']
-include = '\.pyi?$'
-
-[tool.ruff]
-line-length = 88
-select = ["E", "F", "W", "I", "C90", "N", "D"]
-ignore = ["D100", "D104", "D105", "D107"]
-
-[tool.ruff.mccabe]
-max-complexity = 12
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-```
-
-### `.pre-commit-config.yaml` Proposto
-
-```yaml
-repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
-  - repo: https://github.com/psf/black
-    rev: 23.9.1
-    hooks:
-      - id: black
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.0.290"
-    hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-```
-
-### `Dockerfile.backend` Proposto
-
-```dockerfile
-# Stage 1: Build
-FROM python:3.10-slim as builder
-
-WORKDIR /app
-
-ENV POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=1 \
-    POETRY_VIRTUALENVS_CREATE=1
-
-COPY pyproject.toml poetry.lock ./
-RUN pip install poetry && poetry install --no-dev --no-root
-
-# Stage 2: Final Image
-FROM python:3.10-slim
-
-WORKDIR /app
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-COPY --from=builder /app/.venv ./.venv
-ENV PATH="/app/.venv/bin:$PATH"
-
-COPY ./backend/src/ .
-
-# Gunicorn será o entrypoint no docker-compose
-EXPOSE 8000
-```
-
-### `Dockerfile.frontend` Proposto
-
-```dockerfile
-# Stage 1: Build
-FROM node:18-alpine as builder
-
-WORKDIR /app
-
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
-RUN npm install -g pnpm && pnpm install
-
-COPY frontend/ .
-
-RUN pnpm build
-
-# Stage 2: Serve
-FROM nginx:1.25-alpine
-
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Se precisar de um reverse proxy, copie a configuração do Nginx aqui
-# COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
-```
+Obrigado por ajudar a construir o IABANK!
+````
 
 ---
 

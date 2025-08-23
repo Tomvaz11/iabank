@@ -24,10 +24,10 @@
 4. **Diretriz para Estrutura de Testes:**
 
    - A criação da **estrutura de diretórios** para testes (ex: `backend/src/iabank/operations/tests/`) **FAZ PARTE** do scaffolding do Alvo 0.
-   - Dentro desses diretórios, você **DEVE** criar os arquivos de teste correspondentes aos arquivos de código-fonte (ex: `test_models.py`, `test_services.py`, etc.), aplicando a mesma regra de conteúdo: os arquivos de teste devem conter **APENAS** um docstring de módulo que explique seu propósito (ex: `"""Testes unitários para os serviços do app de operações."""`). Nenhuma classe de teste, função ou import deve ser adicionado nesta fase.
+   - Dentro desses diretórios, você **DEVE** criar os arquivos de teste correspondentes aos arquivos de código-fonte, aplicando a mesma regra de conteúdo: os arquivos de teste devem conter **APENAS** um docstring de módulo que explique seu propósito (ex: `"""Testes unitários para os serviços do app de operações."""`). Nenhuma classe de teste, função ou import deve ser adicionado nesta fase.
 
 5. **Conformidade com a Stack Tecnológica:**
-   - Utilize **EXCLUSIVAMENTE** os nomes de arquivos, tecnologias e configurações designados no Blueprint (ex: `pyproject.toml` para Poetry/Ruff, `package.json` para Node, `.github/workflows/main.yml` para CI/CD).
+   - Utilize **EXCLUSIVAMENTE** os nomes de arquivos, tecnologias e configurações designados no Blueprint (ex: `pyproject.toml` para Poetry/Ruff, `package.json` para Node, `.github/workflows/main.yml` para CI/CD, etc.).
 
 ---
 

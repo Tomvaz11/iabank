@@ -56,9 +56,6 @@
 **Arquivos Criados/Modificados:**
 [Liste aqui os caminhos completos de todos os arquivos de produção e de teste que você criou ou modificou.]
 
-- `backend/src/iabank/operations/services.py`
-- `backend/tests/unit/iabank/test_operations_services.py`
-
 **Conteúdo dos Arquivos:**
 [Apresente aqui o conteúdo completo e final de cada arquivo, um após o outro, dentro de blocos de código Markdown. Comece cada bloco com o caminho completo do arquivo.]
 

@@ -1,4 +1,4 @@
-# AGV Prompt Template: Tocrisna v7.1 - Definição da Arquitetura Técnica e de Produto
+# AGV Prompt Template: Tocrisna v7.2 - Definição da Arquitetura Técnica e de Produto
 
 ## Tarefa Principal
 
@@ -510,7 +510,10 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
 
 5. **Definição das Interfaces Principais:** Detalhamento dos contratos de comunicação entre os componentes chave (conforme Diretriz 3), incluindo como os componentes recebem suas configurações iniciais (priorizando `__init__`).
 6. **Gerenciamento de Dados (se aplicável):** Como os dados serão persistidos e acessados (ex: Módulo data_access usando SQLAlchemy com padrão Repository, ou especificando Pydantic `BaseModel` para modelos de dados se não houver persistência complexa). Além da persistência, a seção deve descrever a estratégia para: Gerenciamento de Schema (confirmando o uso de migrações automáticas como as do Django) e Seed de Dados (como popular o banco de dados de desenvolvimento com dados iniciais/fictícios, ex: usando scripts customizados, fixtures ou bibliotecas como factory-boy).
-7. **Estrutura de Diretórios Proposta:** Uma sugestão inicial, **preferencialmente utilizando o layout `src` moderno** (com o código principal do pacote dentro de uma pasta `src/nome_do_pacote/`) para melhor organização e empacotamento, mostrando a organização das pastas e arquivos principais. A estrutura deve refletir as melhores práticas para a stack tecnológica definida. Para projetos Python, isso significa priorizar o uso de pyproject.toml para gerenciamento de dependências e configuração de ferramentas (ex: Poetry, Ruff, Black, etc.), em vez de múltiplos arquivos de configuração legados.
+7. **Estrutura de Diretórios Proposta:** Uma sugestão inicial, preferencialmente utilizando o layout `src` moderno, mostrando a organização das pastas e arquivos principais. **Esta seção é crítica para a consistência do projeto. Ao listar os exemplos de arquivos de teste, você DEVE aplicar a seguinte convenção de nomenclatura explícita para evitar conflitos:**
+   - **Formato Mandatório:** `test_<nome_do_app>_<nome_do_modulo_ou_funcionalidade>.py`.
+   - **Exemplo de Aplicação:** Os testes para `iabank/loans/models.py` devem ser mostrados na estrutura como `iabank/loans/tests/test_loans_models.py`, não como `test_models.py`. Esta regra deve ser aplicada a todos os exemplos de arquivos de teste na estrutura de diretórios que você gerar.
+     A estrutura deve refletir as melhores práticas para a stack tecnológica definida. Para projetos Python, isso significa priorizar o uso de pyproject.toml para gerenciamento de dependências e configuração de ferramentas (ex: Poetry, Ruff, Black, etc.), em vez de múltiplos arquivos de configuração legados.
 8. **Arquivo `.gitignore` Proposto:** Um conteúdo sugerido, **completo e pronto para uso**, para o arquivo `.gitignore` na raiz do projeto, apropriado para a "Stack Tecnológica Definida". Ele deve ser abrangente, cobrindo caches, ambientes virtuais, arquivos de IDEs comuns (VS Code, PyCharm), e arquivos específicos do SO.
 9. **Arquivo `README.md` Proposto:** A geração do **conteúdo completo** para um arquivo `README.md` inicial e profissional. O README deve seguir uma estrutura padrão, contendo, no mínimo:
    - O nome do projeto e uma descrição concisa.

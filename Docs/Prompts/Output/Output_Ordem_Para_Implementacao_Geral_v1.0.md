@@ -2,25 +2,18 @@
 
 **Alvo 0:** Setup do Projeto Profissional
 
-- **Responsabilidade:** Configurar a estrutura do monorepo (`backend/`, `frontend/`), inicializar os projetos Django e React, criar os arquivos de configuração (`docker-compose.yml`, `Dockerfile.*`, `pyproject.toml`, `.pre-commit-config.yaml`), e estabelecer o pipeline de CI/CD inicial (`.github/workflows/ci-cd.yml`).
+**Alvo 1:** `iabank.core`: Modelos e Migrações (`Tenant`, `TenantAwareModel`, `AuditableModel`).
 
-**Alvo 1:** `iabank.core`: Modelos e Migrações
+**Alvo 2:** `iabank.users`: Modelo e Migração (`User` com referência ao `Tenant`).
 
-- **Responsabilidade:** Implementar os modelos `Tenant` e `TenantAwareModel`, que são a base para o isolamento de dados multi-tenant. Gerar as migrações iniciais.
+**Alvo 3:** `iabank.users`: Serializers e Views para Autenticação JWT (Endpoints `/token/` e `/token/refresh/`).
 
-**Alvo 2:** `iabank.users`: Modelos e Migrações
+> > > **PARADA DE TESTES DE INTEGRAÇÃO T1** (Autenticação Básica e Estrutura de Tenancy) <<<
 
-- **Responsabilidade:** Implementar o modelo customizado `User` com a referência ao `Tenant` e gerar sua migração.
-
-**Alvo 3:** `iabank.users`: Fase 1 - API de Autenticação JWT
-
-- **Responsabilidade:** Implementar os Serializers e Views (usando uma biblioteca como `djangorestframework-simplejwt`) para os endpoints `/api/v1/token/` e `/api/v1/token/refresh/`.
-
-> > > **PARADA DE TESTES DE INTEGRAÇÃO T1** (Autenticação Básica) <<<
-
-- **Módulos no Grupo:** `core`, `users` (Modelos e API de Autenticação).
-- **Objetivo do Teste:** Validar que um usuário pode ser criado no banco de dados e pode obter um par de tokens JWT (acesso e refresh) válido através da API.
+- **Módulos no Grupo:** `iabank.core` (Modelos), `iabank.users` (Modelo, Autenticação).
+- **Objetivo do Teste:** Validar que a estrutura fundamental de multi-tenancy está no lugar e que o sistema de autenticação via token JWT está funcional.
 - **Cenários Chave:**
-  1.  **Sucesso na Autenticação:** Criar um `Tenant` e um `User` diretamente no banco de dados de teste. Fazer uma requisição `POST` para `/api/v1/token/` com as credenciais corretas e verificar se a resposta é `200 OK` e contém as chaves `access` e `refresh`.
-  2.  **Falha na Autenticação:** Fazer uma requisição `POST` para `/api/v1/token/` com uma senha incorreta e verificar se a resposta é `401 Unauthorized`.
-  3.  **Renovação de Token:** Usar o `refresh` token obtido no cenário 1 para fazer uma requisição `POST` para `/api/v1/token/refresh/` e verificar se a resposta é `200 OK` e contém uma nova chave `access`.
+  1.  **Obtenção de Token:** Um POST para `/api/v1/token/` com credenciais válidas de um usuário pré-cadastrado deve retornar um `access` e um `refresh` token.
+  2.  **Falha de Autenticação:** Um POST para `/api/v1/token/` com credenciais inválidas deve retornar um status `401 Unauthorized`.
+  3.  **Refresh de Token:** Um POST para `/api/v1/token/refresh/` com um `refresh` token válido deve retornar um novo `access` token.
+  4.  **Associação de Tenant:** Validar no banco de dados que um `User` recém-criado (via script de teste) está corretamente associado a um `Tenant`.
