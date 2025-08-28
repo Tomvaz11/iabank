@@ -82,22 +82,22 @@ Implementar o **Alvo 1** conforme definido na Ordem de Implementação:
   - **O que:** 8 testes validando consistência e propagação de tenant
 
 #### 3.1.3 Testes de Integração Blueprint
-- **`backend/src/tests/integration/test_admin_integration.py`** (127 linhas)
+- **`tests/integration/test_admin_integration.py`** (127 linhas)
   - **Por que:** Diretriz 15: "Validam interação entre múltiplos componentes"
   - **O que:** 7 testes de fluxo completo Django Admin com multi-tenancy
 
-- **`backend/src/tests/integration/test_authentication_integration.py`** (165 linhas)
+- **`tests/integration/test_authentication_integration.py`** (165 linhas)
   - **Por que:** Diretriz 15: "api_client.force_authenticate(user=self.user)"
   - **O que:** 11 testes implementando padrão obrigatório de autenticação
 
 #### 3.1.4 Configurações de Teste
-- **`backend/src/pytest.ini`** (6 linhas)
+- **`pytest.ini`** (6 linhas) - **Consolidado no root**
   - **Por que:** Configurar Django para pytest com coverage
   - **O que:** Configuração completa: DJANGO_SETTINGS_MODULE, cobertura ≥90%
 
-- **`backend/src/.coveragerc`** (33 linhas)  
+- **`.coveragerc`** (28 linhas) - **Otimizado no root**  
   - **Por que:** Exclusões técnicas para relatórios limpos de cobertura
-  - **O que:** Omitir testes, migrações, bibliotecas externas
+  - **O que:** Configuração simplificada source + omit, sem duplicações
 
 - **`backend/src/conftest.py`** (11 linhas)
   - **Por que:** Configurar Django para pytest adequadamente
@@ -228,7 +228,7 @@ class BaseTenantModel(models.Model):
 ### 6.1 Métricas de Qualidade Final
 **ATUALIZAÇÃO:** Métricas após implementação completa da Blueprint Diretriz 15
 
-- **Cobertura de Testes:** 100% (74/74 statements) - mantida após expansão
+- **Cobertura de Testes:** 100% (77/77 statements) - mantida após otimizações
 - **Testes Executados:** 45 testes, 0 falhas (vs. 15 iniciais - aumento 200%)
 - **Conformidade Blueprint:** 100% - Diretriz 15 totalmente implementada
 - **Estrutura de Testes:** 
@@ -377,20 +377,24 @@ A implementação do Alvo 1 estabelece a base sólida para:
 **Implementações de infraestrutura:**
 
 #### 9.3.1 Configuração Pytest Otimizada
-- **Arquivo:** `backend/src/pytest.ini` (configuração final limpa)
+- **Arquivo:** `pytest.ini` (consolidado no root, configuração final limpa)
 - **Configurações:** Cobertura obrigatória ≥90%, relatórios HTML/terminal, exclusão de migrações
-- **Comando otimizado:** `cd backend\src; pytest --cov` (compatível com PowerShell)
+- **Comando otimizado:** `pytest --cov` (executável diretamente do root)
 
 #### 9.3.2 Configuração Coverage Avançada  
-- **Arquivo:** `backend/src/.coveragerc` (exclusões técnicas)
+- **Arquivo:** `.coveragerc` (consolidado no root, exclusões técnicas)
 - **Exclusões:** Arquivos de teste, migrações, bibliotecas externas, configurações
-- **Resultado:** Relatórios limpos focados apenas em código de produção (74 statements vs. 170 anterior)
+- **Resultado:** Relatórios limpos focados apenas em código de produção (77 statements vs. 416 anterior)
 
-#### 9.3.3 Resolução de Problemas Técnicos
+#### 9.3.3 Resolução de Problemas Técnicos e Limpeza Estrutural
 - **Problema inicial:** Arquivos de teste aparecendo no relatório de cobertura (confusão técnica)
-- **Causa identificada:** Usuário executava de diretório incorreto, causando duplicação de configurações
-- **Solução aplicada:** Configuração única e limpa em `backend/src/`, workflow padronizado
-- **Validação:** Coverage limpo mostrando apenas código de produção com 100% cobertura
+- **Causa identificada:** Coverage incluindo próprios arquivos de teste (416 statements vs. 77 reais)
+- **Solução aplicada:** 
+  - Consolidação de configurações no root (pytest.ini, .coveragerc)
+  - Configuração simplificada com `source + omit` vs. `include` específico
+  - Remoção de arquivos residuais: `.coverage`, `.pytest_cache/` duplicados
+  - Workflow padronizado: `pytest --cov` diretamente do root
+- **Validação:** Coverage limpo mostrando apenas código de produção (77 statements) com 100% cobertura
 
 ### 9.4 Lições Aprendidas
 - **Importância da verificação rigorosa:** As verificações adicionais solicitadas pelo usuário demonstraram o valor de validações além dos testes básicos
@@ -398,6 +402,8 @@ A implementação do Alvo 1 estabelece a base sólida para:
 - **Conformidade estrita:** Seguir rigorosamente o Blueprint evitou retrabalhos e inconsistências
 - **Configuração de infraestrutura:** Setup correto de pytest/coverage é fundamental para manter qualidade técnica
 - **Workflow padronizado:** Definir comandos e diretórios corretos evita confusões futuras
+- **Limpeza estrutural:** Manter apenas configurações necessárias e eliminar duplicações é essencial para manutenibilidade
+- **Coverage preciso:** Medir apenas código de produção (não testes) fornece métricas realistas e úteis
 
 ---
 
@@ -439,8 +445,8 @@ A implementação do Alvo 1 estabelece a base sólida para:
 ### 10.3 Novos Arquivos Criados para Conformidade
 1. **`iabank/core/tests/factories.py`** - Factory-boy obrigatório
 2. **`iabank/core/tests/test_factories.py`** - Meta-testes obrigatórios  
-3. **`tests/integration/test_admin_integration.py`** - Testes integração
-4. **`tests/integration/test_authentication_integration.py`** - Autenticação
+3. **`tests/integration/test_admin_integration.py`** - Testes integração (movido para root)
+4. **`tests/integration/test_authentication_integration.py`** - Autenticação (movido para root)
 
 ### 10.4 Impacto da Correção
 - **Aumento de testes:** 200% (15 → 45 testes)

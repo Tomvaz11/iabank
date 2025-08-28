@@ -1,5 +1,5 @@
 [run]
-source = iabank
+source = backend/src/iabank
 omit = 
     */migrations/*
     */tests/*
@@ -11,11 +11,7 @@ omit =
     manage.py
     */wsgi.py
     */asgi.py
-    */urls.py
     conftest.py
-    pyscript*
-    shibokensupport*
-    signature_bootstrap.py
 
 [report]
 exclude_lines =
@@ -27,9 +23,6 @@ exclude_lines =
     raise NotImplementedError
     if 0:
     if __name__ == .__main__.:
-    class .*\(Protocol\):
-    @(abc\.)?abstractmethod
 
 [html]
 directory = htmlcov
-skip_covered = False

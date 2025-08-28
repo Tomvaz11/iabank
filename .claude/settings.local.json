@@ -18,7 +18,9 @@
       "Read(D:\\Imagens\\Screenshots/**)",
       "Bash(coverage debug:*)",
       "Bash(coverage erase:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(cp:*)",
+      "Bash(DJANGO_SETTINGS_MODULE=iabank.settings python -c \"import django; django.setup(); print(''Django OK'')\")"
     ],
     "deny": [],
     "ask": []
