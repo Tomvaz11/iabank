@@ -10,7 +10,15 @@
       "Bash(npm --version)",
       "Bash(/dev/null)",
       "Bash(npm ls:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(set DJANGO_SETTINGS_MODULE=iabank.settings)",
+      "Bash(sqlite3:*)",
+      "Bash(rm:*)",
+      "Bash(pytest:*)",
+      "Read(D:\\Imagens\\Screenshots/**)",
+      "Bash(coverage debug:*)",
+      "Bash(coverage erase:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []
