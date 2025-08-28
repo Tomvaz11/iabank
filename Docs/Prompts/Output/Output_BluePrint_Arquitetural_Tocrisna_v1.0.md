@@ -1,121 +1,133 @@
-# **Blueprint Arquitetural: IABANK v1.0**
+# Blueprint Arquitetural: IABANK (Tocrisna v7.4)
+
+Este documento define a arquitetura de alto nível, técnica e de produto, para o sistema de gestão de empréstimos IABANK. Ele serve como a fonte única da verdade para a estrutura, componentes e contratos da plataforma.
 
 ## 1. Visão Geral da Arquitetura
 
-A arquitetura do `IABANK` será baseada em uma abordagem de **Monólito Modular em Camadas**. Esta escolha visa equilibrar a velocidade de desenvolvimento inicial com a manutenibilidade e escalabilidade futuras.
+A arquitetura escolhida é uma **Arquitetura em Camadas (Layered Architecture)** aplicada a uma aplicação **Monolítica Modular**. O backend Django será estruturado seguindo princípios da Arquitetura Limpa (Clean Architecture) para garantir uma forte separação de responsabilidades, testabilidade e manutenibilidade.
 
-- **Backend:** Um único serviço Django que expõe uma API RESTful. Internamente, o código será organizado em "apps" Django que representam os domínios de negócio (ex: `loans`, `customers`, `finance`), promovendo alta coesão e baixo acoplamento entre os módulos. A arquitetura interna seguirá o padrão de Camadas (Apresentação, Aplicação, Domínio, Infraestrutura) para uma clara separação de responsabilidades.
-- **Frontend:** Uma Single Page Application (SPA) desenvolvida em React/TypeScript, que consome a API do backend. Ela será responsável por toda a renderização e experiência do usuário.
-- **Comunicação:** A comunicação entre Frontend e Backend será síncrona, via API RESTful (JSON sobre HTTPS). Tarefas assíncronas (como envio de e-mails) serão delegadas ao Celery com um broker Redis.
-- **Multi-tenancy:** A arquitetura será multi-tenant desde o início, utilizando uma estratégia de **isolamento de dados por chave estrangeira (`tenant_id`)**. Todos os dados de negócio serão particionados por Tenant no nível do banco de dados, e a camada de acesso a dados garantirá que nenhuma query possa vazar dados entre tenants.
+- **Monolito Modular:** Em vez de microserviços, optamos por um único codebase (monolito) dividido em módulos de negócio bem definidos (apps Django como `loans`, `finance`, `customers`). Esta abordagem reduz a complexidade operacional inicial, acelera o desenvolvimento e é ideal para a fase atual do projeto, enquanto a modularidade interna facilita uma futura extração para microserviços, se necessário.
+- **Arquitetura em Camadas (Backend):** O backend será dividido em quatro camadas distintas:
+  1.  **Apresentação (Presentation):** Responsável por lidar com requisições HTTP e serialização de dados. (Django REST Framework: Views, Serializers, Routers).
+  2.  **Aplicação (Application):** Orquestra os casos de uso do sistema. Contém a lógica de aplicação, chama serviços de domínio e de infraestrutura. (Camada de Serviços).
+  3.  **Domínio (Domain):** O coração do sistema. Contém a lógica de negócio pura, modelos de dados e regras de negócio. (Django Models, Lógica de Domínio).
+  4.  **Infraestrutura (Infrastructure):** Lida com detalhes técnicos como acesso ao banco de dados, comunicação com serviços externos, caches, etc. (Django ORM, Celery, Clientes de API).
+- **Frontend (SPA):** O frontend será uma Single Page Application (SPA) desacoplada, comunicando-se com o backend exclusivamente via API RESTful.
+- **Organização do Código-Fonte:** Adotaremos um **monorepo**, contendo tanto o código do backend (`backend/`) quanto do frontend (`frontend/`) no mesmo repositório Git.
+  - **Justificativa:** Esta abordagem simplifica o gerenciamento de dependências, facilita a consistência entre a API e o cliente, e agiliza o pipeline de CI/CD, já que uma única alteração de contrato na API pode ser implementada e validada no frontend na mesma Pull Request.
 
-**Organização do Código-Fonte:** Será utilizado um **monorepo**, gerenciado com ferramentas de workspace se necessário. Esta abordagem simplifica o desenvolvimento e o CI/CD, garantindo que o contrato entre a API do backend e o consumidor do frontend permaneça sempre sincronizado no mesmo commit. O repositório conterá duas pastas principais na raiz: `backend/` e `frontend/`.
+---
 
 ## 4. Descrição Detalhada da Arquitetura Frontend
 
-- **Padrão Arquitetural:** Será adotada uma arquitetura **Feature-Sliced Design**. O código é organizado por funcionalidades de negócio, promovendo alta coesão e baixo acoplamento. Cada _feature_ é autocontida, com seus próprios componentes de UI, lógica de estado e chamadas de API.
+A arquitetura do frontend seguirá um padrão **Feature-based** (baseado em funcionalidades), que promove alta coesão e baixo acoplamento.
 
-- **Estrutura de Diretórios Proposta (`src/`):**
+- **Padrão Arquitetural:** O código é organizado por fatias verticais de negócio (`features`), em vez de fatias horizontais por tipo de arquivo (`components`, `hooks`). Isso mantém toda a lógica de uma funcionalidade (ex: gestão de empréstimos) em um único lugar.
+
+- **Estrutura de Diretórios Proposta (`frontend/src/`):**
 
   ```
   src/
-  |-- app/                # Configuração global: providers, router, store, styles
-  |-- pages/              # Componentes de página, que compõem layouts a partir das features
-  |-- features/           # Módulos de negócio (ex: loan-creation-wizard, loan-list)
-  |   |-- loan-list/
-  |   |   |-- api/        # Hooks e funções para chamadas à API (usando TanStack Query)
-  |   |   |-- components/ # Componentes de UI específicos da feature
-  |   |   |-- model/      # Lógica, estado e tipos da feature
-  |   |   |-- index.ts    # Ponto de entrada público do módulo
-  |-- entities/           # Entidades de negócio (ex: CustomerCard, LoanStatusBadge)
-  |-- shared/             # Código reutilizável e agnóstico de negócio
-  |   |-- api/            # Configuração do cliente Axios/Fetch, interceptors
-  |   |-- lib/            # Funções utilitárias (formatters, validators)
-  |   |-- ui/             # Biblioteca de componentes de UI (Button, Input, Table)
-  |   |-- assets/         # Imagens, fontes, etc.
+  ├── app/                # Configuração global da aplicação (providers, store, router, styles)
+  ├── pages/              # Componentes de página, que compõem layouts a partir das features
+  ├── features/           # Funcionalidades de negócio (ex: loan-list, customer-form)
+  │   ├── loan-list/
+  │   │   ├── api/        # Hooks de API (TanStack Query) e definições de requisição
+  │   │   ├── components/ # Componentes específicos desta feature (ex: LoanFilterPanel)
+  │   │   ├── model/      # Types, schemas de validação (Zod)
+  │   │   └── ui/         # O componente principal da feature (ex: LoanListTable.tsx)
+  │   └── ...
+  ├── entities/           # Componentes e lógica de entidades de negócio (ex: LoanCard, CustomerAvatar)
+  └── shared/             # Código reutilizável e agnóstico de negócio
+      ├── api/            # Configuração do cliente Axios/Fetch global
+      ├── config/         # Constantes, configurações de ambiente
+      ├── lib/            # Funções utilitárias, helpers, hooks genéricos
+      └── ui/             # Biblioteca de componentes de UI puros (Button, Input, Table)
   ```
 
 - **Estratégia de Gerenciamento de Estado:**
 
-  - **Estado do Servidor:** Gerenciado exclusivamente pelo `TanStack Query (React Query)`. Ele será a fonte da verdade para todos os dados assíncronos vindos da API, tratando de caching, revalidação, e estados de loading/error.
-  - **Estado Global do Cliente:** Gerenciado pelo `Zustand`. Usado para estado síncrono e global, como informações do usuário autenticado, tema da UI, ou estado de um menu lateral. Sua simplicidade e API baseada em hooks são ideais.
-  - **Estado Local do Componente:** Utilizará os hooks nativos do React (`useState`, `useReducer`) para estado que não precisa ser compartilhado, como o controle de inputs em um formulário.
+  - **Estado do Servidor:** **TanStack Query (React Query)** será a fonte da verdade para todos os dados assíncronos vindos da API. Ele gerenciará caching, revalidação, mutações e estados de loading/error de forma declarativa.
+  - **Estado Global do Cliente:** **Zustand** será usado para estados globais síncronos e de baixa frequência de atualização, como informações do usuário autenticado, tema da UI ou estado de um menu lateral.
+  - **Estado Local do Componente:** Os hooks nativos do React (`useState`, `useReducer`) serão usados para estado efêmero e contido dentro de um único componente (ex: estado de um input de formulário).
 
 - **Fluxo de Dados:**
-  1.  O usuário interage com um componente em uma `pages/`.
-  2.  A página invoca uma ação de um módulo em `features/`.
-  3.  A feature utiliza um hook do `TanStack Query` (de `features/.../api/`) para buscar ou modificar dados.
-  4.  O hook faz a chamada HTTP através do cliente configurado em `shared/api/`.
-  5.  O `TanStack Query` gerencia o cache e o estado da requisição.
-  6.  Componentes (`features/`, `entities/`, `shared/ui/`) que usam o hook reagem às mudanças de estado e re-renderizam para exibir os novos dados, feedback de loading ou erros.
+  1.  O usuário interage com um componente na camada `pages` ou `features`.
+  2.  O componente dispara um hook da camada `features/api` (ex: `useLoans()`).
+  3.  TanStack Query faz a chamada à API backend através do cliente configurado em `shared/api`.
+  4.  A resposta da API é armazenada no cache do TanStack Query.
+  5.  O hook `useLoans()` retorna os dados, que são passados para os componentes `entities` ou `shared/ui` para renderização.
+  6.  Mutações (Create, Update, Delete) usam o hook `useMutation` do TanStack Query, que automaticamente revalida os dados relevantes após o sucesso da operação.
 
-## 6. Gerenciamento de Dados
+---
 
-- **Persistência:** Os dados serão persistidos no PostgreSQL através do ORM do Django. A lógica de acesso a dados será encapsulada dentro dos `managers` dos modelos Django ou, para lógica mais complexa, em uma camada de Repositório (se necessário).
-- **Gerenciamento de Schema:** As migrações de banco de dados serão gerenciadas pelo sistema nativo do Django (`makemigrations`, `migrate`). Cada mudança no schema será um novo arquivo de migração versionado no controle de código.
-- **Seed de Dados:** Para o ambiente de desenvolvimento, serão criados `management commands` do Django para popular o banco com dados fictícios (tenants, usuários, clientes, empréstimos). A biblioteca `factory-boy` será utilizada para gerar esses dados de forma consistente e realista.
-
-## 7. Estrutura de Diretórios Proposta
+## 7. Estrutura de Diretórios Proposta (Monorepo)
 
 ```
-iabank-monorepo/
+iabank/
 ├── .github/
 │   └── workflows/
-│       └── main.yml        # Pipeline de CI/CD
+│       └── main.yml           # Pipeline de CI/CD
 ├── backend/
 │   ├── src/
-│   │   ├── iabank/
-│   │   │   ├── __init__.py
-│   │   │   ├── settings.py
-│   │   │   ├── urls.py
-│   │   │   ├── wsgi.py
-│   │   │   ├── asgi.py
-│   │   │   ├── core/         # App para Tenant, modelos base, etc.
-│   │   │   ├── users/        # App para Usuários, autenticação
-│   │   │   ├── customers/    # App para Clientes
-│   │   │   │   ├── models.py
-│   │   │   │   ├── services.py
-│   │   │   │   ├── views.py
-│   │   │   │   ├── serializers.py
-│   │   │   │   └── tests/
-│   │   │   │       └── test_customers_models.py
-│   │   │   │       └── test_customers_api.py
-│   │   │   ├── loans/        # App para Empréstimos
-│   │   │   └── finance/      # App para Financeiro
-│   │   └── manage.py
-│   ├── tests/
-│   │   └── integration/
-│   │       └── test_api_full_loan_lifecycle.py
+│   │   └── iabank/
+│   │       ├── __init__.py
+│   │       ├── asgi.py
+│   │       ├── settings.py
+│   │       ├── urls.py
+│   │       ├── wsgi.py
+│   │       ├── core/            # App com modelos base, middlewares, etc.
+│   │       ├── customers/
+│   │       │   ├── __init__.py
+│   │       │   ├── models.py
+│   │       │   ├── admin.py
+│   │       │   ├── apps.py
+│   │       │   ├── serializers.py
+│   │       │   ├── views.py
+│   │       │   └── tests/
+│   │       │       ├── __init__.py
+│   │       │       ├── test_models.py
+│   │       │       └── test_views.py
+│   │       ├── finance/         # App Financeiro
+│   │       ├── operations/      # App Operacional (Empréstimos, Consultores)
+│   │       └── users/           # App de Usuários e Permissões
+│   ├── manage.py
+│   ├── Dockerfile
 │   └── pyproject.toml
 ├── frontend/
 │   ├── public/
-│   ├── src/
-│   │   ├── app/
-│   │   ├── pages/
-│   │   ├── features/
-│   │   ├── entities/
-│   │   └── shared/
+│   ├── src/                 # Estrutura detalhada na seção 4
+│   ├── Dockerfile
 │   ├── package.json
-│   └── tsconfig.json
-├── .dockerignore
+│   ├── tsconfig.json
+│   └── vite.config.ts
+├── tests/
+│   └── integration/
+│       ├── __init__.py
+│       └── test_full_loan_workflow.py
+├── .docker-compose.yml
 ├── .gitignore
 ├── .pre-commit-config.yaml
-├── docker-compose.yml
-├── Dockerfile.backend
-├── Dockerfile.frontend
+├── CHANGELOG.md
+├── CONTRIBUTING.md
 ├── LICENSE
-├── README.md
-└── CONTRIBUTING.md
+└── README.md
 ```
+
+---
 
 ## 8. Arquivo `.gitignore` Proposto
 
-```gitignore
-# Python
+```
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+
+# C extensions
 *.so
+
+# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -129,281 +141,112 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
 *.pot
-*.pyo
+
+# Django stuff:
 *.log
 local_settings.py
 db.sqlite3
+db.sqlite3-journal
+
+# Environments
 .env
-.venv/
+.venv
+env/
 venv/
 ENV/
-env/
 env.bak/
 venv.bak/
 
-# Node.js
-node_modules/
-dist/
-.npm
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.DS_Store
-
-# IDEs
+# IDE files
 .idea/
 .vscode/
 *.swp
-*~
+*.swo
+
+# node.js
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # Docker
 docker-compose.override.yml
+
+# OS files
+.DS_Store
+Thumbs.db
 ```
+
+---
 
 ## 9. Arquivo `README.md` Proposto
 
-(Conteúdo completo gerado abaixo)
-
-## 10. Arquivo `LICENSE` Proposto
-
-(Texto completo da licença MIT gerado abaixo)
-
-## 11. Arquivo `CONTRIBUTING.md` Proposto
-
-(Template de conteúdo gerado abaixo)
-
-## 12. Estrutura do `CHANGELOG.md`
-
-```markdown
-# Changelog
-
-All notable changes to this project will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-
-### Added
-
-- Initial project structure based on AGV Blueprint.
-
-## [0.1.0] - YYYY-MM-DD
-
-### Added
-
-- First release features.
-```
-
-## 13. Estratégia de Configuração e Ambientes
-
-- **Tecnologia:** `django-environ`.
-- **Desenvolvimento:** As configurações serão lidas de um arquivo `.env` na raiz do projeto `backend/`, que **não** será versionado.
-- **Homologação/Produção:** As configurações serão injetadas exclusivamente via **variáveis de ambiente** no container Docker. Isso segue a prática recomendada do "The Twelve-Factor App".
-- **Segredos:** Chaves de API, senhas e outros segredos nunca serão codificados. Eles serão gerenciados via variáveis de ambiente.
-
-## 15. Estratégia de Testes Detalhada
-
-- **Ferramentas:** `pytest`, `pytest-django`, `factory-boy`, `DRF APIClient`.
-- **Estrutura e Nomenclatura:**
-  - **Testes Unitários:** Residem em `<app_name>/tests/` (ex: `backend/src/iabank/loans/tests/`). Eles testam a lógica de um único módulo isoladamente (ex: um método em um `service`). A nomenclatura será `test_<nome_do_app>_<nome_do_modulo>.py` (ex: `test_loans_services.py`, `test_customers_models.py`).
-  - **Testes de Integração:** Residem em `backend/tests/integration/`. Eles testam a colaboração entre múltiplos componentes, como o fluxo completo de uma requisição API até o banco de dados. A nomenclatura será `test_api_<nome_da_funcionalidade>.py` (ex: `test_api_loan_creation.py`).
-- **Padrões de Teste de Integração:**
-  - **Uso de Factories:** `factory-boy` será usado obrigatoriamente para criar dados de teste (Tenants, Users, Customers), garantindo consistência.
-  - **Simulação de Autenticação:** O `APIClient` do DRF será usado com `force_authenticate(user=self.user)` para simular um usuário autenticado, evitando testar o fluxo de login em cada endpoint protegido.
-  - **Escopo de Teste:** Um teste de integração para a API de empréstimos assume que a criação de clientes e a autenticação funcionam (já cobertos por seus próprios testes). O foco é validar o endpoint de empréstimo (validação, criação, resposta correta). O isolamento de tenant será testado em uma suíte de testes de integração dedicada à segurança de acesso.
-
-## 16. Estratégia de CI/CD
-
-- **Ferramenta:** GitHub Actions.
-- **Gatilhos:** A pipeline será executada em cada `push` para a branch `main` e em cada abertura/atualização de `Pull Request`.
-- **Estágios do Pipeline (`.github/workflows/main.yml`):**
-  1.  **Setup:** Checkout do código e configuração do ambiente (Python, Node.js).
-  2.  **Lint & Format:** Executa `ruff` e `black` no backend, e `eslint` e `prettier` no frontend para garantir a qualidade do código.
-  3.  **Backend Tests:** Instala dependências Python, sobe serviços (DB, Redis) e executa a suíte de testes com `pytest`, gerando um relatório de cobertura.
-  4.  **Frontend Tests:** Instala dependências Node, executa testes unitários/componentes.
-  5.  **Build:** Se os testes passarem, constrói as imagens Docker para o backend e o frontend usando `multi-stage builds`.
-  6.  **Push:** Envia as imagens para um registro de contêineres (ex: Docker Hub, GitHub Container Registry).
-  7.  **Deploy (manual/automático):** Em um `push` para `main`, um job (que pode ser de acionamento manual) se conectará ao ambiente de produção e atualizará os serviços com as novas imagens.
-
-## 22. Estratégia de Evolução do Blueprint
-
-- **Versionamento Semântico:** Este documento seguirá o SemVer (v1.0.0). Mudanças que não quebram a arquitetura (ex: adicionar um novo módulo) incrementam a versão menor (v1.1.0). Mudanças que quebram a arquitetura (ex: mudar de monólito para microsserviços) incrementam a versão maior (v2.0.0).
-- **Processo de Evolução:** Mudanças significativas serão propostas através de um "Architecture Decision Record" (ADR). Um ADR é um documento curto que descreve o contexto, a decisão e as consequências de uma mudança arquitetural. Os ADRs serão armazenados em uma pasta `docs/adr/` no repositório.
-- **Compatibilidade e Deprecação:** Quando uma interface de API (ex: v1) for substituída, ela será mantida por um período definido e marcada como `deprecated` na documentação.
-
-## 23. Métricas de Qualidade e Quality Gates
-
-- **Cobertura de Código:** Meta mínima de **85%** de cobertura de testes para o código do backend, medida com `pytest-cov`.
-- **Complexidade Ciclomática:** Nenhuma função/método deve exceder uma complexidade de **10**, medida com `ruff`.
-- **Quality Gates Automatizados (no Pull Request):**
-  1.  Pipeline de CI deve passar (lint, testes).
-  2.  Cobertura de testes não pode diminuir.
-  3.  Scan de vulnerabilidades (`pip-audit`) não pode encontrar vulnerabilidades de severidade `HIGH` ou `CRITICAL`.
-  4.  Análise de código estático (`ruff`) não pode reportar erros.
-
----
-
-## 25. Conteúdo dos Arquivos de Ambiente e CI/CD
-
-### `pyproject.toml` Proposto
-
-```toml
-[tool.poetry]
-name = "iabank-backend"
-version = "0.1.0"
-description = "Backend for IABANK Loan Management System"
-authors = ["Your Name <you@example.com>"]
-
-[tool.poetry.dependencies]
-python = "^3.11"
-django = "^4.2"
-djangorestframework = "^3.15"
-psycopg2-binary = "^2.9.9"
-django-environ = "^0.11.2"
-celery = "^5.3.6"
-redis = "^5.0.1"
-pydantic = "^2.4.2"
-gunicorn = "^21.2.0"
-python-json-logger = "^2.0.7"
-django-prometheus = "^2.3.0"
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.4.3"
-pytest-django = "^4.7.0"
-factory-boy = "^3.3.0"
-ruff = "^0.1.5"
-black = "^23.10.1"
-pip-audit = "^2.6.1"
-pytest-cov = "^4.1.0"
-
-[tool.ruff]
-line-length = 88
-select = ["E", "F", "W", "I", "C90"]
-
-[tool.black]
-line-length = 88
-```
-
-### `.pre-commit-config.yaml` Proposto
-
-```yaml
-repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-      - id: check-added-large-files
-  - repo: https://github.com/psf/black
-    rev: 23.10.1
-    hooks:
-      - id: black
-  - repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: "v0.1.5"
-    hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-```
-
-### `Dockerfile.backend` Proposto
-
-```dockerfile
-# Stage 1: Build
-FROM python:3.11-slim as builder
-WORKDIR /app
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
-RUN pip install poetry
-COPY backend/pyproject.toml backend/poetry.lock ./
-RUN poetry config virtualenvs.create false && poetry install --no-dev --no-interaction --no-ansi
-
-# Stage 2: Final
-FROM python:3.11-slim
-WORKDIR /app
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY backend/src /app/
-
-# Add a non-root user for security
-RUN addgroup --system app && adduser --system --group app
-RUN chown -R app:app /app
-USER app
-
-EXPOSE 8000
-CMD ["gunicorn", "iabank.wsgi:application", "--bind", "0.0.0.0:8000"]
-```
-
-### `Dockerfile.frontend` Proposto
-
-```dockerfile
-# Stage 1: Build
-FROM node:18-alpine as builder
-WORKDIR /app
-COPY frontend/package.json frontend/yarn.lock ./
-RUN yarn install
-COPY frontend/ .
-RUN yarn build
-
-# Stage 2: Serve
-FROM nginx:1.25-alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
-# COPY nginx.conf /etc/nginx/conf.d/default.conf # Optional: for custom nginx config
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
-```
-
----
-
-## Anexos
-
-### `README.md`
-
 ````markdown
-# IABANK - Sistema de Gestão de Empréstimos
+# IABANK
 
-[![Status](https://img.shields.io/badge/status-em_desenvolvimento-yellowgreen.svg)](https://shields.io/)
-[![Python Version](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Django Version](https://img.shields.io/badge/django-4.2-blue.svg)](https://www.djangoproject.com/)
-[![React Version](https://img.shields.io/badge/react-18+-blue.svg)](https://reactjs.org/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-em_desenvolvimento-yellow)](https://github.com/your-org/iabank)
+[![CI/CD](https://github.com/your-org/iabank/actions/workflows/main.yml/badge.svg)](https://github.com/your-org/iabank/actions)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Plataforma Web SaaS robusta e segura, desenvolvida em Python e React, projetada para a gestão completa de empréstimos (end-to-end).
+Sistema de gestão de empréstimos moderno e eficiente.
 
 ## Sobre o Projeto
 
-O `IABANK` é concebido para ser uma solução escalável, intuitiva e adaptável às necessidades de instituições financeiras de diversos portes. O objetivo é automatizar o ciclo de vida de um empréstimo, desde a originação até a cobrança, otimizando a eficiência operacional.
-
-A arquitetura do projeto está documentada no **Blueprint Arquitetural**, que serve como a fonte única da verdade para decisões técnicas e de produto.
+O IABANK é uma plataforma Web SaaS robusta e segura, desenvolvida em Python e React, projetada para a gestão completa de empréstimos (end-to-end). A arquitetura é multi-tenant e foi concebida para ser escalável, intuitiva e adaptável.
 
 ## Stack Tecnológica
 
-- **Backend:** Python 3.11+, Django, Django REST Framework
+- **Backend:** Python 3.10+, Django, Django REST Framework
 - **Frontend:** React 18+, TypeScript, Vite, Tailwind CSS
 - **Banco de Dados:** PostgreSQL
-- **Cache & Filas:** Redis, Celery
-- **Infraestrutura:** Docker, Nginx
+- **Cache & Fila de Tarefas:** Redis, Celery
+- **Containerização:** Docker, Docker Compose
 
 ## Como Começar
 
 ### Pré-requisitos
 
 - Docker e Docker Compose
-- Git
+- Node.js e pnpm (para o frontend)
+- Python e Poetry (para o backend)
 
 ### Instalação e Execução
 
@@ -414,45 +257,48 @@ A arquitetura do projeto está documentada no **Blueprint Arquitetural**, que se
     cd iabank
     ```
 
-2.  Crie os arquivos de ambiente. No diretório `backend/`, copie `.env.example` para `.env` e ajuste as variáveis.
+2.  Crie um arquivo `.env` na raiz do projeto a partir do `.env.example`.
 
-3.  Suba os contêineres:
+3.  Suba os contêineres Docker:
 
     ```bash
-    docker-compose up --build
+    docker-compose up -d --build
     ```
 
-4.  Acesse a aplicação:
-    - Frontend: `http://localhost:3000`
-    - Backend API: `http://localhost:8000/api/v1/`
+4.  A aplicação estará disponível em:
+    - Frontend: `http://localhost:5173`
+    - Backend API: `http://localhost:8000/api/`
 
 ## Como Executar os Testes
 
-Para executar os testes do backend, entre no contêiner da aplicação e rode o `pytest`:
+Para executar os testes do backend, entre no contêiner do Django e use o `pytest`:
 
 ```bash
-docker-compose exec backend pytest
+docker-compose exec backend bash
+pytest
 ```
 ````
 
 ## Estrutura do Projeto
 
-O projeto utiliza um monorepo com a seguinte estrutura principal:
+O projeto é um monorepo com duas pastas principais:
 
-- `backend/`: Contém a aplicação Django API.
-- `frontend/`: Contém a aplicação React SPA.
-- `docker-compose.yml`: Orquestra os serviços para o ambiente de desenvolvimento.
+- `/backend`: Contém a aplicação Django (API).
+- `/frontend`: Contém a Single Page Application (SPA) em React.
 
-Consulte o Blueprint Arquitetural para mais detalhes sobre a organização interna de cada parte.
+Consulte o [Blueprint Arquitetural](docs/architecture.md) para mais detalhes.
 
 ```
 
-### `LICENSE`
+---
+
+## 10. Arquivo `LICENSE` Proposto
+
 ```
 
 MIT License
 
-Copyright (c) 2023 [Nome do Proprietário do Projeto]
+Copyright (c) [Ano] [Nome do Proprietário do Copyright]
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -474,34 +320,310 @@ SOFTWARE.
 
 ````
 
-### `CONTRIBUTING.md`
+---
+
+## 11. Arquivo `CONTRIBUTING.md` Proposto
+
 ```markdown
 # Como Contribuir para o IABANK
 
-Agradecemos o seu interesse em contribuir! Para manter o projeto organizado e de alta qualidade, pedimos que siga estas diretrizes.
+Agradecemos o seu interesse em contribuir! Para garantir a qualidade e a consistência do projeto, pedimos que siga estas diretrizes.
 
 ## Processo de Desenvolvimento
 
-1.  **Siga o Blueprint Arquitetural:** Todas as contribuições devem estar alinhadas com as definições, padrões e contratos estabelecidos no Blueprint. Ele é a nossa fonte única da verdade.
-2.  **Crie uma Issue:** Antes de começar a trabalhar em uma nova funcionalidade ou correção, crie uma issue para discutir a proposta.
-3.  **Crie um Pull Request (PR):** Faça o fork do repositório, crie um branch para a sua feature (`feature/nome-da-feature`) e envie um PR para a branch `main`.
+1.  **Siga o Blueprint:** Todas as contribuições devem estar alinhadas com o [Blueprint Arquitetural](docs/architecture.md). Mudanças na arquitetura devem ser discutidas e aprovadas antes da implementação.
+2.  **Crie uma Issue:** Antes de começar a trabalhar, abra uma issue descrevendo o bug ou a feature.
+3.  **Crie um Branch:** Crie um branch a partir do `main` com um nome descritivo (ex: `feature/add-loan-export` ou `fix/login-bug`).
+4.  **Desenvolva com Testes:** Todo novo código de negócio deve ser acompanhado de testes unitários e/ou de integração.
+5.  **Abra um Pull Request:** Ao concluir, abra um Pull Request para o branch `main`. Descreva as suas alterações e vincule a issue correspondente.
 
 ## Qualidade de Código
 
-A qualidade do código é fundamental. Automatizamos a verificação de qualidade para garantir consistência.
+Utilizamos ferramentas para garantir um padrão de código consistente.
 
--   **Formatação e Linting:** Utilizamos `Black` e `Ruff` para o backend (Python) e `Prettier` e `ESLint` para o frontend (TypeScript/React).
--   **Ganchos de Pre-commit:** É altamente recomendado configurar os ganchos de pre-commit para formatar seu código automaticamente antes de cada commit. O arquivo `.pre-commit-config.yaml` já está configurado.
-    ```bash
-    pip install pre-commit
-    pre-commit install
-    ```
--   **Testes:** Toda nova lógica de negócio deve ser acompanhada de testes unitários e/ou de integração. O PR deve manter ou aumentar a cobertura de testes do projeto.
+*   **Backend (Python):**
+    *   **Formatador:** [Black](https://github.com/psf/black)
+    *   **Linter:** [Ruff](https://github.com/astral-sh/ruff)
+*   **Frontend (TypeScript):**
+    *   **Formatador:** [Prettier](https://prettier.io/)
+    *   **Linter:** [ESLint](https://eslint.org/)
 
-## Documentação de Código
+### Ganchos de Pre-commit
 
--   **Docstrings:** Funções, classes e métodos públicos no backend devem ter docstrings claras explicando seu propósito, argumentos e o que retornam.
--   **Comentários:** Use comentários para explicar partes complexas ou não óbvias do código, mas prefira um código claro e autoexplicativo.
+Configuramos ganchos de pre-commit usando a ferramenta `pre-commit` para executar essas checagens automaticamente antes de cada commit. Para instalar, execute:
 
-Obrigado por ajudar a construir o IABANK!
+```bash
+pip install pre-commit
+pre-commit install
 ````
+
+Qualquer código que não passe nas verificações do linter/formatador será bloqueado.
+
+## Padrão de Documentação
+
+- **Python:** Todas as funções públicas, classes e métodos devem ter docstrings no estilo [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings).
+- **React:** Componentes complexos devem ter comentários explicando seu propósito, props e estado.
+
+````
+
+---
+
+## 12. Estrutura do `CHANGELOG.md`
+
+```markdown
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- Initial project structure and architecture blueprint.
+
+## [0.1.0] - YYYY-MM-DD
+
+### Added
+- ...
+````
+
+---
+
+## 13. Estratégia de Configuração e Ambientes
+
+A configuração será gerenciada usando a biblioteca **`django-environ`**.
+
+- Um arquivo `.env` na raiz do `backend/` conterá as variáveis de ambiente para desenvolvimento local (ex: `DATABASE_URL`, `SECRET_KEY`, `DEBUG=True`). Este arquivo não deve ser versionado.
+- Um arquivo `.env.example` será versionado para servir como template.
+- Em ambientes de homologação e produção, as configurações serão injetadas diretamente como **variáveis de ambiente** no provedor de nuvem ou no orquestrador de contêineres. Isso garante que segredos nunca sejam armazenados em código.
+- O arquivo `settings.py` do Django será o único ponto de leitura dessas variáveis, usando `env('VARIABLE_NAME', default='value')`.
+
+---
+
+## 15. Estratégia de Testes Detalhada
+
+- **Estrutura e Nomenclatura:**
+
+  - **Testes Unitários:** Residem dentro de cada app Django, em `<app_name>/tests/`. Validam a lógica de um único componente isoladamente (ex: um método de modelo, uma função de serviço com dependências mockadas).
+  - **Testes de Integração:** Residem no diretório de alto nível `tests/integration/`. Validam a interação entre múltiplos componentes (ex: um fluxo completo de API, desde a view até o banco de dados).
+  - **Convenção de Nomenclatura:** Todos os arquivos de teste seguirão o padrão `test_<nome_do_modulo>.py` (ex: `test_models.py`, `test_serializers.py`).
+
+- **Ferramentas:**
+
+  - **Executor:** `pytest`
+  - **Cliente de API:** Cliente de teste do Django REST Framework (`APIClient`).
+  - **Dados Fictícios:** `factory-boy`.
+  - **Mocks:** `unittest.mock`.
+
+- **Padrões de Teste de Integração:**
+
+  - **Uso de Factories:** `factory-boy` será mandatório para criar o estado inicial do banco de dados para os testes, garantindo consistência e legibilidade.
+  - **Simulação de Autenticação:** Usaremos `api_client.force_authenticate(user=self.user)` para simular um usuário logado em testes de API, evitando o fluxo completo de login.
+
+- **Padrões Obrigatórios para Test Data Factories (`factory-boy`):**
+
+  - **Princípio da Herança Explícita de Contexto (Multi-tenancy):**
+
+    - **Regra:** Factories que criam objetos aninhados **DEVEM** propagar o `tenant` da factory pai para todas as sub-factories.
+    - **Exemplo Mandatório:**
+
+      ```python
+      # iabank/operations/tests/factories.py
+      import factory
+      from iabank.core.tests.factories import TenantFactory
+      from iabank.customers.tests.factories import CustomerFactory
+      from ..models import Loan
+
+      class LoanFactory(factory.django.DjangoModelFactory):
+          class Meta:
+              model = Loan
+
+          tenant = factory.SubFactory(TenantFactory)
+          # CRÍTICO: Propagar o tenant para o cliente relacionado
+          customer = factory.SubFactory(CustomerFactory, tenant=factory.SelfAttribute('..tenant'))
+          # ... outros campos
+      ```
+
+  - **Testes Obrigatórios para Factories (Meta-testes):**
+
+    - **Regra:** Para cada `factories.py`, um arquivo `test_factories.py` deve existir para validar a consistência dos dados gerados.
+    - **Exemplo de teste crítico:**
+
+      ```python
+      # iabank/operations/tests/test_factories.py
+      from django.test import TestCase
+      from .factories import LoanFactory, TenantFactory
+
+      class OperationFactoriesTestCase(TestCase):
+          def test_loan_factory_tenant_consistency(self):
+              """Garante que LoanFactory propaga o tenant para o cliente."""
+              tenant = TenantFactory()
+              loan = LoanFactory(tenant=tenant)
+
+              self.assertEqual(loan.tenant, tenant)
+              self.assertEqual(loan.customer.tenant, tenant, "O tenant do cliente deve ser o mesmo do empréstimo.")
+      ```
+
+---
+
+## 16. Estratégia de CI/CD (Integração e Implantação Contínuas)
+
+- **Ferramenta:** GitHub Actions (arquivo de workflow em `.github/workflows/main.yml`).
+- **Gatilhos:** Em cada `push` para o branch `main` e em cada abertura/atualização de `Pull Request`.
+- **Estágios do Pipeline:**
+  1.  **CI (Validação em PR):**
+      - **Setup:** Checkout do código, setup do Python e Node.js, instalação de dependências (com cache).
+      - **Lint & Format:** Executa `ruff`, `black`, `eslint`, `prettier` para garantir a qualidade do código.
+      - **Test:** Executa a suíte completa de testes unitários e de integração do backend e do frontend.
+      - **Build:** Executa o build de produção do frontend (`pnpm build`) para garantir que não há erros.
+  2.  **CD (Deploy em `main`):**
+      - (Após sucesso da etapa de CI)
+      - **Build & Push Images:** Constrói as imagens Docker do backend e frontend e as envia para um registro (ex: Docker Hub, AWS ECR). As imagens são tagueadas com o hash do commit.
+      - **Deploy:** Um job separado (usando environments do GitHub Actions) se conecta ao ambiente de produção (ex: AWS, Heroku) e atualiza os serviços para usar as novas imagens.
+  - **Rollback:** A estratégia de rollback será baseada em reverter o commit em `main` e deixar o pipeline de CD rodar novamente, ou implantar manualmente a tag da imagem Docker anterior que era estável.
+
+---
+
+## 22. Estratégia de Evolução do Blueprint
+
+- **Versionamento:** O próprio Blueprint será versionado usando **Semantic Versioning**. Mudanças que não quebram a estrutura (adição de um novo módulo) são `MINOR`. Mudanças que alteram a arquitetura fundamental (ex: mudança de monolito para microserviços) são `MAJOR`.
+- **Processo de Evolução:** Mudanças arquiteturais significativas devem ser propostas através de um **Architectural Decision Record (ADR)**. Um ADR é um documento curto em markdown que descreve o contexto, a decisão tomada e as consequências.
+- **Documentação (ADRs):** Será criada uma pasta `docs/adr/` no repositório para armazenar os ADRs, criando um registro histórico das decisões de arquitetura.
+
+---
+
+## 25. Conteúdo dos Arquivos de Ambiente e CI/CD
+
+### `pyproject.toml` Proposto
+
+```toml
+[tool.poetry]
+name = "iabank"
+version = "0.1.0"
+description = "IABANK Backend API"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+packages = [{include = "iabank", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^4.2"
+djangorestframework = "^3.14"
+psycopg2-binary = "^2.9.9"
+django-environ = "^0.11.2"
+celery = "^5.3.6"
+redis = "^5.0.1"
+gunicorn = "^21.2.0"
+pydantic = {extras = ["email"], version = "^1.10.13"}
+structlog = "^23.2.0"
+django-filter = "^23.3"
+djangorestframework-simplejwt = "^5.3.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.4.3"
+pytest-django = "^4.7.0"
+factory-boy = "^3.3.0"
+pytest-cov = "^4.1.0"
+black = "^23.11.0"
+ruff = "^0.1.6"
+pre-commit = "^3.5.0"
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "W", "I", "C90"]
+
+[tool.black]
+line-length = 88
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+```
+
+### `.pre-commit-config.yaml` Proposto
+
+```yaml
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+  - repo: https://github.com/psf/black
+    rev: 23.11.0
+    hooks:
+      - id: black
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.6
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+```
+
+### `Dockerfile` Proposto (Backend)
+
+```dockerfile
+# --- Build Stage ---
+FROM python:3.11-slim as builder
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+
+RUN pip install --upgrade pip
+RUN pip install poetry
+
+COPY backend/pyproject.toml backend/poetry.lock ./
+RUN poetry config virtualenvs.create false && \
+    poetry install --no-dev --no-interaction --no-ansi
+
+# --- Final Stage ---
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Create a non-root user
+RUN addgroup --system app && adduser --system --group app
+
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY backend/src/ .
+
+USER app
+
+EXPOSE 8000
+
+CMD ["gunicorn", "iabank.wsgi:application", "--bind", "0.0.0.0:8000"]
+```
+
+### `Dockerfile` Proposto (Frontend)
+
+```dockerfile
+# --- Build Stage ---
+FROM node:18-alpine as builder
+
+WORKDIR /app
+
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN npm install -g pnpm
+RUN pnpm install
+
+COPY frontend/ .
+RUN pnpm build
+
+# --- Final Stage ---
+FROM nginx:1.25-alpine
+
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy nginx config if you have one
+# COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+```

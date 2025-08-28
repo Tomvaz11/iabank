@@ -1,11 +1,11 @@
-# AGV Prompt: ImplementadorMestre v8.0 - Implementação de Módulo Funcional
+# AGV Prompt: ImplementadorMestre v8.2 - Implementação de Módulo Funcional
 
 **Tarefa Principal:** Implementar o componente de software alvo, aderindo estritamente ao `Blueprint Arquitetural` e às diretrizes abaixo.
 
 **Contexto Essencial:**
 
 1. **Componente Alvo Principal:** Alvo 1
-2. **Blueprint Arquitetural:** @Output_BluePrint_Arquitetural_Tocrisna_v1.0.md (Anexe aqui o Blueprint Evolutivo/Podado ou o mini-blueprint relevante)
+2. **Blueprint Arquitetural:** @Output_BluePrint_Arquitetural_Tocrisna_v1.0.md
 3. **Ordem de Implementação:** @Output_Ordem_Para_Implementacao_Geral_v1.0
 4. **Contexto Adicional do Workspace:** (Anexar todos os arquivos .py/.ts relevantes de dependências já implementadas).
 
@@ -24,6 +24,8 @@
    - Gere testes unitários (`pytest` para backend, `@testing-library/react` para frontend) para **TODO** o código de produção novo ou modificado.
    - Atingir **alta cobertura da lógica de implementação** é a meta.
    - Siga a estrutura de diretórios de testes definida no `Blueprint`.
+   - **Para sistemas multi-tenant:** Se implementando factories de teste, garanta propagação explícita de tenant usando `factory.SelfAttribute('..tenant')` em sub-factories.
+   - **Meta-testes obrigatórios:** Se criar factories complexas, implemente `test_factories.py` para validar consistência dos dados gerados.
 
 5. **Documentação e Clareza (Docstrings/Comentários - OBRIGATÓRIO):**
 
@@ -68,13 +70,13 @@
 
 --- END OF FILE backend/src/iabank/operations/services.py ---
 
---- START OF FILE backend/tests/unit/iabank/test_operations_services.py ---
+--- START OF FILE backend/tests/unit/iabank/operations/tests/test_services.py ---
 
 ```python
 # Conteúdo completo e final do arquivo de teste
 ```
 
---- END OF FILE backend/tests/unit/iabank/test_operations_services.py ---
+--- END OF FILE backend/tests/unit/iabank/operations/tests/test_services.py ---
 
 **Confirmação de Testes:**
 Testes unitários foram criados para todo o código de produção, seguindo a estrutura definida e visando alta cobertura da lógica de implementação.

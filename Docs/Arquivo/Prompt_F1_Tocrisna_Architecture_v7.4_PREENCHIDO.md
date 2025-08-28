@@ -1,4 +1,4 @@
-# AGV Prompt Template: Tocrisna v7.2 - Definição da Arquitetura Técnica e de Produto
+# AGV Prompt Template: Tocrisna v7.4 - Definição da Arquitetura Técnica e de Produto
 
 ## Tarefa Principal
 
@@ -510,9 +510,13 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
 
 5. **Definição das Interfaces Principais:** Detalhamento dos contratos de comunicação entre os componentes chave (conforme Diretriz 3), incluindo como os componentes recebem suas configurações iniciais (priorizando `__init__`).
 6. **Gerenciamento de Dados (se aplicável):** Como os dados serão persistidos e acessados (ex: Módulo data_access usando SQLAlchemy com padrão Repository, ou especificando Pydantic `BaseModel` para modelos de dados se não houver persistência complexa). Além da persistência, a seção deve descrever a estratégia para: Gerenciamento de Schema (confirmando o uso de migrações automáticas como as do Django) e Seed de Dados (como popular o banco de dados de desenvolvimento com dados iniciais/fictícios, ex: usando scripts customizados, fixtures ou bibliotecas como factory-boy).
-7. **Estrutura de Diretórios Proposta:** Uma sugestão inicial, preferencialmente utilizando o layout `src` moderno, mostrando a organização das pastas e arquivos principais. **Esta seção é crítica para a consistência do projeto. Ao listar os exemplos de arquivos de teste, você DEVE aplicar a seguinte convenção de nomenclatura explícita para evitar conflitos:**
-   - **Formato Mandatório:** `test_<nome_do_app>_<nome_do_modulo_ou_funcionalidade>.py`.
-   - **Exemplo de Aplicação:** Os testes para `iabank/loans/models.py` devem ser mostrados na estrutura como `iabank/loans/tests/test_loans_models.py`, não como `test_models.py`. Esta regra deve ser aplicada a todos os exemplos de arquivos de teste na estrutura de diretórios que você gerar.
+7. **Estrutura de Diretórios Proposta:** Uma sugestão inicial, preferencialmente utilizando o layout `src` moderno, mostrando a organização das
+   pastas e arquivos principais. **Esta seção é crítica para a consistência do projeto. Ao listar os exemplos de arquivos de teste, você DEVE  
+   aplicar a seguinte convenção de nomenclatura padrão do mercado:**
+   - **Formato Padrão:** `test_<nome_do_modulo_ou_funcionalidade>.py`.
+   - **Exemplo de Aplicação:** Os testes para `iabank/loans/models.py` devem ser mostrados na estrutura como `iabank/loans/tests/test_models.py`.
+     O isolamento por diretório (`app/tests/`) já previne conflitos de nomenclatura, tornando desnecessário incluir o nome do app no arquivo. Esta  
+     convenção padrão deve ser aplicada a todos os exemplos de arquivos de teste na estrutura de diretórios que você gerar.
      A estrutura deve refletir as melhores práticas para a stack tecnológica definida. Para projetos Python, isso significa priorizar o uso de pyproject.toml para gerenciamento de dependências e configuração de ferramentas (ex: Poetry, Ruff, Black, etc.), em vez de múltiplos arquivos de configuração legados.
 8. **Arquivo `.gitignore` Proposto:** Um conteúdo sugerido, **completo e pronto para uso**, para o arquivo `.gitignore` na raiz do projeto, apropriado para a "Stack Tecnológica Definida". Ele deve ser abrangente, cobrindo caches, ambientes virtuais, arquivos de IDEs comuns (VS Code, PyCharm), e arquivos específicos do SO.
 9. **Arquivo `README.md` Proposto:** A geração do **conteúdo completo** para um arquivo `README.md` inicial e profissional. O README deve seguir uma estrutura padrão, contendo, no mínimo:
@@ -541,11 +545,58 @@ Um documento (preferencialmente em Markdown) descrevendo a arquitetura proposta,
 
 15. **Estratégia de Testes Detalhada:** Elabore sobre a seção "Como Executar os Testes". Detalhe os diferentes tipos de testes a serem implementados (Unitários, Integração, End-to-End/API), em quais camadas da arquitetura cada um se aplica e as ferramentas recomendadas (pytest, APIClient do DRF, etc.). **Esta seção deve também incluir:**
 
-    - **Estrutura e Convenção de Nomenclatura de Testes:** Defina a estrutura de diretórios para os testes. **Os testes unitários**, que validam a lógica interna de um único módulo, **devem residir dentro de cada app Django (`<app_name>/tests/`)**, mantendo-os próximos ao código-fonte que testam. **Os testes de integração**, que validam a colaboração entre múltiplos módulos ou apps, **devem residir em um diretório de alto nível dedicado (`tests/integration/`)** para evitar ambiguidades de dependência. Para evitar conflitos de nomes de módulos e garantir clareza, estabeleça uma convenção de nomenclatura explícita para os arquivos de teste: **`test_<nome_do_app>_<nome_do_modulo_ou_funcionalidade>.py`** (ex: `test_users_models.py`, `test_loans_services.py`, `test_api_loan_creation.py`). Esta convenção **DEVE** ser aplicada a todos os arquivos de teste, tanto unitários quanto de integração.
+    - **Estrutura e Convenção de Nomenclatura de Testes:** Defina a estrutura de diretórios para os testes. **Os testes unitários**, que validam a lógica interna de um único módulo, **devem residir dentro de cada app Django (`<app_name>/tests/`)**, mantendo-os próximos ao código-fonte que testam. **Os testes de integração**, que validam a colaboração entre múltiplos módulos ou apps, **devem residir em um diretório de alto nível dedicado (`tests/integration/`)** para evitar ambiguidades de dependência. Para garantir clareza e seguir as melhores práticas do mercado, estabeleça a convenção de nomenclatura padrão para os arquivos de teste: **`test_<nome_do_modulo_ou_funcionalidade>.py`** (ex: `test_models.py`, `test_views.py`, `test_serializers.py` dentro de cada app, e `test_loan_workflow.py`, `test_payment_integration.py` para testes de integração). O pytest e Python identificam testes pelo caminho completo, eliminando conflitos mesmo quando arquivos têm o mesmo nome em apps diferentes. Esta convenção padrão **DEVE** ser aplicada a todos os arquivos de teste.
     - **Padrões de Teste de Integração:** Defina as convenções para escrever testes de integração robustos e de fácil manutenção:
       - **Uso de Factories:** Recomende o uso de uma biblioteca de "factories" (ex: `factory-boy` para Python, `Faker.js` para Node, etc.) para a criação de dados de teste complexos e consistentes, evitando a configuração manual de objetos em cada teste.
       - **Simulação de Autenticação:** Para testes que requerem um usuário autenticado, especifique o uso de métodos de simulação fornecidos pelo framework (ex: `force_authenticate` no DRF, `TestSecurityContextHolder` no Spring Security, etc.) em vez de simular o fluxo de login completo em cada teste. Isso isola o teste da lógica de autenticação.
       - **Escopo de Teste:** Enfatize que os testes de integração de uma funcionalidade (ex: CRUD de Empréstimos) devem focar em validar **essa** funcionalidade, tratando dependências já testadas (como autenticação e multi-tenancy) como "caixas-pretas" que podem ser simuladas ou pré-configuradas.
+    - **Padrões Obrigatórios para Test Data Factories:** Defina regras rigorosas para garantir consistência de dados em factories, especialmente crítico para sistemas multi-tenant:
+
+      - **Princípio da Herança Explícita de Contexto:**
+
+        - **Regra:** Factories que criam objetos aninhados (sub-factories) **DEVEM** garantir que o contexto principal (como tenant) seja explicitamente propagado para todos os objetos filhos
+        - **Implementação:** Use `factory.SelfAttribute('..tenant')` para propagar contexto da factory pai para as filhas
+        - **Exemplo Mandatório para Multi-tenancy:**
+
+          ```python
+          class LoanFactory(factory.django.DjangoModelFactory):
+              tenant = factory.SubFactory(TenantFactory)
+              # CRÍTICO: Propagar tenant para sub-factories
+              customer = factory.SubFactory(CustomerFactory, tenant=factory.SelfAttribute('..tenant'))
+              consultant = factory.SubFactory(ConsultantFactory, tenant=factory.SelfAttribute('..tenant'))
+          ```
+
+      - **Princípio da Derivação Lógica de Contexto:**
+
+        - **Regra:** Se o contexto de um modelo é derivado de um relacionamento (ex: tenant de Consultant vem do User), a factory **DEVE** implementar essa lógica usando `factory.LazyAttribute`
+        - **Exemplo:**
+
+          ```python
+          class ConsultantFactory(factory.django.DjangoModelFactory):
+              user = factory.SubFactory(UserFactory)
+              # Derivar tenant do user relacionado
+              tenant = factory.LazyAttribute(lambda o: o.user.tenant)
+          ```
+
+      - **Testes Obrigatórios para Factories (Meta-testes):**
+
+        - **Regra:** Para cada `factories.py` complexo, **DEVE** haver um `test_factories.py` correspondente que valide a consistência dos dados gerados
+        - **Objetivo:** Detectar problemas de inconsistência nas factories antes que afetem os testes de negócio
+        - **Exemplo de teste crítico:**
+
+          ```python
+          def test_loan_factory_tenant_consistency(self):
+              """Verifica se LoanFactory propaga tenant para todos os sub-objetos."""
+              tenant = TenantFactory()
+              loan = LoanFactory(tenant=tenant)
+
+              assert loan.tenant == tenant
+              assert loan.customer.tenant == tenant
+              assert loan.consultant.tenant == tenant
+              assert loan.consultant.user.tenant == tenant
+          ```
+
+        - **Benefício:** Falhas nestes testes apontam imediatamente para problemas nas factories, evitando horas de depuração em testes de integração
 
 16. **Estratégia de CI/CD (Integração e Implantação Contínuas):** Descreva uma estratégia de CI/CD de alto nível para automatizar a construção, teste e implantação da aplicação. A descrição deve incluir:
 

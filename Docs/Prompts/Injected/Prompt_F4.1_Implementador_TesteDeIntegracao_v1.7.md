@@ -1,11 +1,11 @@
-# AGV Prompt: IntegradorTester v1.5 - Geração de Testes de Integração Guiada
+# AGV Prompt: IntegradorTester v1.7 - Geração de Testes de Integração Guiada
 
 **Tarefa Principal:** Analisar o conjunto de módulos especificados, o Blueprint Arquitetural, e os **cenários de integração já definidos** para gerar testes de integração robustos (`pytest`) que verifiquem a correta colaboração entre esses módulos.
 
 **Contexto Essencial (Fornecido pelo usuário):**
 
 1. **Módulos Alvo da Integração (O Grupo Atual):**
-   - `Alvo 0`, `iabank.core` (Modelos, Auth, Middleware, CRUD Usuários)
+   - `PARADA DE TESTES DE INTEGRAÇÃO T1`
    - _(Instrução para Coordenador: Anexar os arquivos .py destes módulos.)_
 2. **Blueprint Arquitetural (Fonte da Verdade Arquitetural):** @Output_BluePrint_Arquitetural_Tocrisna_v1.0.md
 3. **Ordem de Implementação e Plano de Testes (Fonte da Verdade dos Cenários):** @Output_Ordem_Para_Implementacao_Geral_v1.0.md
@@ -28,9 +28,15 @@
    - Escreva o código dos testes (`pytest`) nos arquivos corretos, seguindo a estrutura e convenção definidas no `Blueprint`.
    - **Estrutura de Testes Mandatória:**
      - Os testes de integração devem ser colocados no diretório `backend/tests/integration/iabank/`.
-     - Os nomes dos arquivos de teste **DEVEM** seguir a convenção **`test_<nome_do_app>_<funcionalidade_testada>.py`**.
-     - **Exemplo:** Testes para a API de autenticação do app `core` devem ir para `backend/tests/integration/iabank/test_core_auth_api.py`. Testes para a API de CRUD de clientes do app `operations` devem ir para `backend/tests/integration/iabank/test_operations_customers_api.py`.
+     - Os nomes dos arquivos de teste **DEVEM** seguir a convenção padrão **`test_<funcionalidade_testada>.py`**.
+       - **Exemplo:** Testes para a API de autenticação devem ir para `backend/tests/integration/iabank/test_auth_api.py`. Testes para a API de CRUD de clientes devem ir para `backend/tests/integration/iabank/test_customers_api.py`.
    - Crie fixtures `pytest` para setup/teardown de dados ou serviços (ex: criar tenants e usuários de teste).
+   - **Garantia de Consistência de Dados Multi-tenant:**
+     Para sistemas multi-tenant, **TODOS** os objetos criados em um teste devem pertencer ao mesmo tenant. Implemente factories que garantam esta consistência:
+     - Use `factory.SelfAttribute('..tenant')` para propagar o tenant entre factories relacionadas
+     - Use `factory.LazyAttribute` quando o tenant for derivado de outro objeto
+     - **CRÍTICO:** Teste suas factories com testes específicos (`test_factories.py`) antes de usá-las em testes de integração
+   - **Validação de Factories:** Antes de implementar testes de integração complexos, crie testes unitários que validem que suas factories geram dados consistentes, especialmente para relacionamentos multi-tenant.
 
 4. **Aplicar Boas Práticas de Teste de Integração:**
 
