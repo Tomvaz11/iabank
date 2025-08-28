@@ -4,7 +4,7 @@
 
 **Contexto Essencial:**
 
-1. **Componente Alvo Principal:** Alvo 1
+1. **Componente Alvo Principal:** Alvo 2
 2. **Blueprint Arquitetural:** @Output_BluePrint_Arquitetural_Tocrisna_v1.0.md
 3. **Ordem de Implementação:** @Output_Ordem_Para_Implementacao_Geral_v1.0
 4. **Contexto Adicional do Workspace:** (Anexar todos os arquivos .py/.ts relevantes de dependências já implementadas).

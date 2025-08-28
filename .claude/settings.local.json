@@ -20,7 +20,11 @@
       "Bash(coverage erase:*)",
       "Bash(pip install:*)",
       "Bash(cp:*)",
-      "Bash(DJANGO_SETTINGS_MODULE=iabank.settings python -c \"import django; django.setup(); print(''Django OK'')\")"
+      "Bash(DJANGO_SETTINGS_MODULE=iabank.settings python -c \"import django; django.setup(); print(''Django OK'')\")",
+      "Bash(DJANGO_SETTINGS_MODULE=iabank.settings python -c \"import django; django.setup(); print(''Django OK'')\")",
+      "Bash(DJANGO_SETTINGS_MODULE=iabank.settings python -c \"import django; django.setup(); from django.conf import settings; print([app for app in settings.INSTALLED_APPS if ''iabank'' in app]); print(''\\niabank.core registrada:'', ''iabank.core'' in settings.INSTALLED_APPS)\")",
+      "Bash(ruff check:*)",
+      "Bash(dir)"
     ],
     "deny": [],
     "ask": []
