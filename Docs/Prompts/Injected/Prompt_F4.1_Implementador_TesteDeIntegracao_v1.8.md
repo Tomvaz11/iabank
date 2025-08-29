@@ -1,4 +1,4 @@
-# AGV Prompt: IntegradorTester v1.7 - Geração de Testes de Integração Guiada
+# AGV Prompt: IntegradorTester v1.8 - Geração de Testes de Integração Guiada
 
 **Tarefa Principal:** Analisar o conjunto de módulos especificados, o Blueprint Arquitetural, e os **cenários de integração já definidos** para gerar testes de integração robustos (`pytest`) que verifiquem a correta colaboração entre esses módulos.
 
@@ -26,10 +26,6 @@
 3. **Implementar Testes de Integração:**
 
    - Escreva o código dos testes (`pytest`) nos arquivos corretos, seguindo a estrutura e convenção definidas no `Blueprint`.
-   - **Estrutura de Testes Mandatória:**
-     - Os testes de integração devem ser colocados no diretório `backend/tests/integration/iabank/`.
-     - Os nomes dos arquivos de teste **DEVEM** seguir a convenção padrão **`test_<funcionalidade_testada>.py`**.
-       - **Exemplo:** Testes para a API de autenticação devem ir para `backend/tests/integration/iabank/test_auth_api.py`. Testes para a API de CRUD de clientes devem ir para `backend/tests/integration/iabank/test_customers_api.py`.
    - Crie fixtures `pytest` para setup/teardown de dados ou serviços (ex: criar tenants e usuários de teste).
    - **Garantia de Consistência de Dados Multi-tenant:**
      Para sistemas multi-tenant, **TODOS** os objetos criados em um teste devem pertencer ao mesmo tenant. Implemente factories que garantam esta consistência:
