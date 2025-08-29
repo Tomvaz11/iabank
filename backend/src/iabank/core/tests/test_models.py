@@ -3,7 +3,7 @@ Testes unitários para os modelos do app core.
 
 Este módulo contém os testes unitários para validação dos modelos Tenant, User
 e BaseTenantModel, garantindo que a funcionalidade multi-tenant esteja
-funcionando corretamente. 
+funcionando corretamente.
 
 Atualizado para usar factory-boy conforme Blueprint Diretriz 15.
 """
@@ -37,7 +37,7 @@ class TenantModelTestCase(TestCase):
     def test_tenant_ordering(self):
         """Testa a ordenação padrão dos tenants por nome."""
         TenantFactory(name="B Tenant")
-        TenantFactory(name="A Tenant")  
+        TenantFactory(name="A Tenant")
         TenantFactory(name="C Tenant")
 
         tenants = list(Tenant.objects.all())
@@ -93,10 +93,10 @@ class UserModelTestCase(TestCase):
         tenant = TenantFactory()
         user = UserFactory(tenant=tenant)
         user_id = user.id
-        
+
         # Deletar tenant deve deletar usuário em cascata
         tenant.delete()
-        
+
         # Usuário deve ter sido deletado
         self.assertFalse(User.objects.filter(id=user_id).exists())
 
@@ -111,7 +111,7 @@ class BaseTenantModelTestCase(TestCase):
     def test_base_tenant_model_fields(self):
         """Testa os campos do BaseTenantModel."""
         fields = [f.name for f in BaseTenantModel._meta.fields]
-        
+
         self.assertIn('tenant', fields)
         self.assertIn('created_at', fields)
         self.assertIn('updated_at', fields)
@@ -119,7 +119,7 @@ class BaseTenantModelTestCase(TestCase):
     def test_base_tenant_model_tenant_field(self):
         """Testa as propriedades do campo tenant."""
         tenant_field = BaseTenantModel._meta.get_field('tenant')
-        
+
         self.assertEqual(tenant_field.related_model, Tenant)
         # Verificar que on_delete é CASCADE comparando com a função
         from django.db.models import CASCADE
@@ -129,26 +129,26 @@ class BaseTenantModelTestCase(TestCase):
         """Testa as propriedades dos campos de timestamp."""
         created_at_field = BaseTenantModel._meta.get_field('created_at')
         updated_at_field = BaseTenantModel._meta.get_field('updated_at')
-        
+
         self.assertTrue(created_at_field.auto_now_add)
         self.assertTrue(updated_at_field.auto_now)
 
     def test_concrete_model_inheriting_base_tenant_model(self):
         """
         Testa que um modelo concreto herda corretamente de BaseTenantModel.
-        
+
         Este teste usa o modelo User que herda de AbstractUser, mas validamos
         que BaseTenantModel funciona corretamente para herança futura.
         """
         # Criar modelo de teste em tempo de execução
         from django.db import models
-        
+
         class TestModel(BaseTenantModel):
             name = models.CharField(max_length=100)
-            
+
             class Meta:
                 app_label = 'core'
-        
+
         # Verificar herança
         fields = [f.name for f in TestModel._meta.fields]
         self.assertIn('tenant', fields)
@@ -163,10 +163,10 @@ class FactoryIntegrationTestCase(TestCase):
     def test_tenant_factory_integration(self):
         """Testa integração entre TenantFactory e modelo Tenant."""
         tenant = TenantFactory()
-        
+
         # Verificar que foi salvo no banco
         self.assertTrue(Tenant.objects.filter(id=tenant.id).exists())
-        
+
         # Verificar campos obrigatórios
         self.assertIsNotNone(tenant.name)
         self.assertTrue(tenant.is_active)
@@ -174,10 +174,10 @@ class FactoryIntegrationTestCase(TestCase):
     def test_user_factory_integration(self):
         """Testa integração entre UserFactory e modelo User."""
         user = UserFactory()
-        
+
         # Verificar que foi salvo no banco
         self.assertTrue(User.objects.filter(id=user.id).exists())
-        
+
         # Verificar relacionamento com tenant
         self.assertIsNotNone(user.tenant)
         self.assertTrue(Tenant.objects.filter(id=user.tenant.id).exists())
@@ -185,7 +185,7 @@ class FactoryIntegrationTestCase(TestCase):
     def test_admin_user_factory_integration(self):
         """Testa integração da AdminUserFactory."""
         admin = AdminUserFactory()
-        
+
         self.assertTrue(admin.is_staff)
         self.assertTrue(admin.is_superuser)
         self.assertIsNotNone(admin.tenant)
@@ -196,12 +196,12 @@ class FactoryIntegrationTestCase(TestCase):
         user1 = UserFactory(tenant=tenant)
         user2 = UserFactory(tenant=tenant)
         admin = AdminUserFactory(tenant=tenant)
-        
+
         # Todos devem estar no mesmo tenant
         self.assertEqual(user1.tenant, tenant)
         self.assertEqual(user2.tenant, tenant)
         self.assertEqual(admin.tenant, tenant)
-        
+
         # Mas devem ser usuários diferentes
         self.assertNotEqual(user1.id, user2.id)
         self.assertNotEqual(user1.username, user2.username)

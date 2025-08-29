@@ -24,7 +24,15 @@
       "Bash(DJANGO_SETTINGS_MODULE=iabank.settings python -c \"import django; django.setup(); print(''Django OK'')\")",
       "Bash(DJANGO_SETTINGS_MODULE=iabank.settings python -c \"import django; django.setup(); from django.conf import settings; print([app for app in settings.INSTALLED_APPS if ''iabank'' in app]); print(''\\niabank.core registrada:'', ''iabank.core'' in settings.INSTALLED_APPS)\")",
       "Bash(ruff check:*)",
-      "Bash(dir)"
+      "Bash(dir)",
+      "Bash(del \"C:\\Users\\Antonio\\Desktop\\IABANK\\verify_middleware.py\")",
+      "Bash(del \"C:\\Users\\Antonio\\Desktop\\IABANK\\validate_settings.py\")",
+      "Bash(del \"C:\\Users\\Antonio\\Desktop\\IABANK\\test_middleware_instantiation.py\")",
+      "Bash(del \"C:\\Users\\Antonio\\Desktop\\IABANK\\test_middleware_dependencies.py\")",
+      "Bash(del \"C:\\Users\\Antonio\\Desktop\\IABANK\\test_circular_imports.py\")",
+      "Bash(del \"C:\\Users\\Antonio\\Desktop\\IABANK\\test_multitenant_compatibility.py\")",
+      "Bash(del \"C:\\Users\\Antonio\\Desktop\\IABANK\\test_http_simulation.py\")",
+      "Bash(del:*)"
     ],
     "deny": [],
     "ask": []

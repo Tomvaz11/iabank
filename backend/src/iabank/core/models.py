@@ -2,7 +2,7 @@
 Modelos base do app core do IABANK.
 
 Este módulo contém os modelos fundamentais para suporte multi-tenant da
-plataforma IABANK, incluindo o modelo Tenant e o modelo abstrato BaseTenantModel 
+plataforma IABANK, incluindo o modelo Tenant e o modelo abstrato BaseTenantModel
 para garantir isolamento de dados entre diferentes inquilinos (tenants) do sistema.
 """
 
