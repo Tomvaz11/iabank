@@ -1,0 +1,120 @@
+{
+  "hooks": [
+    {
+      "event": "UserPromptSubmit",
+      "match": {
+        "prompt_contains": "/agv:implement"
+      },
+      "command": "python scripts/agv_context_extractor.py",
+      "description": "Extrai contexto focado antes da implementação AGV",
+      "env": {
+        "TARGET": "$EXTRACTED_TARGET",
+        "BLUEPRINT_PATH": "BLUEPRINT_ARQUITETURAL.md",
+        "ORDER_PATH": "ORDEM_IMPLEMENTACAO.md"
+      }
+    },
+    {
+      "event": "PreToolUse",
+      "match": {
+        "tool": "Task",
+        "prompt_contains": "agv-implementor"
+      },
+      "command": "python scripts/inject_focused_context.py",
+      "description": "Injeta contexto focado antes da execução do implementor",
+      "env": {
+        "TARGET": "$EXTRACTED_TARGET",
+        "INJECTION_MODE": "inject"
+      }
+    },
+    {
+      "event": "PostToolUse",
+      "match": {
+        "tool": "Write",
+        "file_pattern": "*.py"
+      },
+      "command": "python scripts/validate_agv_quality.py $FILE_PATH",
+      "description": "Valida qualidade de arquivos Python criados",
+      "env": {
+        "FILE_PATH": "$FILE_PATH"
+      }
+    },
+    {
+      "event": "PostToolUse",
+      "match": {
+        "tool": "Write", 
+        "file_pattern": "*.ts"
+      },
+      "command": "python scripts/validate_agv_quality.py $FILE_PATH",
+      "description": "Valida qualidade de arquivos TypeScript criados",
+      "env": {
+        "FILE_PATH": "$FILE_PATH"
+      }
+    },
+    {
+      "event": "PostToolUse",
+      "match": {
+        "tool": "Write",
+        "file_pattern": "*.tsx"
+      },
+      "command": "python scripts/validate_agv_quality.py $FILE_PATH",
+      "description": "Valida qualidade de arquivos TSX criados",
+      "env": {
+        "FILE_PATH": "$FILE_PATH"
+      }
+    },
+    {
+      "event": "UserPromptSubmit",
+      "match": {
+        "prompt_contains": "/agv:test-integration"
+      },
+      "command": "python scripts/agv_context_extractor.py",
+      "description": "Extrai contexto para testes de integração",
+      "env": {
+        "TARGET": "$EXTRACTED_TARGET",
+        "BLUEPRINT_PATH": "BLUEPRINT_ARQUITETURAL.md",
+        "ORDER_PATH": "ORDEM_IMPLEMENTACAO.md",
+        "CONTEXT_TYPE": "integration_test"
+      }
+    },
+    {
+      "event": "UserPromptSubmit",
+      "match": {
+        "prompt_contains": "/agv:evolve"
+      },
+      "command": "echo 'Iniciando análise de evolução AGV...'",
+      "description": "Preparação para evolução/manutenção AGV"
+    },
+    {
+      "event": "PostToolUse",
+      "match": {
+        "tool": "Edit",
+        "file_pattern": "*.py"
+      },
+      "command": "python scripts/validate_agv_quality.py $FILE_PATH",
+      "description": "Valida qualidade após edição de arquivos Python",
+      "env": {
+        "FILE_PATH": "$FILE_PATH"
+      }
+    },
+    {
+      "event": "UserPromptSubmit",
+      "match": {
+        "prompt_contains": "/agv:validate"
+      },
+      "command": "python scripts/validate_blueprint_conformity.py",
+      "description": "Executa validação automática de conformidade com Blueprint",
+      "env": {
+        "BLUEPRINT_PATH": "BLUEPRINT_ARQUITETURAL.md",
+        "PROJECT_PATH": "."
+      }
+    },
+    {
+      "event": "SessionEnd",
+      "command": "python scripts/inject_focused_context.py",
+      "description": "Limpeza de arquivos temporários AGV",
+      "env": {
+        "INJECTION_MODE": "cleanup"
+      }
+    }
+  ]
+}
