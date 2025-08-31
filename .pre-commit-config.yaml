@@ -1,0 +1,52 @@
+repos:
+  # Python backend hooks
+  - repo: https://github.com/psf/black
+    rev: 23.9.1
+    hooks:
+      - id: black
+        files: ^backend/
+        language_version: python3.11
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.0.290
+    hooks:
+      - id: ruff
+        files: ^backend/
+        args: [--fix]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.5.1
+    hooks:
+      - id: mypy
+        files: ^backend/src/
+        additional_dependencies: [django-stubs, djangorestframework-stubs]
+
+  # Frontend hooks
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.0.3
+    hooks:
+      - id: prettier
+        files: ^frontend/
+        types_or: [javascript, jsx, ts, tsx, json, css, scss, html]
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v8.48.0
+    hooks:
+      - id: eslint
+        files: ^frontend/
+        types: [file]
+        types_or: [javascript, jsx, ts, tsx]
+        additional_dependencies:
+          - eslint@8.48.0
+          - "@typescript-eslint/eslint-plugin@6.7.2"
+          - "@typescript-eslint/parser@6.7.2"
+
+  # General hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+      - id: check-merge-conflict

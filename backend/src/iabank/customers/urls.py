@@ -1,0 +1,19 @@
+"""
+URLs do app Customers.
+
+Define os endpoints da API REST para operações relacionadas
+aos clientes, seguindo padrões RESTful.
+"""
+
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from . import views
+
+app_name = 'customers'
+
+router = DefaultRouter()
+router.register(r'', views.CustomerViewSet, basename='customer')
+
+urlpatterns = [
+    path('', include(router.urls)),
+]

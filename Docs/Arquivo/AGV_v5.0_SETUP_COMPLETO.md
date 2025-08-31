@@ -26,7 +26,8 @@
 - `/agv:status` - Status do projeto vs Ordem
 - `/agv:validate` - Validação de conformidade
 
-#### ✅ **Scripts de Automação (4 scripts)**
+#### ✅ **Scripts de Automação (5 scripts)**
+- `scripts/validator_generator.py` - Gerador automático de validação profissional v2.0 (67+ validações)
 - `scripts/agv_context_extractor.py` - Extração inteligente de contexto
 - `scripts/inject_focused_context.py` - Injeção de contexto via hooks
 - `scripts/validate_agv_quality.py` - Validação de qualidade de código
@@ -64,8 +65,10 @@ Você precisa criar manualmente os 7 subagents usando `/agents:new`:
 ```
 **O que acontece:**
 - AGV-Scaffolder cria estrutura completa do projeto
+- ValidatorGenerator v2.0 executa 67+ validações profissionais categorizadas
+- Sistema de scoring ponderado aprova/rejeita baseado em conformidade (≥95% profile architecture_review)
 - Contexto otimizado: apenas seções de setup (~100 linhas vs 1000+)
-- Resultado: Projeto pronto com configurações e estrutura
+- Resultado: Projeto pronto com configurações e estrutura validadas
 
 #### **💻 Implementação de Alvos**
 ```bash  
@@ -119,6 +122,8 @@ Você precisa criar manualmente os 7 subagents usando `/agents:new`:
 ### **Resultados Mensuráveis:**
 - **75-80% redução de contexto** por implementação
 - **7 agentes especializados** vs 1 generalista sobrecarregado  
+- **67+ validações profissionais automáticas** (ValidatorGenerator v2.0)
+- **Sistema de scoring ponderado por categoria** (STRUCTURE, CONTENT, MODELS, DEPENDENCIES, API)
 - **Automação completa** via hooks e scripts
 - **Zero alucinação** por contexto otimizado
 - **Qualidade mantida** com todas as diretrizes AGV
@@ -140,6 +145,7 @@ agv_method_CC/
 │   ├── status.md                     # ✅ Status do projeto
 │   └── validate.md                   # ✅ Validação conformidade
 ├── scripts/
+│   ├── validator_generator.py        # ✅ ValidatorGenerator v2.0 (67+ validações)
 │   ├── agv_context_extractor.py      # ✅ Extração inteligente
 │   ├── inject_focused_context.py     # ✅ Injeção de contexto
 │   ├── validate_agv_quality.py       # ✅ Validação qualidade
@@ -177,7 +183,7 @@ agv_method_CC/
 
 # 6. Validar conformidade final
 /agv:validate
-# → Score de conformidade: 85% (BOM - Conformidade aceitável)
+# → Score de conformidade: 97% (EXCELENTE - Profile architecture_review aprovado)
 # → Relatório detalhado salvo em blueprint_conformity_report.json
 ```
 
@@ -185,8 +191,9 @@ agv_method_CC/
 
 ### **Imediato (hoje):**
 1. **Criar os 7 subagents** no Claude Code (15 min)
-2. **Testar com um alvo simples** - `/agv:implement 5` (10 min)
-3. **Validar redução de contexto** - `/agv:context 12` (5 min)
+2. **Testar ValidatorGenerator v2.0** - `/agv:scaffold` com 67+ validações (10 min)
+3. **Testar com um alvo simples** - `/agv:implement 5` (10 min)
+4. **Validar redução de contexto** - `/agv:context 12` (5 min)
 
 ### **Curto prazo (esta semana):**
 1. **Implementar projeto completo** usando AGV v5.0

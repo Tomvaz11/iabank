@@ -5,7 +5,9 @@
       "WebFetch(domain:github.com)",
       "Bash(git remote get-url:*)",
       "Bash(find:*)",
-      "Bash(xcopy:*)"
+      "Bash(xcopy:*)",
+      "Bash(python scripts/validator_generator.py:*)",
+      "Bash(python:*)"
     ],
     "deny": [],
     "ask": []
