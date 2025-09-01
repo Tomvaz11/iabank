@@ -10,6 +10,9 @@ from abc import ABC, abstractmethod
 
 from .blueprint_parser import ProjectSpecs
 from .validation_rules import ValidationRule
+from .logging_config import get_logger
+from .metrics import get_metrics_collector
+from .exceptions import GeneratorException
 
 
 class BaseGenerator(ABC):
@@ -18,6 +21,10 @@ class BaseGenerator(ABC):
     def __init__(self, specs: ProjectSpecs):
         self.specs = specs
         self.rules: List[ValidationRule] = []
+        self.logger = get_logger(f"generator.{self.__class__.__name__.lower()}")
+        self.metrics = get_metrics_collector()
+        
+        self.logger.info(f"Initialized {self.__class__.__name__} for project: {specs.project_name}")
     
     @abstractmethod
     def generate_rules(self) -> List[ValidationRule]:

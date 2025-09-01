@@ -19,12 +19,15 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
 
 # Imports dos components core
-from core.blueprint_parser import AdvancedBlueprintParser, ProjectSpecs
-from core.validation_rules import ValidationRule
-from generators.scaffold_generator import ScaffoldGenerator
-from generators.target_generator import TargetGenerator
-from generators.integration_generator import IntegrationGenerator
-from generators.evolution_generator import EvolutionGenerator
+from .core.blueprint_parser import AdvancedBlueprintParser, ProjectSpecs
+from .core.validation_rules import ValidationRule
+from .core.logging_config import get_logger
+from .core.metrics import get_metrics_collector, measure_performance
+from .core.exceptions import ValidationGenerationError, BlueprintFileNotFoundError, handle_exception
+from .generators.scaffold_generator import ScaffoldGenerator
+from .generators.target_generator import TargetGenerator
+from .generators.integration_generator import IntegrationGenerator
+from .generators.evolution_generator import EvolutionGenerator
 
 
 @dataclass
@@ -87,8 +90,17 @@ class ModularValidatorGenerator:
     
     def __init__(self, blueprint_path: str):
         self.blueprint_path = Path(blueprint_path)
-        self.parser = AdvancedBlueprintParser(str(self.blueprint_path))
-        self.specs: Optional[ProjectSpecs] = None
+        self.logger = get_logger("validator_generator")
+        self.metrics = get_metrics_collector()
+        
+        try:
+            self.parser = AdvancedBlueprintParser(str(self.blueprint_path))
+            self.specs: Optional[ProjectSpecs] = None
+            self.logger.info(f"ValidatorGenerator initialized with blueprint: {blueprint_path}")
+        except Exception as e:
+            agv_exception = handle_exception("__init__", "ModularValidatorGenerator", e)
+            self.logger.error(f"Failed to initialize ValidatorGenerator: {agv_exception}")
+            raise agv_exception
         
     def parse_blueprint(self) -> ProjectSpecs:
         """Parse do Blueprint arquitetural."""
