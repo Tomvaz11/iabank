@@ -120,7 +120,7 @@ class ModularValidatorGenerator:
             
         return self.specs
     
-    def generate_scaffold_validator(self, output_path: str = "scripts/validate_scaffold.py") -> bool:
+    def generate_scaffold_validator(self, output_path: str = "validate_scaffold.py") -> bool:
         """Gera validador especializado para scaffold (Alvo 0)."""
         try:
             specs = self.parse_blueprint()
@@ -151,7 +151,7 @@ class ModularValidatorGenerator:
             specs = self.parse_blueprint()
             
             if output_path is None:
-                output_path = f"scripts/validate_target_{target_number}.py"
+                output_path = f"validate_target_{target_number}.py"
             
             print(f"Gerando validador para ALVO {target_number} com TargetGenerator...")
             generator = TargetGenerator(specs, target_number, target_context or {})
@@ -179,7 +179,7 @@ class ModularValidatorGenerator:
             specs = self.parse_blueprint()
             
             if output_path is None:
-                output_path = f"scripts/validate_{integration_phase.lower()}.py"
+                output_path = f"validate_{integration_phase.lower()}.py"
             
             print(f"Gerando validador para {integration_phase} com IntegrationGenerator...")
             generator = IntegrationGenerator(specs, integration_phase, integration_context or {})
@@ -201,7 +201,7 @@ class ModularValidatorGenerator:
             return False
     
     def generate_evolution_validator(self, evolution_context: Dict[str, Any] = None,
-                                   output_path: str = "scripts/validate_evolution.py") -> bool:
+                                   output_path: str = "validate_evolution.py") -> bool:
         """Gera validador especializado para evolução e manutenção."""
         try:
             specs = self.parse_blueprint()
@@ -624,7 +624,7 @@ def main():
     success = False
     
     if args.type == "scaffold":
-        output_path = args.output or "scripts/validate_scaffold_new.py"
+        output_path = args.output or "validate_scaffold_new.py"
         success = generator.generate_scaffold_validator(output_path)
         
     elif args.type == "target":
@@ -642,7 +642,7 @@ def main():
         )
         
     elif args.type == "evolution":
-        output_path = args.output or "scripts/validate_evolution.py"
+        output_path = args.output or "validate_evolution.py"
         success = generator.generate_evolution_validator(
             context,
             output_path

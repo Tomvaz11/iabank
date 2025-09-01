@@ -74,7 +74,7 @@ def setup_agv_system():
     # Testar importações
     print("\n🧪 Testando importações...")
     try:
-        from scripts import ModularValidatorGenerator, get_logger, get_cache, get_metrics_collector
+        from agv_system import ModularValidatorGenerator, get_logger, get_cache, get_metrics_collector
         print("✅ Importações principais - OK")
         
         # Teste básico
@@ -98,12 +98,12 @@ def setup_agv_system():
     
     print("\n🎉 Sistema AGV v5.0 configurado com sucesso!")
     print("\nComandos disponíveis:")
-    print("  agv-validator <blueprint.md> scaffold")
-    print("  agv-validator <blueprint.md> target --target-number 3")
+    print("  agv-validate <blueprint.md> scaffold")
+    print("  agv-validate <blueprint.md> target --target-number 3")
     print("  agv-context <blueprint.md> --target 3")
     print("\nPython imports:")
-    print("  from scripts import ModularValidatorGenerator")
-    print("  from scripts.core import get_logger, get_cache, get_metrics_collector")
+    print("  from agv_system import ModularValidatorGenerator")
+    print("  from agv_system.core import get_logger, get_cache, get_metrics_collector")
     
     return True
 

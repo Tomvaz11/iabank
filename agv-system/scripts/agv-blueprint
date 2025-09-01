@@ -1,0 +1,16 @@
+#!/usr/bin/env python3
+"""
+AGV Blueprint Conformity - Entry point para validação de conformidade
+"""
+
+import sys
+import os
+from pathlib import Path
+
+# Adicionar src ao path para imports
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from agv_system.validate_blueprint_conformity import main
+
+if __name__ == "__main__":
+    main()

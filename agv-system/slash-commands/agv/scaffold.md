@@ -23,7 +23,7 @@ Primeiro, vou extrair do Blueprint apenas as seções relevantes para o setup in
 Primeiro, gero automaticamente um validador PROFISSIONAL específico para este Blueprint:
 
 ```bash
-python scripts/validator_generator.py BLUEPRINT_ARQUITETURAL.md
+python agv-system/scripts/agv-validate BLUEPRINT_ARQUITETURAL.md
 ```
 
 Este comando irá:
@@ -32,7 +32,7 @@ Este comando irá:
 - Extrair especificações complexas (modelos Django, multi-tenancy, dependências com versões)
 - Gerar validações profundas de conteúdo (não só existência de arquivos)
 - Criar validações específicas para modelos, configurações e dependências
-- Gerar um `scripts/validate_scaffold.py` de NÍVEL PROFISSIONAL (67+ validações)
+- Gerar um `agv-system/agv_system/validate_scaffold.py` de NÍVEL PROFISSIONAL (67+ validações)
 - Incluir validações por categoria: STRUCTURE, CONTENT, MODELS, DEPENDENCIES, API
 
 ### Etapa 1.3: Delegação para AGV-Scaffolder
@@ -58,7 +58,7 @@ Após o scaffold, executo automaticamente o validador profundo que:
 Primeiro, obtenho o threshold atual dinamicamente:
 
 ```bash
-CURRENT_THRESHOLD=$(python scripts/validation_config.py threshold)
+CURRENT_THRESHOLD=$(python agv-system/scripts/validation_config.py threshold)
 echo "Threshold ativo: $CURRENT_THRESHOLD"
 ```
 
@@ -72,7 +72,7 @@ echo "Threshold ativo: $CURRENT_THRESHOLD"
 Primeiro, execute o ValidatorGenerator PRO para criar validador de nível profissional:
 
 ```bash
-python scripts/validator_generator.py BLUEPRINT_ARQUITETURAL.md
+python agv-system/scripts/agv-validate BLUEPRINT_ARQUITETURAL.md
 ```
 
 ### Executar Scaffold
@@ -92,7 +92,7 @@ Após gerar o validador customizado, delegue para o subagent "agv-scaffolder" a 
 Após o scaffold, execute automaticamente:
 
 ```bash
-python scripts/post_scaffold_validation.py
+python agv-system/scripts/post_scaffold_validation.py
 ```
 
 Este script irá:
@@ -107,7 +107,7 @@ Este script irá:
 **Verificação Dinâmica do Threshold:**
 
 ```bash
-CURRENT_THRESHOLD=$(python scripts/validation_config.py threshold)
+CURRENT_THRESHOLD=$(python agv-system/scripts/validation_config.py threshold)
 echo "Usando threshold: $CURRENT_THRESHOLD"
 ```
 
@@ -126,7 +126,7 @@ echo "Usando threshold: $CURRENT_THRESHOLD"
 
 **Gerenciamento de Profiles:**
 ```bash
-python scripts/validation_config.py list        # Ver profiles disponíveis
-python scripts/validation_config.py threshold   # Ver threshold atual
-python scripts/validation_config.py switch development  # Trocar para development (65%)
+python agv-system/scripts/validation_config.py list        # Ver profiles disponíveis
+python agv-system/scripts/validation_config.py threshold   # Ver threshold atual
+python agv-system/scripts/validation_config.py switch development  # Trocar para development (65%)
 ```

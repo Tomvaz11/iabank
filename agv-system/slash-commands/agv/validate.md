@@ -13,7 +13,7 @@ Executa validação abrangente da codebase atual contra o Blueprint Arquitetural
 Executar validação automática usando o novo validador:
 
 ```bash
-python scripts/validate_blueprint_conformity.py
+python agv-system/scripts/agv-blueprint
 ```
 
 Este script irá:

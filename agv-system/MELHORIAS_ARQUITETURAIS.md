@@ -8,7 +8,7 @@ Implementamos todas as melhorias sugeridas na análise arquitetural, elevando o 
 
 ## ✅ **1. Sistema de Logging Estruturado**
 
-### **Arquivo:** `scripts/core/logging_config.py`
+### **Arquivo:** `agv-system/src/agv_system/core/logging_config.py`
 
 #### **Características:**
 - **Logging JSON estruturado** para análise automatizada
@@ -19,7 +19,7 @@ Implementamos todas as melhorias sugeridas na análise arquitetural, elevando o 
 
 #### **Uso:**
 ```python
-from scripts.core.logging_config import get_logger, LogContext
+from agv_system.scripts.core.logging_config import get_logger, LogContext
 
 logger = get_logger("meu_componente")
 logger.info("Operação iniciada", extra={'context': {'user': 'antonio', 'target': 3}})
@@ -40,7 +40,7 @@ with LogContext(logger, "implementar_alvo", target=3, user="antonio") as ctx:
 
 ## ✅ **2. Exceções Personalizadas**
 
-### **Arquivo:** `scripts/core/exceptions.py`
+### **Arquivo:** `agv-system/src/agv_system/core/exceptions.py`
 
 #### **Hierarquia Completa:**
 - `AGVException` (base)
@@ -74,7 +74,7 @@ except FileNotFoundError as e:
 
 ## ✅ **3. Sistema de Cache Híbrido**
 
-### **Arquivo:** `scripts/core/cache_system.py`
+### **Arquivo:** `agv-system/src/agv_system/core/cache_system.py`
 
 #### **Arquitetura:**
 - **MemoryCache**: LRU com TTL, thread-safe, até 1000 entradas
@@ -112,7 +112,7 @@ def parse_expensive_blueprint(path: str):
 
 ## ✅ **4. Sistema de Métricas e Analytics**
 
-### **Arquivo:** `scripts/core/metrics.py`
+### **Arquivo:** `agv-system/src/agv_system/core/metrics.py`
 
 #### **Tipos de Métricas:**
 - **QualityMetrics**: Coverage, complexidade, débito técnico
@@ -159,11 +159,11 @@ metrics.record_quality_metrics(quality, "scaffold_validator")
 
 ## ✅ **5. Configuração PYTHONPATH Profissional**
 
-### **Arquivos:** `pyproject.toml` + `scripts/__init__.py` + `setup_agv.py`
+### **Arquivos:** `pyproject.toml` + `agv-system/src/agv_system/__init__.py` + `setup_agv.py`
 
 #### **Estrutura Modular:**
 ```
-scripts/
+agv-system/src/agv_system/
 ├── __init__.py              # Package principal
 ├── validator_generator.py   # Entry point
 ├── core/                   # Componentes core
@@ -204,7 +204,7 @@ pip install -e .[web,metrics]       # Com extras
 from scripts import ModularValidatorGenerator, get_logger, get_cache
 
 # Imports específicos
-from scripts.core.logging_config import get_logger, LogContext
+from agv_system.scripts.core.logging_config import get_logger, LogContext
 from scripts.core.exceptions import AGVException, handle_exception
 from scripts.core.cache_system import get_cache, cached
 from scripts.core.metrics import get_metrics_collector, measure_performance

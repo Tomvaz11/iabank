@@ -9,10 +9,10 @@ Este pacote contém todos os componentes do sistema AGV:
 - Exceções personalizadas
 
 Uso:
-    from scripts.validator_generator import ModularValidatorGenerator
-    from scripts.core.logging_config import get_logger
-    from scripts.core.cache_system import get_cache
-    from scripts.core.metrics import get_metrics_collector
+    from agv_system.validator_generator import ModularValidatorGenerator
+    from agv_system.core.logging_config import get_logger
+    from agv_system.core.cache_system import get_cache
+    from agv_system.core.metrics import get_metrics_collector
 """
 
 __version__ = "5.0.0"

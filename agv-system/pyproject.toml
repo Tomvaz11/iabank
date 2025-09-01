@@ -56,15 +56,17 @@ metrics = [
 ]
 
 [project.scripts]
-agv-validator = "scripts.validator_generator:main"
-agv-context = "scripts.agv_context_extractor:main"
+agv-validate = "agv_system.validator_generator:main"
+agv-context = "agv_system.agv_context_extractor:main"
+agv-quality = "agv_system.validate_agv_quality:main"
+agv-blueprint = "agv_system.validate_blueprint_conformity:main"
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["scripts*"]
+where = ["src"]
+include = ["agv_system*"]
 
 [tool.setuptools.package-data]
-"scripts" = ["**/*.py", "**/*.md", "**/*.json", "**/*.yaml"]
+"agv_system" = ["**/*.py", "**/*.md", "**/*.json", "**/*.yaml"]
 
 # Black configuration
 [tool.black]
@@ -155,7 +157,7 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "--verbose",
-    "--cov=scripts",
+    "--cov=agv_system",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -169,7 +171,7 @@ markers = [
 
 # Coverage configuration
 [tool.coverage.run]
-source = ["scripts"]
+source = ["src"]
 omit = [
     "*/tests/*",
     "*/test_*.py",

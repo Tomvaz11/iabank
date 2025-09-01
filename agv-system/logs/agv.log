@@ -1,0 +1,4 @@
+{"timestamp": "2025-09-01T15:54:10.374649", "level": "INFO", "component": "agv.metrics", "message": "Metrics collector initialized", "context": {"storage_path": "metrics"}, "duration_ms": null, "error": null}
+{"timestamp": "2025-09-01T15:54:10.377884", "level": "INFO", "component": "agv.validator_generator", "message": "ValidatorGenerator initialized with blueprint: BluePrint_Arquitetural.md", "context": {}, "duration_ms": null, "error": null}
+{"timestamp": "2025-09-01T15:54:10.468196", "level": "INFO", "component": "agv.metrics", "message": "Metrics collector initialized", "context": {"storage_path": "metrics"}, "duration_ms": null, "error": null}
+{"timestamp": "2025-09-01T15:54:10.469040", "level": "INFO", "component": "agv.generator.scaffoldgenerator", "message": "Initialized ScaffoldGenerator for project: Blueprint Arquitetural - IABANK", "context": {}, "duration_ms": null, "error": null}

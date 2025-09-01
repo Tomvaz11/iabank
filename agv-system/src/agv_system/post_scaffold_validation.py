@@ -18,7 +18,7 @@ def main():
     try:
         result = subprocess.run([
             sys.executable, 
-            "scripts/validate_scaffold.py"
+            "validate_scaffold.py"
         ], capture_output=True, text=True, cwd=Path.cwd())
         
         # Mostrar output da validação

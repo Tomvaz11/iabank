@@ -27,11 +27,11 @@
 - `/agv:validate` - Validação de conformidade
 
 #### ✅ **Scripts de Automação (5 scripts)**
-- `scripts/validator_generator.py` - Gerador automático de validação profissional v2.0 (67+ validações)
-- `scripts/agv_context_extractor.py` - Extração inteligente de contexto
-- `scripts/inject_focused_context.py` - Injeção de contexto via hooks
-- `scripts/validate_agv_quality.py` - Validação de qualidade de código
-- `scripts/validate_blueprint_conformity.py` - Validação automática de conformidade com Blueprint
+- `agv-system/src/agv_system/validator_generator.py` - Gerador automático de validação profissional v2.0 (67+ validações)
+- `agv-system/src/agv_system/agv_context_extractor.py` - Extração inteligente de contexto
+- `agv-system/src/agv_system/inject_focused_context.py` - Injeção de contexto via hooks
+- `agv-system/src/agv_system/validate_agv_quality.py` - Validação de qualidade de código
+- `agv-system/src/agv_system/validate_blueprint_conformity.py` - Validação automática de conformidade com Blueprint
 
 #### ✅ **Sistema de Hooks (10 hooks configurados)**
 - Extração automática de contexto
@@ -144,7 +144,7 @@ agv_method_CC/
 │   ├── context.md                    # ✅ Debug de contexto
 │   ├── status.md                     # ✅ Status do projeto
 │   └── validate.md                   # ✅ Validação conformidade
-├── scripts/
+├── agv-system/src/agv_system/
 │   ├── validator_generator.py        # ✅ ValidatorGenerator v2.0 (67+ validações)
 │   ├── agv_context_extractor.py      # ✅ Extração inteligente
 │   ├── inject_focused_context.py     # ✅ Injeção de contexto

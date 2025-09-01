@@ -5,7 +5,7 @@
       "match": {
         "prompt_contains": "/agv:implement"
       },
-      "command": "python scripts/agv_context_extractor.py",
+      "command": "python agv-system/scripts/agv-context",
       "description": "Extrai contexto focado antes da implementação AGV",
       "env": {
         "TARGET": "$EXTRACTED_TARGET",
@@ -19,7 +19,7 @@
         "tool": "Task",
         "prompt_contains": "agv-implementor"
       },
-      "command": "python scripts/inject_focused_context.py",
+      "command": "python agv-system/scripts/agv-context",
       "description": "Injeta contexto focado antes da execução do implementor",
       "env": {
         "TARGET": "$EXTRACTED_TARGET",
@@ -32,7 +32,7 @@
         "tool": "Write",
         "file_pattern": "*.py"
       },
-      "command": "python scripts/validate_agv_quality.py $FILE_PATH",
+      "command": "python agv-system/scripts/agv-quality $FILE_PATH",
       "description": "Valida qualidade de arquivos Python criados",
       "env": {
         "FILE_PATH": "$FILE_PATH"
@@ -44,7 +44,7 @@
         "tool": "Write", 
         "file_pattern": "*.ts"
       },
-      "command": "python scripts/validate_agv_quality.py $FILE_PATH",
+      "command": "python agv-system/scripts/agv-quality $FILE_PATH",
       "description": "Valida qualidade de arquivos TypeScript criados",
       "env": {
         "FILE_PATH": "$FILE_PATH"
@@ -56,7 +56,7 @@
         "tool": "Write",
         "file_pattern": "*.tsx"
       },
-      "command": "python scripts/validate_agv_quality.py $FILE_PATH",
+      "command": "python agv-system/scripts/agv-quality $FILE_PATH",
       "description": "Valida qualidade de arquivos TSX criados",
       "env": {
         "FILE_PATH": "$FILE_PATH"
@@ -67,7 +67,7 @@
       "match": {
         "prompt_contains": "/agv:test-integration"
       },
-      "command": "python scripts/agv_context_extractor.py",
+      "command": "python agv-system/scripts/agv-context",
       "description": "Extrai contexto para testes de integração",
       "env": {
         "TARGET": "$EXTRACTED_TARGET",
@@ -90,7 +90,7 @@
         "tool": "Edit",
         "file_pattern": "*.py"
       },
-      "command": "python scripts/validate_agv_quality.py $FILE_PATH",
+      "command": "python agv-system/scripts/agv-quality $FILE_PATH",
       "description": "Valida qualidade após edição de arquivos Python",
       "env": {
         "FILE_PATH": "$FILE_PATH"
@@ -101,7 +101,7 @@
       "match": {
         "prompt_contains": "/agv:validate"
       },
-      "command": "python scripts/validate_blueprint_conformity.py",
+      "command": "python agv-system/scripts/agv-blueprint",
       "description": "Executa validação automática de conformidade com Blueprint",
       "env": {
         "BLUEPRINT_PATH": "BLUEPRINT_ARQUITETURAL.md",
@@ -110,7 +110,7 @@
     },
     {
       "event": "SessionEnd",
-      "command": "python scripts/inject_focused_context.py",
+      "command": "python agv-system/scripts/agv-context",
       "description": "Limpeza de arquivos temporários AGV",
       "env": {
         "INJECTION_MODE": "cleanup"

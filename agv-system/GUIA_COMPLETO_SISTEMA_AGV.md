@@ -285,10 +285,10 @@ hooks:
 
 if [[ $TASK_TYPE == "agv-implementor" ]]; then
     # Extrai contexto focado automaticamente
-    python scripts/agv_context_extractor.py --alvo=$ALVO_NUMBER
+    python agv-system/scripts/agv_context_extractor.py --alvo=$ALVO_NUMBER
     
     # Injeta contexto no prompt do subagent
-    python scripts/inject_focused_context.py --target=$TASK_ID
+    python agv-system/scripts/inject_focused_context.py --target=$TASK_ID
 fi
 ```
 
@@ -522,7 +522,7 @@ Etapa 3: Validar implementação
 
 **2. HOOK PRE-TASK executa automaticamente:**
 ```bash
-Hook: python scripts/agv_context_extractor.py --alvo=7
+Hook: python agv-system/scripts/agv_context_extractor.py --alvo=7
 # Reduz Blueprint de 1200 → 185 linhas (84.6% redução)
 ```
 
@@ -537,7 +537,7 @@ Hook: python scripts/agv_context_extractor.py --alvo=7
 
 **4. HOOK INJECTION executa:**
 ```bash
-Hook: python scripts/inject_focused_context.py --target=agv-implementor
+Hook: python agv-system/scripts/inject_focused_context.py --target=agv-implementor
 # Injeta contexto focado no prompt do subagent
 ```
 
@@ -549,13 +549,13 @@ Subagent: "Recebido contexto focado (185 linhas)
 
 **6. HOOK POST-FILE valida cada arquivo criado:**
 ```bash
-Hook: python scripts/validate_blueprint_conformity.py --file=models.py
+Hook: python agv-system/scripts/validate_blueprint_conformity.py --file=models.py
 ✅ models.py: CONFORME Blueprint
 ```
 
 **7. HOOK QUALITY executa:**
 ```bash
-Hook: python scripts/validate_agv_quality.py --check=all
+Hook: python agv-system/scripts/validate_agv_quality.py --check=all
 ✅ Linting: PEP8 ok
 ✅ Testes: 92% coverage
 ✅ Docs: Docstrings presentes
