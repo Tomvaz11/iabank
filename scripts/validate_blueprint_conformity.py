@@ -9,7 +9,7 @@ import re
 import sys
 import json
 from pathlib import Path
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any
 from dataclasses import dataclass
 
 
@@ -526,7 +526,7 @@ def main():
         print(f"[ERROR] Blueprint não encontrado: {blueprint_path}")
         sys.exit(1)
     
-    print(f"[INFO] AGV Blueprint Conformity Validator v5.0")
+    print("[INFO] AGV Blueprint Conformity Validator v5.0")
     print(f"[INFO] Blueprint: {blueprint_path}")
     print(f"[INFO] Projeto: {project_path}")
     print("=" * 60)
@@ -563,14 +563,14 @@ def main():
     else:
         print("🚨 CRÍTICO - Baixa conformidade, revisão urgente necessária")
     
-    print(f"\n📋 RESUMO:")
+    print("\n📋 RESUMO:")
     print(f"   Total de problemas: {results['total_issues']}")
     print(f"   Críticos: {results['critical_issues']}")
     print(f"   Altos: {results['high_issues']}")
     
     # Mostrar problemas críticos
     if results['critical_issues'] > 0:
-        print(f"\n🚨 PROBLEMAS CRÍTICOS:")
+        print("\n🚨 PROBLEMAS CRÍTICOS:")
         for issue in results['issues']:
             if issue['severity'] == 'CRITICAL':
                 print(f"   • {issue['description']}")
@@ -579,7 +579,7 @@ def main():
     
     # Mostrar recomendações
     if results['recommendations']:
-        print(f"\n🎯 RECOMENDAÇÕES PRINCIPAIS:")
+        print("\n🎯 RECOMENDAÇÕES PRINCIPAIS:")
         for rec in results['recommendations']:
             print(f"   {rec}")
     

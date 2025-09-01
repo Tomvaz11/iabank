@@ -8,7 +8,7 @@ import os
 import sys
 import subprocess
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import Dict
 
 
 class AGVQualityValidator:
@@ -73,7 +73,7 @@ class AGVQualityValidator:
                     class_name = line.strip().split()[1].split('(')[0]
                     self.warnings.append(f"Classe {class_name} sem docstring")
                 else:
-                    self.passed_checks.append(f"[OK] Classe com docstring encontrada")
+                    self.passed_checks.append("[OK] Classe com docstring encontrada")
         
         # 3. Verificar imports organizados
         import_section = []
@@ -199,7 +199,7 @@ class AGVQualityValidator:
     def print_report(self):
         """Imprime relatório de validação"""
         
-        print(f"\n[SCAN] AGV Quality Validation Report")
+        print("\n[SCAN] AGV Quality Validation Report")
         print(f"[FILE] Arquivo: {self.file_path}")
         print("=" * 60)
         
@@ -222,7 +222,7 @@ class AGVQualityValidator:
                 print(f"   [ERROR] {error}")
         
         # Status final
-        print(f"\n[RESULT] RESULTADO FINAL:")
+        print("\n[RESULT] RESULTADO FINAL:")
         if self.errors:
             print("   [FAIL] FALHOU - Erros devem ser corrigidos")
             return False

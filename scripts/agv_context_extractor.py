@@ -5,10 +5,9 @@ Extrai contexto focado do Blueprint para alvos específicos, reduzindo contexto 
 """
 
 import os
-import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List
 
 
 class AGVContextExtractor:
@@ -259,7 +258,7 @@ def main():
         f.write(f"## Detalhes do Alvo\n{context['target_details']}\n\n")
         f.write(f"## Seções Relevantes do Blueprint\n{context['blueprint_sections']}\n\n")
         f.write(f"## Dependências de Código\n{context['code_dependencies']}\n\n")
-        f.write(f"## Estatísticas de Otimização\n")
+        f.write("## Estatísticas de Otimização\n")
         f.write(f"- Contexto original: {context['optimization_stats']['original_lines']} linhas\n")
         f.write(f"- Contexto otimizado: {context['optimization_stats']['optimized_lines']} linhas\n")
         f.write(f"- Redução: {context['optimization_stats']['reduction_percentage']}%\n")

@@ -26,9 +26,8 @@ NÍVEL DE VALIDAÇÃO: PROFISSIONAL
 import json
 import re
 import sys
-import yaml
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -750,7 +749,7 @@ def validate_model_tenant():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             
             # Verificar se modelo existe
-            model_pattern = rf'class Tenant\([^)]*\):(.*?)(?=\nclass|\Z)'
+            model_pattern = r'class Tenant\([^)]*\):(.*?)(?=\nclass|\Z)'
             model_match = re.search(model_pattern, content, re.DOTALL)
             
             if model_match:
@@ -774,8 +773,8 @@ def validate_model_tenant():
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="wrong_model_inheritance",
-                        description=f"Tenant deve herdar de BaseTenantModel",
-                        expected=f"class Tenant(BaseTenantModel):",
+                        description="Tenant deve herdar de BaseTenantModel",
+                        expected="class Tenant(BaseTenantModel):",
                         actual="Herança incorreta",
                         severity="HIGH"
                     ))
@@ -794,8 +793,8 @@ def validate_model_tenant():
         issues.append(ValidationIssue(
             file_path="models.py",
             issue_type="model_not_found",
-            description=f"Modelo Tenant não encontrado",
-            expected=f"Modelo Tenant deve estar implementado",
+            description="Modelo Tenant não encontrado",
+            expected="Modelo Tenant deve estar implementado",
             actual="Modelo ausente",
             severity="HIGH"
         ))
@@ -817,7 +816,7 @@ def validate_model_user():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             
             # Verificar se modelo existe
-            model_pattern = rf'class User\([^)]*\):(.*?)(?=\nclass|\Z)'
+            model_pattern = r'class User\([^)]*\):(.*?)(?=\nclass|\Z)'
             model_match = re.search(model_pattern, content, re.DOTALL)
             
             if model_match:
@@ -841,8 +840,8 @@ def validate_model_user():
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="wrong_model_inheritance",
-                        description=f"User deve herdar de BaseTenantModel",
-                        expected=f"class User(BaseTenantModel):",
+                        description="User deve herdar de BaseTenantModel",
+                        expected="class User(BaseTenantModel):",
                         actual="Herança incorreta",
                         severity="HIGH"
                     ))
@@ -861,8 +860,8 @@ def validate_model_user():
         issues.append(ValidationIssue(
             file_path="models.py",
             issue_type="model_not_found",
-            description=f"Modelo User não encontrado",
-            expected=f"Modelo User deve estar implementado",
+            description="Modelo User não encontrado",
+            expected="Modelo User deve estar implementado",
             actual="Modelo ausente",
             severity="HIGH"
         ))
@@ -884,7 +883,7 @@ def validate_model_basetenantmodel():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             
             # Verificar se modelo existe
-            model_pattern = rf'class BaseTenantModel\([^)]*\):(.*?)(?=\nclass|\Z)'
+            model_pattern = r'class BaseTenantModel\([^)]*\):(.*?)(?=\nclass|\Z)'
             model_match = re.search(model_pattern, content, re.DOTALL)
             
             if model_match:
@@ -908,8 +907,8 @@ def validate_model_basetenantmodel():
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="wrong_model_inheritance",
-                        description=f"BaseTenantModel deve herdar de BaseTenantModel",
-                        expected=f"class BaseTenantModel(BaseTenantModel):",
+                        description="BaseTenantModel deve herdar de BaseTenantModel",
+                        expected="class BaseTenantModel(BaseTenantModel):",
                         actual="Herança incorreta",
                         severity="HIGH"
                     ))
@@ -928,8 +927,8 @@ def validate_model_basetenantmodel():
         issues.append(ValidationIssue(
             file_path="models.py",
             issue_type="model_not_found",
-            description=f"Modelo BaseTenantModel não encontrado",
-            expected=f"Modelo BaseTenantModel deve estar implementado",
+            description="Modelo BaseTenantModel não encontrado",
+            expected="Modelo BaseTenantModel deve estar implementado",
             actual="Modelo ausente",
             severity="HIGH"
         ))
@@ -951,7 +950,7 @@ def validate_model_customer():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             
             # Verificar se modelo existe
-            model_pattern = rf'class Customer\([^)]*\):(.*?)(?=\nclass|\Z)'
+            model_pattern = r'class Customer\([^)]*\):(.*?)(?=\nclass|\Z)'
             model_match = re.search(model_pattern, content, re.DOTALL)
             
             if model_match:
@@ -975,8 +974,8 @@ def validate_model_customer():
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="wrong_model_inheritance",
-                        description=f"Customer deve herdar de BaseTenantModel",
-                        expected=f"class Customer(BaseTenantModel):",
+                        description="Customer deve herdar de BaseTenantModel",
+                        expected="class Customer(BaseTenantModel):",
                         actual="Herança incorreta",
                         severity="HIGH"
                     ))
@@ -995,8 +994,8 @@ def validate_model_customer():
         issues.append(ValidationIssue(
             file_path="models.py",
             issue_type="model_not_found",
-            description=f"Modelo Customer não encontrado",
-            expected=f"Modelo Customer deve estar implementado",
+            description="Modelo Customer não encontrado",
+            expected="Modelo Customer deve estar implementado",
             actual="Modelo ausente",
             severity="HIGH"
         ))
@@ -1018,7 +1017,7 @@ def validate_model_consultant():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             
             # Verificar se modelo existe
-            model_pattern = rf'class Consultant\([^)]*\):(.*?)(?=\nclass|\Z)'
+            model_pattern = r'class Consultant\([^)]*\):(.*?)(?=\nclass|\Z)'
             model_match = re.search(model_pattern, content, re.DOTALL)
             
             if model_match:
@@ -1042,8 +1041,8 @@ def validate_model_consultant():
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="wrong_model_inheritance",
-                        description=f"Consultant deve herdar de BaseTenantModel",
-                        expected=f"class Consultant(BaseTenantModel):",
+                        description="Consultant deve herdar de BaseTenantModel",
+                        expected="class Consultant(BaseTenantModel):",
                         actual="Herança incorreta",
                         severity="HIGH"
                     ))
@@ -1062,8 +1061,8 @@ def validate_model_consultant():
         issues.append(ValidationIssue(
             file_path="models.py",
             issue_type="model_not_found",
-            description=f"Modelo Consultant não encontrado",
-            expected=f"Modelo Consultant deve estar implementado",
+            description="Modelo Consultant não encontrado",
+            expected="Modelo Consultant deve estar implementado",
             actual="Modelo ausente",
             severity="HIGH"
         ))
@@ -1085,7 +1084,7 @@ def validate_model_loan():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             
             # Verificar se modelo existe
-            model_pattern = rf'class Loan\([^)]*\):(.*?)(?=\nclass|\Z)'
+            model_pattern = r'class Loan\([^)]*\):(.*?)(?=\nclass|\Z)'
             model_match = re.search(model_pattern, content, re.DOTALL)
             
             if model_match:
@@ -1109,8 +1108,8 @@ def validate_model_loan():
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="wrong_model_inheritance",
-                        description=f"Loan deve herdar de BaseTenantModel",
-                        expected=f"class Loan(BaseTenantModel):",
+                        description="Loan deve herdar de BaseTenantModel",
+                        expected="class Loan(BaseTenantModel):",
                         actual="Herança incorreta",
                         severity="HIGH"
                     ))
@@ -1129,8 +1128,8 @@ def validate_model_loan():
         issues.append(ValidationIssue(
             file_path="models.py",
             issue_type="model_not_found",
-            description=f"Modelo Loan não encontrado",
-            expected=f"Modelo Loan deve estar implementado",
+            description="Modelo Loan não encontrado",
+            expected="Modelo Loan deve estar implementado",
             actual="Modelo ausente",
             severity="HIGH"
         ))
@@ -1152,7 +1151,7 @@ def validate_model_installment():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             
             # Verificar se modelo existe
-            model_pattern = rf'class Installment\([^)]*\):(.*?)(?=\nclass|\Z)'
+            model_pattern = r'class Installment\([^)]*\):(.*?)(?=\nclass|\Z)'
             model_match = re.search(model_pattern, content, re.DOTALL)
             
             if model_match:
@@ -1176,8 +1175,8 @@ def validate_model_installment():
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="wrong_model_inheritance",
-                        description=f"Installment deve herdar de BaseTenantModel",
-                        expected=f"class Installment(BaseTenantModel):",
+                        description="Installment deve herdar de BaseTenantModel",
+                        expected="class Installment(BaseTenantModel):",
                         actual="Herança incorreta",
                         severity="HIGH"
                     ))
@@ -1196,8 +1195,8 @@ def validate_model_installment():
         issues.append(ValidationIssue(
             file_path="models.py",
             issue_type="model_not_found",
-            description=f"Modelo Installment não encontrado",
-            expected=f"Modelo Installment deve estar implementado",
+            description="Modelo Installment não encontrado",
+            expected="Modelo Installment deve estar implementado",
             actual="Modelo ausente",
             severity="HIGH"
         ))
@@ -1219,7 +1218,7 @@ def validate_model_bankaccount():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             
             # Verificar se modelo existe
-            model_pattern = rf'class BankAccount\([^)]*\):(.*?)(?=\nclass|\Z)'
+            model_pattern = r'class BankAccount\([^)]*\):(.*?)(?=\nclass|\Z)'
             model_match = re.search(model_pattern, content, re.DOTALL)
             
             if model_match:
@@ -1243,8 +1242,8 @@ def validate_model_bankaccount():
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="wrong_model_inheritance",
-                        description=f"BankAccount deve herdar de BaseTenantModel",
-                        expected=f"class BankAccount(BaseTenantModel):",
+                        description="BankAccount deve herdar de BaseTenantModel",
+                        expected="class BankAccount(BaseTenantModel):",
                         actual="Herança incorreta",
                         severity="HIGH"
                     ))
@@ -1263,8 +1262,8 @@ def validate_model_bankaccount():
         issues.append(ValidationIssue(
             file_path="models.py",
             issue_type="model_not_found",
-            description=f"Modelo BankAccount não encontrado",
-            expected=f"Modelo BankAccount deve estar implementado",
+            description="Modelo BankAccount não encontrado",
+            expected="Modelo BankAccount deve estar implementado",
             actual="Modelo ausente",
             severity="HIGH"
         ))
@@ -1286,7 +1285,7 @@ def validate_model_paymentcategory():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             
             # Verificar se modelo existe
-            model_pattern = rf'class PaymentCategory\([^)]*\):(.*?)(?=\nclass|\Z)'
+            model_pattern = r'class PaymentCategory\([^)]*\):(.*?)(?=\nclass|\Z)'
             model_match = re.search(model_pattern, content, re.DOTALL)
             
             if model_match:
@@ -1310,8 +1309,8 @@ def validate_model_paymentcategory():
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="wrong_model_inheritance",
-                        description=f"PaymentCategory deve herdar de BaseTenantModel",
-                        expected=f"class PaymentCategory(BaseTenantModel):",
+                        description="PaymentCategory deve herdar de BaseTenantModel",
+                        expected="class PaymentCategory(BaseTenantModel):",
                         actual="Herança incorreta",
                         severity="HIGH"
                     ))
@@ -1330,8 +1329,8 @@ def validate_model_paymentcategory():
         issues.append(ValidationIssue(
             file_path="models.py",
             issue_type="model_not_found",
-            description=f"Modelo PaymentCategory não encontrado",
-            expected=f"Modelo PaymentCategory deve estar implementado",
+            description="Modelo PaymentCategory não encontrado",
+            expected="Modelo PaymentCategory deve estar implementado",
             actual="Modelo ausente",
             severity="HIGH"
         ))
@@ -1353,7 +1352,7 @@ def validate_model_costcenter():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             
             # Verificar se modelo existe
-            model_pattern = rf'class CostCenter\([^)]*\):(.*?)(?=\nclass|\Z)'
+            model_pattern = r'class CostCenter\([^)]*\):(.*?)(?=\nclass|\Z)'
             model_match = re.search(model_pattern, content, re.DOTALL)
             
             if model_match:
@@ -1377,8 +1376,8 @@ def validate_model_costcenter():
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="wrong_model_inheritance",
-                        description=f"CostCenter deve herdar de BaseTenantModel",
-                        expected=f"class CostCenter(BaseTenantModel):",
+                        description="CostCenter deve herdar de BaseTenantModel",
+                        expected="class CostCenter(BaseTenantModel):",
                         actual="Herança incorreta",
                         severity="HIGH"
                     ))
@@ -1397,8 +1396,8 @@ def validate_model_costcenter():
         issues.append(ValidationIssue(
             file_path="models.py",
             issue_type="model_not_found",
-            description=f"Modelo CostCenter não encontrado",
-            expected=f"Modelo CostCenter deve estar implementado",
+            description="Modelo CostCenter não encontrado",
+            expected="Modelo CostCenter deve estar implementado",
             actual="Modelo ausente",
             severity="HIGH"
         ))
@@ -1420,7 +1419,7 @@ def validate_model_supplier():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             
             # Verificar se modelo existe
-            model_pattern = rf'class Supplier\([^)]*\):(.*?)(?=\nclass|\Z)'
+            model_pattern = r'class Supplier\([^)]*\):(.*?)(?=\nclass|\Z)'
             model_match = re.search(model_pattern, content, re.DOTALL)
             
             if model_match:
@@ -1444,8 +1443,8 @@ def validate_model_supplier():
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="wrong_model_inheritance",
-                        description=f"Supplier deve herdar de BaseTenantModel",
-                        expected=f"class Supplier(BaseTenantModel):",
+                        description="Supplier deve herdar de BaseTenantModel",
+                        expected="class Supplier(BaseTenantModel):",
                         actual="Herança incorreta",
                         severity="HIGH"
                     ))
@@ -1464,8 +1463,8 @@ def validate_model_supplier():
         issues.append(ValidationIssue(
             file_path="models.py",
             issue_type="model_not_found",
-            description=f"Modelo Supplier não encontrado",
-            expected=f"Modelo Supplier deve estar implementado",
+            description="Modelo Supplier não encontrado",
+            expected="Modelo Supplier deve estar implementado",
             actual="Modelo ausente",
             severity="HIGH"
         ))
@@ -1487,7 +1486,7 @@ def validate_model_financialtransaction():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             
             # Verificar se modelo existe
-            model_pattern = rf'class FinancialTransaction\([^)]*\):(.*?)(?=\nclass|\Z)'
+            model_pattern = r'class FinancialTransaction\([^)]*\):(.*?)(?=\nclass|\Z)'
             model_match = re.search(model_pattern, content, re.DOTALL)
             
             if model_match:
@@ -1511,8 +1510,8 @@ def validate_model_financialtransaction():
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="wrong_model_inheritance",
-                        description=f"FinancialTransaction deve herdar de BaseTenantModel",
-                        expected=f"class FinancialTransaction(BaseTenantModel):",
+                        description="FinancialTransaction deve herdar de BaseTenantModel",
+                        expected="class FinancialTransaction(BaseTenantModel):",
                         actual="Herança incorreta",
                         severity="HIGH"
                     ))
@@ -1531,8 +1530,8 @@ def validate_model_financialtransaction():
         issues.append(ValidationIssue(
             file_path="models.py",
             issue_type="model_not_found",
-            description=f"Modelo FinancialTransaction não encontrado",
-            expected=f"Modelo FinancialTransaction deve estar implementado",
+            description="Modelo FinancialTransaction não encontrado",
+            expected="Modelo FinancialTransaction deve estar implementado",
             actual="Modelo ausente",
             severity="HIGH"
         ))
@@ -1559,9 +1558,9 @@ def validate_dependency_django():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"django"\s*[=:]\s*"[^"]*4.2',
-                rf'django\s*=\s*"[^"]*4.2',
-                rf'"django"\s*:\s*"[^"]*4.2'
+                r'"django"\s*[=:]\s*"[^"]*4.2',
+                r'django\s*=\s*"[^"]*4.2',
+                r'"django"\s*:\s*"[^"]*4.2'
             ]
             
             for pattern in patterns:
@@ -1576,8 +1575,8 @@ def validate_dependency_django():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência django versão 4.2 não encontrada",
-            expected=f"django = \"4.2\" deve estar configurado",
+            description="Dependência django versão 4.2 não encontrada",
+            expected="django = \"4.2\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -1604,9 +1603,9 @@ def validate_dependency_djangorestframework():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"djangorestframework"\s*[=:]\s*"[^"]*3.14',
-                rf'djangorestframework\s*=\s*"[^"]*3.14',
-                rf'"djangorestframework"\s*:\s*"[^"]*3.14'
+                r'"djangorestframework"\s*[=:]\s*"[^"]*3.14',
+                r'djangorestframework\s*=\s*"[^"]*3.14',
+                r'"djangorestframework"\s*:\s*"[^"]*3.14'
             ]
             
             for pattern in patterns:
@@ -1621,8 +1620,8 @@ def validate_dependency_djangorestframework():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência djangorestframework versão 3.14 não encontrada",
-            expected=f"djangorestframework = \"3.14\" deve estar configurado",
+            description="Dependência djangorestframework versão 3.14 não encontrada",
+            expected="djangorestframework = \"3.14\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -1649,9 +1648,9 @@ def validate_dependency_psycopg2_binary():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"psycopg2-binary"\s*[=:]\s*"[^"]*2.9.9',
-                rf'psycopg2-binary\s*=\s*"[^"]*2.9.9',
-                rf'"psycopg2-binary"\s*:\s*"[^"]*2.9.9'
+                r'"psycopg2-binary"\s*[=:]\s*"[^"]*2.9.9',
+                r'psycopg2-binary\s*=\s*"[^"]*2.9.9',
+                r'"psycopg2-binary"\s*:\s*"[^"]*2.9.9'
             ]
             
             for pattern in patterns:
@@ -1666,8 +1665,8 @@ def validate_dependency_psycopg2_binary():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência psycopg2-binary versão 2.9.9 não encontrada",
-            expected=f"psycopg2-binary = \"2.9.9\" deve estar configurado",
+            description="Dependência psycopg2-binary versão 2.9.9 não encontrada",
+            expected="psycopg2-binary = \"2.9.9\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -1694,9 +1693,9 @@ def validate_dependency_django_environ():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"django-environ"\s*[=:]\s*"[^"]*0.11.2',
-                rf'django-environ\s*=\s*"[^"]*0.11.2',
-                rf'"django-environ"\s*:\s*"[^"]*0.11.2'
+                r'"django-environ"\s*[=:]\s*"[^"]*0.11.2',
+                r'django-environ\s*=\s*"[^"]*0.11.2',
+                r'"django-environ"\s*:\s*"[^"]*0.11.2'
             ]
             
             for pattern in patterns:
@@ -1711,8 +1710,8 @@ def validate_dependency_django_environ():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência django-environ versão 0.11.2 não encontrada",
-            expected=f"django-environ = \"0.11.2\" deve estar configurado",
+            description="Dependência django-environ versão 0.11.2 não encontrada",
+            expected="django-environ = \"0.11.2\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -1739,9 +1738,9 @@ def validate_dependency_celery():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"celery"\s*[=:]\s*"[^"]*5.3.6',
-                rf'celery\s*=\s*"[^"]*5.3.6',
-                rf'"celery"\s*:\s*"[^"]*5.3.6'
+                r'"celery"\s*[=:]\s*"[^"]*5.3.6',
+                r'celery\s*=\s*"[^"]*5.3.6',
+                r'"celery"\s*:\s*"[^"]*5.3.6'
             ]
             
             for pattern in patterns:
@@ -1756,8 +1755,8 @@ def validate_dependency_celery():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência celery versão 5.3.6 não encontrada",
-            expected=f"celery = \"5.3.6\" deve estar configurado",
+            description="Dependência celery versão 5.3.6 não encontrada",
+            expected="celery = \"5.3.6\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -1784,9 +1783,9 @@ def validate_dependency_redis():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"redis"\s*[=:]\s*"[^"]*5.0.1',
-                rf'redis\s*=\s*"[^"]*5.0.1',
-                rf'"redis"\s*:\s*"[^"]*5.0.1'
+                r'"redis"\s*[=:]\s*"[^"]*5.0.1',
+                r'redis\s*=\s*"[^"]*5.0.1',
+                r'"redis"\s*:\s*"[^"]*5.0.1'
             ]
             
             for pattern in patterns:
@@ -1801,8 +1800,8 @@ def validate_dependency_redis():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência redis versão 5.0.1 não encontrada",
-            expected=f"redis = \"5.0.1\" deve estar configurado",
+            description="Dependência redis versão 5.0.1 não encontrada",
+            expected="redis = \"5.0.1\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -1829,9 +1828,9 @@ def validate_dependency_gunicorn():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"gunicorn"\s*[=:]\s*"[^"]*21.2.0',
-                rf'gunicorn\s*=\s*"[^"]*21.2.0',
-                rf'"gunicorn"\s*:\s*"[^"]*21.2.0'
+                r'"gunicorn"\s*[=:]\s*"[^"]*21.2.0',
+                r'gunicorn\s*=\s*"[^"]*21.2.0',
+                r'"gunicorn"\s*:\s*"[^"]*21.2.0'
             ]
             
             for pattern in patterns:
@@ -1846,8 +1845,8 @@ def validate_dependency_gunicorn():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência gunicorn versão 21.2.0 não encontrada",
-            expected=f"gunicorn = \"21.2.0\" deve estar configurado",
+            description="Dependência gunicorn versão 21.2.0 não encontrada",
+            expected="gunicorn = \"21.2.0\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -1874,9 +1873,9 @@ def validate_dependency_structlog():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"structlog"\s*[=:]\s*"[^"]*23.2.0',
-                rf'structlog\s*=\s*"[^"]*23.2.0',
-                rf'"structlog"\s*:\s*"[^"]*23.2.0'
+                r'"structlog"\s*[=:]\s*"[^"]*23.2.0',
+                r'structlog\s*=\s*"[^"]*23.2.0',
+                r'"structlog"\s*:\s*"[^"]*23.2.0'
             ]
             
             for pattern in patterns:
@@ -1891,8 +1890,8 @@ def validate_dependency_structlog():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência structlog versão 23.2.0 não encontrada",
-            expected=f"structlog = \"23.2.0\" deve estar configurado",
+            description="Dependência structlog versão 23.2.0 não encontrada",
+            expected="structlog = \"23.2.0\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -1919,9 +1918,9 @@ def validate_dependency_django_filter():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"django-filter"\s*[=:]\s*"[^"]*23.3',
-                rf'django-filter\s*=\s*"[^"]*23.3',
-                rf'"django-filter"\s*:\s*"[^"]*23.3'
+                r'"django-filter"\s*[=:]\s*"[^"]*23.3',
+                r'django-filter\s*=\s*"[^"]*23.3',
+                r'"django-filter"\s*:\s*"[^"]*23.3'
             ]
             
             for pattern in patterns:
@@ -1936,8 +1935,8 @@ def validate_dependency_django_filter():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência django-filter versão 23.3 não encontrada",
-            expected=f"django-filter = \"23.3\" deve estar configurado",
+            description="Dependência django-filter versão 23.3 não encontrada",
+            expected="django-filter = \"23.3\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -1964,9 +1963,9 @@ def validate_dependency_djangorestframework_simplejwt():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"djangorestframework-simplejwt"\s*[=:]\s*"[^"]*5.3.0',
-                rf'djangorestframework-simplejwt\s*=\s*"[^"]*5.3.0',
-                rf'"djangorestframework-simplejwt"\s*:\s*"[^"]*5.3.0'
+                r'"djangorestframework-simplejwt"\s*[=:]\s*"[^"]*5.3.0',
+                r'djangorestframework-simplejwt\s*=\s*"[^"]*5.3.0',
+                r'"djangorestframework-simplejwt"\s*:\s*"[^"]*5.3.0'
             ]
             
             for pattern in patterns:
@@ -1981,8 +1980,8 @@ def validate_dependency_djangorestframework_simplejwt():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência djangorestframework-simplejwt versão 5.3.0 não encontrada",
-            expected=f"djangorestframework-simplejwt = \"5.3.0\" deve estar configurado",
+            description="Dependência djangorestframework-simplejwt versão 5.3.0 não encontrada",
+            expected="djangorestframework-simplejwt = \"5.3.0\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -2009,9 +2008,9 @@ def validate_dependency_pytest():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"pytest"\s*[=:]\s*"[^"]*7.4.3',
-                rf'pytest\s*=\s*"[^"]*7.4.3',
-                rf'"pytest"\s*:\s*"[^"]*7.4.3'
+                r'"pytest"\s*[=:]\s*"[^"]*7.4.3',
+                r'pytest\s*=\s*"[^"]*7.4.3',
+                r'"pytest"\s*:\s*"[^"]*7.4.3'
             ]
             
             for pattern in patterns:
@@ -2026,8 +2025,8 @@ def validate_dependency_pytest():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência pytest versão 7.4.3 não encontrada",
-            expected=f"pytest = \"7.4.3\" deve estar configurado",
+            description="Dependência pytest versão 7.4.3 não encontrada",
+            expected="pytest = \"7.4.3\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -2054,9 +2053,9 @@ def validate_dependency_pytest_django():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"pytest-django"\s*[=:]\s*"[^"]*4.7.0',
-                rf'pytest-django\s*=\s*"[^"]*4.7.0',
-                rf'"pytest-django"\s*:\s*"[^"]*4.7.0'
+                r'"pytest-django"\s*[=:]\s*"[^"]*4.7.0',
+                r'pytest-django\s*=\s*"[^"]*4.7.0',
+                r'"pytest-django"\s*:\s*"[^"]*4.7.0'
             ]
             
             for pattern in patterns:
@@ -2071,8 +2070,8 @@ def validate_dependency_pytest_django():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência pytest-django versão 4.7.0 não encontrada",
-            expected=f"pytest-django = \"4.7.0\" deve estar configurado",
+            description="Dependência pytest-django versão 4.7.0 não encontrada",
+            expected="pytest-django = \"4.7.0\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -2099,9 +2098,9 @@ def validate_dependency_factory_boy():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"factory-boy"\s*[=:]\s*"[^"]*3.3.0',
-                rf'factory-boy\s*=\s*"[^"]*3.3.0',
-                rf'"factory-boy"\s*:\s*"[^"]*3.3.0'
+                r'"factory-boy"\s*[=:]\s*"[^"]*3.3.0',
+                r'factory-boy\s*=\s*"[^"]*3.3.0',
+                r'"factory-boy"\s*:\s*"[^"]*3.3.0'
             ]
             
             for pattern in patterns:
@@ -2116,8 +2115,8 @@ def validate_dependency_factory_boy():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência factory-boy versão 3.3.0 não encontrada",
-            expected=f"factory-boy = \"3.3.0\" deve estar configurado",
+            description="Dependência factory-boy versão 3.3.0 não encontrada",
+            expected="factory-boy = \"3.3.0\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -2144,9 +2143,9 @@ def validate_dependency_pytest_cov():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"pytest-cov"\s*[=:]\s*"[^"]*4.1.0',
-                rf'pytest-cov\s*=\s*"[^"]*4.1.0',
-                rf'"pytest-cov"\s*:\s*"[^"]*4.1.0'
+                r'"pytest-cov"\s*[=:]\s*"[^"]*4.1.0',
+                r'pytest-cov\s*=\s*"[^"]*4.1.0',
+                r'"pytest-cov"\s*:\s*"[^"]*4.1.0'
             ]
             
             for pattern in patterns:
@@ -2161,8 +2160,8 @@ def validate_dependency_pytest_cov():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência pytest-cov versão 4.1.0 não encontrada",
-            expected=f"pytest-cov = \"4.1.0\" deve estar configurado",
+            description="Dependência pytest-cov versão 4.1.0 não encontrada",
+            expected="pytest-cov = \"4.1.0\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -2189,9 +2188,9 @@ def validate_dependency_black():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"black"\s*[=:]\s*"[^"]*23.11.0',
-                rf'black\s*=\s*"[^"]*23.11.0',
-                rf'"black"\s*:\s*"[^"]*23.11.0'
+                r'"black"\s*[=:]\s*"[^"]*23.11.0',
+                r'black\s*=\s*"[^"]*23.11.0',
+                r'"black"\s*:\s*"[^"]*23.11.0'
             ]
             
             for pattern in patterns:
@@ -2206,8 +2205,8 @@ def validate_dependency_black():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência black versão 23.11.0 não encontrada",
-            expected=f"black = \"23.11.0\" deve estar configurado",
+            description="Dependência black versão 23.11.0 não encontrada",
+            expected="black = \"23.11.0\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -2234,9 +2233,9 @@ def validate_dependency_ruff():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"ruff"\s*[=:]\s*"[^"]*0.1.6',
-                rf'ruff\s*=\s*"[^"]*0.1.6',
-                rf'"ruff"\s*:\s*"[^"]*0.1.6'
+                r'"ruff"\s*[=:]\s*"[^"]*0.1.6',
+                r'ruff\s*=\s*"[^"]*0.1.6',
+                r'"ruff"\s*:\s*"[^"]*0.1.6'
             ]
             
             for pattern in patterns:
@@ -2251,8 +2250,8 @@ def validate_dependency_ruff():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência ruff versão 0.1.6 não encontrada",
-            expected=f"ruff = \"0.1.6\" deve estar configurado",
+            description="Dependência ruff versão 0.1.6 não encontrada",
+            expected="ruff = \"0.1.6\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -2279,9 +2278,9 @@ def validate_dependency_pre_commit():
             
             # Verificar presença da dependência
             patterns = [
-                rf'"pre-commit"\s*[=:]\s*"[^"]*3.5.0',
-                rf'pre-commit\s*=\s*"[^"]*3.5.0',
-                rf'"pre-commit"\s*:\s*"[^"]*3.5.0'
+                r'"pre-commit"\s*[=:]\s*"[^"]*3.5.0',
+                r'pre-commit\s*=\s*"[^"]*3.5.0',
+                r'"pre-commit"\s*:\s*"[^"]*3.5.0'
             ]
             
             for pattern in patterns:
@@ -2296,8 +2295,8 @@ def validate_dependency_pre_commit():
         return ValidationIssue(
             file_path="dependencies",
             issue_type="missing_specific_dependency",
-            description=f"Dependência pre-commit versão 3.5.0 não encontrada",
-            expected=f"pre-commit = \"3.5.0\" deve estar configurado",
+            description="Dependência pre-commit versão 3.5.0 não encontrada",
+            expected="pre-commit = \"3.5.0\" deve estar configurado",
             actual="Dependência não encontrada ou versão incorreta",
             severity="MEDIUM"
         )
@@ -3072,18 +3071,18 @@ class BlueprintArquiteturalIabankProScaffoldValidator:
         """Gera relatório profissional detalhado dos resultados."""
         report = []
         report.append("=" * 100)
-        report.append(f"RELATÓRIO PROFISSIONAL DE VALIDAÇÃO - BLUEPRINT ARQUITETURAL - IABANK")
+        report.append("RELATÓRIO PROFISSIONAL DE VALIDAÇÃO - BLUEPRINT ARQUITETURAL - IABANK")
         report.append("=" * 100)
         report.append(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        report.append(f"Validador: ValidatorGenerator PRO v2.0")
+        report.append("Validador: ValidatorGenerator PRO v2.0")
         report.append("")
         report.append("ESPECIFICAÇÕES DO PROJETO:")
-        report.append(f"├─ Framework Backend: django")
-        report.append(f"├─ Framework Frontend: react")
-        report.append(f"├─ Database: postgresql")
-        report.append(f"├─ Arquitetura: monolith")
-        report.append(f"├─ Multi-tenancy: True")
-        report.append(f"└─ Autenticação: JWT")
+        report.append("├─ Framework Backend: django")
+        report.append("├─ Framework Frontend: react")
+        report.append("├─ Database: postgresql")
+        report.append("├─ Arquitetura: monolith")
+        report.append("├─ Multi-tenancy: True")
+        report.append("└─ Autenticação: JWT")
         report.append("")
         report.append("RESULTADOS DA VALIDAÇÃO:")
         report.append(f"├─ Total de Verificações: {results.total_checks}")
@@ -3162,7 +3161,6 @@ class BlueprintArquiteturalIabankProScaffoldValidator:
 
 def main():
     """Função principal do validador profissional."""
-    import locale
     import os
     
     # Forçar UTF-8 para evitar problemas de encoding

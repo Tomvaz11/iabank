@@ -6,7 +6,6 @@ Injeta contexto focado no prompt antes da execução de subagents.
 
 import os
 import sys
-import re
 from pathlib import Path
 
 
@@ -70,7 +69,7 @@ Proceda com a implementação focada usando este contexto otimizado.
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(optimized_prompt)
         
-        print(f"Contexto focado injetado com sucesso")
+        print("Contexto focado injetado com sucesso")
         print(f"Prompt otimizado salvo em: {output_file}")
         
         # Exibir estatísticas
@@ -109,7 +108,7 @@ def validate_context_injection():
             print("❌ Arquivos de contexto estão vazios")
             return False
         
-        print(f"✅ Contexto injetado com sucesso")
+        print("✅ Contexto injetado com sucesso")
         print(f"   - Contexto: {context_size} bytes")
         print(f"   - Prompt: {prompt_size} bytes")
         return True
