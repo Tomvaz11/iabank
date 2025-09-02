@@ -1,0 +1,119 @@
+{
+  "total_checks": 30,
+  "passed_checks": 29,
+  "failed_checks": 1,
+  "issues": [
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\core\\models.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo models.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 57 linhas de código proibido",
+      "severity": "HIGH"
+    },
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\customers\\models.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo models.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 51 linhas de código proibido",
+      "severity": "HIGH"
+    },
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\finance\\models.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo models.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 190 linhas de código proibido",
+      "severity": "HIGH"
+    },
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\operations\\models.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo models.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 148 linhas de código proibido",
+      "severity": "HIGH"
+    },
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\core\\views.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo views.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 40 linhas de código proibido",
+      "severity": "HIGH"
+    },
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\customers\\views.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo views.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 35 linhas de código proibido",
+      "severity": "HIGH"
+    },
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\finance\\views.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo views.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 168 linhas de código proibido",
+      "severity": "HIGH"
+    },
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\operations\\views.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo views.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 114 linhas de código proibido",
+      "severity": "HIGH"
+    },
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\users\\views.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo views.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 140 linhas de código proibido",
+      "severity": "HIGH"
+    },
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\customers\\serializers.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo serializers.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 89 linhas de código proibido",
+      "severity": "HIGH"
+    },
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\finance\\serializers.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo serializers.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 167 linhas de código proibido",
+      "severity": "HIGH"
+    },
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\operations\\serializers.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo serializers.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 137 linhas de código proibido",
+      "severity": "HIGH"
+    },
+    {
+      "file_path": "iabank\\backend\\src\\iabank\\users\\serializers.py",
+      "issue_type": "excessive_implementation_for_scaffold",
+      "description": "Arquivo serializers.py contém código além da docstring",
+      "expected": "APENAS docstring conforme agv-scaffolder - ZERO implementação",
+      "actual": "Arquivo contém 120 linhas de código proibido",
+      "severity": "HIGH"
+    }
+  ],
+  "score": 48.33,
+  "categories": {
+    "STRUCTURE": 0,
+    "CONTENT": 13,
+    "MODELS": 0,
+    "DEPENDENCIES": 0,
+    "API": 0
+  }
+}

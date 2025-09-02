@@ -40,9 +40,9 @@ class BaseGenerator(ABC):
                 full_path = f"{current_path}/{name}" if current_path else name
                 
                 if content is None:  # Arquivo
-                    validations.append(f"'{full_path}'")
+                    validations.append(full_path)
                 elif isinstance(content, dict):  # Diretório
-                    validations.append(f"'{full_path}/'")
+                    validations.append(full_path + "/")
                     collect_validations(content, full_path)
         
         collect_validations(directory_structure)
@@ -106,15 +106,19 @@ def validate_directory_structure():
                         ))""")
             
             elif "DATABASE" in validation and "PostgreSQL" in validation:
+                # Validação específica para scaffold: verificar estrutura de configuração
                 validation_checks.append("""
-            # Verificar configuracao PostgreSQL
+            # Verificar configuracao PostgreSQL - SCAFFOLD: estrutura apenas
             if 'DATABASES' in content:
-                if 'postgresql' not in content.lower() and 'psycopg' not in content.lower():
+                # Para scaffold, verificar se usa django-environ ou tem estrutura PostgreSQL
+                if ('env.db()' not in content and 
+                    'postgresql' not in content.lower() and 
+                    'psycopg' not in content.lower()):
                     issues.append(ValidationIssue(
                         file_path=file_path_str,
                         issue_type="wrong_database_config",
                         description="Database não configurado para PostgreSQL",
-                        expected="ENGINE deve usar PostgreSQL (psycopg2)",
+                        expected="ENGINE deve usar PostgreSQL (psycopg2) ou env.db()",
                         actual="PostgreSQL não detectado",
                         severity="HIGH"
                     ))""")
@@ -164,11 +168,13 @@ def validate_dependency_{re.sub(r'[^\w]', '_', dep_name).strip('_')}():
     '''Valida dependência específica {dep_name}.'''
     issues = []
     
-    # Verificar em pyproject.toml
+    # Verificar em pyproject.toml (excluindo agv-system próprio)
     pyproject_files = list(Path('.').rglob('**/pyproject.toml'))
+    # Filtrar arquivos do agv-system para evitar validar as próprias dependências  
+    project_files = [f for f in pyproject_files if 'agv-system' not in str(f)]
     found = False
     
-    for pyproject_file in pyproject_files:
+    for pyproject_file in project_files:
         if pyproject_file.exists():
             content = pyproject_file.read_text(encoding='utf-8', errors='ignore')
             if '{dep_name}' in content:
@@ -295,11 +301,11 @@ def validate_multi_tenancy_implementation():
     '''Valida implementação completa de multi-tenancy.'''
     issues = []
     
-    # Verificar BaseTenantModel
-    models_files = list(Path('.').rglob('**/models.py'))
+    # Verificar BaseTenantModel especificamente no core/models.py
+    core_models_files = list(Path('.').rglob('**/core/models.py'))
     base_tenant_found = False
     
-    for model_file in models_files:
+    for model_file in core_models_files:
         if model_file.exists():
             content = model_file.read_text(encoding='utf-8', errors='ignore')
             if '{self.specs.base_model_class}' in content:
@@ -316,7 +322,10 @@ def validate_multi_tenancy_implementation():
                         severity="CRITICAL"
                     ))
                     
-                if 'abstract = True' not in content and '__abstract__ = True' not in content:
+                # Verificação mais flexível para abstract = True
+                import re
+                abstract_pattern = r'abstract\s*=\s*True'
+                if not re.search(abstract_pattern, content, re.IGNORECASE):
                     issues.append(ValidationIssue(
                         file_path=str(model_file),
                         issue_type="base_model_not_abstract",

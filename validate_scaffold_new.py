@@ -1,100 +1,86 @@
 #!/usr/bin/env python3
 """
-ScaffoldGenerator - Gerador especializado para validação de scaffold (Alvo 0).
-Foco em estrutura completa de projeto, configurações base e arquivos iniciais.
+Validador especializado para scaffold completo (Alvo 0)
+Gerado automaticamente pelo ValidatorGenerator v3.0 - Sistema Modular AGV
 """
 
-import re
-from typing import List
-from pathlib import Path
-
 import sys
-sys.path.append(str(Path(__file__).parent.parent))
+import json
+import re
+from pathlib import Path
+from typing import Dict, List, Any, Optional, Union
+from dataclasses import dataclass, asdict
+from datetime import datetime
 
-from core.base_generator import BaseGenerator
-from core.validation_rules import ValidationRule
+@dataclass
+class ValidationIssue:
+    """Representa um problema encontrado na validação."""
+    file_path: str
+    issue_type: str
+    description: str
+    expected: str
+    actual: str
+    severity: str  # CRITICAL, HIGH, MEDIUM, LOW
+
+@dataclass
+class ValidationResults:
+    """Resultados completos da validação."""
+    total_checks: int
+    passed_checks: int
+    failed_checks: int
+    issues: List[ValidationIssue]
+    score: float
+    categories: Dict[str, int]
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Converte para dicionário para serialização JSON."""
+        return {
+            "total_checks": self.total_checks,
+            "passed_checks": self.passed_checks,
+            "failed_checks": self.failed_checks,
+            "issues": [asdict(issue) for issue in self.issues],
+            "score": self.score,
+            "categories": self.categories
+        }
 
 
-class ScaffoldGenerator(BaseGenerator):
-    """Gerador especializado para validação de scaffold completo (Alvo 0)."""
+def validate_directory_structure():
+    '''Valida estrutura completa de diretórios conforme Blueprint.'''
+    import os
+    from pathlib import Path
     
-    def __init__(self, specs):
-        super().__init__(specs)
+    issues = []
+    required_paths = ['iabank/', 'iabank/.github/', 'iabank/.github/workflows/', 'iabank/.github/workflows/main.yml', 'iabank/backend/', 'iabank/backend/src/', 'iabank/backend/src/iabank/', 'iabank/backend/src/iabank/__init__.py', 'iabank/backend/src/iabank/asgi.py', 'iabank/backend/src/iabank/settings.py', 'iabank/backend/src/iabank/urls.py', 'iabank/backend/src/iabank/wsgi.py', 'iabank/backend/src/iabank/core/', 'iabank/backend/src/iabank/customers/', 'iabank/backend/src/iabank/customers/__init__.py', 'iabank/backend/src/iabank/customers/models.py', 'iabank/backend/src/iabank/customers/admin.py', 'iabank/backend/src/iabank/customers/apps.py', 'iabank/backend/src/iabank/customers/serializers.py', 'iabank/backend/src/iabank/customers/views.py', 'iabank/backend/src/iabank/customers/tests/', 'iabank/backend/src/iabank/customers/tests/__init__.py', 'iabank/backend/src/iabank/customers/tests/test_models.py', 'iabank/backend/src/iabank/customers/tests/test_views.py', 'iabank/backend/src/iabank/finance/', 'iabank/backend/src/iabank/operations/', 'iabank/backend/src/iabank/users/', 'iabank/backend/manage.py', 'iabank/backend/Dockerfile', 'iabank/backend/pyproject.toml', 'iabank/frontend/', 'iabank/frontend/public/', 'iabank/frontend/src/', 'iabank/frontend/Dockerfile', 'iabank/frontend/package.json', 'iabank/frontend/tsconfig.json', 'iabank/frontend/vite.config.ts', 'iabank/tests/', 'iabank/tests/integration/', 'iabank/tests/integration/__init__.py', 'iabank/tests/integration/test_full_loan_workflow.py', 'iabank/docker-compose.yml', 'iabank/.gitignore', 'iabank/.pre-commit-config.yaml', 'iabank/CHANGELOG.md', 'iabank/CONTRIBUTING.md', 'iabank/LICENSE', 'iabank/README.md']
     
-    def generate_rules(self) -> List[ValidationRule]:
-        """Gera todas as regras específicas para scaffold."""
-        self.rules = []
+    for required_path in required_paths:
+        path = Path(required_path)
         
-        # Validações estruturais críticas
-        self._generate_structure_rules()
-        
-        # Validações de configuração base
-        self._generate_configuration_validation_rules()
-        
-        # Validações de conteúdo de arquivos críticos
-        self._generate_content_validation_rules()
-        
-        # Validações de dependências base
-        self._generate_dependency_validation_rules()
-        
-        # Validações específicas para Django/React
-        self._generate_framework_specific_rules()
-        
-        # Validações de modelo se multi-tenancy
-        if self.specs.multi_tenancy:
-            self._generate_multi_tenancy_rules()
-        
-        # FASE 1: Validações completas de modelos de domínio (UNIVERSAL)
-        self._generate_complete_domain_models_rules()
-        
-            
-        # Validações de documentação básica
-        self._generate_documentation_rules()
-        
-        # Validações de Docker/containerização
-        self._generate_docker_rules()
-        
-        # Validações de setup de desenvolvimento
-        self._generate_development_setup_rules()
-        
-        # Validações de docstrings/comentários obrigatórios (escopo scaffolder)
-        self._generate_docstring_validation_rules()
-        
-        # Validações ultra-rigorosas de estrutura detalhada completa
-        self._generate_absolute_structure_validation_rules()
-        
-        return self.rules
+        if required_path.endswith('/'):
+            # Diretório
+            if not path.is_dir():
+                issues.append(ValidationIssue(
+                    file_path=str(path),
+                    issue_type="missing_directory",
+                    description=f"Diretório obrigatório não encontrado: " + required_path,
+                    expected=f"Diretório " + required_path + " deve existir",
+                    actual="Diretório não existe",
+                    severity="HIGH"
+                ))
+        else:
+            # Arquivo
+            if not path.is_file():
+                issues.append(ValidationIssue(
+                    file_path=str(path),
+                    issue_type="missing_file",
+                    description=f"Arquivo obrigatório não encontrado: " + required_path,
+                    expected=f"Arquivo " + required_path + " deve existir",
+                    actual="Arquivo não existe",
+                    severity="MEDIUM"
+                ))
     
-    def _generate_structure_rules(self):
-        """Gera regras estruturais profundas para scaffold."""
-        if self.specs.directory_structure:
-            rule_code = self._create_directory_validation_code(self.specs.directory_structure)
-            self.rules.append(ValidationRule(
-                name="validate_directory_structure",
-                description="Valida estrutura completa de diretórios conforme Blueprint",
-                code=rule_code,
-                severity="HIGH",
-                category="STRUCTURE"
-            ))
-    
-    def _generate_configuration_validation_rules(self):
-        """Gera regras para validar conteúdo específico dos arquivos de configuração."""
-        
-        # Validação de .gitignore com conteúdo específico
-        self._generate_gitignore_content_validation()
-        
-        # Validação de pyproject.toml com configurações específicas  
-        self._generate_pyproject_content_validation()
-        
-        # Validação de .pre-commit-config.yaml
-        self._generate_precommit_content_validation()
-        
-        # Validação de .env.example
-        self._generate_env_example_validation()
-    
-    def _generate_gitignore_content_validation(self):
-        """Valida conteúdo COMPLETO do .gitignore conforme Blueprint exato."""
-        rule_code = """
+    return issues if issues else None
+
+
 def validate_gitignore_content():
     '''Valida se .gitignore tem conteúdo EXATO do Blueprint (certeza absoluta).'''
     issues = []
@@ -198,19 +184,7 @@ def validate_gitignore_content():
         ))
     
     return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_gitignore_content",
-            description="Valida conteúdo específico do arquivo .gitignore",
-            code=rule_code.strip(),
-            severity="MEDIUM",
-            category="CONTENT"
-        ))
-    
-    def _generate_pyproject_content_validation(self):
-        """Valida conteúdo específico do pyproject.toml conforme Blueprint."""
-        rule_code = """
+
 def validate_pyproject_content():
     '''Valida se pyproject.toml tem configurações específicas do Blueprint.'''
     issues = []
@@ -255,19 +229,7 @@ def validate_pyproject_content():
             ))
     
     return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_pyproject_content",
-            description="Valida configurações específicas do pyproject.toml",
-            code=rule_code.strip(),
-            severity="MEDIUM", 
-            category="CONTENT"
-        ))
-    
-    def _generate_precommit_content_validation(self):
-        """Valida conteúdo específico do .pre-commit-config.yaml."""
-        rule_code = """
+
 def validate_precommit_config_content():
     '''Valida se .pre-commit-config.yaml tem configuração específica do Blueprint.'''
     issues = []
@@ -307,19 +269,7 @@ def validate_precommit_config_content():
             ))
     
     return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_precommit_config_content",
-            description="Valida configuração específica do .pre-commit-config.yaml",
-            code=rule_code.strip(),
-            severity="MEDIUM",
-            category="CONTENT"
-        ))
-    
-    def _generate_env_example_validation(self):
-        """Valida arquivo .env.example obrigatório."""
-        rule_code = """
+
 def validate_env_example_file():
     '''Valida se .env.example existe conforme escopo scaffolder.'''
     issues = []
@@ -354,53 +304,121 @@ def validate_env_example_file():
             ))
     
     return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_env_example_file",
-            description="Valida arquivo template .env.example",
-            code=rule_code.strip(),
-            severity="MEDIUM",
-            category="STRUCTURE"
-        ))
+
+
+def validate_content_settings_py():
+    '''Valida conteúdo específico de settings.py.'''
+    issues = []
     
-    def _generate_content_validation_rules(self):
-        """Gera regras para validar conteúdo específico de arquivos."""
-        for file_path, validations in self.specs.file_content_validations.items():
-            rule_code = self._create_content_validation_code(file_path, validations)
-            clean_name = re.sub(r'[^\w]', '_', file_path).strip('_')
+    file_paths = list(Path('.').rglob('**/settings.py'))
+    if not file_paths:
+        return ValidationIssue(
+            file_path="settings.py",
+            issue_type="missing_file",
+            description="Arquivo settings.py não encontrado",
+            expected="Arquivo deve existir",
+            actual="Arquivo não existe",
+            severity="HIGH"
+        )
+    
+    for file_path_obj in file_paths:
+        if file_path_obj.exists():
+            file_path_str = str(file_path_obj)
+            content = file_path_obj.read_text(encoding='utf-8', errors='ignore')
             
-            self.rules.append(ValidationRule(
-                name=f"validate_content_{clean_name}",
-                description=f"Valida conteúdo específico de {file_path}",
-                code=rule_code,
-                severity="HIGH",
-                category="CONTENT"
-            ))
+            # Verificar INSTALLED_APPS
+            if 'INSTALLED_APPS' in content:
+                for app in ['core', 'operations', 'finance', 'customers']:
+                    if app not in content:
+                        issues.append(ValidationIssue(
+                            file_path=file_path_str,
+                            issue_type="missing_installed_app",
+                            description=f"App " + app + " não encontrada em INSTALLED_APPS",
+                            expected=f"" + app + " deve estar em INSTALLED_APPS",
+                            actual="App não listada",
+                            severity="HIGH"
+                        ))
+            # Verificar configuracao PostgreSQL - SCAFFOLD: estrutura apenas
+            if 'DATABASES' in content:
+                # Para scaffold, verificar se usa django-environ ou tem estrutura PostgreSQL
+                if ('env.db()' not in content and 
+                    'postgresql' not in content.lower() and 
+                    'psycopg' not in content.lower()):
+                    issues.append(ValidationIssue(
+                        file_path=file_path_str,
+                        issue_type="wrong_database_config",
+                        description="Database não configurado para PostgreSQL",
+                        expected="ENGINE deve usar PostgreSQL (psycopg2) ou env.db()",
+                        actual="PostgreSQL não detectado",
+                        severity="HIGH"
+                    ))
+            # Verificar configuracao DRF
+            if 'REST_FRAMEWORK' not in content:
+                issues.append(ValidationIssue(
+                    file_path=file_path_str,
+                    issue_type="missing_drf_config",
+                    description="Configuração REST_FRAMEWORK não encontrada",
+                    expected="REST_FRAMEWORK deve estar configurado",
+                    actual="Configuração ausente",
+                    severity="MEDIUM"
+                ))
     
-    def _generate_dependency_validation_rules(self):
-        """Gera regras simples para validação de dependências base (scaffolder)."""
-        # Dependências críticas para scaffold (sem versões específicas)
-        critical_backend_deps = ['django', 'djangorestframework', 'psycopg2-binary']
-        
-        for dep_name in critical_backend_deps:
-            rule_code = self._create_simple_dependency_validation(dep_name)
-            clean_name = re.sub(r'[^\w]', '_', dep_name).strip('_')
+    return issues if issues else None
+
+
+
+def validate_content_models_py():
+    '''Valida conteúdo específico de models.py.'''
+    issues = []
+    
+    file_paths = list(Path('.').rglob('**/models.py'))
+    if not file_paths:
+        return ValidationIssue(
+            file_path="models.py",
+            issue_type="missing_file",
+            description="Arquivo models.py não encontrado",
+            expected="Arquivo deve existir",
+            actual="Arquivo não existe",
+            severity="HIGH"
+        )
+    
+    for file_path_obj in file_paths:
+        if file_path_obj.exists():
+            file_path_str = str(file_path_obj)
+            content = file_path_obj.read_text(encoding='utf-8', errors='ignore')
             
-            self.rules.append(ValidationRule(
-                name=f"validate_dependency_{clean_name}",
-                description=f"Valida dependência crítica {dep_name}",
-                code=rule_code,
-                severity="HIGH",
-                category="DEPENDENCIES"
-            ))
     
-    def _create_simple_dependency_validation(self, dep_name: str) -> str:
-        """Cria validação simples de dependência sem versão específica."""
-        clean_name = re.sub(r'[^\w]', '_', dep_name).strip('_')
-        return f"""
-def validate_dependency_{clean_name}():
-    '''Valida dependência específica {dep_name}.'''
+    return issues if issues else None
+
+
+
+def validate_content_pyproject_toml():
+    '''Valida conteúdo específico de pyproject.toml.'''
+    issues = []
+    
+    file_paths = list(Path('.').rglob('**/pyproject.toml'))
+    if not file_paths:
+        return ValidationIssue(
+            file_path="pyproject.toml",
+            issue_type="missing_file",
+            description="Arquivo pyproject.toml não encontrado",
+            expected="Arquivo deve existir",
+            actual="Arquivo não existe",
+            severity="HIGH"
+        )
+    
+    for file_path_obj in file_paths:
+        if file_path_obj.exists():
+            file_path_str = str(file_path_obj)
+            content = file_path_obj.read_text(encoding='utf-8', errors='ignore')
+            
+    
+    return issues if issues else None
+
+
+
+def validate_dependency_django():
+    '''Valida dependência específica django.'''
     issues = []
     
     # Verificar em pyproject.toml (excluindo agv-system próprio)
@@ -412,7 +430,7 @@ def validate_dependency_{clean_name}():
     for pyproject_file in project_files:
         if pyproject_file.exists():
             content = pyproject_file.read_text(encoding='utf-8', errors='ignore')
-            if '""" + dep_name + """' in content:
+            if 'django' in content:
                 found = True
                 break
     
@@ -420,20 +438,77 @@ def validate_dependency_{clean_name}():
         issues.append(ValidationIssue(
             file_path="pyproject.toml",
             issue_type="missing_critical_dependency",
-            description="Dependência crítica não encontrada: """ + dep_name + """",
-            expected="Dependência """ + dep_name + """ deve estar em pyproject.toml",
+            description="Dependência crítica não encontrada: django",
+            expected="Dependência django deve estar em pyproject.toml",
             actual="Dependência não encontrada",
             severity="HIGH"
         ))
     
     return issues if issues else None
-"""
+
+
+
+def validate_dependency_djangorestframework():
+    '''Valida dependência específica djangorestframework.'''
+    issues = []
     
-    def _generate_framework_specific_rules(self):
-        """Gera regras específicas para Django e React."""
-        # Django settings.py scaffolder validation (apenas estrutura e docstring)
-        if self.specs.backend_framework == "django":
-            rule_code = """
+    # Verificar em pyproject.toml (excluindo agv-system próprio)
+    pyproject_files = list(Path('.').rglob('**/pyproject.toml'))
+    # Filtrar arquivos do agv-system para evitar validar as próprias dependências  
+    project_files = [f for f in pyproject_files if 'agv-system' not in str(f)]
+    found = False
+    
+    for pyproject_file in project_files:
+        if pyproject_file.exists():
+            content = pyproject_file.read_text(encoding='utf-8', errors='ignore')
+            if 'djangorestframework' in content:
+                found = True
+                break
+    
+    if not found:
+        issues.append(ValidationIssue(
+            file_path="pyproject.toml",
+            issue_type="missing_critical_dependency",
+            description="Dependência crítica não encontrada: djangorestframework",
+            expected="Dependência djangorestframework deve estar em pyproject.toml",
+            actual="Dependência não encontrada",
+            severity="HIGH"
+        ))
+    
+    return issues if issues else None
+
+
+
+def validate_dependency_psycopg2_binary():
+    '''Valida dependência específica psycopg2-binary.'''
+    issues = []
+    
+    # Verificar em pyproject.toml (excluindo agv-system próprio)
+    pyproject_files = list(Path('.').rglob('**/pyproject.toml'))
+    # Filtrar arquivos do agv-system para evitar validar as próprias dependências  
+    project_files = [f for f in pyproject_files if 'agv-system' not in str(f)]
+    found = False
+    
+    for pyproject_file in project_files:
+        if pyproject_file.exists():
+            content = pyproject_file.read_text(encoding='utf-8', errors='ignore')
+            if 'psycopg2-binary' in content:
+                found = True
+                break
+    
+    if not found:
+        issues.append(ValidationIssue(
+            file_path="pyproject.toml",
+            issue_type="missing_critical_dependency",
+            description="Dependência crítica não encontrada: psycopg2-binary",
+            expected="Dependência psycopg2-binary deve estar em pyproject.toml",
+            actual="Dependência não encontrada",
+            severity="HIGH"
+        ))
+    
+    return issues if issues else None
+
+
 def validate_django_settings_advanced():
     '''Valida que settings.py existe com docstring conforme scaffolder.'''
     issues = []
@@ -467,14 +542,14 @@ def validate_django_settings_advanced():
                 ))
                 continue
             
-            lines = content.split('\\n')
+            lines = content.split('\n')
             first_non_empty = None
             for line in lines:
                 if line.strip():
                     first_non_empty = line.strip()
                     break
             
-            if not first_non_empty or not (first_non_empty.startswith('\"\"\"') or first_non_empty.startswith("'''")):
+            if not first_non_empty or not (first_non_empty.startswith('"""') or first_non_empty.startswith("'''")):
                 issues.append(ValidationIssue(
                     file_path=str(settings_file),
                     issue_type="missing_scaffold_docstring",
@@ -485,19 +560,7 @@ def validate_django_settings_advanced():
                 ))
     
     return issues if issues else None
-"""
-            
-            self.rules.append(ValidationRule(
-                name="validate_django_settings_advanced",
-                description="Valida settings.py com docstring conforme scaffolder",
-                code=rule_code.strip(),
-                severity="HIGH",
-                category="CONTENT"
-            ))
-        
-        # React package.json structure validation  
-        if self.specs.frontend_framework == "react":
-            rule_code = """
+
 def validate_react_package_structure():
     '''Valida estrutura do package.json para React.'''
     issues = []
@@ -537,24 +600,7 @@ def validate_react_package_structure():
                 ))
     
     return issues if issues else None
-"""
-            
-            self.rules.append(ValidationRule(
-                name="validate_react_package_structure",
-                description="Valida estrutura do package.json para React",
-                code=rule_code.strip(),
-                severity="HIGH",
-                category="DEPENDENCIES"
-            ))
-    
-    def _generate_multi_tenancy_rules(self):
-        """Gera regras específicas para multi-tenancy no scaffold (apenas estrutura)."""
-        if not self.specs.multi_tenancy:
-            return
-        
-        # Para scaffolder, validamos apenas que arquivos core/models.py existe com docstring
-        # NÃO validamos classes implementadas (isso é para fases posteriores)
-        rule_code = """
+
 def validate_multi_tenancy_implementation():
     '''Valida estrutura para multi-tenancy conforme scaffolder (apenas docstring).'''
     issues = []
@@ -589,14 +635,14 @@ def validate_multi_tenancy_implementation():
                 ))
                 continue
             
-            lines = content.split('\\n')
+            lines = content.split('\n')
             first_non_empty = None
             for line in lines:
                 if line.strip():
                     first_non_empty = line.strip()
                     break
             
-            if not first_non_empty or not (first_non_empty.startswith('\"\"\"') or first_non_empty.startswith("'''")):
+            if not first_non_empty or not (first_non_empty.startswith('"""') or first_non_empty.startswith("'''")):
                 issues.append(ValidationIssue(
                     file_path=str(model_file),
                     issue_type="missing_scaffold_docstring",
@@ -607,58 +653,485 @@ def validate_multi_tenancy_implementation():
                 ))
     
     return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_multi_tenancy_implementation",
-            description="Valida estrutura multi-tenancy conforme scaffolder",
-            code=rule_code.strip(),
-            severity="HIGH",
-            category="MODELS"
-        ))
-    
-    def _generate_documentation_rules(self):
-        """Gera regras para documentação básica."""
-        essential_docs = ["README.md", "LICENSE", "CHANGELOG.md", "CONTRIBUTING.md"]
-        
-        for doc_file in essential_docs:
-            if doc_file in self.specs.documentation_files or doc_file.lower() in [d.lower() for d in self.specs.documentation_files]:
-                rule_code = f"""
-def validate_{re.sub(r'[^\w]', '_', doc_file).strip('_').lower()}():
-    '''Valida existência de {doc_file}.'''
+
+def validate_all_blueprint_models():
+    '''Valida que arquivos models.py existem com docstrings conforme scaffolder.'''
     issues = []
     
-    doc_paths = list(Path('.').rglob('**/{doc_file}'))
+    # Para scaffolder, validamos que os arquivos models.py existem com docstrings
+    # NÃO validamos classes implementadas (isso é para fases posteriores)
+    
+    
+    # Verificar app core
+    model_patterns = [
+        '**/backend/src/*/core/models.py',
+        '**/src/*/core/models.py', 
+        '**/core/models.py'
+    ]
+    
+    found_model_file = False
+    for pattern in model_patterns:
+        matches = list(Path('.').glob(pattern))
+        django_models = [p for p in matches if p.is_file() and (p.parent / '__init__.py').exists()]
+        
+        if django_models:
+            found_model_file = True
+            # Validar que tem docstring (conforme scaffolder)
+            for model_file in django_models:
+                content = model_file.read_text(encoding='utf-8', errors='ignore').strip()
+                if not content:
+                    continue
+                    
+                lines = content.split('\n')
+                first_non_empty = None
+                for line in lines:
+                    if line.strip():
+                        first_non_empty = line.strip()
+                        break
+                
+                if not first_non_empty or not (first_non_empty.startswith('"""') or first_non_empty.startswith("'''")):
+                    issues.append(ValidationIssue(
+                        file_path=str(model_file),
+                        issue_type="missing_scaffold_docstring",
+                        description="Arquivo models.py do app core deve começar com docstring",
+                        expected="APENAS docstring conforme agv-scaffolder",
+                        actual="Arquivo não começa com docstring",
+                        severity="MEDIUM"
+                    ))
+            break
+    
+    if not found_model_file:
+        issues.append(ValidationIssue(
+            file_path="core/models.py",
+            issue_type="missing_models_file",
+            description="Arquivo models.py não encontrado para app core",
+            expected="Arquivo models.py deve existir no app core",
+            actual="Arquivo não existe",
+            severity="HIGH"
+        ))
+
+    # Verificar app operations
+    model_patterns = [
+        '**/backend/src/*/operations/models.py',
+        '**/src/*/operations/models.py', 
+        '**/operations/models.py'
+    ]
+    
+    found_model_file = False
+    for pattern in model_patterns:
+        matches = list(Path('.').glob(pattern))
+        django_models = [p for p in matches if p.is_file() and (p.parent / '__init__.py').exists()]
+        
+        if django_models:
+            found_model_file = True
+            # Validar que tem docstring (conforme scaffolder)
+            for model_file in django_models:
+                content = model_file.read_text(encoding='utf-8', errors='ignore').strip()
+                if not content:
+                    continue
+                    
+                lines = content.split('\n')
+                first_non_empty = None
+                for line in lines:
+                    if line.strip():
+                        first_non_empty = line.strip()
+                        break
+                
+                if not first_non_empty or not (first_non_empty.startswith('"""') or first_non_empty.startswith("'''")):
+                    issues.append(ValidationIssue(
+                        file_path=str(model_file),
+                        issue_type="missing_scaffold_docstring",
+                        description="Arquivo models.py do app operations deve começar com docstring",
+                        expected="APENAS docstring conforme agv-scaffolder",
+                        actual="Arquivo não começa com docstring",
+                        severity="MEDIUM"
+                    ))
+            break
+    
+    if not found_model_file:
+        issues.append(ValidationIssue(
+            file_path="operations/models.py",
+            issue_type="missing_models_file",
+            description="Arquivo models.py não encontrado para app operations",
+            expected="Arquivo models.py deve existir no app operations",
+            actual="Arquivo não existe",
+            severity="HIGH"
+        ))
+
+    # Verificar app finance
+    model_patterns = [
+        '**/backend/src/*/finance/models.py',
+        '**/src/*/finance/models.py', 
+        '**/finance/models.py'
+    ]
+    
+    found_model_file = False
+    for pattern in model_patterns:
+        matches = list(Path('.').glob(pattern))
+        django_models = [p for p in matches if p.is_file() and (p.parent / '__init__.py').exists()]
+        
+        if django_models:
+            found_model_file = True
+            # Validar que tem docstring (conforme scaffolder)
+            for model_file in django_models:
+                content = model_file.read_text(encoding='utf-8', errors='ignore').strip()
+                if not content:
+                    continue
+                    
+                lines = content.split('\n')
+                first_non_empty = None
+                for line in lines:
+                    if line.strip():
+                        first_non_empty = line.strip()
+                        break
+                
+                if not first_non_empty or not (first_non_empty.startswith('"""') or first_non_empty.startswith("'''")):
+                    issues.append(ValidationIssue(
+                        file_path=str(model_file),
+                        issue_type="missing_scaffold_docstring",
+                        description="Arquivo models.py do app finance deve começar com docstring",
+                        expected="APENAS docstring conforme agv-scaffolder",
+                        actual="Arquivo não começa com docstring",
+                        severity="MEDIUM"
+                    ))
+            break
+    
+    if not found_model_file:
+        issues.append(ValidationIssue(
+            file_path="finance/models.py",
+            issue_type="missing_models_file",
+            description="Arquivo models.py não encontrado para app finance",
+            expected="Arquivo models.py deve existir no app finance",
+            actual="Arquivo não existe",
+            severity="HIGH"
+        ))
+
+    # Verificar app customers
+    model_patterns = [
+        '**/backend/src/*/customers/models.py',
+        '**/src/*/customers/models.py', 
+        '**/customers/models.py'
+    ]
+    
+    found_model_file = False
+    for pattern in model_patterns:
+        matches = list(Path('.').glob(pattern))
+        django_models = [p for p in matches if p.is_file() and (p.parent / '__init__.py').exists()]
+        
+        if django_models:
+            found_model_file = True
+            # Validar que tem docstring (conforme scaffolder)
+            for model_file in django_models:
+                content = model_file.read_text(encoding='utf-8', errors='ignore').strip()
+                if not content:
+                    continue
+                    
+                lines = content.split('\n')
+                first_non_empty = None
+                for line in lines:
+                    if line.strip():
+                        first_non_empty = line.strip()
+                        break
+                
+                if not first_non_empty or not (first_non_empty.startswith('"""') or first_non_empty.startswith("'''")):
+                    issues.append(ValidationIssue(
+                        file_path=str(model_file),
+                        issue_type="missing_scaffold_docstring",
+                        description="Arquivo models.py do app customers deve começar com docstring",
+                        expected="APENAS docstring conforme agv-scaffolder",
+                        actual="Arquivo não começa com docstring",
+                        severity="MEDIUM"
+                    ))
+            break
+    
+    if not found_model_file:
+        issues.append(ValidationIssue(
+            file_path="customers/models.py",
+            issue_type="missing_models_file",
+            description="Arquivo models.py não encontrado para app customers",
+            expected="Arquivo models.py deve existir no app customers",
+            actual="Arquivo não existe",
+            severity="HIGH"
+        ))
+
+    
+    return issues if issues else None
+
+def validate_model_files_docstrings():
+    '''Valida se arquivos models.py têm docstrings de módulo obrigatórias.'''
+    issues = []
+    
+    # Buscar models.py em estruturas Django típicas
+    models_files = []
+    django_patterns = [
+        '**/backend/src/*/models.py',
+        '**/backend/src/*/*/models.py', 
+        '**/src/*/models.py',
+        '**/src/*/*/models.py',
+        '**/models.py',
+    ]
+    
+    for pattern in django_patterns:
+        matches = list(Path('.').glob(pattern))
+        django_models = [p for p in matches if p.is_file() and (p.parent / '__init__.py').exists()]
+        models_files.extend(django_models)
+    
+    seen = set()
+    models_files = [x for x in models_files if not (x in seen or seen.add(x))]
+    
+    for model_file in models_files:
+        if model_file.exists():
+            content = model_file.read_text(encoding='utf-8', errors='ignore').strip()
+            
+            # Verificar se tem docstring de módulo no início
+            has_docstring = content.startswith(chr(34)*3) or content.startswith(chr(39)*3)
+            if not has_docstring:
+                issues.append(ValidationIssue(
+                    file_path=str(model_file),
+                    issue_type="missing_module_docstring",
+                    description=f"Arquivo models.py sem docstring de módulo: {model_file.name}",
+                    expected="Arquivo deve começar com docstring de módulo explicando seu propósito",
+                    actual="Docstring de módulo não encontrada",
+                    severity="MEDIUM"
+                ))
+    
+    return issues if issues else None
+
+def validate_django_apps_structure():
+    '''Valida estrutura completa de apps Django conforme Blueprint.'''
+    issues = []
+    required_apps = ['core', 'operations', 'finance', 'customers']
+    
+    for app_name in required_apps:
+        # Buscar apps Django de forma inteligente
+        app_path = []
+        
+        # Padrões típicos de estrutura Django
+        django_patterns = [
+            '**/backend/src/*/' + app_name + '/',  # iabank/backend/src/iabank/app_name/
+            '**/src/*/' + app_name + '/',          # projeto/src/projeto/app_name/
+            '**/' + app_name + '/',                # projeto/app_name/ (fallback)
+        ]
+        
+        for pattern in django_patterns:
+            matches = list(Path('.').glob(pattern))
+            # Filtrar apenas diretórios que parecem apps Django (têm __init__.py)
+            django_apps = [p for p in matches if p.is_dir() and (p / '__init__.py').exists()]
+            if django_apps:
+                app_path = django_apps
+                break
+        
+        app_found = False
+        
+        for app_dir in app_path:
+            if app_dir.is_dir():
+                app_found = True
+                
+                # Arquivos obrigatórios em cada app
+                required_files = ['models.py', 'views.py', 'apps.py', '__init__.py']
+                
+                for req_file in required_files:
+                    file_path = app_dir / req_file
+                    if not file_path.exists():
+                        issues.append(ValidationIssue(
+                            file_path=str(file_path),
+                            issue_type="missing_app_file",
+                            description="Arquivo obrigatório não encontrado em app " + app_name + ": " + req_file,
+                            expected="Arquivo " + req_file + " deve existir no app Django",
+                            actual="Arquivo não existe",
+                            severity="HIGH"
+                        ))
+                
+                # Verificar diretório de testes
+                tests_dir = app_dir / 'tests'
+                if not tests_dir.exists():
+                    issues.append(ValidationIssue(
+                        file_path=str(tests_dir),
+                        issue_type="missing_tests_directory",
+                        description="Diretório de testes não encontrado no app " + app_name,
+                        expected="Diretório tests/ deve existir no app",
+                        actual="Diretório não existe",
+                        severity="MEDIUM"
+                    ))
+        
+        if not app_found:
+            issues.append(ValidationIssue(
+                file_path=app_name,
+                issue_type="missing_django_app",
+                description="App Django não encontrado: " + app_name,
+                expected="App " + app_name + " deve estar implementado",
+                actual="App não existe",
+                severity="HIGH"
+            ))
+    
+    return issues if issues else None
+
+def validate_frontend_basic_structure():
+    '''Valida estrutura básica do frontend conforme scaffolder.'''
+    issues = []
+    
+    # Verificar se existe diretório frontend/src básico
+    frontend_src = None
+    for src_path in Path('.').rglob('**/src/'):
+        parent = src_path.parent
+        if (parent / 'package.json').exists():
+            frontend_src = src_path
+            break
+    
+    if not frontend_src:
+        issues.append(ValidationIssue(
+            file_path="frontend/src/",
+            issue_type="missing_frontend_src",
+            description="Diretório src/ não encontrado no frontend",
+            expected="Estrutura frontend/src/ deve existir",
+            actual="Diretório não existe",
+            severity="HIGH"
+        ))
+    else:
+        # Verificar arquivos básicos React (escopo scaffolder)
+        basic_files = ['App.tsx', 'index.tsx', 'main.tsx']
+        for basic_file in basic_files:
+            file_path = frontend_src / basic_file
+            if file_path.exists():
+                # Verificar se tem comentário de cabeçalho
+                content = file_path.read_text(encoding='utf-8', errors='ignore').strip()
+                if not (content.startswith('/*') or content.startswith('//')):
+                    issues.append(ValidationIssue(
+                        file_path=str(file_path),
+                        issue_type="missing_header_comment",
+                        description=f"Arquivo React sem comentário de cabeçalho: {basic_file}",
+                        expected="Arquivo deve começar com comentário explicando seu propósito",
+                        actual="Comentário de cabeçalho não encontrado",
+                        severity="MEDIUM"
+                    ))
+    
+    return issues if issues else None
+
+def validate_github_actions_pipeline():
+    '''Valida pipeline de CI/CD conforme Blueprint.'''
+    issues = []
+    
+    # Verificar workflow do GitHub Actions
+    workflow_paths = list(Path('.').rglob('**/.github/workflows/*.yml')) + \
+                    list(Path('.').rglob('**/.github/workflows/*.yaml'))
+    
+    if not workflow_paths:
+        issues.append(ValidationIssue(
+            file_path=".github/workflows/",
+            issue_type="missing_ci_pipeline",
+            description="Pipeline de CI/CD não encontrado",
+            expected="Workflow GitHub Actions deve estar configurado",
+            actual="Nenhum arquivo de workflow encontrado",
+            severity="MEDIUM"
+        ))
+        return issues
+    
+    # Verificar conteúdo do workflow principal
+    main_workflow = None
+    for workflow in workflow_paths:
+        content = workflow.read_text(encoding='utf-8', errors='ignore')
+        if 'python' in content.lower() or 'node' in content.lower():
+            main_workflow = workflow
+            break
+    
+    if main_workflow:
+        content = main_workflow.read_text(encoding='utf-8', errors='ignore')
+        
+        # Verificar steps essenciais
+        essential_steps = ['test', 'lint', 'build']
+        for step in essential_steps:
+            if step not in content.lower():
+                issues.append(ValidationIssue(
+                    file_path=str(main_workflow),
+                    issue_type="missing_ci_step",
+                    description=f"Step essencial não encontrado no pipeline: " + step,
+                    expected=f"Step '" + step + "' deve estar configurado no workflow",
+                    actual="Step não configurado",
+                    severity="MEDIUM"
+                ))
+    
+    return issues if issues else None
+
+def validate_readme_md():
+    '''Valida existência de README.md.'''
+    issues = []
+    
+    doc_paths = list(Path('.').rglob('**/README.md'))
     if not doc_paths:
         # Tentar variações case-insensitive
-        alt_paths = list(Path('.').rglob('**/{doc_file.lower()}'))
+        alt_paths = list(Path('.').rglob('**/readme.md'))
         if not alt_paths:
             issues.append(ValidationIssue(
-                file_path="{doc_file}",
+                file_path="README.md",
                 issue_type="missing_documentation",
-                description="Documentação essencial não encontrada: {doc_file}",
+                description="Documentação essencial não encontrada: README.md",
                 expected="Arquivo deve existir na raiz do projeto",
                 actual="Arquivo não existe",
                 severity="MEDIUM"
             ))
     
     return issues if issues else None
-"""
-                
-                self.rules.append(ValidationRule(
-                    name=f"validate_{re.sub(r'[^\w]', '_', doc_file).strip('_').lower()}",
-                    description=f"Valida documentação essencial {doc_file}",
-                    code=rule_code.strip(),
-                    severity="MEDIUM",
-                    category="CONTENT"
-                ))
-        
-        # Adicionar validação específica de conteúdo do README.md
-        self._add_readme_content_validation()
+
+def validate_license():
+    '''Valida existência de LICENSE.'''
+    issues = []
     
-    def _add_readme_content_validation(self):
-        """Validação ULTRA-RIGOROSA do README.md conforme Blueprint seção 9."""
-        rule_code = """
+    doc_paths = list(Path('.').rglob('**/LICENSE'))
+    if not doc_paths:
+        # Tentar variações case-insensitive
+        alt_paths = list(Path('.').rglob('**/license'))
+        if not alt_paths:
+            issues.append(ValidationIssue(
+                file_path="LICENSE",
+                issue_type="missing_documentation",
+                description="Documentação essencial não encontrada: LICENSE",
+                expected="Arquivo deve existir na raiz do projeto",
+                actual="Arquivo não existe",
+                severity="MEDIUM"
+            ))
+    
+    return issues if issues else None
+
+def validate_changelog_md():
+    '''Valida existência de CHANGELOG.md.'''
+    issues = []
+    
+    doc_paths = list(Path('.').rglob('**/CHANGELOG.md'))
+    if not doc_paths:
+        # Tentar variações case-insensitive
+        alt_paths = list(Path('.').rglob('**/changelog.md'))
+        if not alt_paths:
+            issues.append(ValidationIssue(
+                file_path="CHANGELOG.md",
+                issue_type="missing_documentation",
+                description="Documentação essencial não encontrada: CHANGELOG.md",
+                expected="Arquivo deve existir na raiz do projeto",
+                actual="Arquivo não existe",
+                severity="MEDIUM"
+            ))
+    
+    return issues if issues else None
+
+def validate_contributing_md():
+    '''Valida existência de CONTRIBUTING.md.'''
+    issues = []
+    
+    doc_paths = list(Path('.').rglob('**/CONTRIBUTING.md'))
+    if not doc_paths:
+        # Tentar variações case-insensitive
+        alt_paths = list(Path('.').rglob('**/contributing.md'))
+        if not alt_paths:
+            issues.append(ValidationIssue(
+                file_path="CONTRIBUTING.md",
+                issue_type="missing_documentation",
+                description="Documentação essencial não encontrada: CONTRIBUTING.md",
+                expected="Arquivo deve existir na raiz do projeto",
+                actual="Arquivo não existe",
+                severity="MEDIUM"
+            ))
+    
+    return issues if issues else None
+
 def validate_readme_content_specific():
     '''Valida README.md COMPLETO conforme Blueprint seção 9 (certeza absoluta).'''
     issues = []
@@ -756,7 +1229,7 @@ def validate_readme_content_specific():
         ))
     
     # Validar estrutura de seções (ordem e hierarquia)
-    lines = content.split('\\n')
+    lines = content.split('\n')
     h1_found = any(line.startswith('# ') for line in lines)
     h2_count = sum(1 for line in lines if line.startswith('## '))
     
@@ -781,53 +1254,24 @@ def validate_readme_content_specific():
         ))
     
     return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_readme_content_specific",
-            description="Valida conteúdo específico do README.md conforme Blueprint",
-            code=rule_code.strip(),
-            severity="MEDIUM",
-            category="CONTENT"
-        ))
-    
-    def _generate_docker_rules(self):
-        """Gera regras para configuração Docker."""
-        docker_files = ["Dockerfile", "docker-compose.yml", ".dockerignore"]
-        
-        for docker_file in docker_files:
-            if docker_file in self.specs.docker_files:
-                rule_code = f"""
-def validate_{re.sub(r'[^\w]', '_', docker_file).strip('_')}():
-    '''Valida arquivo Docker: {docker_file}.'''
+
+def validate_Dockerfile():
+    '''Valida arquivo Docker: Dockerfile.'''
     issues = []
     
-    docker_paths = list(Path('.').rglob('**/{docker_file}'))
+    docker_paths = list(Path('.').rglob('**/Dockerfile'))
     if not docker_paths:
         issues.append(ValidationIssue(
-            file_path="{docker_file}",
+            file_path="Dockerfile",
             issue_type="missing_docker_file",
-            description="Arquivo Docker não encontrado: {docker_file}",
+            description="Arquivo Docker não encontrado: Dockerfile",
             expected="Arquivo deve existir para containerização",
             actual="Arquivo não existe",
             severity="MEDIUM"
         ))
     
     return issues if issues else None
-"""
-                
-                self.rules.append(ValidationRule(
-                    name=f"validate_{re.sub(r'[^\w]', '_', docker_file).strip('_')}",
-                    description=f"Valida arquivo Docker {docker_file}",
-                    code=rule_code.strip(),
-                    severity="MEDIUM",
-                    category="STRUCTURE"
-                ))
-    
-    def _generate_development_setup_rules(self):
-        """Gera regras para setup de desenvolvimento."""
-        # Validação de ferramentas de qualidade de código
-        rule_code = """
+
 def validate_development_quality_tools():
     '''Valida ferramentas de qualidade de código.'''
     issues = []
@@ -857,378 +1301,7 @@ def validate_development_quality_tools():
         ))
     
     return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_development_quality_tools",
-            description="Valida ferramentas de qualidade e setup de desenvolvimento",
-            code=rule_code.strip(),
-            severity="MEDIUM",
-            category="STRUCTURE"
-        ))
 
-    def _generate_complete_domain_models_rules(self):
-        """FASE 1: Gera validações completas e universais para modelos de domínio."""
-        if not self.specs.models:
-            return
-            
-        # 1. Validação universal de todos os modelos definidos no Blueprint
-        self._generate_universal_models_validation()
-        
-        # 2. Validação de campos específicos por modelo (universal)
-        self._generate_model_docstring_validation()
-        
-        # 3. Validação de apps Django completos (universal)
-        self._generate_apps_structure_validation()
-        
-        # 4. Validação de frontend React (universal)
-        self._generate_frontend_basic_structure_validation()
-        
-        # 5. Validação de pipeline CI/CD (universal)
-        self._generate_github_actions_validation()
-
-    def _generate_universal_models_validation(self):
-        """Valida existência de arquivos models.py com docstrings (escopo scaffolder)."""
-        expected_apps = self.specs.django_apps if self.specs.django_apps else []
-        
-        # Gerar validações específicas para cada app
-        app_checks = []
-        for app_name in expected_apps:
-            app_checks.append(f"""
-    # Verificar app {app_name}
-    model_patterns = [
-        '**/backend/src/*/{app_name}/models.py',
-        '**/src/*/{app_name}/models.py', 
-        '**/{app_name}/models.py'
-    ]
-    
-    found_model_file = False
-    for pattern in model_patterns:
-        matches = list(Path('.').glob(pattern))
-        django_models = [p for p in matches if p.is_file() and (p.parent / '__init__.py').exists()]
-        
-        if django_models:
-            found_model_file = True
-            # Validar que tem docstring (conforme scaffolder)
-            for model_file in django_models:
-                content = model_file.read_text(encoding='utf-8', errors='ignore').strip()
-                if not content:
-                    continue
-                    
-                lines = content.split('\\n')
-                first_non_empty = None
-                for line in lines:
-                    if line.strip():
-                        first_non_empty = line.strip()
-                        break
-                
-                if not first_non_empty or not (first_non_empty.startswith('\"\"\"') or first_non_empty.startswith("'''")):
-                    issues.append(ValidationIssue(
-                        file_path=str(model_file),
-                        issue_type="missing_scaffold_docstring",
-                        description="Arquivo models.py do app {app_name} deve começar com docstring",
-                        expected="APENAS docstring conforme agv-scaffolder",
-                        actual="Arquivo não começa com docstring",
-                        severity="MEDIUM"
-                    ))
-            break
-    
-    if not found_model_file:
-        issues.append(ValidationIssue(
-            file_path="{app_name}/models.py",
-            issue_type="missing_models_file",
-            description="Arquivo models.py não encontrado para app {app_name}",
-            expected="Arquivo models.py deve existir no app {app_name}",
-            actual="Arquivo não existe",
-            severity="HIGH"
-        ))
-""")
-        
-        rule_code = f"""
-def validate_all_blueprint_models():
-    '''Valida que arquivos models.py existem com docstrings conforme scaffolder.'''
-    issues = []
-    
-    # Para scaffolder, validamos que os arquivos models.py existem com docstrings
-    # NÃO validamos classes implementadas (isso é para fases posteriores)
-    
-    {''.join(app_checks)}
-    
-    return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_all_blueprint_models",
-            description="Valida arquivos models.py com docstrings conforme scaffolder",
-            code=rule_code.strip(),
-            severity="HIGH",
-            category="MODELS"
-        ))
-
-    def _generate_model_docstring_validation(self):
-        """Valida se arquivos de modelos têm docstrings (escopo scaffolder)."""
-        rule_code = """
-def validate_model_files_docstrings():
-    '''Valida se arquivos models.py têm docstrings de módulo obrigatórias.'''
-    issues = []
-    
-    # Buscar models.py em estruturas Django típicas
-    models_files = []
-    django_patterns = [
-        '**/backend/src/*/models.py',
-        '**/backend/src/*/*/models.py', 
-        '**/src/*/models.py',
-        '**/src/*/*/models.py',
-        '**/models.py',
-    ]
-    
-    for pattern in django_patterns:
-        matches = list(Path('.').glob(pattern))
-        django_models = [p for p in matches if p.is_file() and (p.parent / '__init__.py').exists()]
-        models_files.extend(django_models)
-    
-    seen = set()
-    models_files = [x for x in models_files if not (x in seen or seen.add(x))]
-    
-    for model_file in models_files:
-        if model_file.exists():
-            content = model_file.read_text(encoding='utf-8', errors='ignore').strip()
-            
-            # Verificar se tem docstring de módulo no início
-            has_docstring = content.startswith(chr(34)*3) or content.startswith(chr(39)*3)
-            if not has_docstring:
-                issues.append(ValidationIssue(
-                    file_path=str(model_file),
-                    issue_type="missing_module_docstring",
-                    description=f"Arquivo models.py sem docstring de módulo: {model_file.name}",
-                    expected="Arquivo deve começar com docstring de módulo explicando seu propósito",
-                    actual="Docstring de módulo não encontrada",
-                    severity="MEDIUM"
-                ))
-    
-    return issues if issues else None
-"""
-            
-        self.rules.append(ValidationRule(
-            name="validate_model_files_docstrings",
-            description="Valida docstrings obrigatórias em arquivos de modelos",
-            code=rule_code.strip(),
-            severity="MEDIUM",
-            category="CONTENT"
-        ))
-
-    def _generate_apps_structure_validation(self):
-        """Valida estrutura completa de apps Django - UNIVERSAL."""
-        if not hasattr(self.specs, 'django_apps') or not self.specs.django_apps:
-            return
-            
-        required_apps = list(self.specs.django_apps)
-        
-        rule_code = f"""
-def validate_django_apps_structure():
-    '''Valida estrutura completa de apps Django conforme Blueprint.'''
-    issues = []
-    required_apps = {required_apps}
-    
-    for app_name in required_apps:
-        # Buscar apps Django de forma inteligente
-        app_path = []
-        
-        # Padrões típicos de estrutura Django
-        django_patterns = [
-            '**/backend/src/*/' + app_name + '/',  # iabank/backend/src/iabank/app_name/
-            '**/src/*/' + app_name + '/',          # projeto/src/projeto/app_name/
-            '**/' + app_name + '/',                # projeto/app_name/ (fallback)
-        ]
-        
-        for pattern in django_patterns:
-            matches = list(Path('.').glob(pattern))
-            # Filtrar apenas diretórios que parecem apps Django (têm __init__.py)
-            django_apps = [p for p in matches if p.is_dir() and (p / '__init__.py').exists()]
-            if django_apps:
-                app_path = django_apps
-                break
-        
-        app_found = False
-        
-        for app_dir in app_path:
-            if app_dir.is_dir():
-                app_found = True
-                
-                # Arquivos obrigatórios em cada app
-                required_files = ['models.py', 'views.py', 'apps.py', '__init__.py']
-                
-                for req_file in required_files:
-                    file_path = app_dir / req_file
-                    if not file_path.exists():
-                        issues.append(ValidationIssue(
-                            file_path=str(file_path),
-                            issue_type="missing_app_file",
-                            description="Arquivo obrigatório não encontrado em app " + app_name + ": " + req_file,
-                            expected="Arquivo " + req_file + " deve existir no app Django",
-                            actual="Arquivo não existe",
-                            severity="HIGH"
-                        ))
-                
-                # Verificar diretório de testes
-                tests_dir = app_dir / 'tests'
-                if not tests_dir.exists():
-                    issues.append(ValidationIssue(
-                        file_path=str(tests_dir),
-                        issue_type="missing_tests_directory",
-                        description="Diretório de testes não encontrado no app " + app_name,
-                        expected="Diretório tests/ deve existir no app",
-                        actual="Diretório não existe",
-                        severity="MEDIUM"
-                    ))
-        
-        if not app_found:
-            issues.append(ValidationIssue(
-                file_path=app_name,
-                issue_type="missing_django_app",
-                description="App Django não encontrado: " + app_name,
-                expected="App " + app_name + " deve estar implementado",
-                actual="App não existe",
-                severity="HIGH"
-            ))
-    
-    return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_django_apps_structure",
-            description="Valida estrutura completa de apps Django",
-            code=rule_code.strip(),
-            severity="HIGH",
-            category="STRUCTURE"
-        ))
-
-    def _generate_frontend_basic_structure_validation(self):
-        """Valida estrutura básica do frontend (escopo scaffolder)."""
-        if self.specs.frontend_framework != "react":
-            return
-        
-        rule_code = """
-def validate_frontend_basic_structure():
-    '''Valida estrutura básica do frontend conforme scaffolder.'''
-    issues = []
-    
-    # Verificar se existe diretório frontend/src básico
-    frontend_src = None
-    for src_path in Path('.').rglob('**/src/'):
-        parent = src_path.parent
-        if (parent / 'package.json').exists():
-            frontend_src = src_path
-            break
-    
-    if not frontend_src:
-        issues.append(ValidationIssue(
-            file_path="frontend/src/",
-            issue_type="missing_frontend_src",
-            description="Diretório src/ não encontrado no frontend",
-            expected="Estrutura frontend/src/ deve existir",
-            actual="Diretório não existe",
-            severity="HIGH"
-        ))
-    else:
-        # Verificar arquivos básicos React (escopo scaffolder)
-        basic_files = ['App.tsx', 'index.tsx', 'main.tsx']
-        for basic_file in basic_files:
-            file_path = frontend_src / basic_file
-            if file_path.exists():
-                # Verificar se tem comentário de cabeçalho
-                content = file_path.read_text(encoding='utf-8', errors='ignore').strip()
-                if not (content.startswith('/*') or content.startswith('//')):
-                    issues.append(ValidationIssue(
-                        file_path=str(file_path),
-                        issue_type="missing_header_comment",
-                        description=f"Arquivo React sem comentário de cabeçalho: {basic_file}",
-                        expected="Arquivo deve começar com comentário explicando seu propósito",
-                        actual="Comentário de cabeçalho não encontrado",
-                        severity="MEDIUM"
-                    ))
-    
-    return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_frontend_basic_structure",
-            description="Valida estrutura básica do frontend",
-            code=rule_code.strip(),
-            severity="MEDIUM",
-            category="CONTENT"
-        ))
-
-    def _generate_github_actions_validation(self):
-        """Valida pipeline CI/CD completo - UNIVERSAL."""
-        
-        rule_code = """
-def validate_github_actions_pipeline():
-    '''Valida pipeline de CI/CD conforme Blueprint.'''
-    issues = []
-    
-    # Verificar workflow do GitHub Actions
-    workflow_paths = list(Path('.').rglob('**/.github/workflows/*.yml')) + \\
-                    list(Path('.').rglob('**/.github/workflows/*.yaml'))
-    
-    if not workflow_paths:
-        issues.append(ValidationIssue(
-            file_path=".github/workflows/",
-            issue_type="missing_ci_pipeline",
-            description="Pipeline de CI/CD não encontrado",
-            expected="Workflow GitHub Actions deve estar configurado",
-            actual="Nenhum arquivo de workflow encontrado",
-            severity="MEDIUM"
-        ))
-        return issues
-    
-    # Verificar conteúdo do workflow principal
-    main_workflow = None
-    for workflow in workflow_paths:
-        content = workflow.read_text(encoding='utf-8', errors='ignore')
-        if 'python' in content.lower() or 'node' in content.lower():
-            main_workflow = workflow
-            break
-    
-    if main_workflow:
-        content = main_workflow.read_text(encoding='utf-8', errors='ignore')
-        
-        # Verificar steps essenciais
-        essential_steps = ['test', 'lint', 'build']
-        for step in essential_steps:
-            if step not in content.lower():
-                issues.append(ValidationIssue(
-                    file_path=str(main_workflow),
-                    issue_type="missing_ci_step",
-                    description=f"Step essencial não encontrado no pipeline: " + step,
-                    expected=f"Step '" + step + "' deve estar configurado no workflow",
-                    actual="Step não configurado",
-                    severity="MEDIUM"
-                ))
-    
-    return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_github_actions_pipeline",
-            description="Valida pipeline de CI/CD completo",
-            code=rule_code.strip(),
-            severity="MEDIUM",
-            category="STRUCTURE"
-        ))
-    
-    def _generate_docstring_validation_rules(self):
-        """Gera validações de docstrings/comentários obrigatórios para arquivos de código."""
-        
-        # Validação de docstrings em arquivos Python (views.py, services.py, etc.)
-        self._generate_python_files_docstring_validation()
-        
-        # Validação de comentários em arquivos React/TypeScript  
-        self._generate_react_files_comment_validation()
-    
-    def _generate_python_files_docstring_validation(self):
-        """Validação ULTRA-RIGOROSA de docstrings com QUALIDADE e ADEQUAÇÃO."""
-        rule_code = """
 def validate_python_files_docstrings():
     '''Valida QUALIDADE de docstrings conforme instruções scaffolder (certeza absoluta).'''
     issues = []
@@ -1246,7 +1319,7 @@ def validate_python_files_docstrings():
                 content = python_file.read_text(encoding='utf-8', errors='ignore').strip()
                 
                 # Extrair docstring de módulo
-                lines = content.split('\\n')
+                lines = content.split('\n')
                 docstring_content = None
                 docstring_found = False
                 
@@ -1266,7 +1339,7 @@ def validate_python_files_docstrings():
                                 break
                         
                         if docstring_lines:
-                            docstring_content = '\\n'.join(docstring_lines)
+                            docstring_content = '\n'.join(docstring_lines)
                         break
                     elif (not line.startswith('from ') and 
                           not line.startswith('import ') and 
@@ -1346,22 +1419,7 @@ def validate_python_files_docstrings():
                         ))
     
     return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_python_files_docstrings",
-            description="Valida docstrings obrigatórias em arquivos Python",
-            code=rule_code.strip(),
-            severity="MEDIUM",
-            category="CONTENT"
-        ))
-    
-    def _generate_react_files_comment_validation(self):
-        """Valida comentários obrigatórios em arquivos React/TypeScript."""
-        if self.specs.frontend_framework != "react":
-            return
-            
-        rule_code = """
+
 def validate_react_files_comments():
     '''Valida se arquivos React/TypeScript têm comentários de cabeçalho.'''
     issues = []
@@ -1389,7 +1447,7 @@ def validate_react_files_comments():
                 content = react_file.read_text(encoding='utf-8', errors='ignore').strip()
                 
                 # Verificar se tem comentário de cabeçalho
-                lines = content.split('\\n')[:5]  # Primeiras 5 linhas
+                lines = content.split('\n')[:5]  # Primeiras 5 linhas
                 comment_found = any(
                     line.strip().startswith('/*') or 
                     line.strip().startswith('//') or
@@ -1408,28 +1466,7 @@ def validate_react_files_comments():
                     ))
     
     return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_react_files_comments",
-            description="Valida comentários obrigatórios em arquivos React/TypeScript",
-            code=rule_code.strip(),
-            severity="MEDIUM",
-            category="CONTENT"
-        ))
-    
-    def _generate_absolute_structure_validation_rules(self):
-        """Validações ABSOLUTAS de estrutura completa para certeza total."""
-        
-        # Validação de estrutura frontend detalhada
-        self._generate_detailed_frontend_structure_validation()
-        
-        # Validação de conformidade total com prompt scaffolder
-        self._generate_scaffolder_prompt_compliance_validation()
-    
-    def _generate_detailed_frontend_structure_validation(self):
-        """Validação DETALHADA da estrutura frontend conforme Blueprint seção 4."""
-        rule_code = """
+
 def validate_detailed_frontend_structure():
     '''Valida estrutura frontend COMPLETA conforme Blueprint seção 4 (certeza absoluta).'''
     issues = []
@@ -1510,7 +1547,7 @@ def validate_detailed_frontend_structure():
         if file_path.exists():
             content = file_path.read_text(encoding='utf-8', errors='ignore')
             # Verificar se é apenas arquivo com comentário (escopo scaffolder)
-            lines = content.strip().split('\\n')[:5]
+            lines = content.strip().split('\n')[:5]
             has_substantial_content = any(
                 line.strip() and 
                 not line.strip().startswith('//') and 
@@ -1542,19 +1579,7 @@ def validate_detailed_frontend_structure():
                     ))
     
     return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_detailed_frontend_structure",
-            description="Valida estrutura frontend detalhada conforme Blueprint seção 4",
-            code=rule_code.strip(),
-            severity="HIGH",
-            category="STRUCTURE"
-        ))
-    
-    def _generate_scaffolder_prompt_compliance_validation(self):
-        """Validação CORRETA de conformidade com prompt do scaffolder."""
-        rule_code = """
+
 def validate_scaffolder_prompt_compliance():
     '''Valida conformidade REAL com agv-scaffolder (ZERO implementação).'''
     issues = []
@@ -1569,7 +1594,7 @@ def validate_scaffolder_prompt_compliance():
         for python_file in django_files:
             if python_file.exists():
                 content = python_file.read_text(encoding='utf-8', errors='ignore')
-                lines = content.strip().split('\\n')
+                lines = content.strip().split('\n')
                 
                 # Validar se tem APENAS docstring conforme agv-scaffolder
                 non_empty_lines = [line for line in lines if line.strip()]
@@ -1579,7 +1604,7 @@ def validate_scaffolder_prompt_compliance():
                 
                 # Deve começar com docstring
                 first_line = non_empty_lines[0].strip()
-                if not (first_line.startswith('\"\"\"') or first_line.startswith("'''")):
+                if not (first_line.startswith('"""') or first_line.startswith("'''")):
                     issues.append(ValidationIssue(
                         file_path=str(python_file),
                         issue_type="missing_scaffold_docstring",
@@ -1591,7 +1616,7 @@ def validate_scaffolder_prompt_compliance():
                     continue
                 
                 # Encontrar fim da docstring
-                quote_type = '\"\"\"' if first_line.startswith('\"\"\"') else "'''"
+                quote_type = '"""' if first_line.startswith('"""') else "'''"
                 docstring_end = -1
                 
                 for i, line in enumerate(lines):
@@ -1658,12 +1683,293 @@ def validate_scaffolder_prompt_compliance():
         ))
     
     return issues if issues else None
-"""
-        
-        self.rules.append(ValidationRule(
-            name="validate_scaffolder_prompt_compliance",
-            description="Valida conformidade absoluta com instruções do prompt scaffolder",
-            code=rule_code.strip(),
-            severity="HIGH",
-            category="CONTENT"
-        ))
+
+class BlueprintArquiteturalIabankScaffoldValidator:
+    """Validador especializado para scaffold completo (Alvo 0)."""
+
+    SEVERITY_WEIGHTS = {
+        "CRITICAL": 15,
+        "HIGH": 8,
+        "MEDIUM": 2,
+        "LOW": 1
+    }
+
+    CATEGORY_WEIGHTS = {
+        "STRUCTURE": 1.0,
+        "CONTENT": 1.5,
+        "MODELS": 2.0,
+        "DEPENDENCIES": 1.2,
+        "API": 1.3
+    }
+
+    def __init__(self):
+        self.validation_methods = [
+            "validate_directory_structure",
+            "validate_gitignore_content",
+            "validate_pyproject_content",
+            "validate_precommit_config_content",
+            "validate_env_example_file",
+            "validate_content_settings_py",
+            "validate_content_models_py",
+            "validate_content_pyproject_toml",
+            "validate_dependency_django",
+            "validate_dependency_djangorestframework",
+            "validate_dependency_psycopg2_binary",
+            "validate_django_settings_advanced",
+            "validate_react_package_structure",
+            "validate_multi_tenancy_implementation",
+            "validate_all_blueprint_models",
+            "validate_model_files_docstrings",
+            "validate_django_apps_structure",
+            "validate_frontend_basic_structure",
+            "validate_github_actions_pipeline",
+            "validate_readme_md",
+            "validate_license",
+            "validate_changelog_md",
+            "validate_contributing_md",
+            "validate_readme_content_specific",
+            "validate_Dockerfile",
+            "validate_development_quality_tools",
+            "validate_python_files_docstrings",
+            "validate_react_files_comments",
+            "validate_detailed_frontend_structure",
+            "validate_scaffolder_prompt_compliance",
+        ]
+
+        self.rule_categories = {
+            "validate_directory_structure": "STRUCTURE",
+            "validate_gitignore_content": "CONTENT",
+            "validate_pyproject_content": "CONTENT",
+            "validate_precommit_config_content": "CONTENT",
+            "validate_env_example_file": "STRUCTURE",
+            "validate_content_settings_py": "CONTENT",
+            "validate_content_models_py": "CONTENT",
+            "validate_content_pyproject_toml": "CONTENT",
+            "validate_dependency_django": "DEPENDENCIES",
+            "validate_dependency_djangorestframework": "DEPENDENCIES",
+            "validate_dependency_psycopg2_binary": "DEPENDENCIES",
+            "validate_django_settings_advanced": "CONTENT",
+            "validate_react_package_structure": "DEPENDENCIES",
+            "validate_multi_tenancy_implementation": "MODELS",
+            "validate_all_blueprint_models": "MODELS",
+            "validate_model_files_docstrings": "CONTENT",
+            "validate_django_apps_structure": "STRUCTURE",
+            "validate_frontend_basic_structure": "CONTENT",
+            "validate_github_actions_pipeline": "STRUCTURE",
+            "validate_readme_md": "CONTENT",
+            "validate_license": "CONTENT",
+            "validate_changelog_md": "CONTENT",
+            "validate_contributing_md": "CONTENT",
+            "validate_readme_content_specific": "CONTENT",
+            "validate_Dockerfile": "STRUCTURE",
+            "validate_development_quality_tools": "STRUCTURE",
+            "validate_python_files_docstrings": "CONTENT",
+            "validate_react_files_comments": "CONTENT",
+            "validate_detailed_frontend_structure": "STRUCTURE",
+            "validate_scaffolder_prompt_compliance": "CONTENT",
+        }
+
+    def validate(self) -> ValidationResults:
+        """Executa todas as validações e retorna os resultados."""
+        issues = []
+        total_checks = len(self.validation_methods)
+        failed_validations = 0
+        categories = {"STRUCTURE": 0, "CONTENT": 0, "MODELS": 0, "DEPENDENCIES": 0, "API": 0}
+
+        print(f"Executando {total_checks} validações especializadas...")
+        print("Níveis: STRUCTURE | CONTENT | MODELS | DEPENDENCIES | API")
+        print("-" * 80)
+
+        for method_name in self.validation_methods:
+            try:
+                method = globals()[method_name]
+                result = method()
+
+                category = self.rule_categories.get(method_name, "STRUCTURE")
+                print(f"[{category:12}] {method_name}", end="")
+
+                if result:
+                    failed_validations += 1
+                    if isinstance(result, list):
+                        issues.extend(result)
+                        categories[category] += len(result)
+                        print(f" FALHOU: {len(result)} problemas")
+                    else:
+                        issues.append(result)
+                        categories[category] += 1
+                        print(" FALHOU: 1 problema")
+                else:
+                    print(" OK")
+
+            except Exception as e:
+                failed_validations += 1
+                issues.append(ValidationIssue(
+                    file_path="validator",
+                    issue_type="validation_error",
+                    description=f"Erro na validação {method_name}: {str(e)}",
+                    expected="Validação deve executar sem erros",
+                    actual=f"Erro: {str(e)}",
+                    severity="CRITICAL"
+                ))
+                print(f" ERRO: {str(e)}")
+
+        passed_checks = total_checks - failed_validations
+        score = self._calculate_score(total_checks, failed_validations, issues)
+
+        return ValidationResults(
+            total_checks=total_checks,
+            passed_checks=passed_checks,
+            failed_checks=failed_validations,
+            issues=issues,
+            score=score,
+            categories=categories
+        )
+
+    def _calculate_score(self, total_checks: int, failed_validations: int, issues: List[ValidationIssue]) -> float:
+        """Calcula score baseado na severidade e categoria dos problemas."""
+        if failed_validations == 0:
+            return 100.0
+
+        total_penalty = 0
+        for issue in issues:
+            severity_weight = self.SEVERITY_WEIGHTS.get(issue.severity, 1)
+            category_weight = 1.0
+
+            if "model" in issue.issue_type.lower():
+                category_weight = self.CATEGORY_WEIGHTS["MODELS"]
+            elif "content" in issue.issue_type.lower() or "config" in issue.issue_type.lower():
+                category_weight = self.CATEGORY_WEIGHTS["CONTENT"]
+            elif "api" in issue.issue_type.lower():
+                category_weight = self.CATEGORY_WEIGHTS["API"]
+            elif "dependency" in issue.issue_type.lower():
+                category_weight = self.CATEGORY_WEIGHTS["DEPENDENCIES"]
+            else:
+                category_weight = self.CATEGORY_WEIGHTS["STRUCTURE"]
+
+            penalty = severity_weight * category_weight
+            total_penalty += penalty
+
+        base_score = ((total_checks - failed_validations) / total_checks) * 100
+        penalty_factor = min(total_penalty / (failed_validations * 10), 0.5)
+        final_score = max(0, base_score - (base_score * penalty_factor))
+
+        return round(final_score, 2)
+
+    def generate_report(self, results: ValidationResults) -> str:
+        """Gera relatório detalhado dos resultados."""
+        report = []
+        report.append("=" * 100)
+        report.append(f"RELATÓRIO DE VALIDAÇÃO - VALIDADOR ESPECIALIZADO PARA SCAFFOLD COMPLETO (ALVO 0)")
+        report.append("=" * 100)
+        report.append(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        report.append(f"Validador: BlueprintArquiteturalIabankScaffoldValidator")
+        report.append("")
+        report.append("RESULTADOS:")
+        report.append(f"├─ Total de Verificações: {results.total_checks}")
+        report.append(f"├─ Aprovadas: {results.passed_checks}")
+        report.append(f"├─ Reprovadas: {results.failed_checks}")
+        report.append(f"└─ Score Final: {results.score}%")
+        report.append("")
+
+        # Análise por categoria
+        report.append("ANÁLISE POR CATEGORIA:")
+        for category, count in results.categories.items():
+            status = "FALHOU" if count > 0 else "OK"
+            report.append(f"|- {status} {category:12}: {count} problemas")
+        report.append("")
+
+        # Status
+        if results.score >= 90:
+            report.append("STATUS: EXCELENTE")
+        elif results.score >= 85:
+            report.append("STATUS: APROVADO")
+        elif results.score >= 70:
+            report.append("STATUS: NECESSITA MELHORIAS")
+        else:
+            report.append("STATUS: REJEITADO")
+
+        report.append("")
+
+        if results.issues:
+            # Agrupar por severidade
+            critical_issues = [i for i in results.issues if i.severity == "CRITICAL"]
+            high_issues = [i for i in results.issues if i.severity == "HIGH"]
+            medium_issues = [i for i in results.issues if i.severity == "MEDIUM"]
+            low_issues = [i for i in results.issues if i.severity == "LOW"]
+
+            if critical_issues:
+                report.append("PROBLEMAS CRÍTICOS:")
+                report.append("-" * 60)
+                for i, issue in enumerate(critical_issues, 1):
+                    report.append(f"{i}. {issue.description}")
+                    report.append(f"   Arquivo: {issue.file_path}")
+                    report.append(f"   Esperado: {issue.expected}")
+                    report.append(f"   Encontrado: {issue.actual}")
+                    report.append("")
+
+            if high_issues:
+                report.append("PROBLEMAS DE ALTA PRIORIDADE:")
+                report.append("-" * 60)
+                for i, issue in enumerate(high_issues, 1):
+                    report.append(f"{i}. {issue.description}")
+                    report.append(f"   Arquivo: {issue.file_path}")
+                    report.append("")
+
+            if medium_issues:
+                report.append("PROBLEMAS DE MÉDIA PRIORIDADE:")
+                report.append("-" * 60)
+                for i, issue in enumerate(medium_issues, 1):
+                    report.append(f"{i}. {issue.description}")
+                    report.append("")
+
+            if low_issues:
+                report.append("PROBLEMAS DE BAIXA PRIORIDADE:")
+                report.append("-" * 60)
+                for i, issue in enumerate(low_issues, 1):
+                    report.append(f"{i}. {issue.description}")
+                    report.append("")
+
+        report.append("=" * 100)
+        return "\n".join(report)
+
+def main():
+    """Função principal do validador."""
+    import os
+    import sys
+    
+    # Configurar encoding para Windows
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8')
+
+    validator = BlueprintArquiteturalIabankScaffoldValidator()
+    results = validator.validate()
+
+    # Gerar e exibir relatório
+    report = validator.generate_report(results)
+    print()
+    
+    # Exibir relatório com tratamento de encoding
+    try:
+        print(report)
+    except UnicodeEncodeError:
+        # Fallback para encoding seguro
+        safe_report = report.encode('utf-8', errors='replace').decode('utf-8')
+        print(safe_report)
+
+    # Salvar resultados em JSON
+    results_file = Path("validation_results.json")
+    results_file.write_text(
+        json.dumps(results.to_dict(), indent=2, ensure_ascii=False),
+        encoding='utf-8'
+    )
+    print(f"\nRelatório detalhado salvo em: {results_file}")
+
+    return 0 if results.score >= 75 else 1
+
+
+if __name__ == "__main__":
+    exit_code = main()
+    sys.exit(exit_code)

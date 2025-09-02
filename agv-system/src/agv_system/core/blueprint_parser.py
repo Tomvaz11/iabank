@@ -317,15 +317,12 @@ class AdvancedBlueprintParser:
             original_line = line
             level = 0
             
-            # Conta símbolos de árvore de forma mais precisa
-            tree_chars = 0
-            for char in line:
-                if char in '├└│':
-                    tree_chars += 1
-                elif char in '─ ':
-                    continue
-                else:
-                    break
+            # Calcula o nível baseado na indentação total (espaços + símbolos)
+            indent_match = re.match(r'^(\s*[├└│─\s]*)', line)
+            total_indent = len(indent_match.group(1)) if indent_match else 0
+            
+            # Calcula nível baseado na indentação total em múltiplos de 4
+            indent_level = total_indent // 4
             
             # Limpa a linha de forma mais precisa
             clean_line = re.sub(r'^[├└│\s─]+', '', line).strip()
@@ -340,8 +337,7 @@ class AdvancedBlueprintParser:
             clean_line = re.sub(r'[^\w\-._/]', '', clean_line)  # Remove chars especiais
             
             if clean_line:
-                # Calcula nível de indentação baseado nos símbolos de árvore
-                indent_level = tree_chars
+                # Ajusta current_path para o nível correto
                 current_path = current_path[:indent_level]
                 
                 # Adiciona à estrutura
@@ -353,7 +349,7 @@ class AdvancedBlueprintParser:
                 if clean_line.endswith('/'):
                     # Diretório
                     dir_name = clean_line.rstrip('/')
-                    if dir_name and dir_name.isalnum() or '_' in dir_name or '-' in dir_name:
+                    if dir_name and (dir_name.replace('.', '').replace('_', '').replace('-', '').isalnum() or dir_name.startswith('.')):
                         current_dict[dir_name] = {}
                         current_path.append(dir_name)
                 else:

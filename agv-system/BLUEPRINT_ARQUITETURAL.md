@@ -427,7 +427,7 @@ iabank/
 │   └── integration/
 │       ├── __init__.py
 │       └── test_full_loan_workflow.py
-├── .docker-compose.yml
+├── docker-compose.yml
 ├── .gitignore
 ├── .pre-commit-config.yaml
 ├── CHANGELOG.md
