@@ -1,0 +1,229 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iabank"
+version = "1.0.0"
+description = "IABANK - Plataforma SaaS multi-tenant para gestão de empréstimos"
+requires-python = ">=3.11"
+
+[tool.ruff]
+# Configuração do ruff para IABANK
+line-length = 88
+target-version = "py311"
+src = ["src", "tests"]
+extend-exclude = [
+    "__pycache__",
+    ".env",
+    ".venv",
+    "venv",
+    ".git",
+    "__pypackages__",
+    "migrations",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "YTT",    # flake8-2020
+    "ANN",    # flake8-annotations
+    "ASYNC",  # flake8-async
+    "S",      # flake8-bandit
+    "BLE",    # flake8-blind-except
+    "FBT",    # flake8-boolean-trap
+    "A",      # flake8-builtins
+    "COM",    # flake8-commas
+    "C90",    # mccabe
+    "DTZ",    # flake8-datetimez
+    "T10",    # flake8-debugger
+    "DJ",     # flake8-django
+    "EM",     # flake8-errmsg
+    "EXE",    # flake8-executable
+    "FA",     # flake8-future-annotations
+    "ISC",    # flake8-implicit-str-concat
+    "ICN",    # flake8-import-conventions
+    "G",      # flake8-logging-format
+    "INP",    # flake8-no-pep420
+    "PIE",    # flake8-pie
+    "T20",    # flake8-print
+    "PYI",    # flake8-pyi
+    "PT",     # flake8-pytest-style
+    "Q",      # flake8-quotes
+    "RSE",    # flake8-raise
+    "RET",    # flake8-return
+    "SLF",    # flake8-self
+    "SLOT",   # flake8-slots
+    "SIM",    # flake8-simplify
+    "TID",    # flake8-tidy-imports
+    "TCH",    # flake8-type-checking
+    "INT",    # flake8-gettext
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "ERA",    # eradicate
+    "PD",     # pandas-vet
+    "PGH",    # pygrep-hooks
+    "PL",     # pylint
+    "TRY",    # tryceratops
+    "FLY",    # flynt
+    "NPY",    # numpy
+    "PERF",   # perflint
+    "LOG",    # flake8-logging
+    "RUF",    # ruff-specific
+]
+ignore = [
+    # ANN101 e ANN102 foram removidos do ruff - não precisam mais ser ignorados
+    "ANN001",  # missing-type-function-argument (será implementado gradualmente)
+    "ANN201",  # missing-return-type-public-function (será implementado gradualmente)
+    "ANN401",  # dynamically-typed-expressions
+    "COM812",  # trailing-comma-missing (conflita com black)
+    "ISC001",  # single-line-implicit-string-concatenation (conflita com black)
+    "E501",    # line-too-long (deixa o black gerenciar)
+    "PLR0913", # too-many-arguments
+    "PLR2004", # magic-value-comparison
+    "S101",    # use-of-assert-detected (para testes)
+    "S105",    # hardcoded-password-string (para development)
+    "S311",    # suspicious-non-cryptographic-random-usage
+    "TRY003",  # raise-vanilla-args
+    "EM101",   # raw-string-in-exception
+    "EM102",   # f-string-in-exception
+    "FBT001",  # boolean-type-hint-positional-argument
+    "FBT002",  # boolean-default-value-positional-argument
+    "ERA001",  # found-commented-out-code (para fase de desenvolvimento)
+    "T201",    # print-found (para desenvolvimento/debug)
+    "E402",    # module-level-import-not-at-top-of-file (para settings)
+    "PTH103",  # os-makedirs (será corrigido gradualmente)
+    "RUF005",  # collection-literal-concatenation (será corrigido gradualmente)
+    "PLC0415", # import-outside-toplevel (para manage.py e configurações)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"*/tests/*" = [
+    "S101",    # assert
+    "ARG",     # unused-arguments
+    "FBT",     # flake8-boolean-trap
+    "PLR2004", # magic-value-comparison
+    "S311",    # suspicious-non-cryptographic-random-usage
+]
+"*/migrations/*" = ["ALL"]
+"*/__init__.py" = ["F401"]
+"*/settings/*" = ["F405", "F403"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["iabank"]
+known-third-party = ["django", "rest_framework"]
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | __pycache__
+  | migrations
+)/
+'''
+force-exclude = '''
+/(
+    migrations
+)/
+'''
+
+[tool.mypy]
+python_version = "3.11"
+check_untyped_defs = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+disallow_untyped_calls = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+show_error_codes = true
+show_column_numbers = true
+pretty = true
+exclude = [
+    "migrations/",
+    "__pycache__/",
+    "venv/",
+    ".venv/",
+]
+
+# Django-specific settings
+[tool.mypy-django]
+django_settings_module = "iabank.settings.development"
+
+# Django stubs
+[[tool.mypy.overrides]]
+module = [
+    "django.*",
+    "rest_framework.*",
+    "celery.*",
+    "redis.*",
+    "factory.*",
+    "faker.*",
+    "structlog.*",
+    "prometheus_client.*",
+    "cryptography.*",
+    "argon2.*",
+    "simple_history.*",
+    "cors_headers.*",
+    "django_filters.*",
+    "rest_framework_simplejwt.*",
+    "decouple.*",
+    "dotenv.*",
+    "dateutil.*",
+    "phonenumbers.*",
+    "validate_docbr.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "iabank.settings.testing"
+python_files = ["tests.py", "test_*.py", "*_tests.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+    "--tb=short",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html:coverage_html",
+    "--cov-fail-under=85",
+]
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+    "contract: marks tests as contract tests",
+    "tenant_isolation: marks tests that validate tenant isolation",
+]
