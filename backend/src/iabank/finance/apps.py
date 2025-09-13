@@ -2,6 +2,5 @@ from django.apps import AppConfig
 
 
 class FinanceConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'iabank.finance'
-    verbose_name = 'Finance'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "iabank.finance"
