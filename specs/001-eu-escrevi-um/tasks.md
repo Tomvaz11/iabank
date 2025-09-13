@@ -1,0 +1,202 @@
+# Tasks: Sistema IABANK - Plataforma SaaS de Gestão de Empréstimos
+
+**Input**: Design documents from `/specs/001-eu-escrevi-um/`
+**Prerequisites**: plan.md, research.md, data-model.md, contracts/, quickstart.md
+
+## Execution Flow
+
+Baseado na análise dos documentos disponíveis:
+- **Tech Stack**: Django 4.2+ com DRF, React 18+ com TypeScript, PostgreSQL, Redis, Celery
+- **Architecture**: Django-Domain-First com isolamento domain/, Feature-Sliced Design no frontend
+- **Multi-tenancy**: Row-level security com tenant_id obrigatório
+- **Testing**: TDD rigoroso com cobertura ≥85%
+
+## Phase 3.1: Setup
+
+- [ ] T001 Criar estrutura de projeto Django backend com Apps modulares conforme plan.md
+- [ ] T002 Inicializar projeto Django com dependências: DRF, PostgreSQL, Redis, Celery, pytest
+- [ ] T003 [P] Configurar linting: ruff, black, mypy para backend
+- [ ] T004 [P] Configurar estrutura React com TypeScript e Feature-Sliced Design
+- [ ] T005 [P] Setup PostgreSQL com Docker e configurações multi-tenant
+
+## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
+
+**CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
+
+### Contract Tests
+- [ ] T006 [P] Contract test POST /api/v1/auth/login em `backend/tests/contract/test_auth_login.py`
+- [ ] T007 [P] Contract test POST /api/v1/customers em `backend/tests/contract/test_customers_post.py`
+- [ ] T008 [P] Contract test GET /api/v1/customers/{id} em `backend/tests/contract/test_customers_get.py`
+- [ ] T009 [P] Contract test POST /api/v1/loans em `backend/tests/contract/test_loans_post.py`
+- [ ] T010 [P] Contract test GET /api/v1/loans/{id}/installments em `backend/tests/contract/test_installments_get.py`
+- [ ] T011 [P] Contract test POST /api/v1/installments/{id}/payments em `backend/tests/contract/test_payments_post.py`
+- [ ] T012 [P] Contract test GET /api/v1/reports/dashboard em `backend/tests/contract/test_reports_dashboard.py`
+
+### Integration Tests
+- [ ] T013 [P] Integration test fluxo completo autenticação em `backend/tests/integration/test_auth_flow.py`
+- [ ] T014 [P] Integration test gestão de clientes em `backend/tests/integration/test_customer_management.py`
+- [ ] T015 [P] Integration test criação de empréstimos em `backend/tests/integration/test_loan_creation.py`
+- [ ] T016 [P] Integration test processamento de pagamentos em `backend/tests/integration/test_payment_processing.py`
+- [ ] T017 [P] Integration test isolamento multi-tenant em `backend/tests/integration/test_tenant_isolation.py`
+- [ ] T018 [P] Integration test conformidade e auditoria em `backend/tests/integration/test_compliance_audit.py`
+- [ ] T019 [P] Integration test relatórios e dashboard em `backend/tests/integration/test_reports_flow.py`
+
+## Phase 3.3: Core Implementation (ONLY after tests are failing)
+
+### Multi-Tenancy & Core
+- [ ] T020 BaseTenantModel em `backend/src/iabank/core/models.py`
+- [ ] T021 [P] Middleware de isolamento tenant em `backend/src/iabank/core/middleware.py`
+- [ ] T022 Tenant model em `backend/src/iabank/core/models.py`
+
+### Users Module
+- [ ] T023 User model em `backend/src/iabank/users/models.py`
+- [ ] T024 Consultant model em `backend/src/iabank/users/models.py`
+- [ ] T025 [P] User domain entities em `backend/src/iabank/users/domain/entities.py`
+- [ ] T026 [P] User domain services em `backend/src/iabank/users/domain/services.py`
+- [ ] T027 Auth e User management ViewSets em `backend/src/iabank/users/views.py`
+
+### Customers Module
+- [ ] T028 Customer model em `backend/src/iabank/customers/models.py`
+- [ ] T029 Address model em `backend/src/iabank/customers/models.py`
+- [ ] T030 [P] Customer domain entities em `backend/src/iabank/customers/domain/entities.py`
+- [ ] T031 [P] Customer domain services em `backend/src/iabank/customers/domain/services.py`
+- [ ] T032 Customer CRUD e credit analysis ViewSets em `backend/src/iabank/customers/views.py`
+
+### Operations Module
+- [ ] T033 Loan model em `backend/src/iabank/operations/models.py`
+- [ ] T034 Installment model em `backend/src/iabank/operations/models.py`
+- [ ] T035 [P] Loan domain entities em `backend/src/iabank/operations/domain/entities.py`
+- [ ] T036 [P] Loan domain services (cálculos IOF, CET) em `backend/src/iabank/operations/domain/services.py`
+- [ ] T037 Loan, Installment e Payment ViewSets em `backend/src/iabank/operations/views.py`
+
+### Finance Module
+- [ ] T038 BankAccount model em `backend/src/iabank/finance/models.py`
+- [ ] T039 FinancialTransaction model em `backend/src/iabank/finance/models.py`
+- [ ] T040 PaymentCategory e CostCenter models em `backend/src/iabank/finance/models.py`
+- [ ] T041 Supplier model em `backend/src/iabank/finance/models.py`
+- [ ] T042 [P] Finance domain entities em `backend/src/iabank/finance/domain/entities.py`
+- [ ] T043 [P] Finance domain services em `backend/src/iabank/finance/domain/services.py`
+- [ ] T044 Finance CRUD e Reports ViewSets em `backend/src/iabank/finance/views.py`
+
+## Phase 3.4: Integration
+
+- [ ] T045 Database migrations para todos os models
+- [ ] T046 Configurar Celery para processamento assíncrono
+- [ ] T047 Django settings para multi-tenancy e security
+- [ ] T048 URL routing para API v1
+- [ ] T049 CORS e security headers configuração
+- [ ] T050 Configurar structlog com contexto automático
+- [ ] T051 Django admin interface com tenant filtering
+
+## Phase 3.5: Frontend Implementation
+
+- [ ] T052 [P] Configurar TanStack Query e Zustand stores
+- [ ] T053 [P] Auth feature com login/logout em `frontend/src/features/auth/`
+- [ ] T054 [P] Customer management feature em `frontend/src/features/customers/`
+- [ ] T055 [P] Loan management feature em `frontend/src/features/loans/`
+- [ ] T056 [P] Payment processing feature em `frontend/src/features/payments/`
+- [ ] T057 [P] Financial reports feature em `frontend/src/features/reports/`
+- [ ] T058 Dashboard principal em `frontend/src/pages/Dashboard/`
+- [ ] T059 TypeScript types generation from OpenAPI schema
+
+## Phase 3.6: Polish
+
+- [ ] T060 [P] Unit tests para domain services em `backend/tests/unit/`
+- [ ] T061 [P] Unit tests para validation logic em `backend/tests/unit/`
+- [ ] T062 [P] Frontend unit tests com vitest
+- [ ] T063 Performance tests para endpoints críticos (<500ms p95)
+- [ ] T064 Django management commands específicos: customers, loans, finance com --tenant-id
+- [ ] T065 API documentation com OpenAPI schema
+- [ ] T066 LGPD compliance e data encryption
+- [ ] T067 Executar quickstart.md para validação final
+
+## Dependencies
+
+**Critical Dependencies**:
+- Tests (T006-T019) MUST complete before implementation (T020-T059)
+- T020-T022 (Core/Tenant) block all other model tasks
+- T023-T026 (Users models/domain) before T027 (Auth endpoints)
+- T028-T031 (Customers models/domain) before T032 (Customer endpoints)
+- T033-T036 (Operations models/domain) before T037 (Loan endpoints)
+- T038-T043 (Finance models/domain) before T044 (Finance endpoints)
+- Implementation before polish (T060-T067)
+
+**Parallel Execution Notes**:
+- Models within different modules can be created in parallel [P]
+- Domain entities/services within modules can be developed in parallel [P]
+- Contract tests are completely independent [P]
+- Frontend features are independent after core setup [P]
+
+## Parallel Example
+
+```bash
+# Launch contract tests together (T006-T012):
+Task: "Contract test POST /api/v1/auth/login em backend/tests/contract/test_auth_login.py"
+Task: "Contract test POST /api/v1/customers em backend/tests/contract/test_customers_post.py"
+Task: "Contract test GET /api/v1/customers/{id} em backend/tests/contract/test_customers_get.py"
+Task: "Contract test POST /api/v1/loans em backend/tests/contract/test_loans_post.py"
+
+# Launch model creation in parallel (T025-T026, T030-T031, T035-T036, T042-T043):
+Task: "User domain entities em backend/src/iabank/users/domain/entities.py"
+Task: "Customer domain entities em backend/src/iabank/customers/domain/entities.py"
+Task: "Loan domain entities em backend/src/iabank/operations/domain/entities.py"
+Task: "Finance domain entities em backend/src/iabank/finance/domain/entities.py"
+```
+
+## Validation Checklist
+
+### Contract Validation
+- [ ] Todos os endpoints da OpenAPI têm contract tests
+- [ ] Tests de schema validation request/response
+- [ ] Tests de tenant isolation para cada endpoint
+- [ ] Todos os tests FALHAM antes da implementação
+
+### Entity Validation
+- [ ] Todas as 12 entidades do data-model implementadas (incluindo Supplier)
+- [ ] BaseTenantModel herdado por todos os models
+- [ ] Índices compostos com tenant_id como primeira coluna
+- [ ] Validations conforme business rules
+
+### Business Logic Validation
+- [ ] Cálculos de IOF conforme tabela Receita Federal
+- [ ] Cálculo de CET conforme Resolução 4.292/2013
+- [ ] Lei da Usura respeitada (taxa configurável por tenant)
+- [ ] Período de arrependimento (7 dias corridos)
+- [ ] State transitions para Loan e Installment
+
+### Technical Validation
+- [ ] Django-Domain-First: domain/ isolation implementado
+- [ ] Multi-tenancy: filtro automático por tenant_id
+- [ ] TDD: todos os tests passando
+- [ ] Performance: <500ms p95 para operações CRUD
+- [ ] Security: HTTPS, CORS, rate limiting
+
+### Quickstart Flow Validation
+- [ ] Flow 1: Autenticação e Setup Inicial (T013)
+- [ ] Flow 2: Gestão de Clientes (T014)
+- [ ] Flow 3: Criação e Gestão de Empréstimos (T015)
+- [ ] Flow 4: Processamento de Pagamentos (T016)
+- [ ] Flow 5: Relatórios e Dashboard (T019)
+- [ ] Flow 6: Conformidade e Auditoria (T018)
+
+## Notes
+
+- **[P] tasks**: Different files, no dependencies - can run in parallel
+- **File Paths**: All paths are absolute and follow plan.md structure
+- **TDD Enforcement**: RED-GREEN-Refactor cycle rigoroso
+- **Constitution Compliance**: Todos os tasks seguem constitution v1.0.0
+- **Regulatory Compliance**: Brazilian financial regulations integrated
+
+## Task Count Summary
+
+- **Setup**: T001-T005 (5 tasks)
+- **Tests**: T006-T019 (14 tasks)
+- **Core**: T020-T044 (25 tasks)
+- **Integration**: T045-T051 (7 tasks)
+- **Frontend**: T052-T059 (8 tasks)
+- **Polish**: T060-T067 (8 tasks)
+
+**Total**: 67 tasks organizadas por dependencies e execution order
+
+---
+*Generated by /tasks command based on constitution v1.0.0 and design documents*

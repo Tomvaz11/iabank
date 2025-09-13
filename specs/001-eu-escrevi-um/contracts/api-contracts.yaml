@@ -1,0 +1,1353 @@
+openapi: 3.0.3
+info:
+  title: IABANK API
+  description: Plataforma SaaS de Gestão de Empréstimos - API REST
+  version: 1.0.0
+  contact:
+    name: IABANK Development Team
+    email: dev@iabank.com.br
+
+servers:
+  - url: https://api.iabank.com.br/api/v1
+    description: Production server
+  - url: https://staging-api.iabank.com.br/api/v1
+    description: Staging server
+  - url: http://localhost:8000/api/v1
+    description: Development server
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: auth
+    description: Autenticação e autorização
+  - name: tenants
+    description: Gestão de tenants
+  - name: users
+    description: Gestão de usuários
+  - name: customers
+    description: Gestão de clientes
+  - name: loans
+    description: Gestão de empréstimos
+  - name: finance
+    description: Gestão financeira
+  - name: reports
+    description: Relatórios e dashboards
+
+paths:
+  # ========== AUTHENTICATION ==========
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Login do usuário
+      description: Autentica usuário e retorna tokens JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@empresa.com.br"
+                password:
+                  type: string
+                  format: password
+                  example: "SecurePass123!"
+                tenant_domain:
+                  type: string
+                  example: "empresa"
+                  description: "Opcional se email único globalmente"
+      responses:
+        '200':
+          description: Login realizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Renovar token de acesso
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token renovado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Logout do usuário
+      responses:
+        '204':
+          description: Logout realizado com sucesso
+
+  # ========== TENANTS ==========
+  /tenants/current:
+    get:
+      tags: [tenants]
+      summary: Obter informações do tenant atual
+      responses:
+        '200':
+          description: Informações do tenant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+
+  # ========== USERS ==========
+  /users:
+    get:
+      tags: [users]
+      summary: Listar usuários do tenant
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [ADMIN, MANAGER, CONSULTANT, COLLECTOR]
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Lista de usuários
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+
+    post:
+      tags: [users]
+      summary: Criar novo usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+      responses:
+        '201':
+          description: Usuário criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /users/{user_id}:
+    get:
+      tags: [users]
+      summary: Obter usuário por ID
+      parameters:
+        - $ref: '#/components/parameters/UserIdParam'
+      responses:
+        '200':
+          description: Dados do usuário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    put:
+      tags: [users]
+      summary: Atualizar usuário
+      parameters:
+        - $ref: '#/components/parameters/UserIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdateRequest'
+      responses:
+        '200':
+          description: Usuário atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+
+    delete:
+      tags: [users]
+      summary: Desativar usuário
+      parameters:
+        - $ref: '#/components/parameters/UserIdParam'
+      responses:
+        '204':
+          description: Usuário desativado com sucesso
+
+  # ========== CUSTOMERS ==========
+  /customers:
+    get:
+      tags: [customers]
+      summary: Listar clientes
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: search
+          in: query
+          description: Buscar por nome, email ou documento
+          schema:
+            type: string
+        - name: document_type
+          in: query
+          schema:
+            type: string
+            enum: [CPF, CNPJ]
+      responses:
+        '200':
+          description: Lista de clientes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerListResponse'
+
+    post:
+      tags: [customers]
+      summary: Criar novo cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerCreateRequest'
+      responses:
+        '201':
+          description: Cliente criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+
+  /customers/{customer_id}:
+    get:
+      tags: [customers]
+      summary: Obter cliente por ID
+      parameters:
+        - $ref: '#/components/parameters/CustomerIdParam'
+      responses:
+        '200':
+          description: Dados do cliente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+
+    put:
+      tags: [customers]
+      summary: Atualizar cliente
+      parameters:
+        - $ref: '#/components/parameters/CustomerIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CustomerUpdateRequest'
+      responses:
+        '200':
+          description: Cliente atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+
+  /customers/{customer_id}/credit-analysis:
+    post:
+      tags: [customers]
+      summary: Solicitar análise de crédito
+      parameters:
+        - $ref: '#/components/parameters/CustomerIdParam'
+      responses:
+        '200':
+          description: Análise de crédito realizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreditAnalysisResponse'
+
+  # ========== LOANS ==========
+  /loans:
+    get:
+      tags: [loans]
+      summary: Listar empréstimos
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ANALYSIS, APPROVED, ACTIVE, FINISHED, COLLECTION, CANCELLED]
+        - name: customer_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: consultant_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lista de empréstimos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanListResponse'
+
+    post:
+      tags: [loans]
+      summary: Criar novo empréstimo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanCreateRequest'
+      responses:
+        '201':
+          description: Empréstimo criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanResponse'
+
+  /loans/{loan_id}:
+    get:
+      tags: [loans]
+      summary: Obter empréstimo por ID
+      parameters:
+        - $ref: '#/components/parameters/LoanIdParam'
+      responses:
+        '200':
+          description: Dados do empréstimo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanResponse'
+
+    put:
+      tags: [loans]
+      summary: Atualizar empréstimo
+      parameters:
+        - $ref: '#/components/parameters/LoanIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanUpdateRequest'
+      responses:
+        '200':
+          description: Empréstimo atualizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanResponse'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+
+  /loans/{loan_id}/installments:
+    get:
+      tags: [loans]
+      summary: Listar parcelas do empréstimo
+      parameters:
+        - $ref: '#/components/parameters/LoanIdParam'
+      responses:
+        '200':
+          description: Lista de parcelas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstallmentListResponse'
+
+  /loans/{loan_id}/approve:
+    post:
+      tags: [loans]
+      summary: Aprovar empréstimo
+      parameters:
+        - $ref: '#/components/parameters/LoanIdParam'
+      responses:
+        '200':
+          description: Empréstimo aprovado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanResponse'
+
+  /loans/{loan_id}/cancel:
+    post:
+      tags: [loans]
+      summary: Cancelar empréstimo
+      parameters:
+        - $ref: '#/components/parameters/LoanIdParam'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  description: Motivo do cancelamento
+      responses:
+        '200':
+          description: Empréstimo cancelado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanResponse'
+
+  # ========== INSTALLMENTS ==========
+  /installments/{installment_id}:
+    get:
+      tags: [loans]
+      summary: Obter parcela por ID
+      parameters:
+        - $ref: '#/components/parameters/InstallmentIdParam'
+      responses:
+        '200':
+          description: Dados da parcela
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstallmentResponse'
+
+  /installments/{installment_id}/payments:
+    post:
+      tags: [loans]
+      summary: Registrar pagamento de parcela
+      parameters:
+        - $ref: '#/components/parameters/InstallmentIdParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        '200':
+          description: Pagamento registrado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+
+  # ========== FINANCIAL TRANSACTIONS ==========
+  /financial-transactions:
+    get:
+      tags: [finance]
+      summary: Listar transações financeiras
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/LimitParam'
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [INCOME, EXPENSE]
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: bank_account_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Lista de transações
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialTransactionListResponse'
+
+    post:
+      tags: [finance]
+      summary: Criar transação financeira
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FinancialTransactionCreateRequest'
+      responses:
+        '201':
+          description: Transação criada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialTransactionResponse'
+
+  # ========== BANK ACCOUNTS ==========
+  /bank-accounts:
+    get:
+      tags: [finance]
+      summary: Listar contas bancárias
+      responses:
+        '200':
+          description: Lista de contas bancárias
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankAccountListResponse'
+
+    post:
+      tags: [finance]
+      summary: Criar conta bancária
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BankAccountCreateRequest'
+      responses:
+        '201':
+          description: Conta criada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BankAccountResponse'
+
+  # ========== REPORTS ==========
+  /reports/dashboard:
+    get:
+      tags: [reports]
+      summary: Obter dados do dashboard
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 1y]
+            default: 30d
+      responses:
+        '200':
+          description: Dados do dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+
+  /reports/cash-flow:
+    get:
+      tags: [reports]
+      summary: Relatório de fluxo de caixa
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Relatório de fluxo de caixa
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashFlowResponse'
+
+# ========== COMPONENTS ==========
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    
+    LimitParam:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+    UserIdParam:
+      name: user_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    CustomerIdParam:
+      name: customer_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    LoanIdParam:
+      name: loan_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    InstallmentIdParam:
+      name: installment_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    # ========== RESPONSES ==========
+    ApiResponse:
+      type: object
+      properties:
+        data:
+          type: object
+        meta:
+          type: object
+          properties:
+            pagination:
+              $ref: '#/components/schemas/PaginationMeta'
+
+    PaginationMeta:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              code:
+                type: string
+              source:
+                type: object
+              detail:
+                type: string
+
+    # ========== AUTH ==========
+    LoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                access_token:
+                  type: string
+                refresh_token:
+                  type: string
+                expires_in:
+                  type: integer
+                user:
+                  $ref: '#/components/schemas/User'
+
+    TokenResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                access_token:
+                  type: string
+                expires_in:
+                  type: integer
+
+    # ========== ENTITIES ==========
+    Tenant:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        document:
+          type: string
+        domain:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, MANAGER, CONSULTANT, COLLECTOR]
+        is_active:
+          type: boolean
+        mfa_enabled:
+          type: boolean
+        last_login:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        document_type:
+          type: string
+          enum: [CPF, CNPJ]
+        document:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        monthly_income:
+          type: number
+          format: decimal
+        credit_score:
+          type: integer
+        is_active:
+          type: boolean
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+
+    Address:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [RESIDENTIAL, COMMERCIAL, CORRESPONDENCE]
+        street:
+          type: string
+        number:
+          type: string
+        complement:
+          type: string
+        neighborhood:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zipcode:
+          type: string
+        is_primary:
+          type: boolean
+
+    Loan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        customer:
+          $ref: '#/components/schemas/Customer'
+        consultant:
+          $ref: '#/components/schemas/User'
+        principal_amount:
+          type: number
+          format: decimal
+        interest_rate:
+          type: number
+          format: decimal
+        installments_count:
+          type: integer
+        iof_amount:
+          type: number
+          format: decimal
+        cet_monthly:
+          type: number
+          format: decimal
+        cet_yearly:
+          type: number
+          format: decimal
+        total_amount:
+          type: number
+          format: decimal
+        contract_date:
+          type: string
+          format: date
+        first_due_date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [ANALYSIS, APPROVED, ACTIVE, FINISHED, COLLECTION, CANCELLED]
+        regret_deadline:
+          type: string
+          format: date
+        installments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Installment'
+
+    Installment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        sequence:
+          type: integer
+        due_date:
+          type: string
+          format: date
+        principal_amount:
+          type: number
+          format: decimal
+        interest_amount:
+          type: number
+          format: decimal
+        total_amount:
+          type: number
+          format: decimal
+        amount_paid:
+          type: number
+          format: decimal
+        late_fee:
+          type: number
+          format: decimal
+        interest_penalty:
+          type: number
+          format: decimal
+        status:
+          type: string
+          enum: [PENDING, PAID, OVERDUE, PARTIALLY_PAID]
+        payment_date:
+          type: string
+          format: date
+
+    # ========== REQUEST SCHEMAS ==========
+    UserCreateRequest:
+      type: object
+      required: [email, first_name, last_name, role, password]
+      properties:
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, MANAGER, CONSULTANT, COLLECTOR]
+        password:
+          type: string
+          format: password
+
+    UserUpdateRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        role:
+          type: string
+          enum: [ADMIN, MANAGER, CONSULTANT, COLLECTOR]
+        is_active:
+          type: boolean
+
+    CustomerCreateRequest:
+      type: object
+      required: [document_type, document, name, email]
+      properties:
+        document_type:
+          type: string
+          enum: [CPF, CNPJ]
+        document:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        birth_date:
+          type: string
+          format: date
+        monthly_income:
+          type: number
+          format: decimal
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/AddressCreateRequest'
+
+    AddressCreateRequest:
+      type: object
+      required: [type, street, number, neighborhood, city, state, zipcode]
+      properties:
+        type:
+          type: string
+          enum: [RESIDENTIAL, COMMERCIAL, CORRESPONDENCE]
+        street:
+          type: string
+        number:
+          type: string
+        complement:
+          type: string
+        neighborhood:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zipcode:
+          type: string
+        is_primary:
+          type: boolean
+
+    LoanCreateRequest:
+      type: object
+      required: [customer_id, principal_amount, interest_rate, installments_count, first_due_date]
+      properties:
+        customer_id:
+          type: string
+          format: uuid
+        principal_amount:
+          type: number
+          format: decimal
+        interest_rate:
+          type: number
+          format: decimal
+        installments_count:
+          type: integer
+          minimum: 1
+          maximum: 120
+        first_due_date:
+          type: string
+          format: date
+        notes:
+          type: string
+
+    PaymentRequest:
+      type: object
+      required: [amount, payment_date]
+      properties:
+        amount:
+          type: number
+          format: decimal
+        payment_date:
+          type: string
+          format: date
+        payment_method:
+          type: string
+          enum: [PIX, BOLETO, TRANSFER, CASH]
+        bank_account_id:
+          type: string
+          format: uuid
+
+    # ========== RESPONSE SCHEMAS ==========
+    TenantResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Tenant'
+
+    UserResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/User'
+
+    UserListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/User'
+
+    CustomerResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Customer'
+
+    CustomerListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Customer'
+
+    LoanResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Loan'
+
+    LoanListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Loan'
+
+    InstallmentResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/Installment'
+
+    InstallmentListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Installment'
+
+    CreditAnalysisResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                credit_score:
+                  type: integer
+                risk_level:
+                  type: string
+                  enum: [LOW, MEDIUM, HIGH]
+                recommendation:
+                  type: string
+                  enum: [APPROVE, REJECT, MANUAL_REVIEW]
+                max_loan_amount:
+                  type: number
+                  format: decimal
+
+    PaymentResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                installment:
+                  $ref: '#/components/schemas/Installment'
+                transaction:
+                  $ref: '#/components/schemas/FinancialTransaction'
+
+    FinancialTransaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [INCOME, EXPENSE]
+        amount:
+          type: number
+          format: decimal
+        description:
+          type: string
+        reference_date:
+          type: string
+          format: date
+        status:
+          type: string
+          enum: [PENDING, PAID, CANCELLED]
+
+    FinancialTransactionCreateRequest:
+      type: object
+      required: [type, amount, description, reference_date, bank_account_id]
+      properties:
+        type:
+          type: string
+          enum: [INCOME, EXPENSE]
+        amount:
+          type: number
+          format: decimal
+        description:
+          type: string
+        reference_date:
+          type: string
+          format: date
+        bank_account_id:
+          type: string
+          format: uuid
+
+    FinancialTransactionResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/FinancialTransaction'
+
+    FinancialTransactionListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/FinancialTransaction'
+
+    BankAccount:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        bank_name:
+          type: string
+        agency:
+          type: string
+        account_number:
+          type: string
+        account_type:
+          type: string
+          enum: [CHECKING, SAVINGS, INVESTMENT]
+        balance:
+          type: number
+          format: decimal
+        is_active:
+          type: boolean
+        is_main:
+          type: boolean
+
+    BankAccountCreateRequest:
+      type: object
+      required: [bank_code, bank_name, agency, account_number, account_type]
+      properties:
+        bank_code:
+          type: string
+        bank_name:
+          type: string
+        agency:
+          type: string
+        account_number:
+          type: string
+        account_type:
+          type: string
+          enum: [CHECKING, SAVINGS, INVESTMENT]
+        is_main:
+          type: boolean
+
+    BankAccountResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/BankAccount'
+
+    BankAccountListResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/BankAccount'
+
+    DashboardResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                total_active_loans:
+                  type: integer
+                total_loan_amount:
+                  type: number
+                  format: decimal
+                default_rate:
+                  type: number
+                  format: decimal
+                monthly_revenue:
+                  type: number
+                  format: decimal
+                loans_by_status:
+                  type: object
+                payments_trend:
+                  type: array
+                  items:
+                    type: object
+
+    CashFlowResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                period:
+                  type: object
+                  properties:
+                    start_date:
+                      type: string
+                      format: date
+                    end_date:
+                      type: string
+                      format: date
+                income:
+                  type: number
+                  format: decimal
+                expenses:
+                  type: number
+                  format: decimal
+                net_flow:
+                  type: number
+                  format: decimal
+                daily_flow:
+                  type: array
+                  items:
+                    type: object
+
+  responses:
+    UnauthorizedError:
+      description: Token de acesso inválido ou expirado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ValidationError:
+      description: Erro de validação dos dados enviados
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFoundError:
+      description: Recurso não encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ConflictError:
+      description: Conflito de concorrência ou estado inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
