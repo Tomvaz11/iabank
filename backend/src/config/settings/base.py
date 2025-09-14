@@ -122,12 +122,6 @@ CACHES = {
         "LOCATION": REDIS_URL,
         "KEY_PREFIX": "iabank",
         "TIMEOUT": 300,  # 5 minutes default
-        "OPTIONS": {
-            "CONNECTION_POOL_KWARGS": {
-                "max_connections": 50,
-                "retry_on_timeout": True,
-            },
-        },
     }
 }
 

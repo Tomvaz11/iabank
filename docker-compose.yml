@@ -1,0 +1,103 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: iabank_postgres
+    environment:
+      POSTGRES_DB: iabank
+      POSTGRES_USER: iabank_user
+      POSTGRES_PASSWORD: iabank_pass
+      PGDATA: /var/lib/postgresql/data/pgdata
+      # PITR Configuration (FR-109)
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/pgdata
+      # - postgres_wal_archive:/var/lib/postgresql/wal_archive # Comentado temporariamente devido a permissões
+      - ./backend/scripts/sql:/docker-entrypoint-initdb.d
+      - ./backend/scripts/postgres:/docker-entrypoint-preinitdb.d
+    networks:
+      - iabank_network
+    restart: unless-stopped
+    command: |
+      postgres
+      -c wal_level=replica
+      -c max_wal_senders=3
+      -c wal_keep_size=1GB
+      -c checkpoint_completion_target=0.9
+      -c log_checkpoints=on
+      -c log_min_duration_statement=1000
+      -c shared_preload_libraries='pg_stat_statements'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iabank_user -d iabank"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis for Caching and Celery
+  redis:
+    image: redis:7-alpine
+    container_name: iabank_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - iabank_network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # PostgreSQL Admin (pgAdmin)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: iabank_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@iabank.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - iabank_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Redis Commander (Redis Admin)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: iabank_redis_commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"
+    networks:
+      - iabank_network
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  iabank_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_wal_archive:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local

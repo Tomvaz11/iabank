@@ -17,41 +17,37 @@ MIDDLEWARE = [
     # Add development-specific middleware here if needed
 ] + MIDDLEWARE
 
-# Database - Use SQLite for development until PostgreSQL is setup
+# PostgreSQL configuration
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": config("DB_NAME", default="iabank"),
+        "USER": config("DB_USER", default="iabank_user"),
+        "PASSWORD": config("DB_PASSWORD", default="iabank_pass"),
+        "HOST": config("DB_HOST", default="localhost"),
+        "PORT": config("DB_PORT", default="5433", cast=int),
         "OPTIONS": {
-            "timeout": 30,
+            "client_encoding": "UTF8",
+        },
+        "TEST": {
+            "NAME": "test_iabank_dev",
         },
     }
 }
 
-# PostgreSQL configuration (commented until setup)
+# SQLite fallback for quick testing
 # DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': config('DB_NAME', default='iabank_dev'),
-#         'USER': config('DB_USER', default='postgres'),
-#         'PASSWORD': config('DB_PASSWORD', default='postgres'),
-#         'HOST': config('DB_HOST', default='localhost'),
-#         'PORT': config('DB_PORT', default='5432'),
-#         'OPTIONS': {
-#             'client_encoding': 'UTF8',
-#         },
-#         'TEST': {
-#             'NAME': 'test_iabank_dev',
+#     "default": {
+#         "ENGINE": "django.db.backends.sqlite3",
+#         "NAME": BASE_DIR / "db.sqlite3",
+#         "OPTIONS": {
+#             "timeout": 30,
 #         },
 #     }
 # }
 
-# Cache - Use dummy cache for development to avoid Redis dependency
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.dummy.DummyCache",
-    }
-}
+# Cache - Use Redis even in development (container must be running)
+# CACHES setting inherited from base.py
 
 # Celery - Use in-memory broker for development
 CELERY_TASK_ALWAYS_EAGER = True
