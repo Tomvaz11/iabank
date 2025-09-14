@@ -155,15 +155,16 @@ backend/src/iabank/
 
 ## Recent Changes
 
+- 2025-09-14: **CI/CD Pipeline** implementado (desvio emergencial)
+  - Motivo: Branch protection rules órfãs (status amarelo)
+  - Baseado: BLUEPRINT_ARQUITETURAL_FINAL.md Seção 16
+  - Detalhes: Ver tasks.md T068-T070 [EMERGENCY_FIX]
 - 2025-09-13: T001-T005 implementados com sucesso
 - 2025-09-13: PostgreSQL configurado com porta 5433 (conflito resolvido)
 - 2025-09-13: Multi-tenant architecture com RLS e PITR implementado
 - 2025-09-13: Management commands para backup e RLS criados
 - 2025-09-13: Code quality tools configurados e funcionais
 - 2025-09-13: Remoção de emojis dos arquivos de código fonte
-- 2025-09-12: Initial planning phase completed
-- 2025-09-12: Constitution v1.0.0 ratified
-- 2025-09-12: Data model and API contracts defined
 
 ## Useful Commands
 
@@ -186,4 +187,4 @@ black --check src/
 
 ---
 
-_Updated: 2025-09-13 | Lines: 159 | Constitution: v1.0.0_
+_Updated: 2025-09-14 | Lines: 163 | Constitution: v1.0.0_
