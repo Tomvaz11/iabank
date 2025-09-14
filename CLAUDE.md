@@ -157,6 +157,7 @@ python manage.py seed_data --tenant-id <uuid>
 curl http://localhost:8000/health/
 
 # Run tests with tenant isolation
+cd backend && python -m pytest tests/contract/test_*.py -v
 pytest --tenant-isolation
 pytest --cov=src --cov-min=85
 
@@ -176,6 +177,9 @@ pnpm gen:api-types
 # Check constitution compliance
 ruff check src/
 black --check src/
+
+# Fix common test issues
+pip uninstall pytest-asyncio -y
 ```
 
 ---

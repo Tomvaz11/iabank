@@ -29,7 +29,7 @@ Baseado na análise dos documentos disponíveis:
 - [x] T008 [P] Contract test GET /api/v1/customers/{id} em `backend/tests/contract/test_customers_get.py`
 - [x] T009 [P] Contract test POST /api/v1/loans em `backend/tests/contract/test_loans_post.py`
 - [x] T010 [P] Contract test GET /api/v1/loans/{id}/installments em `backend/tests/contract/test_installments_get.py`
-- [ ] T011 [P] Contract test POST /api/v1/installments/{id}/payments em `backend/tests/contract/test_payments_post.py`
+- [x] T011 [P] Contract test POST /api/v1/installments/{id}/payments em `backend/tests/contract/test_payments_post.py`
 - [ ] T012 [P] Contract test GET /api/v1/reports/dashboard em `backend/tests/contract/test_reports_dashboard.py`
 
 ### Integration Tests
