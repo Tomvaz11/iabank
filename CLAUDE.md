@@ -99,43 +99,28 @@ IABANK é uma plataforma SaaS multi-tenant para empresas de crédito gerenciarem
 
 ## Current Implementation Status
 
-### Completed (Phase 0-1)
+### Completed
 
-- [x] Feature specification com 112 requisitos funcionais
-- [x] Architecture research baseada na constitution
-- [x] Data model com 11 entidades principais
-- [x] OpenAPI 3.0 contracts completos
-- [x] Quickstart guide com 6 fluxos críticos
+- **Setup (T001-T005)**: Base Django + PostgreSQL + Multi-tenancy ✅
+- **Enterprise (T071-T078)**: Auditoria + JWT + MFA + PITR + Health ✅
+- **CI/CD (T068-T070)**: GitHub Actions + Pre-commit ✅
 
-### Completed (Phase 3.1 - Setup)
-
-- [x] T001: Estrutura Django backend com Apps modulares
-- [x] T002: Projeto Django inicializado com dependências
-- [x] T003: Linting configurado (ruff, black, mypy)
-- [x] T004: Estrutura React com TypeScript e Feature-Sliced Design
-- [x] T005: PostgreSQL com Docker e multi-tenancy
-- [x] Multi-tenant architecture com RLS e PITR
-- [x] Management commands (backup, RLS enable)
-- [x] Code quality tools e scripts de automação
+**Detalhes**: Ver tasks.md para breakdown completo
 
 ## Development Guidelines
 
-### File Organization
+### File Organization (Implementada)
 
 ```
 backend/src/iabank/
-├── core/                    # Multi-tenancy, base models
-├── customers/               # Django App
-│   ├── domain/             # Domain isolation
-│   │   ├── entities.py     # Pydantic entities
-│   │   └── services.py     # Business logic pura
-│   ├── models.py           # Django ORM
-│   ├── views.py            # DRF ViewSets
-│   └── cli.py              # CLI opcional
-├── operations/             # Empréstimos
-├── finance/                # Financeiro
-└── users/                  # Usuários/permissões
+├── core/                    # Multi-tenancy, auditoria, health, MFA
+├── customers/               # Django App + domain/ isolation
+├── operations/              # Empréstimos + domain/ isolation
+├── finance/                 # Financeiro + domain/ isolation
+└── users/                   # Usuários/permissões + domain/ isolation
 ```
+
+**Status**: ✅ Estrutura Django-Domain-First implementada
 
 ### Critical Business Rules
 
@@ -155,16 +140,11 @@ backend/src/iabank/
 
 ## Recent Changes
 
-- 2025-09-14: **CI/CD Pipeline** implementado (desvio emergencial)
-  - Motivo: Branch protection rules órfãs (status amarelo)
-  - Baseado: BLUEPRINT_ARQUITETURAL_FINAL.md Seção 16
-  - Detalhes: Ver tasks.md T068-T070 [EMERGENCY_FIX]
-- 2025-09-13: T001-T005 implementados com sucesso
-- 2025-09-13: PostgreSQL configurado com porta 5433 (conflito resolvido)
-- 2025-09-13: Multi-tenant architecture com RLS e PITR implementado
-- 2025-09-13: Management commands para backup e RLS criados
-- 2025-09-13: Code quality tools configurados e funcionais
-- 2025-09-13: Remoção de emojis dos arquivos de código fonte
+- 2025-09-14: T071-T078 CRITICAL implementados (95/100) - Ver tasks.md
+- 2025-09-14: CI/CD Pipeline implementado - Ver tasks.md T068-T070
+- 2025-09-13: T001-T005 Setup inicial concluído
+- 2025-09-13: PostgreSQL multi-tenant + PITR configurado
+- 2025-09-13: Code quality tools configurados
 
 ## Useful Commands
 
@@ -173,9 +153,22 @@ backend/src/iabank/
 python manage.py migrate
 python manage.py seed_data --tenant-id <uuid>
 
+# Health check and monitoring (T076)
+curl http://localhost:8000/health/
+
 # Run tests with tenant isolation
 pytest --tenant-isolation
 pytest --cov=src --cov-min=85
+
+# PostgreSQL PITR backup (T074)
+python manage.py manage_backups --create
+python manage.py manage_backups --list
+
+# MFA setup for admin users (T078)
+python manage.py shell -c "from iabank.core.mfa import setup_totp_for_user; setup_totp_for_user('admin')"
+
+# Check structured logs (T073)
+tail -f logs/iabank.log | grep -E '"level":"info"'
 
 # Generate API types
 pnpm gen:api-types
