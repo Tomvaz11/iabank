@@ -35,16 +35,8 @@ DATABASES = {
     }
 }
 
-# SQLite fallback for quick testing
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.sqlite3",
-#         "NAME": BASE_DIR / "db.sqlite3",
-#         "OPTIONS": {
-#             "timeout": 30,
-#         },
-#     }
-# }
+# Note: SQLite is not supported in IABANK due to multi-tenancy requirements
+# This project requires PostgreSQL for Row-Level Security (RLS) and PITR features
 
 # Cache - Use Redis even in development (container must be running)
 # CACHES setting inherited from base.py

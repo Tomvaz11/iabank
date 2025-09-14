@@ -102,7 +102,7 @@ DATABASES = {
         "USER": config("DB_USER", default="postgres"),
         "PASSWORD": config("DB_PASSWORD", default="postgres"),
         "HOST": config("DB_HOST", default="localhost"),
-        "PORT": config("DB_PORT", default="5432"),
+        "PORT": config("DB_PORT", default="5433"),
         "OPTIONS": {
             # PostgreSQL specific options
             "client_encoding": "UTF8",

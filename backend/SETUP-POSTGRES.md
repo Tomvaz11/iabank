@@ -15,14 +15,14 @@ docker-compose up -d postgres redis
 ```
 
 Isso irá:
-- Criar um container PostgreSQL na porta 5432
+- Criar um container PostgreSQL na porta 5433
 - Criar um container Redis na porta 6379
 - Inicializar extensões PostgreSQL necessárias
 - Configurar volumes persistentes para dados
 
 ### Serviços Disponíveis
 
-- **PostgreSQL**: `localhost:5432`
+- **PostgreSQL**: `localhost:5433`
   - Database: `iabank`
   - User: `postgres`
   - Password: `postgres`
@@ -63,7 +63,7 @@ DB_NAME=iabank
 DB_USER=postgres
 DB_PASSWORD=postgres
 DB_HOST=localhost
-DB_PORT=5432
+DB_PORT=5433
 ```
 
 ## 3. Executar Migrações
@@ -160,8 +160,8 @@ docker exec -i iabank_postgres psql -U postgres iabank < backup.sql
 ### Container PostgreSQL não inicia
 
 ```bash
-# Verificar se a porta 5432 está em uso
-netstat -an | grep :5432
+# Verificar se a porta 5433 está em uso
+netstat -an | grep :5433
 
 # Verificar logs do container
 docker-compose logs postgres
@@ -181,7 +181,7 @@ docker-compose logs postgres
 
 3. Verificar configurações em `.env`:
    - `DB_HOST=localhost`
-   - `DB_PORT=5432`
+   - `DB_PORT=5433`
    - `DB_NAME=iabank`
 
 ### Problemas com Multi-tenancy

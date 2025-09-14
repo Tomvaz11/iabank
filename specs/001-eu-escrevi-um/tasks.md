@@ -13,11 +13,11 @@ Baseado na análise dos documentos disponíveis:
 
 ## Phase 3.1: Setup
 
-- [ ] T001 Criar estrutura de projeto Django backend com Apps modulares conforme plan.md
-- [ ] T002 Inicializar projeto Django com dependências: DRF, PostgreSQL, Redis, Celery, pytest
-- [ ] T003 [P] Configurar linting: ruff, black, mypy para backend
-- [ ] T004 [P] Configurar estrutura React com TypeScript e Feature-Sliced Design
-- [ ] T005 [P] Setup PostgreSQL com Docker e configurações multi-tenant
+- [x] T001 Criar estrutura de projeto Django backend com Apps modulares conforme plan.md
+- [x] T002 Inicializar projeto Django com dependências: DRF, PostgreSQL, Redis, Celery, pytest
+- [x] T003 [P] Configurar linting: ruff, black, mypy para backend
+- [x] T004 [P] Configurar estrutura React com TypeScript e Feature-Sliced Design
+- [x] T005 [P] Setup PostgreSQL com Docker e configurações multi-tenant
 
 ## Phase 3.2: Tests First (TDD) ⚠️ MUST COMPLETE BEFORE 3.3
 

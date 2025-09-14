@@ -10,7 +10,7 @@ BACKUP_DIR="/var/backups/iabank"
 DB_NAME="iabank"
 DB_USER="postgres"
 DB_HOST="localhost"
-DB_PORT="5432"
+DB_PORT="5433"
 PGDATA="/var/lib/postgresql/data/pgdata"
 WAL_ARCHIVE_DIR="/var/lib/postgresql/wal_archive"
 

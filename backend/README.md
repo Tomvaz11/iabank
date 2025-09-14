@@ -215,10 +215,10 @@ Após T003 implementado:
 
 ## 📝 Próximos Passos
 
-1. **T004**: Configurar estrutura React com TypeScript
-2. **T005**: Setup PostgreSQL com Docker
-3. **T006-T019**: Implementar testes TDD
-4. **T020+**: Implementação dos modelos e lógica de negócio
+1. **T006-T012**: Contract tests (RED phase primeiro)
+2. **T013-T019**: Integration tests com isolamento multi-tenant
+3. **T020+**: Implementação dos modelos de negócio
+4. **API Endpoints**: DRF ViewSets e serializers
 
 ---
 
