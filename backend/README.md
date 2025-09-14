@@ -162,6 +162,101 @@ pytest -m integration # Apenas testes de integração
 pytest -m contract    # Apenas testes de contrato
 ```
 
+## ⚡ Celery - Processamento Assíncrono
+
+### Configurações Enterprise (T079)
+Celery configurado com funcionalidades enterprise-grade:
+
+- **acks_late**: True - Confirmação apenas após processamento completo
+- **worker_prefetch_multiplier**: 1 - Controle de memória
+- **task_reject_on_worker_lost**: True - Rejeitar tasks de workers perdidos
+- **Dead Letter Queue (DLQ)**: Routing automático para tasks falhadas
+- **Retry backoff**: Exponencial para tasks críticas
+- **Idempotência**: Tasks críticas com cache Redis para evitar reprocessamento
+- **Funções utilitárias**: Geração de IDs únicos e verificação de status
+
+### Comandos Celery
+
+```bash
+# Iniciar Celery worker
+celery -A config worker --loglevel=info
+
+# Iniciar Celery beat (tasks periódicas)
+celery -A config beat --loglevel=info
+
+# Monitorar tasks em tempo real
+celery -A config events
+
+# Verificar configurações
+python -c "from config.celery import app; print(app.conf)"
+
+# Verificar tasks registradas
+celery -A config inspect registered
+
+# Limpar filas
+celery -A config purge
+```
+
+### Tasks Periódicas Configuradas
+- **update-iof-rates**: Atualização diária das taxas IOF
+- **calculate-overdue-interest**: Cálculo de juros em atraso (hora em hora)
+- **generate-daily-reports**: Geração de relatórios diários
+
+### Funcionalidades de Idempotência
+
+#### Decorator @idempotent_task
+Para tasks críticas que não devem ser reprocessadas:
+
+```python
+from config.celery import idempotent_task, generate_operation_id
+
+@idempotent_task
+def critical_payment_task(operation_id: str, payment_data: dict):
+    # Lógica da task crítica
+    return {"status": "processed", "operation_id": operation_id}
+
+# Uso
+operation_id = generate_operation_id()
+result = critical_payment_task.delay(operation_id, payment_data)
+```
+
+#### Funções Utilitárias
+
+```python
+from config.celery import generate_operation_id, is_operation_completed, is_operation_processing
+
+# Gerar ID único para operação
+operation_id = generate_operation_id()
+
+# Verificar se operação já foi completada
+if is_operation_completed(operation_id):
+    print("Operação já processada")
+
+# Verificar se operação está em processamento
+if is_operation_processing(operation_id):
+    print("Operação em andamento")
+```
+
+#### Comandos de Teste
+
+```bash
+# Testar funcionalidades de idempotência
+python -c "
+from config.celery import generate_operation_id, example_critical_task
+op_id = generate_operation_id()
+result1 = example_critical_task(op_id, {'test': 'data'})
+result2 = example_critical_task(op_id, {'test': 'data'})
+print('Idempotência:', result1 == result2)
+"
+
+# Verificar configurações T079
+python -c "
+from config.celery import app
+print('acks_late:', app.conf.task_acks_late)
+print('DLQ routes:', len(app.conf.task_routes))
+"
+```
+
 ## 🔧 Comandos de Desenvolvimento Rápido
 
 ### Verificação Pré-Commit
@@ -206,20 +301,21 @@ pytest --cov=src --cov-fail-under=85
 
 ### Status dos Checks
 
-Após T003 implementado:
+Após T003 + T079 implementados:
 - ✅ Ruff configurado e funcional
 - ✅ Black configurado e funcional
 - ✅ MyPy configurado e funcional
 - ✅ Scripts de automação criados
 - ✅ Configurações otimizadas para desenvolvimento
+- ✅ Celery enterprise-grade configurado (T079)
 
 ## 📝 Próximos Passos
 
-1. **T006-T012**: Contract tests (RED phase primeiro)
+1. **T080-T085**: Blueprint gaps restantes (Quality gates, Dockerfiles, E2E, etc.)
 2. **T013-T019**: Integration tests com isolamento multi-tenant
 3. **T020+**: Implementação dos modelos de negócio
 4. **API Endpoints**: DRF ViewSets e serializers
 
 ---
 
-**Configurado em T003** | **Versão**: 1.0.0 | **Constitution**: v1.0.0
+**Configurado em T003 + T079** | **Versão**: 1.1.0 | **Constitution**: v1.0.0
