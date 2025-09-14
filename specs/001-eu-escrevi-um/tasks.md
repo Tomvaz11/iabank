@@ -24,7 +24,7 @@ Baseado na análise dos documentos disponíveis:
 **CRITICAL: These tests MUST be written and MUST FAIL before ANY implementation**
 
 ### Contract Tests
-- [ ] T006 [P] Contract test POST /api/v1/auth/login em `backend/tests/contract/test_auth_login.py`
+- [x] T006 [P] Contract test POST /api/v1/auth/login em `backend/tests/contract/test_auth_login.py`
 - [ ] T007 [P] Contract test POST /api/v1/customers em `backend/tests/contract/test_customers_post.py`
 - [ ] T008 [P] Contract test GET /api/v1/customers/{id} em `backend/tests/contract/test_customers_get.py`
 - [ ] T009 [P] Contract test POST /api/v1/loans em `backend/tests/contract/test_loans_post.py`

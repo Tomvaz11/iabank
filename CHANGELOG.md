@@ -7,9 +7,14 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Não Lançado]
 
+### Adicionado
+
+- **T006**: Contract test POST /api/v1/auth/login (RED phase TDD)
+
 ## [0.3.0] - 2025-09-13
 
 ### Adicionado
+
 - **T001**: Estrutura Django backend com Apps modulares (core, customers, operations, finance, users)
 - **T002**: Projeto Django inicializado com dependências (DRF, PostgreSQL, Redis, Celery, pytest)
 - **T003**: Code quality tools configurados (ruff, black, mypy)
@@ -23,20 +28,24 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Domain isolation em cada Django App
 
 ### Alterado
+
 - Porta PostgreSQL alterada de 5432 para 5433 (conflito resolvido)
 - Documentação atualizada com status real da implementação
 
 ### Removido
+
 - Emojis dos arquivos de código fonte (substituídos por prefixos textuais)
 - Arquivo temporário `SOLUCAO-POSTGRESQL.md`
 
 ### Corrigido
+
 - Problema de conflito de porta PostgreSQL com instalação local Windows
 - Inconsistências na documentação sobre status de implementação
 
 ## [0.2.0] - 2025-09-12
 
 ### Adicionado
+
 - Feature specification com 112 requisitos funcionais
 - Architecture research baseada na constitution
 - Data model com 11 entidades principais
@@ -45,6 +54,7 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Constitution v1.0.0 ratificada
 
 ### Adicionado
+
 - Estrutura inicial do projeto
 - Configurações básicas de desenvolvimento
 - Documentação inicial
@@ -52,7 +62,7 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## Commits Relacionados
 
 - `33777d6` - chore: remover emojis dos arquivos de código fonte
-- `5d7bf9d` - chore: remover completamente arquivos __pycache__ do controle de versão
+- `5d7bf9d` - chore: remover completamente arquivos **pycache** do controle de versão
 - `067316a` - chore: limpar arquivos cache e adicionar componentes Django faltantes
 - `e1c1954` - chore: adicionar .gitignore para arquivos Python e desenvolvimento
 - `e991718` - fix: resolver problema PostgreSQL e validar T001-T005 implementações
@@ -62,20 +72,6 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `de94724` - feat: implementar estrutura inicial do backend Django
 - `8e500f3` - Initial commit: IABANK project setup
 
-## Próximos Marcos
-
-### [0.4.0] - TDD Phase (T006-T019)
-- Contract tests para todos os endpoints críticos
-- Integration tests com isolamento multi-tenant
-- Factory classes com propagação automática de tenant_id
-- Cobertura de testes ≥85%
-
-### [0.5.0] - Core Implementation (T020+)
-- Modelos de negócio implementados
-- DRF ViewSets e serializers
-- Lógica de negócio nos services
-- API endpoints funcionais
-
 ---
 
-*Mantido desde 2025-09-13*
+_Mantido desde 2025-09-13_
