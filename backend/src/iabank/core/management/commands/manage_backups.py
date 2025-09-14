@@ -128,7 +128,7 @@ class Command(BaseCommand):
             return
 
         # List base backups
-        self.stdout.write("\n📦 Base Backups (PITR):")
+        self.stdout.write("\n[BASE BACKUPS] Base Backups (PITR):")
         basebackup_found = False
         for item in os.listdir(backup_dir):
             if item.startswith("basebackup_"):
@@ -137,14 +137,14 @@ class Command(BaseCommand):
                     size = self.get_directory_size(path)
                     timestamp = item.replace("basebackup_", "")
                     formatted_time = self.format_timestamp(timestamp)
-                    self.stdout.write(f"  📦 {item} ({size}) - {formatted_time}")
+                    self.stdout.write(f"  [BACKUP] {item} ({size}) - {formatted_time}")
                     basebackup_found = True
 
         if not basebackup_found:
             self.stdout.write("  (No base backups found)")
 
         # List logical dumps
-        self.stdout.write("\n📄 Logical Dumps:")
+        self.stdout.write("\n[DUMPS] Logical Dumps:")
         dump_found = False
         for item in os.listdir(backup_dir):
             if item.startswith("dump_") and (
@@ -155,7 +155,7 @@ class Command(BaseCommand):
                     size = self.get_file_size(path)
                     mtime = datetime.fromtimestamp(os.path.getmtime(path))
                     self.stdout.write(
-                        f'  📄 {item} ({size}) - {mtime.strftime("%Y-%m-%d %H:%M:%S")}'
+                        f'  [DUMP] {item} ({size}) - {mtime.strftime("%Y-%m-%d %H:%M:%S")}'
                     )
                     dump_found = True
 
@@ -166,7 +166,7 @@ class Command(BaseCommand):
         """Clean up old backups according to retention policy."""
         dry_run = options.get("dry_run", False)
 
-        self.stdout.write("🧹 Cleaning up old backups (FR-111 retention policy)")
+        self.stdout.write("[CLEANUP] Cleaning up old backups (FR-111 retention policy)")
 
         backup_dir = "/var/backups/iabank"
         retention_days = 30
@@ -191,7 +191,7 @@ class Command(BaseCommand):
 
     def show_status(self, options):
         """Show PITR and backup status."""
-        self.stdout.write("📊 IABANK Backup & PITR Status")
+        self.stdout.write("[STATUS] IABANK Backup & PITR Status")
 
         try:
             with connection.cursor() as cursor:
@@ -199,7 +199,7 @@ class Command(BaseCommand):
                 cursor.execute("SELECT * FROM check_pitr_config();")
                 config_status = cursor.fetchall()
 
-                self.stdout.write("\n🛡️ PITR Configuration:")
+                self.stdout.write("\n[PITR] PITR Configuration:")
                 for (
                     setting_name,
                     current_value,
@@ -214,7 +214,7 @@ class Command(BaseCommand):
                 cursor.execute("SELECT * FROM show_wal_status();")
                 wal_status = cursor.fetchone()
 
-                self.stdout.write("\n📝 WAL Status:")
+                self.stdout.write("\n[WAL] WAL Status:")
                 if wal_status:
                     (
                         current_wal,

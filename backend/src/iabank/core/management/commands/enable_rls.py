@@ -74,20 +74,20 @@ class Command(BaseCommand):
                     if tables:
                         self.stdout.write("Tables that would have RLS enabled:")
                         for table in tables:
-                            self.stdout.write(f"  📋 {table[0]}")
+                            self.stdout.write(f"  [TABLE] {table[0]}")
                     else:
                         self.stdout.write("No tenant tables found to enable RLS on.")
 
                 # Show usage instructions
                 self.stdout.write("")
-                self.stdout.write(self.style.SUCCESS("🔧 Usage in Django:"))
+                self.stdout.write(self.style.SUCCESS("[USAGE] Usage in Django:"))
                 self.stdout.write("  from django.db import connection")
                 self.stdout.write("  with connection.cursor() as cursor:")
                 self.stdout.write(
                     '      cursor.execute("SELECT set_tenant_context(%s)", [tenant_id])'
                 )
                 self.stdout.write("")
-                self.stdout.write(self.style.SUCCESS("🔧 Usage in middleware:"))
+                self.stdout.write(self.style.SUCCESS("[USAGE] Usage in middleware:"))
                 self.stdout.write(
                     "  Add call to set_tenant_context() in TenantMiddleware"
                 )
