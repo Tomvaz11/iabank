@@ -45,6 +45,9 @@ THIRD_PARTY_APPS = [
     "django_prometheus",
     "django_celery_beat",
     "django_celery_results",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
+    "django_otp.plugins.otp_static",
 ]
 
 LOCAL_APPS = [
