@@ -88,6 +88,75 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Backend Django Application
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: iabank_backend
+    environment:
+      # Database
+      DATABASE_URL: postgresql://iabank_user:iabank_pass@postgres:5432/iabank
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: iabank
+      DB_USER: iabank_user
+      DB_PASSWORD: iabank_pass
+
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+
+      # Django
+      DEBUG: 'False'
+      SECRET_KEY: 'django-insecure-development-key-change-in-production'
+      ALLOWED_HOSTS: 'localhost,127.0.0.1,backend,0.0.0.0'
+      DJANGO_SETTINGS_MODULE: 'config.settings.production'
+
+      # Security
+      SECURE_SSL_REDIRECT: 'False'
+      SECURE_PROXY_SSL_HEADER: 'HTTP_X_FORWARDED_PROTO,https'
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/logs:/app/logs
+    networks:
+      - iabank_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Frontend React Application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: iabank_frontend
+    ports:
+      - "3000:80"
+    networks:
+      - iabank_network
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 networks:
   iabank_network:
     driver: bridge
