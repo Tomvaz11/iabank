@@ -130,7 +130,7 @@ Baseado na análise dos documentos disponíveis:
 
 ### T079-T085 BLUEPRINT_GAPS - Lacunas Arquiteturais (Implementado 2025-09-14)
 - [x] T079 [BLUEPRINT_GAP] Celery configurações avançadas (acks_late, DLQ, retry backoff) em `config/celery.py`
-- [ ] T080 [BLUEPRINT_GAP] Quality gates automatizados com complexidade ciclomática e SAST
+- [x] T080 [BLUEPRINT_GAP] Quality gates automatizados com complexidade ciclomática e SAST
 - [ ] T081 [BLUEPRINT_GAP] Dockerfiles multi-stage production (backend + frontend)
 - [ ] T082 [BLUEPRINT_GAP] Path filtering CI/CD + Blue-Green deployment preparation
 - [ ] T083 [BLUEPRINT_GAP] Testes E2E com Cypress (3 fluxos críticos de negócio)
