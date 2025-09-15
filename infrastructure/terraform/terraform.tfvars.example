@@ -1,0 +1,41 @@
+# IABANK Terraform Variables Example
+# Copy this file to terraform.tfvars and update values
+
+# Environment Configuration
+environment    = "prod"
+project_name   = "iabank"
+
+# AWS Regions
+primary_region = "us-east-1"
+dr_region      = "us-west-2"
+
+# Database Configuration
+db_username             = "iabank"
+db_password             = "your-secure-password-here"
+db_name                 = "iabank"
+db_instance_class       = "db.t3.micro"
+db_allocated_storage    = 20
+backup_retention_period = 7
+
+# Monitoring Configuration
+monitoring_interval         = 60
+enable_performance_insights = true
+
+# Domain Configuration
+domain_name    = "iabank.com"
+api_subdomain  = "api"
+
+# Health Check Configuration
+health_check_path             = "/health/"
+health_check_failure_threshold = 3
+health_check_request_interval  = 30
+
+# Resource Tags
+tags = {
+  Project     = "IABANK"
+  Environment = "production"
+  Purpose     = "DR-Pilot-Light"
+  Compliance  = "T086"
+  Owner       = "DevOps-Team"
+  CostCenter  = "Technology"
+}

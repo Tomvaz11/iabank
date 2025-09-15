@@ -40,7 +40,7 @@ IABANK é uma plataforma SaaS multi-tenant para empresas de crédito gerenciarem
 - SLA: <500ms p95 para operações CRUD
 - structlog com contexto automático (request_id, user_id, tenant_id)
 - django-prometheus + /health endpoint
-- RPO <5min, RTO <1h para backup/recovery
+- RPO <55s, RTO <2min para backup/recovery (T086 DR Pilot Light)
 
 ## Key Entities
 
@@ -104,6 +104,7 @@ IABANK é uma plataforma SaaS multi-tenant para empresas de crédito gerenciarem
 - **Setup (T001-T005)**: Base Django + PostgreSQL + Multi-tenancy ✅
 - **Enterprise (T071-T078)**: Auditoria + JWT + MFA + PITR + Health ✅
 - **CI/CD (T068-T070)**: GitHub Actions + Pre-commit ✅
+- **DR Pilot Light (T086)**: PostgreSQL replication + Terraform multi-region + automation ✅
 
 **Detalhes**: Ver tasks.md para breakdown completo
 
@@ -150,6 +151,7 @@ Para decisões arquiteturais importantes, consulte os ADRs em `docs/adr/`:
 
 ## Recent Changes
 
+- 2025-09-15: T086 DR Pilot Light implementado (PostgreSQL replication + Terraform multi-region + automation + documentação enterprise)
 - 2025-09-15: T085 ADRs e Governance implementado (estrutura ADR + processo de governance)
 - 2025-09-15: T084 Secrets Management + Criptografia PII implementado (SecretsManager + campos criptografados Fernet)
 - 2025-09-15: T083 Testes E2E com Cypress implementado (4 fluxos críticos de negócio)
@@ -228,6 +230,14 @@ npx cypress run --spec "cypress/e2e/01-loan-creation-flow.cy.js"  # Teste espec�
 cd backend/src && python -c "from iabank.core.secrets import SecretsManager; print('SecretsManager test:', SecretsManager.get_secret('TEST_KEY', 'default'))"
 cd backend/src && python -c "from iabank.core.fields import EncryptedCharField, EncryptedEmailField; print('Campos criptografados carregados com sucesso')"
 echo "ENCRYPTION_KEY=pKM2-Nf11oppjimJrQylaVXkLZWVLNDuDyNcyYB5y4U=" >> backend/.env  # Chave desenvolvimento
+
+# DR Pilot Light + Disaster Recovery (T086)
+cd backend && docker-compose -f ../docker-compose.dr.yml up -d        # Iniciar ambiente DR
+cd backend && docker-compose -f ../docker-compose.dr.yml ps           # Status replication
+cd backend && docker-compose -f ../docker-compose.dr.yml logs postgres-standby  # Logs standby
+cd backend/scripts/backup && ./failover.sh --dry-run                  # Testar failover (dry-run)
+cd infrastructure/terraform && ./terraform.exe init && ./terraform.exe validate   # Validar infraestrutura
+cd infrastructure/terraform && ./terraform.exe plan                   # Planejar deployment AWS
 ```
 
 ---

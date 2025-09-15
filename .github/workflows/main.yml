@@ -24,6 +24,8 @@ jobs:
             backend:
               - 'backend/**'
               - 'docker-compose.yml'
+              - 'docker-compose.dr.yml'
+              - 'infrastructure/**'
               - 'scripts/**'
               - '.github/workflows/main.yml'
             frontend:
