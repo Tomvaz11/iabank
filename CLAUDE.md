@@ -140,6 +140,7 @@ backend/src/iabank/
 
 ## Recent Changes
 
+- 2025-09-15: T083 Testes E2E com Cypress implementado (4 fluxos críticos de negócio)
 - 2025-09-15: T082 Path Filtering CI/CD + Blue-Green implementado (pipeline otimizado + rollback strategy)
 - 2025-09-15: T081 Dockerfiles Multi-Stage implementado (Poetry + pnpm + nginx)
 - 2025-09-14: T071-T078 CRITICAL implementados (95/100) - Ver tasks.md
@@ -204,6 +205,12 @@ cat docs/deployment/rollback-strategy.md           # Rollback procedures
 
 # Fix common test issues
 pip uninstall pytest-asyncio -y
+
+# Testes E2E com Cypress (T083)
+cd frontend && pnpm cypress:open          # Abrir Cypress em modo desenvolvimento
+cd frontend && pnpm cypress:run           # Executar todos os testes E2E
+cd frontend && pnpm e2e                   # Executar testes E2E headless (CI/CD)
+npx cypress run --spec "cypress/e2e/01-loan-creation-flow.cy.js"  # Teste específico
 ```
 
 ---
