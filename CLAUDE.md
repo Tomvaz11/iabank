@@ -140,6 +140,7 @@ backend/src/iabank/
 
 ## Recent Changes
 
+- 2025-09-15: T081 Dockerfiles Multi-Stage implementado (Poetry + pnpm + nginx)
 - 2025-09-14: T071-T078 CRITICAL implementados (95/100) - Ver tasks.md
 - 2025-09-14: CI/CD Pipeline implementado - Ver tasks.md T068-T070
 - 2025-09-13: T001-T005 Setup inicial concluído
@@ -171,6 +172,13 @@ python manage.py shell -c "from iabank.core.mfa import setup_totp_for_user; setu
 # Check structured logs (T073)
 tail -f logs/iabank.log | grep -E '"level":"info"'
 
+# Docker & Containerização (T081)
+docker-compose up -d                     # Stack completa
+docker-compose ps                        # Status containers
+curl http://localhost:8000/health/       # Backend health
+curl http://localhost:3000               # Frontend
+curl http://localhost:3000/api/          # API proxy test
+
 # Generate API types
 pnpm gen:api-types
 
@@ -190,4 +198,4 @@ pip uninstall pytest-asyncio -y
 
 ---
 
-_Updated: 2025-09-15 | Lines: 192 | Constitution: v1.0.0_
+_Updated: 2025-09-15 | Lines: 198 | Constitution: v1.0.0_

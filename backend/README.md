@@ -355,13 +355,58 @@ Após T003 + T079 + T080 implementados:
 - ✅ Análise de segurança com Bandit + pip-audit
 - ✅ Integração SARIF com GitHub Code Scanning
 
+## 🐳 Docker & Containerização (T081)
+
+### Dockerfiles Multi-Stage Production
+Dockerfiles otimizados implementados conforme Blueprint T081:
+
+#### Backend Dockerfile
+- **Multi-stage build**: Separação build/runtime para otimização
+- **Poetry**: Gerenciamento de dependências moderno (`--without=dev`)
+- **Non-root user**: Segurança com usuário `app`
+- **Health checks**: curl instalado para monitoramento
+- **Production-ready**: gunicorn + WSGI configurado
+
+```bash
+# Build e teste local
+docker build -f backend/Dockerfile backend/
+docker-compose up backend -d
+
+# Verificar saúde
+curl http://localhost:8000/health/
+```
+
+#### Frontend Dockerfile
+- **Multi-stage build**: Build com pnpm + serve com nginx
+- **pnpm**: Package manager moderno (mais rápido que npm)
+- **nginx otimizado**: Gzip, SPA routing, API proxy
+- **Security headers**: X-Frame-Options, CSP, XSS protection
+
+```bash
+# Build e teste local
+docker build -f frontend/Dockerfile frontend/
+docker-compose up frontend -d
+
+# Verificar proxy API
+curl http://localhost:3000/api/
+```
+
+#### Stack Completa
+```bash
+# Iniciar stack completa
+docker-compose up -d
+
+# Verificar todos os serviços
+docker-compose ps
+```
+
 ## 📝 Próximos Passos
 
-1. **T081-T085**: Blueprint gaps restantes (Dockerfiles, E2E, Secrets, ADRs, DR)
+1. **T082-T085**: Blueprint gaps restantes (CI/CD paths, E2E, Secrets, ADRs, DR)
 2. **T013-T019**: Integration tests com isolamento multi-tenant
 3. **T020+**: Implementação dos modelos de negócio
 4. **API Endpoints**: DRF ViewSets e serializers
 
 ---
 
-**Configurado em T003 + T079 + T080** | **Versão**: 1.2.0 | **Constitution**: v1.0.0
+**Configurado em T003 + T079 + T080 + T081** | **Versão**: 1.3.0 | **Constitution**: v1.0.0
