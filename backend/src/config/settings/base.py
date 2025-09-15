@@ -333,3 +333,15 @@ BACKUP_SETTINGS = {
     "RTO_TARGET_HOURS": 1,
     "BACKUP_RETENTION_DAYS": 365,
 }
+
+# Secrets Management (T084)
+from iabank.core.secrets import SecretsManager
+
+# Update SECRET_KEY to use SecretsManager
+SECRET_KEY = SecretsManager.get_secret('SECRET_KEY', SECRET_KEY)
+
+# Cryptography settings (T084)
+DJANGO_CRYPTOGRAPHY_SETTINGS = {
+    'CRYPTOGRAPHY_KEY': SecretsManager.get_secret('ENCRYPTION_KEY', 'pKM2-Nf11oppjimJrQylaVXkLZWVLNDuDyNcyYB5y4U='),
+    'CRYPTOGRAPHY_SALT': SecretsManager.get_secret('ENCRYPTION_SALT', 'iabank-dev-salt-32bytes-long-enough'),
+}

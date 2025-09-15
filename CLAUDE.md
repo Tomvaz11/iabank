@@ -75,7 +75,7 @@ IABANK é uma plataforma SaaS multi-tenant para empresas de crédito gerenciarem
 
 ### LGPD Compliance
 
-- Campos PII criptografados com django-cryptography
+- Campos PII criptografados com implementação customizada Fernet (AES 128 + autenticação)
 - Anonimização preservando logs de auditoria (10 anos)
 - Trilha completa via django-simple-history
 
@@ -140,6 +140,7 @@ backend/src/iabank/
 
 ## Recent Changes
 
+- 2025-09-15: T084 Secrets Management + Criptografia PII implementado (SecretsManager + campos criptografados Fernet)
 - 2025-09-15: T083 Testes E2E com Cypress implementado (4 fluxos críticos de negócio)
 - 2025-09-15: T082 Path Filtering CI/CD + Blue-Green implementado (pipeline otimizado + rollback strategy)
 - 2025-09-15: T081 Dockerfiles Multi-Stage implementado (Poetry + pnpm + nginx)
@@ -211,6 +212,11 @@ cd frontend && pnpm cypress:open          # Abrir Cypress em modo desenvolviment
 cd frontend && pnpm cypress:run           # Executar todos os testes E2E
 cd frontend && pnpm e2e                   # Executar testes E2E headless (CI/CD)
 npx cypress run --spec "cypress/e2e/01-loan-creation-flow.cy.js"  # Teste específico
+
+# Secrets Management + Criptografia PII (T084)
+cd backend/src && python -c "from iabank.core.secrets import SecretsManager; print('SecretsManager test:', SecretsManager.get_secret('TEST_KEY', 'default'))"
+cd backend/src && python -c "from iabank.core.fields import EncryptedCharField, EncryptedEmailField; print('Campos criptografados carregados com sucesso')"
+echo "ENCRYPTION_KEY=pKM2-Nf11oppjimJrQylaVXkLZWVLNDuDyNcyYB5y4U=" >> backend/.env  # Chave desenvolvimento
 ```
 
 ---
