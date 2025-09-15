@@ -132,7 +132,7 @@ Configurações específicas e detalhadas do MyPy, incluindo:
 ### Ruff (Linting)
 - ✅ Seguir PEP 8
 - ✅ Imports organizados (isort)
-- ✅ Complexidade limitada (McCabe)
+- ✅ Complexidade ciclomática limitada (McCabe ≤10)
 - ✅ Segurança básica (Bandit rules)
 - ✅ Boas práticas Django
 - ⚠️ Alguns avisos são ignorados durante desenvolvimento
@@ -147,6 +147,14 @@ Configurações específicas e detalhadas do MyPy, incluindo:
 - ⚠️ Modo não-rigoroso durante desenvolvimento
 - ✅ Ignorar imports de bibliotecas externas
 
+### Quality Gates (T080)
+- ✅ **Complexidade ciclomática**: Máximo 10 por função (ruff C90)
+- ✅ **Vulnerabilidades código**: Bandit scan para issues HIGH/MEDIUM
+- ✅ **Vulnerabilidades dependências**: pip-audit para packages vulneráveis
+- ✅ **Cobertura de testes**: Mínimo 85% obrigatório
+- ✅ **SARIF reports**: Integração com GitHub Code Scanning
+- ✅ **CI/CD enforcement**: Pipeline falha se quality gates não passarem
+
 ## 🧪 Integração com Testes
 
 ```bash
@@ -160,6 +168,41 @@ pytest --cov=src --cov-report=term-missing --cov-report=html
 pytest -m unit        # Apenas testes unitários
 pytest -m integration # Apenas testes de integração
 pytest -m contract    # Apenas testes de contrato
+```
+
+## 🔒 Análise de Segurança (T080)
+
+### Bandit - Análise de Código
+```bash
+# Scan básico
+bandit -r src/
+
+# Scan rigoroso (HIGH/MEDIUM only)
+bandit -r src/ -ll -i
+
+# Gerar relatório SARIF para GitHub
+bandit -r src/ -f sarif -o security-report.sarif --exit-zero
+```
+
+### pip-audit - Vulnerabilidades de Dependências
+```bash
+# Auditar requirements.txt
+pip-audit -r requirements.txt
+
+# Auditar ambiente completo
+pip-audit
+
+# Gerar relatório JSON
+pip-audit -f json -o security-audit.json
+```
+
+### Quality Gates - Verificação Completa
+```bash
+# Executar todos os quality gates (como no CI)
+ruff check --select=C90 src/         # Complexidade
+pip-audit -r requirements.txt        # Vulnerabilidades deps
+bandit -r src/ -ll -i                # Vulnerabilidades código
+pytest --cov=src --cov-fail-under=85 # Coverage
 ```
 
 ## ⚡ Celery - Processamento Assíncrono
@@ -301,21 +344,24 @@ pytest --cov=src --cov-fail-under=85
 
 ### Status dos Checks
 
-Após T003 + T079 implementados:
+Após T003 + T079 + T080 implementados:
 - ✅ Ruff configurado e funcional
 - ✅ Black configurado e funcional
 - ✅ MyPy configurado e funcional
 - ✅ Scripts de automação criados
 - ✅ Configurações otimizadas para desenvolvimento
 - ✅ Celery enterprise-grade configurado (T079)
+- ✅ Quality Gates automatizados configurados (T080)
+- ✅ Análise de segurança com Bandit + pip-audit
+- ✅ Integração SARIF com GitHub Code Scanning
 
 ## 📝 Próximos Passos
 
-1. **T080-T085**: Blueprint gaps restantes (Quality gates, Dockerfiles, E2E, etc.)
+1. **T081-T085**: Blueprint gaps restantes (Dockerfiles, E2E, Secrets, ADRs, DR)
 2. **T013-T019**: Integration tests com isolamento multi-tenant
 3. **T020+**: Implementação dos modelos de negócio
 4. **API Endpoints**: DRF ViewSets e serializers
 
 ---
 
-**Configurado em T003 + T079** | **Versão**: 1.1.0 | **Constitution**: v1.0.0
+**Configurado em T003 + T079 + T080** | **Versão**: 1.2.0 | **Constitution**: v1.0.0

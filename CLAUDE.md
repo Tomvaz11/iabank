@@ -178,10 +178,16 @@ pnpm gen:api-types
 ruff check src/
 black --check src/
 
+# Quality Gates verification (T080)
+ruff check --select=C90 src/                # Complexity check
+pip-audit -r requirements.txt               # Dependency vulnerabilities
+bandit -r src/ -ll -i                       # Code security scan
+bandit -r src/ -f sarif -o security-report.sarif --exit-zero  # SARIF report
+
 # Fix common test issues
 pip uninstall pytest-asyncio -y
 ```
 
 ---
 
-_Updated: 2025-09-14 | Lines: 163 | Constitution: v1.0.0_
+_Updated: 2025-09-15 | Lines: 192 | Constitution: v1.0.0_
