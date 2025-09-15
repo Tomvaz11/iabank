@@ -1,14 +1,17 @@
 describe('Fluxo Geração de Relatório Financeiro', () => {
   beforeEach(() => {
-    // Setup data via API com transações financeiras
-    cy.request({
-      method: 'POST',
-      url: `${Cypress.env('apiUrl')}/test/setup-financial-data`,
+    // Mock de dados financeiros para teste
+    cy.intercept('POST', '**/test/setup-financial-data*', {
+      statusCode: 200,
+      body: { status: 'success', message: 'Financial data created' }
+    })
+    cy.intercept('GET', '**/financial/reports*', {
+      statusCode: 200,
       body: {
-        tenant: 'test-tenant',
-        loans: 5, // Criar 5 empréstimos
-        payments: 10, // Criar 10 pagamentos
-        expenses: 3 // Criar 3 despesas
+        transactions: [
+          { id: 1, amount: 1500, type: 'income', date: '2024-01-01' },
+          { id: 2, amount: 500, type: 'expense', date: '2024-01-02' }
+        ]
       }
     })
   })

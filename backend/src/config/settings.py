@@ -56,7 +56,6 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "iabank.core.logging.RequestLoggingMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -67,6 +66,10 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+# Adicionar SecurityMiddleware apenas se não for DEBUG (para permitir HTTP em desenvolvimento)
+if not DEBUG:
+    MIDDLEWARE.insert(0, "django.middleware.security.SecurityMiddleware")
 
 ROOT_URLCONF = "config.urls"
 

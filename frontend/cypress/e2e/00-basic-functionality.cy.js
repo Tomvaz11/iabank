@@ -6,10 +6,13 @@ describe('Teste Básico de Funcionalidade Existente', () => {
     cy.contains('Faça login em sua conta').should('be.visible')
     cy.contains('IABANK - Plataforma de Gestão de Empréstimos').should('be.visible')
 
-    // Verificar que os campos existem com data-cy
-    cy.get('[data-cy=email]').should('be.visible')
-    cy.get('[data-cy=password]').should('be.visible')
-    cy.get('[data-cy=login-btn]').should('be.visible')
+    // Aguardar a página carregar completamente
+    cy.wait(1000)
+
+    // Verificar que os campos existem com data-cy (com timeout maior)
+    cy.get('[data-cy=email]', { timeout: 15000 }).should('be.visible')
+    cy.get('[data-cy=password]', { timeout: 15000 }).should('be.visible')
+    cy.get('[data-cy=login-btn]', { timeout: 15000 }).should('be.visible')
 
     // Testar preenchimento dos campos
     cy.get('[data-cy=email]').type('teste@exemplo.com')

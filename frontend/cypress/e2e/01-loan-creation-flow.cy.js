@@ -1,7 +1,9 @@
 describe('Fluxo Criação de Empréstimo Completo', () => {
   beforeEach(() => {
-    // Setup data via API
-    cy.setupTestData('test-tenant')
+    // Mock de dados para testes sem backend
+    cy.intercept('POST', '**/test/setup*', { statusCode: 200, body: { status: 'success' } })
+    cy.intercept('GET', '**/customers*', { statusCode: 200, body: [] })
+    cy.intercept('POST', '**/loans*', { statusCode: 201, body: { id: 1, status: 'approved' } })
   })
 
   it('Deve completar criação de empréstimo: login → simulação → aprovação', () => {

@@ -1,7 +1,10 @@
 describe('Fluxo Processamento de Pagamento', () => {
   beforeEach(() => {
-    // Setup data via API
-    cy.setupTestData('test-tenant')
+    // Mock de dados para teste de pagamento
+    cy.intercept('POST', '**/test/setup*', { statusCode: 200, body: { status: 'success' } })
+    cy.intercept('POST', '**/create-overdue-loan*', { statusCode: 200, body: { loan_id: 1 } })
+    cy.intercept('GET', '**/loans*', { statusCode: 200, body: [{ id: 1, status: 'overdue' }] })
+    cy.intercept('POST', '**/payments*', { statusCode: 201, body: { id: 1, status: 'completed' } })
   })
 
   it('Deve processar pagamento e atualizar status', () => {

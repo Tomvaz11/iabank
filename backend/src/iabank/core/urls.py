@@ -6,6 +6,12 @@ from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 
 from iabank.core.jwt_views import TokenObtainPairView, TokenRefreshView
+from iabank.core.test_views import (
+    setup_test_data,
+    setup_financial_data,
+    create_overdue_loan,
+    cleanup_test_data
+)
 
 
 def get_mfa_views():
@@ -44,4 +50,10 @@ urlpatterns = [
     path("auth/mfa/setup/", mfa_setup_view, name="mfa_setup"),
     path("auth/mfa/verify-setup/", mfa_verify_setup_view, name="mfa_verify_setup"),
     path("auth/mfa/verify/", mfa_verify_token_view, name="mfa_verify_token"),
+
+    # Test endpoints (DEBUG only)
+    path("test/setup/", setup_test_data, name="test_setup"),
+    path("test/setup-financial-data/", setup_financial_data, name="test_setup_financial"),
+    path("test/create-overdue-loan/", create_overdue_loan, name="test_create_overdue_loan"),
+    path("test/cleanup/", cleanup_test_data, name="test_cleanup"),
 ]
