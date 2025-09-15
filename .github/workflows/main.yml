@@ -163,9 +163,73 @@ jobs:
         working-directory: ./frontend
         run: pnpm build
 
-  # Deploy (conditional on successful CI and main branch)
+  # E2E Tests (conditional on successful frontend/backend builds)
+  e2e-tests:
+    needs: [changes, backend-ci, frontend-ci]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js for E2E
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: |
+          npm install -g pnpm
+          pnpm install
+
+      - name: Set up Python for backend
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry config virtualenvs.create false
+          poetry install
+
+      - name: Set up PostgreSQL for E2E
+        uses: harmon758/postgresql-action@v1
+        with:
+          postgresql version: '15'
+          postgresql db: iabank_e2e
+          postgresql user: iabank
+          postgresql password: iabank_password
+
+      - name: Start services
+        run: |
+          docker-compose up -d
+          sleep 30  # Wait for services
+
+      - name: Run E2E tests
+        working-directory: ./frontend
+        run: |
+          npm install
+          npm run e2e
+
+      - name: Upload E2E artifacts on failure
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: cypress-screenshots
+          path: frontend/cypress/screenshots
+
+
+  # Deploy (conditional on successful CI and E2E tests)
   deploy:
-    needs: [backend-ci, frontend-ci]
+    needs: [backend-ci, frontend-ci, e2e-tests]
     runs-on: ubuntu-latest
     if: >
       github.ref == 'refs/heads/main' &&
@@ -174,7 +238,9 @@ jobs:
       (needs.backend-ci.result == 'success' ||
        needs.backend-ci.result == 'skipped') &&
       (needs.frontend-ci.result == 'success' ||
-       needs.frontend-ci.result == 'skipped')
+       needs.frontend-ci.result == 'skipped') &&
+      (needs.e2e-tests.result == 'success' ||
+       needs.e2e-tests.result == 'skipped')
     environment: production
 
     steps:

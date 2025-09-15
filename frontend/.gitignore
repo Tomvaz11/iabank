@@ -46,3 +46,10 @@ coverage/
 
 # Generated types
 src/shared/types/api.ts
+
+# Cypress
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/
+cypress/results/
+cypress/reports/
