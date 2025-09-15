@@ -60,6 +60,11 @@ yarn-error.log*
 frontend/dist/
 frontend/build/
 
+# Cypress E2E Testing
+frontend/cypress/videos/
+frontend/cypress/screenshots/
+frontend/cypress/downloads/
+
 # Docker
 .dockerignore
 
