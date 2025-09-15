@@ -73,6 +73,10 @@ logs/
 .next/
 .nuxt/
 
+# Python tool caches
+.mypy_cache/
+.ruff_cache/
+
 # Coverage reports
 htmlcov/
 .coverage
