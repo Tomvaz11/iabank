@@ -140,6 +140,7 @@ backend/src/iabank/
 
 ## Recent Changes
 
+- 2025-09-15: T082 Path Filtering CI/CD + Blue-Green implementado (pipeline otimizado + rollback strategy)
 - 2025-09-15: T081 Dockerfiles Multi-Stage implementado (Poetry + pnpm + nginx)
 - 2025-09-14: T071-T078 CRITICAL implementados (95/100) - Ver tasks.md
 - 2025-09-14: CI/CD Pipeline implementado - Ver tasks.md T068-T070
@@ -192,10 +193,19 @@ pip-audit -r requirements.txt               # Dependency vulnerabilities
 bandit -r src/ -ll -i                       # Code security scan
 bandit -r src/ -f sarif -o security-report.sarif --exit-zero  # SARIF report
 
+# CI/CD Path Filtering & Rollback (T082)
+# Path filtering testado automaticamente no GitHub Actions
+# Rollback de emergência:
+git revert <commit-sha> && git push origin main    # Emergency rollback
+curl -f https://api.iabank.com/health/             # Verify restoration
+
+# Documentação rollback strategy
+cat docs/deployment/rollback-strategy.md           # Rollback procedures
+
 # Fix common test issues
 pip uninstall pytest-asyncio -y
 ```
 
 ---
 
-_Updated: 2025-09-15 | Lines: 198 | Constitution: v1.0.0_
+_Updated: 2025-09-15 | Lines: 210 | Constitution: v1.0.0_
