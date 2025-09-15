@@ -138,8 +138,19 @@ backend/src/iabank/
 - Rate limiting em endpoints sensíveis
 - Audit trail para todas as operações críticas
 
+## Architectural Decision Records (ADRs)
+
+Para decisões arquiteturais importantes, consulte os ADRs em `docs/adr/`:
+
+- **[ADR 0001](docs/adr/0001-monolito-modular.md)**: Escolha Monolito Modular vs Microserviços
+- **[ADR 0002](docs/adr/0002-django-domain-first.md)**: Arquitetura Django-Domain-First
+- **[ADR 0003](docs/adr/0003-multi-tenancy-row-level.md)**: Multi-tenancy Row-Level Security
+
+**Processo**: Ver [docs/adr/process.md](docs/adr/process.md) para criar novos ADRs
+
 ## Recent Changes
 
+- 2025-09-15: T085 ADRs e Governance implementado (estrutura ADR + processo de governance)
 - 2025-09-15: T084 Secrets Management + Criptografia PII implementado (SecretsManager + campos criptografados Fernet)
 - 2025-09-15: T083 Testes E2E com Cypress implementado (4 fluxos críticos de negócio)
 - 2025-09-15: T082 Path Filtering CI/CD + Blue-Green implementado (pipeline otimizado + rollback strategy)

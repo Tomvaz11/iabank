@@ -135,7 +135,7 @@ Baseado na análise dos documentos disponíveis:
 - [x] T082 [BLUEPRINT_GAP] Path filtering CI/CD + Blue-Green deployment preparation
 - [x] T083 [BLUEPRINT_GAP] Testes E2E com Cypress (3 fluxos críticos de negócio)
 - [x] T084 [BLUEPRINT_GAP] Secrets Management + criptografia PII campo-level [CONCLUÍDO]
-- [ ] T085 [BLUEPRINT_GAP] ADRs (Architectural Decision Records) e governance
+- [x] T085 [BLUEPRINT_GAP] ADRs (Architectural Decision Records) e governance [CONCLUÍDO]
 
 **Status**: ✅ **T079 implementada** - Celery enterprise-grade funcionando
 **Detalhes**: Ver IMPLEMENTATION_T079-T085_BLUEPRINT_GAPS_FINAL.md
