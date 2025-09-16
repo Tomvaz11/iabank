@@ -1,16 +1,20 @@
 """
-JWT Authentication views para IABANK.
-Customização das views de token do SimpleJWT.
+JWT authentication views for IABANK.
+Custom responses that follow the public OpenAPI contract.
 """
-from typing import Dict, Any
+from __future__ import annotations
 
+from typing import Any, Dict, Optional
+
+from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework import status
+from rest_framework.parsers import JSONParser
+from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView as BaseTokenObtainPairView,
-    TokenRefreshView as BaseTokenRefreshView,
-)
+from rest_framework.views import APIView
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from iabank.core.logging import get_logger, log_business_event
@@ -19,239 +23,246 @@ from iabank.core.logging import get_logger, log_business_event
 logger = get_logger(__name__)
 
 
-class TokenObtainPairView(BaseTokenObtainPairView):
-    """
-    View customizada para obter tokens JWT.
+def _build_error(status_code: int, code: str, detail: str, field: Optional[str] = None) -> Dict[str, Any]:
+    """Create a standard error payload used across the API."""
+    error: Dict[str, Any] = {
+        "status": str(status_code),
+        "code": code,
+        "detail": detail,
+    }
+    if field:
+        error["source"] = {"field": field}
+    return error
 
-    Features:
-    - Logging estruturado de tentativas de login
-    - Resposta padronizada conforme OpenAPI
-    - Context adicional para auditoria
-    """
+
+def _serialize_user(user) -> Dict[str, Any]:
+    """Return a minimal public representation of the authenticated user."""
+    return {
+        "id": str(user.id),
+        "username": user.get_username(),
+        "email": getattr(user, "email", None),
+        "is_active": getattr(user, "is_active", False),
+        "is_staff": getattr(user, "is_staff", False),
+    }
+
+
+class TokenObtainPairView(APIView):
+    """Authenticate a user using email/password and return JWT tokens."""
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+    parser_classes = [JSONParser]
 
     def post(self, request: Request, *args, **kwargs) -> Response:
-        """
-        Autentica usuário e retorna access + refresh tokens.
+        payload = request.data or {}
+        email = (payload.get("email") or "").strip().lower()
+        password = payload.get("password")
+        tenant_domain = payload.get("tenant_domain")
 
-        Args:
-            request: HTTP request com credenciais
-
-        Returns:
-            Response: Tokens JWT ou erro de autenticação
-        """
-        # Log tentativa de login
-        username = request.data.get("username", "unknown")
-        logger.info(
-            "Login attempt",
-            username=username,
-            user_agent=request.META.get("HTTP_USER_AGENT", "unknown"),
-            remote_addr=request.META.get("REMOTE_ADDR", "unknown"),
-        )
-
-        # Chama implementação base do SimpleJWT
-        response = super().post(request, *args, **kwargs)
-
-        if response.status_code == status.HTTP_200_OK:
-            # Login bem-sucedido - log de auditoria
-            user = self.get_user_from_response(response)
-            if user:
-                log_business_event(
-                    event_type="security",
-                    entity_type="user",
-                    entity_id=str(user.id),
-                    action="login_success",
-                    tenant_id=getattr(user, "tenant_id", None),
-                    user_id=str(user.id),
-                    username=username,
+        validation_errors = []
+        if not email:
+            validation_errors.append(
+                _build_error(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    "EMAIL_REQUIRED",
+                    "Campo email é obrigatório.",
+                    field="email",
                 )
-
-            # Padroniza resposta conforme API standard
-            response.data = self._format_success_response(response.data)
-
-        else:
-            # Login falhou - log de segurança
-            logger.warning(
-                "Login failed",
-                username=username,
-                status_code=response.status_code,
-                user_agent=request.META.get("HTTP_USER_AGENT", "unknown"),
-                remote_addr=request.META.get("REMOTE_ADDR", "unknown"),
+            )
+        if not password:
+            validation_errors.append(
+                _build_error(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    "PASSWORD_REQUIRED",
+                    "Campo password é obrigatório.",
+                    field="password",
+                )
             )
 
-        return response
+        if validation_errors:
+            logger.warning("Login validation failed", email=email or None, tenant_domain=tenant_domain)
+            return Response({"errors": validation_errors}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-    def get_user_from_response(self, response: Response):
-        """
-        Extrai user do token para auditoria.
+        user = self._get_user_by_email(email)
 
-        Args:
-            response: Response com tokens
+        if not user or not user.check_password(password):
+            logger.warning(
+                "Login failed",
+                email=email,
+                tenant_domain=tenant_domain,
+                reason="invalid_credentials",
+                remote_addr=request.META.get("REMOTE_ADDR", "unknown"),
+                user_agent=request.META.get("HTTP_USER_AGENT", "unknown"),
+            )
+            return Response(
+                {
+                    "errors": [
+                        _build_error(
+                            status.HTTP_401_UNAUTHORIZED,
+                            "INVALID_CREDENTIALS",
+                            "Email ou senha inválidos.",
+                        )
+                    ]
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
-        Returns:
-            User instance ou None
-        """
-        try:
-            access_token = response.data.get("access")
-            if access_token:
-                from rest_framework_simplejwt.tokens import UntypedToken
-                from rest_framework_simplejwt.authentication import JWTAuthentication
-                from django.contrib.auth import get_user_model
+        if not getattr(user, "is_active", True):
+            logger.warning("Login failed", email=email, reason="inactive_user")
+            return Response(
+                {
+                    "errors": [
+                        _build_error(
+                            status.HTTP_403_FORBIDDEN,
+                            "INACTIVE_ACCOUNT",
+                            "Conta inativa. Entre em contato com o administrador.",
+                        )
+                    ]
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
-                # Decodifica token para obter user_id
-                untyped_token = UntypedToken(access_token)
-                user_id = untyped_token.get("user_id")
+        refresh_token = RefreshToken.for_user(user)
+        access_token = refresh_token.access_token
+        expires_in = int(access_token.lifetime.total_seconds())
 
-                if user_id:
-                    User = get_user_model()
-                    return User.objects.get(id=user_id)
-
-        except Exception as e:
-            logger.error("Error extracting user from token", error=str(e))
-
-        return None
-
-    def _format_success_response(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Formata resposta de sucesso conforme padrão API.
-
-        Args:
-            data: Dados originais do SimpleJWT
-
-        Returns:
-            dict: Resposta formatada
-        """
-        return {
+        response_data = {
             "data": {
-                "access_token": data["access"],
-                "refresh_token": data["refresh"],
+                "access_token": str(access_token),
+                "refresh_token": str(refresh_token),
                 "token_type": "Bearer",
-                "expires_in": 900,  # 15 minutos em segundos
+                "expires_in": expires_in,
+                "user": _serialize_user(user),
             },
             "meta": {
                 "message": "Authentication successful",
-                "timestamp": self.get_current_timestamp(),
+                "timestamp": int(timezone.now().timestamp()),
             },
         }
 
-    def get_current_timestamp(self) -> int:
-        """Retorna timestamp atual."""
-        import time
-        return int(time.time())
-
-
-class TokenRefreshView(BaseTokenRefreshView):
-    """
-    View customizada para refresh de tokens JWT.
-
-    Features:
-    - Logging de refresh de tokens
-    - Resposta padronizada
-    - Rotação automática de refresh tokens
-    """
-
-    def post(self, request: Request, *args, **kwargs) -> Response:
-        """
-        Renova access token usando refresh token.
-
-        Args:
-            request: HTTP request com refresh token
-
-        Returns:
-            Response: Novos tokens ou erro
-        """
-        # Log tentativa de refresh
-        refresh_token = request.data.get("refresh")
-        user_info = self._get_user_from_refresh_token(refresh_token)
-
         logger.info(
-            "Token refresh attempt",
-            user_id=user_info.get("user_id") if user_info else None,
-            tenant_id=user_info.get("tenant_id") if user_info else None,
+            "Login successful",
+            email=email,
+            tenant_domain=tenant_domain,
+            user_id=str(user.id),
+        )
+        log_business_event(
+            event_type="security",
+            entity_type="user",
+            entity_id=str(user.id),
+            action="login_success",
+            tenant_id=str(getattr(user, "tenant_id", "")) or None,
+            user_id=str(user.id),
+            email=email,
         )
 
-        # Chama implementação base
-        response = super().post(request, *args, **kwargs)
+        return Response(response_data, status=status.HTTP_200_OK)
 
-        if response.status_code == status.HTTP_200_OK:
-            # Refresh bem-sucedido
-            if user_info:
-                log_business_event(
-                    event_type="security",
-                    entity_type="user",
-                    entity_id=user_info["user_id"],
-                    action="token_refresh",
-                    tenant_id=user_info.get("tenant_id"),
-                    user_id=user_info["user_id"],
-                )
+    @staticmethod
+    def _get_user_by_email(email: str):
+        User = get_user_model()
+        try:
+            return User.objects.get(email__iexact=email)
+        except User.DoesNotExist:
+            return None
 
-            # Padroniza resposta
-            response.data = self._format_refresh_response(response.data)
 
-        else:
-            # Refresh falhou
-            logger.warning(
-                "Token refresh failed",
-                status_code=response.status_code,
-                user_id=user_info.get("user_id") if user_info else None,
+class TokenRefreshView(APIView):
+    """Exchange a refresh token for a fresh access token."""
+
+    authentication_classes: list = []
+    permission_classes = [AllowAny]
+    parser_classes = [JSONParser]
+
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        payload = request.data or {}
+        raw_refresh = payload.get("refresh_token") or payload.get("refresh")
+
+        if not raw_refresh:
+            return Response(
+                {
+                    "errors": [
+                        _build_error(
+                            status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            "REFRESH_TOKEN_REQUIRED",
+                            "Campo refresh_token é obrigatório.",
+                            field="refresh_token",
+                        )
+                    ]
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
-        return response
-
-    def _get_user_from_refresh_token(self, refresh_token: str) -> Dict[str, Any]:
-        """
-        Extrai informações do usuário do refresh token.
-
-        Args:
-            refresh_token: Token JWT
-
-        Returns:
-            dict: Informações do usuário
-        """
         try:
-            if refresh_token:
-                token = RefreshToken(refresh_token)
-                user_id = token.get("user_id")
+            incoming_refresh = RefreshToken(raw_refresh)
+        except TokenError:
+            logger.warning("Refresh token inválido", reason="token_error")
+            return Response(
+                {
+                    "errors": [
+                        _build_error(
+                            status.HTTP_401_UNAUTHORIZED,
+                            "INVALID_REFRESH_TOKEN",
+                            "Refresh token inválido ou expirado.",
+                        )
+                    ]
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
-                if user_id:
-                    from django.contrib.auth import get_user_model
-                    User = get_user_model()
-                    user = User.objects.get(id=user_id)
+        user = self._get_user_from_token(incoming_refresh)
+        if user is None:
+            logger.warning("Refresh sem usuário associado")
+            return Response(
+                {
+                    "errors": [
+                        _build_error(
+                            status.HTTP_401_UNAUTHORIZED,
+                            "USER_NOT_FOUND",
+                            "Usuário não encontrado para o token informado.",
+                        )
+                    ]
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
-                    return {
-                        "user_id": str(user.id),
-                        "tenant_id": str(getattr(user, "tenant_id", None)),
-                        "username": user.username,
-                    }
+        new_refresh = RefreshToken.for_user(user)
+        access_token = new_refresh.access_token
+        expires_in = int(access_token.lifetime.total_seconds())
 
-        except Exception as e:
-            logger.error("Error extracting user from refresh token", error=str(e))
+        logger.info("Token refresh successful", user_id=str(user.id))
+        log_business_event(
+            event_type="security",
+            entity_type="user",
+            entity_id=str(user.id),
+            action="token_refresh",
+            tenant_id=str(getattr(user, "tenant_id", "")) or None,
+            user_id=str(user.id),
+        )
 
-        return {}
-
-    def _format_refresh_response(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Formata resposta de refresh conforme padrão API.
-
-        Args:
-            data: Dados originais do SimpleJWT
-
-        Returns:
-            dict: Resposta formatada
-        """
         response_data = {
             "data": {
-                "access_token": data["access"],
+                "access_token": str(access_token),
+                "refresh_token": str(new_refresh),
                 "token_type": "Bearer",
-                "expires_in": 900,  # 15 minutos
+                "expires_in": expires_in,
             },
             "meta": {
                 "message": "Token refreshed successfully",
-                "timestamp": int(__import__("time").time()),
+                "timestamp": int(timezone.now().timestamp()),
             },
         }
 
-        # Inclui novo refresh token se rotacionado
-        if "refresh" in data:
-            response_data["data"]["refresh_token"] = data["refresh"]
+        return Response(response_data, status=status.HTTP_200_OK)
 
-        return response_data
+    @staticmethod
+    def _get_user_from_token(refresh: RefreshToken):
+        user_id = refresh.get("user_id")
+        if not user_id:
+            return None
+
+        User = get_user_model()
+        try:
+            return User.objects.get(id=user_id)
+        except User.DoesNotExist:
+            return None

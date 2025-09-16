@@ -4,9 +4,11 @@ Multi-tenant SaaS platform for loan management.
 """
 
 import os
+import logging.config
 from pathlib import Path
 
 from decouple import config
+from iabank.core.logging import configure_structlog
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -66,6 +68,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "iabank.core.logging.RequestLoggingMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -216,6 +219,7 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {"anon": "100/hour", "user": "1000/hour"},
+    "EXCEPTION_HANDLER": "iabank.core.exceptions.custom_exception_handler",
 }
 
 # JWT Settings
@@ -264,6 +268,8 @@ TENANT_MODEL = "core.Tenant"
 TENANT_FIELD = "tenant_id"
 
 # Logging Configuration
+configure_structlog()
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,

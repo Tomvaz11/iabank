@@ -10,7 +10,6 @@ from django.urls import include, path
 
 from iabank.core.health import health_check
 
-
 urlpatterns = [
     # Admin interface
     path("admin/", admin.site.urls),
@@ -18,11 +17,16 @@ urlpatterns = [
     path("health/", health_check, name="health_check"),
     # Core endpoints (JWT auth)
     path("api/v1/", include("iabank.core.urls")),
+    path("api/v1", include("iabank.core.urls")),
     # API v1 routes
     path("api/v1/auth/", include("iabank.users.urls")),
+    path("api/v1/auth", include("iabank.users.urls")),
     path("api/v1/customers/", include("iabank.customers.urls")),
+    path("api/v1/customers", include("iabank.customers.urls")),
     path("api/v1/loans/", include("iabank.operations.urls")),
+    path("api/v1/loans", include("iabank.operations.urls")),
     path("api/v1/finance/", include("iabank.finance.urls")),
+    path("api/v1/finance", include("iabank.finance.urls")),
     # Prometheus metrics
     path("", include("django_prometheus.urls")),
 ]

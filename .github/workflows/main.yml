@@ -105,7 +105,7 @@ jobs:
           pip install pip-audit bandit bandit-sarif-formatter
 
           # pip-audit check for dependency vulnerabilities
-          pip-audit -r requirements.txt
+          pip-audit -P pyproject.toml
 
           # Bandit check (fail on high/medium severity issues)
           bandit -r src/ -ll -i

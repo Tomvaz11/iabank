@@ -154,11 +154,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Configuração de logging estruturado
 import logging.config
-# TEMPORARIAMENTE COMENTADO PARA DEBUGGING
-# from iabank.core.logging import configure_structlog
+# Importar e configurar structlog
+from iabank.core.logging import configure_structlog
 
 # Configura structlog
-# configure_structlog()
+configure_structlog()
 
 # Configuração do Django logging
 LOGGING = {
