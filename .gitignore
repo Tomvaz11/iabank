@@ -71,6 +71,8 @@ frontend/cypress/downloads/
 # Logs
 logs/
 *.log
+backend/src/logs/
+backend/logs/
 
 # Cache
 .cache/
@@ -95,3 +97,11 @@ coverage.xml
 .claude/settings.local.json
 DOCUMENTACAO-*.md
 erros.md
+
+# Terraform
+infrastructure/terraform/.terraform/
+infrastructure/terraform/.terraform.lock.hcl
+infrastructure/terraform/terraform.tfstate
+infrastructure/terraform/terraform.tfstate.backup
+infrastructure/terraform/*.tfstate*
+infrastructure/terraform/.terraform.tfstate.lock.info
