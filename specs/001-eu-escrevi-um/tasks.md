@@ -44,7 +44,7 @@ Baseado na análise dos documentos disponíveis:
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
 
 ### Multi-Tenancy & Core
-- [ ] T020 BaseTenantModel em `backend/src/iabank/core/models.py`
+- [x] T020 BaseTenantModel em `backend/src/iabank/core/models.py`
 - [ ] T021 [P] Middleware de isolamento tenant em `backend/src/iabank/core/middleware.py`
 - [ ] T022 Tenant model em `backend/src/iabank/core/models.py`
 

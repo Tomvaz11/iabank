@@ -29,8 +29,8 @@ class BaseTenantModel(models.Model):
     tenant_id = models.UUIDField(
         help_text="ID do tenant para isolamento de dados",
         db_index=True,
-        null=True,  # Temporário para migration
-        blank=True,
+        null=False,
+        blank=False,
     )
 
     created_at = models.DateTimeField(
@@ -69,15 +69,65 @@ class BaseTenantModel(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Override do save para validação de tenant_id.
+        Override do save com preenchimento automático e validação de tenant_id.
 
         Raises:
-            ValueError: Se tenant_id não foi informado
+            ValueError: Se tenant_id não for informado ou for alterado indevidamente
         """
-        if not self.tenant_id:
+        tenant_identifier = self.tenant_id or self._get_tenant_id_from_context()
+        if not tenant_identifier:
             raise ValueError("tenant_id é obrigatório para todos os models")
 
+        self.tenant_id = self._normalize_tenant_id(tenant_identifier)
+
+        if not self._state.adding and self.pk is not None:
+            original_tenant_id = (
+                self.__class__._default_manager.filter(pk=self.pk)
+                .values_list("tenant_id", flat=True)
+                .first()
+            )
+            if original_tenant_id is not None:
+                original_uuid = self._normalize_tenant_id(original_tenant_id)
+                if original_uuid != self.tenant_id:
+                    raise ValueError(
+                        "tenant_id não pode ser alterado após criação do registro"
+                    )
+
         super().save(*args, **kwargs)
+
+    def _get_tenant_id_from_context(self) -> uuid.UUID | None:
+        """Obtém tenant_id do contexto corrente se disponível."""
+        try:
+            from iabank.core.middleware import TenantMiddleware
+        except Exception:
+            return None
+
+        tenant = TenantMiddleware.get_current_tenant()
+        if tenant is None:
+            return None
+
+        tenant_id = getattr(tenant, "id", None)
+        return self._normalize_tenant_id(tenant_id) if tenant_id else None
+
+    @staticmethod
+    def _normalize_tenant_id(value: Any) -> uuid.UUID:
+        """Normaliza diferentes formatos de tenant_id para UUID."""
+        if isinstance(value, uuid.UUID):
+            return value
+
+        if value is None:
+            raise ValueError("tenant_id é obrigatório para todos os models")
+
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                raise ValueError("tenant_id é obrigatório para todos os models")
+            return uuid.UUID(value)
+
+        if hasattr(value, "hex") and isinstance(value.hex, str):
+            return uuid.UUID(value.hex)
+
+        raise ValueError("tenant_id deve ser um UUID válido")
 
     def get_audit_fields(self) -> Dict[str, Any]:
         """
