@@ -39,7 +39,7 @@ def _serialize_user(user) -> Dict[str, Any]:
     """Return a minimal public representation of the authenticated user."""
     return {
         "id": str(user.id),
-        "username": user.get_username(),
+        "username": getattr(user, "username", None) or getattr(user, "email", None),
         "email": getattr(user, "email", None),
         "is_active": getattr(user, "is_active", False),
         "is_staff": getattr(user, "is_staff", False),

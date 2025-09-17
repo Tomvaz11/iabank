@@ -123,6 +123,7 @@ class BaseTenantModel(models.Model):
 
         self.tenant_id = self._normalize_tenant_id(tenant_identifier)
 
+        allow_tenant_override = getattr(self, "_allow_tenant_override", False)
         if not self._state.adding and self.pk is not None:
             original_tenant_id = (
                 self.__class__._default_manager.filter(pk=self.pk)
@@ -131,12 +132,15 @@ class BaseTenantModel(models.Model):
             )
             if original_tenant_id is not None:
                 original_uuid = self._normalize_tenant_id(original_tenant_id)
-                if original_uuid != self.tenant_id:
+                if original_uuid != self.tenant_id and not allow_tenant_override:
                     raise ValueError(
                         "tenant_id nao pode ser alterado apos criacao do registro"
                     )
 
         super().save(*args, **kwargs)
+
+        if allow_tenant_override and hasattr(self, "_allow_tenant_override"):
+            self._allow_tenant_override = False
 
     def _get_tenant_id_from_context(self) -> uuid.UUID | None:
         """Obtem tenant_id do contexto corrente se disponivel."""
