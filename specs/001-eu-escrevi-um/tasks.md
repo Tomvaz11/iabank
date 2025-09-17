@@ -33,13 +33,13 @@ Baseado na análise dos documentos disponíveis:
 - [x] T012 [P] Contract test GET /api/v1/reports/dashboard em `backend/tests/contract/test_reports_dashboard.py`
 
 ### Integration Tests
-- [ ] T013 [P] Integration test fluxo completo autenticação em `backend/tests/integration/test_auth_flow.py`
-- [ ] T014 [P] Integration test gestão de clientes em `backend/tests/integration/test_customer_management.py`
-- [ ] T015 [P] Integration test criação de empréstimos em `backend/tests/integration/test_loan_creation.py`
-- [ ] T016 [P] Integration test processamento de pagamentos em `backend/tests/integration/test_payment_processing.py`
-- [ ] T017 [P] Integration test isolamento multi-tenant em `backend/tests/integration/test_tenant_isolation.py`
-- [ ] T018 [P] Integration test conformidade e auditoria em `backend/tests/integration/test_compliance_audit.py`
-- [ ] T019 [P] Integration test relatórios e dashboard em `backend/tests/integration/test_reports_flow.py`
+- [x] T013 [P] Integration test fluxo completo autenticação em `backend/tests/integration/test_auth_flow.py`
+- [x] T014 [P] Integration test gestão de clientes em `backend/tests/integration/test_customer_management.py`
+- [x] T015 [P] Integration test criação de empréstimos em `backend/tests/integration/test_loan_creation.py`
+- [x] T016 [P] Integration test processamento de pagamentos em `backend/tests/integration/test_payment_processing.py`
+- [x] T017 [P] Integration test isolamento multi-tenant em `backend/tests/integration/test_tenant_isolation.py`
+- [x] T018 [P] Integration test conformidade e auditoria em `backend/tests/integration/test_compliance_audit.py`
+- [x] T019 [P] Integration test relatórios e dashboard em `backend/tests/integration/test_reports_flow.py`
 
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
 
