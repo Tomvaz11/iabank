@@ -49,8 +49,8 @@ Baseado na análise dos documentos disponíveis:
 - [x] T022 Tenant model em `backend/src/iabank/core/models.py`
 
 ### Users Module
-- [ ] T023 User model em `backend/src/iabank/users/models.py`
-- [ ] T024 Consultant model em `backend/src/iabank/users/models.py`
+- [x] T023 User model em `backend/src/iabank/users/models.py`
+- [x] T024 Consultant model em `backend/src/iabank/users/models.py`
 - [ ] T025 [P] User domain entities em `backend/src/iabank/users/domain/entities.py`
 - [ ] T026 [P] User domain services em `backend/src/iabank/users/domain/services.py`
 - [ ] T027 Auth e User management ViewSets em `backend/src/iabank/users/views.py`

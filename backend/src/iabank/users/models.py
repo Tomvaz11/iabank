@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import uuid
+from decimal import Decimal
 from typing import Optional, Tuple
 
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.core import validators
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
@@ -317,3 +319,95 @@ class User(BaseTenantModel, AbstractBaseUser, PermissionsMixin):
 
     def __str__(self) -> str:
         return f"{self.get_full_name()} <{self.email}>"
+
+
+class Consultant(BaseTenantModel):
+    """Perfil de consultor vinculado a um usuário."""
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="consultant_profile",
+        help_text="Usuário associado ao consultor",
+    )
+    commission_rate = models.DecimalField(
+        max_digits=5,
+        decimal_places=4,
+        default=Decimal("0.0000"),
+        validators=[
+            MinValueValidator(Decimal("0")),
+            MaxValueValidator(Decimal("1")),
+        ],
+        help_text="Taxa de comissão aplicada aos empréstimos originados",
+    )
+    commission_balance = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Saldo acumulado de comissões do consultor",
+    )
+    bank_account = EncryptedCharField(
+        max_length=50,
+        blank=True,
+        help_text="Conta bancária criptografada para repasse de comissões",
+    )
+    is_active_for_loans = models.BooleanField(
+        default=True,
+        help_text="Indica se o consultor pode originar novos empréstimos",
+    )
+
+    class Meta:
+        db_table = "users_consultants"
+        verbose_name = "Consultor"
+        verbose_name_plural = "Consultores"
+        indexes = [
+            models.Index(
+                fields=["tenant_id", "user"],
+                name="consultants_tenant_user_idx",
+            ),
+            models.Index(
+                fields=["tenant_id", "is_active_for_loans"],
+                name="consultants_tenant_active_idx",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant_id", "user"],
+                name="consultants_unique_tenant_user",
+            ),
+        ]
+
+    def clean(self):
+        if not self.user_id:
+            raise ValidationError({"user": "Consultor deve estar associado a um usuário válido."})
+
+        tenant_uuid = self.user.tenant_id
+        if not tenant_uuid:
+            raise ValidationError({"tenant_id": "Usuário associado deve possuir tenant válido."})
+
+        self.tenant_id = tenant_uuid
+
+        if self.user.role != UserRole.CONSULTANT:
+            raise ValidationError({"user": "Usuário associado deve ter papel CONSULTANT."})
+
+        super().clean()
+
+    def save(self, *args, **kwargs):
+        if self.user_id:
+            self.tenant_id = self.user.tenant_id
+        super().save(*args, **kwargs)
+
+    def get_audit_fields(self):  # type: ignore[override]
+        fields = super().get_audit_fields()
+        fields.update(
+            {
+                "user_id": str(self.user_id) if self.user_id else None,
+                "commission_rate": str(self.commission_rate),
+                "is_active_for_loans": self.is_active_for_loans,
+            }
+        )
+        return fields
+
+    def __str__(self) -> str:
+        return f"Consultor {self.user.get_full_name()}"
+
