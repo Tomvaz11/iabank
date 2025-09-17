@@ -32,6 +32,46 @@ class CustomerGender(models.TextChoices):
     OTHER = "OTHER", "Outro"
 
 
+class AddressType(models.TextChoices):
+    """Tipos de endereços suportados."""
+
+    RESIDENTIAL = "RESIDENTIAL", "Residencial"
+    COMMERCIAL = "COMMERCIAL", "Comercial"
+    CORRESPONDENCE = "CORRESPONDENCE", "Correspondência"
+
+
+class AddressState(models.TextChoices):
+    """Unidades federativas brasileiras."""
+
+    AC = "AC", "Acre"
+    AL = "AL", "Alagoas"
+    AP = "AP", "Amapá"
+    AM = "AM", "Amazonas"
+    BA = "BA", "Bahia"
+    CE = "CE", "Ceará"
+    DF = "DF", "Distrito Federal"
+    ES = "ES", "Espírito Santo"
+    GO = "GO", "Goiás"
+    MA = "MA", "Maranhão"
+    MT = "MT", "Mato Grosso"
+    MS = "MS", "Mato Grosso do Sul"
+    MG = "MG", "Minas Gerais"
+    PA = "PA", "Pará"
+    PB = "PB", "Paraíba"
+    PR = "PR", "Paraná"
+    PE = "PE", "Pernambuco"
+    PI = "PI", "Piauí"
+    RJ = "RJ", "Rio de Janeiro"
+    RN = "RN", "Rio Grande do Norte"
+    RS = "RS", "Rio Grande do Sul"
+    RO = "RO", "Rondônia"
+    RR = "RR", "Roraima"
+    SC = "SC", "Santa Catarina"
+    SP = "SP", "São Paulo"
+    SE = "SE", "Sergipe"
+    TO = "TO", "Tocantins"
+
+
 class Customer(BaseTenantModel):
     """Modelo que representa o cliente final (tomador de empréstimo)."""
 
@@ -189,6 +229,131 @@ class Customer(BaseTenantModel):
 
     def __str__(self) -> str:
         return f"Customer({self.name})"
+
+
+class Address(BaseTenantModel):
+    """Endereços associados a um cliente com regras multi-tenant."""
+
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name="addresses",
+        help_text="Cliente ao qual o endereço pertence",
+    )
+    type = models.CharField(
+        max_length=20,
+        choices=AddressType.choices,
+        default=AddressType.RESIDENTIAL,
+        help_text="Tipo de endereço",
+    )
+    street = models.CharField(
+        max_length=255,
+        help_text="Logradouro",
+    )
+    number = models.CharField(
+        max_length=20,
+        help_text="Número",
+    )
+    complement = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Complemento",
+    )
+    neighborhood = models.CharField(
+        max_length=100,
+        help_text="Bairro",
+    )
+    city = models.CharField(
+        max_length=100,
+        help_text="Cidade",
+    )
+    state = models.CharField(
+        max_length=2,
+        choices=AddressState.choices,
+        help_text="UF do endereço",
+    )
+    zipcode = models.CharField(
+        max_length=9,
+        help_text="CEP no formato 00000-000",
+    )
+    is_primary = models.BooleanField(
+        default=False,
+        help_text="Indica se é o endereço principal do cliente",
+    )
+
+    class Meta:
+        db_table = "customers_addresses"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant_id", "customer"],
+                condition=models.Q(is_primary=True),
+                name="cust_addr_primary_unique",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=["tenant_id", "customer"],
+                name="cust_addr_customer_idx",
+            ),
+            models.Index(
+                fields=["tenant_id", "zipcode"],
+                name="cust_addr_zipcode_idx",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        if not self.customer_id:
+            raise ValidationError({"customer": "Cliente é obrigatório"})
+
+        try:
+            customer_tenant_id = self.customer.tenant_id
+        except Customer.DoesNotExist as exc:
+            raise ValidationError({"customer": "Cliente inválido"}) from exc
+
+        if not customer_tenant_id:
+            raise ValidationError({"customer": "Cliente sem tenant associado"})
+
+        self.tenant_id = self._normalize_tenant_id(customer_tenant_id)
+
+        self._normalize_fields()
+
+    def _normalize_fields(self) -> None:
+        """Normaliza campos de texto e valida CEP."""
+
+        if self.street:
+            self.street = self.street.strip()
+        if self.number:
+            self.number = self.number.strip()
+        if self.complement:
+            self.complement = self.complement.strip()
+        if self.neighborhood:
+            self.neighborhood = self.neighborhood.strip()
+        if self.city:
+            self.city = self.city.strip()
+
+        if self.state:
+            state_value = self.state.strip().upper()
+            if state_value not in AddressState.values:
+                raise ValidationError({"state": "UF inválida"})
+            self.state = state_value
+
+        if self.zipcode:
+            zipcode_digits = re.sub(r"\D", "", self.zipcode)
+            if len(zipcode_digits) != 8:
+                raise ValidationError({"zipcode": "CEP deve conter 8 dígitos"})
+            self.zipcode = f"{zipcode_digits[:5]}-{zipcode_digits[5:]}"
+
+    def save(self, *args, **kwargs):
+        if not self.customer_id:
+            raise ValueError("customer é obrigatório para endereços")
+
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"Address({self.street}, {self.city})"
 
 
 def _normalize_cpf(value: str) -> str:

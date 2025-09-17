@@ -56,8 +56,8 @@ Baseado na análise dos documentos disponíveis:
 - [x] T027 Auth e User management ViewSets em `backend/src/iabank/users/views.py`
 
 ### Customers Module
-- [ ] T028 Customer model em `backend/src/iabank/customers/models.py`
-- [ ] T029 Address model em `backend/src/iabank/customers/models.py`
+- [x] T028 Customer model em `backend/src/iabank/customers/models.py`
+- [x] T029 Address model em `backend/src/iabank/customers/models.py`
 - [ ] T030 [P] Customer domain entities em `backend/src/iabank/customers/domain/entities.py`
 - [ ] T031 [P] Customer domain services em `backend/src/iabank/customers/domain/services.py`
 - [ ] T032 Customer CRUD e credit analysis ViewSets em `backend/src/iabank/customers/views.py`
