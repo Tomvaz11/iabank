@@ -1,259 +1,263 @@
-"""
-Multi-tenancy middleware for IABANK.
-Provides automatic tenant context and query filtering.
-"""
-
+"""Middleware e mixins de suporte ao isolamento multi-tenant."""
+import contextlib
 import logging
+import uuid
+from contextvars import ContextVar
+from typing import Optional
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import connections, models
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
 from .models import Tenant
 
+
 logger = logging.getLogger(__name__)
+_current_tenant: ContextVar[Optional[Tenant]] = ContextVar(
+    "iabank_current_tenant", default=None
+)
+_RESERVED_SUBDOMAINS = {"www", "api", "admin"}
 
 
 class TenantMiddleware(MiddlewareMixin):
-    """
-    Middleware that provides tenant context for multi-tenant applications.
+    """Define contexto de tenant para cada requisicao HTTP."""
 
-    Tenant identification priority:
-    1. X-Tenant-ID header
-    2. JWT token tenant claim
-    3. Subdomain extraction
-    4. DEFAULT_TENANT_ID from settings (development only)
-    """
+    header_name = "HTTP_X_TENANT_ID"
 
     def process_request(self, request):
-        """Process incoming request to identify and set tenant context."""
-        tenant_id = self._extract_tenant_id(request)
+        """Resolve o tenant da requisicao e aplica contexto."""
+        try:
+            identifier_or_tenant = self._extract_tenant_identifier(request)
+        except ValidationError:
+            return self._tenant_invalid_response()
 
-        if not tenant_id:
+        if identifier_or_tenant is None:
             return self._tenant_required_response()
 
         try:
-            tenant = self._get_tenant(tenant_id)
-            if not tenant.is_active:
-                return self._tenant_inactive_response()
-
-            # Set tenant context
-            request.tenant = tenant
-            request.tenant_id = tenant.id
-
-            # Set thread-local tenant for model queries
-            self._set_tenant_context(tenant)
-
+            tenant = self._resolve_tenant(identifier_or_tenant)
+        except ValidationError as exc:
+            logger.warning("Tenant identifier invalid: %s", exc)
+            return self._tenant_invalid_response()
         except Tenant.DoesNotExist:
-            logger.warning(f"Tenant not found: {tenant_id}")
+            logger.warning("Tenant not found: %s", identifier_or_tenant)
             return self._tenant_not_found_response()
-        except Exception as e:
-            logger.error(f"Error processing tenant {tenant_id}: {e}")
+        except Exception as exc:  # pragma: no cover - fallback
+            logger.exception("Unexpected error resolving tenant: %s", exc)
             return self._server_error_response()
 
+        if not tenant.is_active:
+            logger.info("Tenant inactive: %s", tenant.id)
+            return self._tenant_inactive_response()
+
+        request.tenant = tenant
+        request.tenant_id = tenant.id
+        request._tenant_context_token = _current_tenant.set(tenant)
+
+        self._set_rls_context(tenant)
+        return None
+
     def process_response(self, request, response):
-        """Clean up tenant context after request processing."""
-        self._clear_tenant_context()
+        """Limpa contexto de tenant ao final da resposta."""
+        token = getattr(request, "_tenant_context_token", None)
+        if token is not None:
+            with contextlib.suppress(LookupError):
+                _current_tenant.reset(token)
+        else:
+            _current_tenant.set(None)
+
+        self._clear_rls_context()
         return response
 
-    def _extract_tenant_id(self, request) -> str | None:
-        """Extract tenant ID from various sources."""
-        # 1. Check X-Tenant-ID header
-        tenant_id = request.META.get("HTTP_X_TENANT_ID")
-        if tenant_id:
-            logger.debug(f"Tenant ID from header: {tenant_id}")
-            return tenant_id
+    # ------------------------------------------------------------------
+    # Tenant resolution helpers
+    # ------------------------------------------------------------------
 
-        # 2. Extract from JWT token if available
-        tenant_id = self._extract_from_jwt(request)
-        if tenant_id:
-            logger.debug(f"Tenant ID from JWT: {tenant_id}")
-            return tenant_id
+    def _extract_tenant_identifier(self, request):
+        """Extrai identificador do tenant a partir de header, JWT ou subdominio."""
+        header_value = request.META.get(self.header_name)
+        if header_value:
+            header_value = header_value.strip()
+            if not header_value:
+                raise ValidationError("Tenant header vazio")
+            try:
+                uuid.UUID(header_value)
+            except ValueError as exc:
+                raise ValidationError("Tenant header invalido") from exc
+            return header_value
 
-        # 3. Extract from subdomain
-        tenant_id = self._extract_from_subdomain(request)
-        if tenant_id:
-            logger.debug(f"Tenant ID from subdomain: {tenant_id}")
-            return tenant_id
+        token_value = self._extract_from_jwt(request)
+        if token_value:
+            try:
+                uuid.UUID(str(token_value))
+            except ValueError as exc:
+                raise ValidationError("Tenant JWT invalido") from exc
+            return str(token_value)
 
-        # 4. Development fallback
+        tenant = self._extract_from_subdomain(request)
+        if tenant:
+            return tenant
+
         if settings.DEBUG and hasattr(settings, "DEFAULT_TENANT_ID"):
-            logger.debug(f"Using default tenant ID: {settings.DEFAULT_TENANT_ID}")
-            return settings.DEFAULT_TENANT_ID
+            default_id = str(settings.DEFAULT_TENANT_ID)
+            try:
+                uuid.UUID(default_id)
+            except ValueError as exc:
+                raise ValidationError("DEFAULT_TENANT_ID invalido") from exc
+            return default_id
 
         return None
 
-    def _extract_from_jwt(self, request) -> str | None:
-        """Extract tenant ID from JWT token claims."""
+    def _extract_from_jwt(self, request) -> Optional[str]:
+        """Obtem tenant_id de um token JWT se presente."""
         auth_header = request.META.get("HTTP_AUTHORIZATION", "")
         if not auth_header.startswith("Bearer "):
             return None
 
         try:
             from jwt import decode
-            from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
             from rest_framework_simplejwt.tokens import UntypedToken
 
-            token = auth_header.split(" ")[1]
-            UntypedToken(token)  # Validate token
-
+            token = auth_header.split(" ", 1)[1]
+            UntypedToken(token)
             decoded = decode(token, options={"verify_signature": False})
             return decoded.get("tenant_id")
-        except (InvalidToken, TokenError, Exception):
+        except Exception:
             return None
 
-    def _extract_from_subdomain(self, request) -> str | None:
-        """Extract tenant from subdomain (e.g., company.iabank.com)."""
-        host = request.get_host().lower()
-        if not host or "." not in host:
+    def _extract_from_subdomain(self, request) -> Optional[Tenant]:
+        """Resolve tenant por subdominio ou dominio customizado."""
+        host = request.get_host().split(":")[0].lower()
+        if not host:
             return None
 
-        subdomain = host.split(".")[0]
-        if subdomain in ["www", "api", "admin"]:
+        tenant = Tenant.objects.filter(domain=host).first()
+        if tenant:
+            return tenant
+
+        parts = host.split(".")
+        if len(parts) < 3:
             return None
+
+        subdomain = parts[0]
+        if subdomain in _RESERVED_SUBDOMAINS:
+            return None
+
+        return Tenant.objects.filter(slug=subdomain).first()
+
+    def _resolve_tenant(self, identifier_or_tenant):
+        """Normaliza identificador e retorna instancia de Tenant."""
+        if isinstance(identifier_or_tenant, Tenant):
+            return identifier_or_tenant
+
+        identifier = str(identifier_or_tenant).strip()
+        if not identifier:
+            raise ValidationError("Identificador de tenant vazio")
 
         try:
-            # Look up tenant by slug
-            tenant = Tenant.objects.get(slug=subdomain)
-            return str(tenant.id)
-        except Tenant.DoesNotExist:
-            return None
+            tenant_uuid = uuid.UUID(identifier)
+        except ValueError as exc:
+            raise ValidationError("Tenant id invalido") from exc
 
-    def _get_tenant(self, tenant_id: str) -> Tenant:
-        """Get tenant by ID with caching."""
-        # Add caching later if needed
-        return Tenant.objects.get(id=tenant_id)
+        return Tenant.objects.get(id=tenant_uuid)
 
-    def _set_tenant_context(self, tenant: Tenant):
-        """Set thread-local tenant context and PostgreSQL RLS context."""
-        import threading
+    # ------------------------------------------------------------------
+    # Context helpers
+    # ------------------------------------------------------------------
 
-        from django.db import connections
-
-        # Set thread-local context using proper thread-local storage
-        current_thread = threading.current_thread()
-        current_thread.tenant = tenant
-
-        # Set PostgreSQL RLS context on default connection
+    def _set_rls_context(self, tenant: Tenant):
+        """Configura contexto de RLS no PostgreSQL."""
         try:
             conn = connections["default"]
             with conn.cursor() as cursor:
                 cursor.execute("SELECT set_tenant_context(%s)", [str(tenant.id)])
-                logger.debug(f"PostgreSQL RLS context set for tenant: {tenant.id}")
-        except Exception as e:
-            logger.warning(f"Failed to set PostgreSQL RLS context: {e}")
-            # RLS is additional security layer, app-level filtering still works
+        except Exception as exc:  # pragma: no cover - logging auxiliar
+            logger.warning("Failed to set RLS context: %s", exc)
 
-    def _clear_tenant_context(self):
-        """Clear thread-local tenant context."""
-        import threading
+    def _clear_rls_context(self):
+        """Remove contexto de RLS ao final da requisicao."""
+        try:
+            conn = connections["default"]
+            with conn.cursor() as cursor:
+                cursor.execute("RESET iabank.current_tenant_id")
+        except Exception:
+            pass
 
-        current_thread = threading.current_thread()
-        if hasattr(current_thread, "tenant"):
-            delattr(current_thread, "tenant")
-
-    @classmethod
-    def get_current_tenant(cls) -> Tenant | None:
-        """Get current tenant from thread-local context."""
-        import threading
-
-        current_thread = threading.current_thread()
-        return getattr(current_thread, "tenant", None)
+    # ------------------------------------------------------------------
+    # Responses helpers
+    # ------------------------------------------------------------------
 
     def _tenant_required_response(self):
-        """Return error response when tenant is required but not provided."""
-        return JsonResponse(
-            {
-                "errors": [
-                    {
-                        "status": "400",
-                        "code": "TENANT_REQUIRED",
-                        "detail": "Tenant identification is required. Please provide X-Tenant-ID header or valid JWT token.",
-                    }
-                ]
-            },
+        return self._error_response(
             status=400,
+            code="TENANT_REQUIRED",
+            detail="Tenant identification is required. Provide X-Tenant-ID header or valid JWT token.",
+        )
+
+    def _tenant_invalid_response(self):
+        return self._error_response(
+            status=400,
+            code="TENANT_INVALID",
+            detail="Provided tenant identifier is not valid.",
         )
 
     def _tenant_not_found_response(self):
-        """Return error response when tenant is not found."""
-        return JsonResponse(
-            {
-                "errors": [
-                    {
-                        "status": "404",
-                        "code": "TENANT_NOT_FOUND",
-                        "detail": "The specified tenant was not found.",
-                    }
-                ]
-            },
+        return self._error_response(
             status=404,
+            code="TENANT_NOT_FOUND",
+            detail="The specified tenant was not found.",
         )
 
     def _tenant_inactive_response(self):
-        """Return error response when tenant is inactive."""
-        return JsonResponse(
-            {
-                "errors": [
-                    {
-                        "status": "403",
-                        "code": "TENANT_INACTIVE",
-                        "detail": "This tenant account is currently inactive. Please contact support.",
-                    }
-                ]
-            },
+        return self._error_response(
             status=403,
+            code="TENANT_INACTIVE",
+            detail="This tenant account is inactive. Please contact support.",
         )
 
     def _server_error_response(self):
-        """Return generic server error response."""
-        return JsonResponse(
-            {
-                "errors": [
-                    {
-                        "status": "500",
-                        "code": "INTERNAL_ERROR",
-                        "detail": "An internal error occurred while processing your request.",
-                    }
-                ]
-            },
+        return self._error_response(
             status=500,
+            code="INTERNAL_ERROR",
+            detail="An internal error occurred while processing tenant context.",
         )
+
+    @staticmethod
+    def _error_response(*, status: int, code: str, detail: str) -> JsonResponse:
+        return JsonResponse(
+            {"errors": [{"status": str(status), "code": code, "detail": detail}]},
+            status=status,
+        )
+
+    @classmethod
+    def get_current_tenant(cls) -> Optional[Tenant]:
+        """Retorna tenant atual do contexto."""
+        return _current_tenant.get()
 
 
 class TenantQuerySetMixin:
-    """
-    Mixin for QuerySets to automatically filter by current tenant.
-    """
+    """Mixin para aplicar filtro por tenant automaticamente."""
 
     def get_queryset(self):
-        """Filter queryset by current tenant."""
         queryset = super().get_queryset()
-        current_tenant = TenantMiddleware.get_current_tenant()
-
-        if current_tenant and hasattr(queryset.model, "tenant"):
-            return queryset.filter(tenant=current_tenant)
-
+        tenant = TenantMiddleware.get_current_tenant()
+        if tenant and hasattr(queryset.model, "tenant_id"):
+            return queryset.filter(tenant_id=tenant.id)
         return queryset
 
 
 class TenantModelMixin(models.Model):
-    """
-    Mixin for models to automatically set tenant on save.
-    """
+    """Mixin para definir tenant_id automaticamente ao salvar."""
 
     class Meta:
         abstract = True
 
     def save(self, *args, **kwargs):
-        """Automatically set tenant if not already set."""
-        if hasattr(self, "tenant") and not self.tenant_id:
-            current_tenant = TenantMiddleware.get_current_tenant()
-            if current_tenant:
-                self.tenant = current_tenant
-            else:
+        if not getattr(self, "tenant_id", None):
+            tenant = TenantMiddleware.get_current_tenant()
+            if tenant is None:
                 raise ValidationError("No tenant context available")
-
+            self.tenant_id = tenant.id
         super().save(*args, **kwargs)

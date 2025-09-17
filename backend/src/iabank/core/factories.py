@@ -2,11 +2,13 @@
 Factories base para IABANK com tenant propagation automática.
 Garante isolamento de dados em todos os testes.
 """
+import random
 import uuid
 from typing import Any, Dict, Optional
 
 import factory
 from django.contrib.auth import get_user_model
+from django.utils.text import slugify
 from factory import fuzzy
 
 from iabank.core.models import BaseTenantModel, Tenant
@@ -15,39 +17,55 @@ from iabank.core.models import BaseTenantModel, Tenant
 User = get_user_model()
 
 
-class TenantFactory(factory.django.DjangoModelFactory):
-    """
-    Factory para modelo Tenant.
 
-    Features:
-    - CNPJ único gerado
-    - Configurações padrão do tenant
-    - Auto-definição de tenant_id
-    """
+def generate_cnpj() -> str:
+    """Gera um CNPJ valido para uso em testes."""
+    numbers = [random.randint(0, 9) for _ in range(12)]
+
+    def _calc_digit(sequence, weights):
+        total = sum(d * w for d, w in zip(sequence, weights))
+        remainder = total % 11
+        return 0 if remainder < 2 else 11 - remainder
+
+    first_digit = _calc_digit(numbers, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+    numbers.append(first_digit)
+    second_digit = _calc_digit(numbers, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+    numbers.append(second_digit)
+
+    return ''.join(str(n) for n in numbers)
+
+
+
+def default_tenant_settings() -> Dict[str, Any]:
+    """Retorna copia das configuracoes padrao do Tenant."""
+    default = Tenant._meta.get_field('settings').default
+    if callable(default):
+        return default()
+    return dict(default)
+
+
+
+class TenantFactory(factory.django.DjangoModelFactory):
+    """Factory para modelo Tenant com CNPJ valido e slug unico."""
 
     class Meta:
         model = Tenant
 
     id = factory.LazyFunction(uuid.uuid4)
     name = factory.Faker("company")
-    cnpj = factory.LazyFunction(
-        lambda: f"{fuzzy.FuzzyInteger(10, 99).fuzz()}.{fuzzy.FuzzyInteger(100, 999).fuzz()}.{fuzzy.FuzzyInteger(100, 999).fuzz()}/{fuzzy.FuzzyInteger(1000, 9999).fuzz():04d}-{fuzzy.FuzzyInteger(10, 99).fuzz()}"
-    )
+    slug = factory.LazyAttribute(lambda obj: slugify(f"{obj.name}-{uuid.uuid4().hex[:6]}"))
+    document = factory.LazyFunction(generate_cnpj)
+    domain = factory.LazyAttribute(lambda obj: f"{obj.slug}.iabank.dev")
+    contact_email = factory.Faker("company_email")
+    phone_number = factory.Faker("phone_number")
     is_active = True
     created_by = factory.Faker("user_name")
-    settings = factory.LazyFunction(
-        lambda: {
-            "max_interest_rate": 2.5,
-            "max_loan_amount": 100000.00,
-            "currency": "BRL",
-        }
-    )
+    settings = factory.LazyFunction(default_tenant_settings)
 
     @factory.lazy_attribute
     def tenant_id(self):
-        """Auto-define tenant_id como próprio id."""
+        """Auto-define tenant_id como proprio id."""
         return self.id
-
 
 class BaseTenantFactory(factory.django.DjangoModelFactory):
     """

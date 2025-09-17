@@ -30,14 +30,25 @@ class Command(BaseCommand):
         parser.add_argument(
             "--cnpj",
             type=str,
-            default="11.222.333/0001-44",
-            help='Company CNPJ (default: "11.222.333/0001-44")',
+            default="40.688.134/0001-61",
+            help='Company CNPJ (default: "40.688.134/0001-61")',
+        )
+        parser.add_argument(
+            "--domain",
+            type=str,
+            help='Custom domain (default: "<slug>.dev.iabank.local")',
         )
         parser.add_argument(
             "--email",
             type=str,
             default="dev@iabank.local",
             help='Contact email (default: "dev@iabank.local")',
+        )
+        parser.add_argument(
+            "--phone",
+            type=str,
+            default="(11) 99999-9999",
+            help='Contact phone (default: "(11) 99999-9999")',
         )
         parser.add_argument(
             "--tenant-id", type=str, help="Specific UUID for tenant (optional)"
@@ -48,20 +59,23 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         name = options["name"]
-        slug = options["slug"]
-        cnpj = options["cnpj"]
+        slug = options["slug"].strip().lower()
+        document = options["cnpj"]
+        domain = options.get("domain")
         email = options["email"]
+        phone = options["phone"]
         tenant_id = options.get("tenant_id")
         force = options["force"]
 
-        # Validate UUID if provided
+        if not domain:
+            domain = f"{slug}.dev.iabank.local"
+
         if tenant_id:
             try:
                 tenant_id = uuid.UUID(tenant_id)
             except ValueError:
                 raise CommandError(f"Invalid UUID format: {tenant_id}")
 
-        # Check if tenant already exists
         existing_tenant = None
         if tenant_id:
             try:
@@ -87,31 +101,33 @@ class Command(BaseCommand):
             )
             return
 
-        # Delete existing tenant if force is used
         if existing_tenant and force:
             existing_tenant.delete()
             self.stdout.write(
                 self.style.WARNING(f"Deleted existing tenant: {existing_tenant.name}")
             )
 
-        # Create new tenant
         try:
             with transaction.atomic():
+                base_settings = Tenant._meta.get_field("settings").default()
+                tenant_settings = {
+                    **base_settings,
+                    "subscription_plan": "ENTERPRISE",
+                    "max_users": 50,
+                    "max_loans_per_month": 1000,
+                    "max_interest_rate": 12.00,
+                }
+
                 tenant_data = {
                     "name": name,
                     "slug": slug,
-                    "cnpj": cnpj,
-                    "email": email,
+                    "document": document,
+                    "domain": domain,
+                    "contact_email": email,
+                    "phone_number": phone,
                     "is_active": True,
-                    "subscription_plan": "ENTERPRISE",  # Development uses enterprise features
-                    "max_users": 50,
-                    "max_loans_per_month": 1000,
-                    "address": "Rua do Desenvolvimento, 123",
-                    "city": "São Paulo",
-                    "state": "SP",
-                    "zip_code": "01234-567",
-                    "phone": "(11) 99999-9999",
-                    "max_interest_rate": 12.00,
+                    "created_by": "setup_dev_tenant",
+                    "settings": tenant_settings,
                 }
 
                 if tenant_id:
@@ -124,9 +140,10 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(f"   ID: {tenant.id}")
                 self.stdout.write(f"   Name: {tenant.name}")
-                self.stdout.write(f"   CNPJ: {tenant.cnpj}")
+                self.stdout.write(f"   CNPJ: {tenant.document_formatted}")
                 self.stdout.write(f"   Slug: {tenant.slug}")
-                self.stdout.write(f"   Email: {tenant.email}")
+                self.stdout.write(f"   Domain: {tenant.domain}")
+                self.stdout.write(f"   Email: {tenant.contact_email}")
                 self.stdout.write("")
                 self.stdout.write(self.style.SUCCESS("Add this to your .env file:"))
                 self.stdout.write(f"DEFAULT_TENANT_ID={tenant.id}")

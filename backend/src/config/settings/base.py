@@ -73,7 +73,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
-    # 'iabank.core.middleware.TenantMiddleware',  # Multi-tenancy middleware - will be implemented later
+    'iabank.core.middleware.TenantMiddleware',  # Multi-tenancy middleware
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
@@ -354,3 +354,4 @@ DJANGO_CRYPTOGRAPHY_SETTINGS = {
     'CRYPTOGRAPHY_KEY': SecretsManager.get_secret('ENCRYPTION_KEY', 'pKM2-Nf11oppjimJrQylaVXkLZWVLNDuDyNcyYB5y4U='),
     'CRYPTOGRAPHY_SALT': SecretsManager.get_secret('ENCRYPTION_SALT', 'iabank-dev-salt-32bytes-long-enough'),
 }
+

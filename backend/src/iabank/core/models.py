@@ -2,21 +2,64 @@
 Core models para IABANK.
 Models base para multi-tenancy e auditoria.
 """
+import re
 import uuid
 from typing import Any, Dict
 
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.text import slugify
 from simple_history.models import HistoricalRecords
+
+
+def _default_tenant_settings() -> Dict[str, Any]:
+    """Configuracoes padrao aplicadas a novos tenants."""
+    return {
+        "max_interest_rate": 12.0,
+        "cooldown_days": 7,
+        "currency": "BRL",
+    }
+
+
+def _normalize_cnpj(value: str) -> str:
+    """Normaliza e valida um CNPJ."""
+    if not value:
+        raise ValidationError({"document": "CNPJ e obrigatorio"})
+
+    digits = re.sub(r"\D", "", value)
+    if len(digits) != 14:
+        raise ValidationError({"document": "CNPJ deve conter 14 digitos"})
+
+    if digits == digits[0] * 14:
+        raise ValidationError({"document": "CNPJ invalido"})
+
+    def _calc_digit(seq: str, weights: list[int]) -> str:
+        total = sum(int(num) * weight for num, weight in zip(seq, weights))
+        remainder = total % 11
+        return "0" if remainder < 2 else str(11 - remainder)
+
+    first_digit = _calc_digit(digits[:12], [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+    second_digit = _calc_digit(digits[:13], [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+
+    if digits[12] != first_digit or digits[13] != second_digit:
+        raise ValidationError({"document": "CNPJ invalido"})
+
+    return digits
+
+
+_DOMAIN_PATTERN = re.compile(
+    r"^(?=.{4,100}$)(?!-)[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$"
+)
 
 
 class BaseTenantModel(models.Model):
     """
-    Model base para multi-tenancy com auditoria automática.
+    Model base para multi-tenancy com auditoria automatica.
 
     Todos os models do IABANK devem herdar desta classe para:
     - Garantir isolamento por tenant_id
-    - Ter auditoria automática com django-simple-history
-    - Campos padrão (created_at, updated_at)
+    - Ter auditoria automatica com django-simple-history
+    - Campos padrao (created_at, updated_at)
     """
 
     id = models.UUIDField(
@@ -45,17 +88,17 @@ class BaseTenantModel(models.Model):
         db_index=True,
     )
 
-    # Auditoria automática com django-simple-history
+    # Auditoria automatica com django-simple-history
     history = HistoricalRecords(
         inherit=True,
-        excluded_fields=["updated_at"],  # updated_at é redundante no histórico
+        excluded_fields=["updated_at"],  # updated_at e redundante no historico
         history_id_field=models.UUIDField(default=uuid.uuid4),
         custom_model_name=lambda x: f"Historical{x}",
     )
 
     class Meta:
         abstract = True
-        # Índices compostos obrigatórios com tenant_id primeiro
+        # Indices compostos obrigatorios com tenant_id primeiro
         indexes = [
             models.Index(
                 fields=["tenant_id", "created_at"],
@@ -69,14 +112,14 @@ class BaseTenantModel(models.Model):
 
     def save(self, *args, **kwargs):
         """
-        Override do save com preenchimento automático e validação de tenant_id.
+        Override do save com preenchimento automatico e validacao de tenant_id.
 
         Raises:
-            ValueError: Se tenant_id não for informado ou for alterado indevidamente
+            ValueError: Se tenant_id nao for informado ou for alterado indevidamente
         """
         tenant_identifier = self.tenant_id or self._get_tenant_id_from_context()
         if not tenant_identifier:
-            raise ValueError("tenant_id é obrigatório para todos os models")
+            raise ValueError("tenant_id e obrigatorio para todos os models")
 
         self.tenant_id = self._normalize_tenant_id(tenant_identifier)
 
@@ -90,13 +133,13 @@ class BaseTenantModel(models.Model):
                 original_uuid = self._normalize_tenant_id(original_tenant_id)
                 if original_uuid != self.tenant_id:
                     raise ValueError(
-                        "tenant_id não pode ser alterado após criação do registro"
+                        "tenant_id nao pode ser alterado apos criacao do registro"
                     )
 
         super().save(*args, **kwargs)
 
     def _get_tenant_id_from_context(self) -> uuid.UUID | None:
-        """Obtém tenant_id do contexto corrente se disponível."""
+        """Obtem tenant_id do contexto corrente se disponivel."""
         try:
             from iabank.core.middleware import TenantMiddleware
         except Exception:
@@ -116,18 +159,18 @@ class BaseTenantModel(models.Model):
             return value
 
         if value is None:
-            raise ValueError("tenant_id é obrigatório para todos os models")
+            raise ValueError("tenant_id e obrigatorio para todos os models")
 
         if isinstance(value, str):
             value = value.strip()
             if not value:
-                raise ValueError("tenant_id é obrigatório para todos os models")
+                raise ValueError("tenant_id e obrigatorio para todos os models")
             return uuid.UUID(value)
 
         if hasattr(value, "hex") and isinstance(value.hex, str):
             return uuid.UUID(value.hex)
 
-        raise ValueError("tenant_id deve ser um UUID válido")
+        raise ValueError("tenant_id deve ser um UUID valido")
 
     def get_audit_fields(self) -> Dict[str, Any]:
         """
@@ -145,64 +188,113 @@ class BaseTenantModel(models.Model):
         }
 
     def __str__(self) -> str:
-        """String representation padrão."""
+        """String representation padrao."""
         return f"{self.__class__.__name__}({self.id})"
 
 
 class Tenant(BaseTenantModel):
-    """
-    Model para empresas clientes da plataforma.
-
-    Cada tenant representa uma empresa que usa o IABANK para
-    gerenciar empréstimos. Isolamento completo de dados.
-    """
+    """Model que representa a empresa cliente da plataforma."""
 
     name = models.CharField(
-        max_length=200,
-        help_text="Nome da empresa",
+        max_length=255,
+        help_text="Nome legal da empresa",
     )
-
-    cnpj = models.CharField(
-        max_length=18,  # Formatado: 00.000.000/0000-00
+    slug = models.SlugField(
+        max_length=60,
         unique=True,
-        help_text="CNPJ da empresa (formatado)",
+        blank=True,
+        help_text="Identificador curto usado em subdomínios",
+    )
+    document = models.CharField(
+        max_length=14,
+        unique=True,
+        help_text="CNPJ da empresa somente com dígitos",
         db_index=True,
     )
-
+    domain = models.CharField(
+        max_length=100,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="Domínio customizado do tenant (opcional)",
+    )
+    contact_email = models.EmailField(
+        blank=True,
+        help_text="Email principal de contato",
+    )
+    phone_number = models.CharField(
+        max_length=32,
+        blank=True,
+        help_text="Telefone comercial do tenant",
+    )
     is_active = models.BooleanField(
         default=True,
         help_text="Tenant ativo na plataforma",
         db_index=True,
     )
-
     created_by = models.CharField(
         max_length=200,
-        help_text="Usuário que criou o tenant",
+        help_text="Usuário responsável pela criação",
         blank=True,
     )
-
-    # Configurações específicas do tenant
     settings = models.JSONField(
-        default=dict,
-        help_text="Configurações específicas do tenant (taxa máxima, etc)",
+        default=_default_tenant_settings,
+        help_text="Configurações específicas do tenant",
     )
 
     class Meta:
         db_table = "core_tenants"
         indexes = [
-            models.Index(fields=["cnpj"], name="core_tenants_cnpj_idx"),
+            models.Index(fields=["document"], name="core_tenants_document_idx"),
             models.Index(fields=["is_active"], name="core_tenants_active_idx"),
         ]
 
-    def save(self, *args, **kwargs):
-        """Override para auto-definir tenant_id como próprio id."""
-        if not self.tenant_id:
-            # Para o model Tenant, tenant_id é o próprio id
-            self.tenant_id = self.id or uuid.uuid4()
-            if not self.id:
-                self.id = self.tenant_id
+    def clean(self):
+        super().clean()
 
+        self.document = _normalize_cnpj(self.document)
+
+        if self.domain:
+            normalized_domain = self.domain.strip().lower()
+            if not _DOMAIN_PATTERN.match(normalized_domain):
+                raise ValidationError({"domain": "Dominio invalido"})
+            self.domain = normalized_domain
+
+        slug_field = self._meta.get_field("slug")
+        base_slug = slugify(self.slug or self.name)
+        if not base_slug:
+            raise ValidationError({"slug": "Slug nao pode ser vazio"})
+
+        base_slug = base_slug[: slug_field.max_length]
+        self.slug = self._build_unique_slug(base_slug, slug_field.max_length)
+
+    def _build_unique_slug(self, base_slug: str, max_length: int) -> str:
+        """Gera slug unico respeitando o tamanho maximo."""
+        candidate = base_slug
+        suffix = 2
+        while self.__class__.objects.exclude(pk=self.pk).filter(slug=candidate).exists():
+            suffix_str = f"-{suffix}"
+            candidate = f"{base_slug[: max_length - len(suffix_str)]}{suffix_str}"
+            suffix += 1
+        return candidate
+
+    def save(self, *args, **kwargs):
+        """Garante que tenant_id sempre corresponda ao proprio id."""
+        if not self.id:
+            self.id = uuid.uuid4()
+        self.tenant_id = self.id
+
+        self.document = _normalize_cnpj(self.document)
+        self.full_clean()
         super().save(*args, **kwargs)
 
+    @property
+    def document_formatted(self) -> str:
+        """Retorna o CNPJ formatado."""
+        digits = self.document
+        return f"{digits[:2]}.{digits[2:5]}.{digits[5:8]}/{digits[8:12]}-{digits[12:]}"
+
     def __str__(self) -> str:
-        return f"{self.name} ({self.cnpj})"
+        return f"{self.name} ({self.document_formatted})"
+
+
