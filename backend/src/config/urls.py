@@ -15,12 +15,13 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     # Health check
     path("health/", health_check, name="health_check"),
-    # Core endpoints (JWT auth)
+    # Users module (autenticação + gestão de usuários)
+    path("api/v1/", include("iabank.users.urls")),
+    path("api/v1", include("iabank.users.urls")),
+    # Core endpoints (MFA, test helpers)
     path("api/v1/", include("iabank.core.urls")),
     path("api/v1", include("iabank.core.urls")),
-    # API v1 routes
-    path("api/v1/auth/", include("iabank.users.urls")),
-    path("api/v1/auth", include("iabank.users.urls")),
+    # API v1 routes para demais módulos
     path("api/v1/customers/", include("iabank.customers.urls")),
     path("api/v1/customers", include("iabank.customers.urls")),
     path("api/v1/loans/", include("iabank.operations.urls")),

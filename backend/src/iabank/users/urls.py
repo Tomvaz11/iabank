@@ -1,19 +1,20 @@
-"""
-URLs for users app - Authentication and user management.
-"""
+"""URLs para autenticação e gestão de usuários."""
 
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-router = DefaultRouter()
-# ViewSets will be registered here after implementation
+from .views import AuthViewSet, UserViewSet
+
+router = DefaultRouter(trailing_slash="")
+router.register("users", UserViewSet, basename="users")
+
+auth_login = AuthViewSet.as_view({"post": "login"})
+auth_refresh = AuthViewSet.as_view({"post": "refresh"})
 
 urlpatterns = [
-    # Include router URLs
     path("", include(router.urls)),
-    # Authentication endpoints (will be implemented later)
-    # path('login/', views.LoginView.as_view(), name='login'),
-    # path('logout/', views.LogoutView.as_view(), name='logout'),
-    # path('refresh/', views.TokenRefreshView.as_view(), name='token_refresh'),
-    # path('register/', views.RegisterView.as_view(), name='register'),
+    path("auth/login", auth_login, name="auth-login"),
+    path("auth/login/", auth_login),
+    path("auth/refresh", auth_refresh, name="auth-refresh"),
+    path("auth/refresh/", auth_refresh),
 ]

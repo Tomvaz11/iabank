@@ -1,11 +1,10 @@
 """
 URLs for the IABANK core module.
-Includes authentication and auxiliary test endpoints.
+Includes MFA and auxiliary test endpoints.
 """
 from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 
-from iabank.core.jwt_views import TokenObtainPairView, TokenRefreshView
 from iabank.core.test_views import (
     setup_test_data,
     create_overdue_loan,
@@ -42,10 +41,6 @@ def mfa_verify_token_view(request):
 
 
 urlpatterns = [
-    # JWT authentication endpoints
-    path("auth/login", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("auth/refresh", TokenRefreshView.as_view(), name="token_refresh"),
-
     # MFA endpoints (lazy import)
     path("auth/mfa/setup", mfa_setup_view, name="mfa_setup"),
     path("auth/mfa/verify-setup", mfa_verify_setup_view, name="mfa_verify_setup"),
