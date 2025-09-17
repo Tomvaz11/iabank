@@ -45,8 +45,8 @@ Baseado na análise dos documentos disponíveis:
 
 ### Multi-Tenancy & Core
 - [x] T020 BaseTenantModel em `backend/src/iabank/core/models.py`
-- [ ] T021 [P] Middleware de isolamento tenant em `backend/src/iabank/core/middleware.py`
-- [ ] T022 Tenant model em `backend/src/iabank/core/models.py`
+- [x] T021 [P] Middleware de isolamento tenant em `backend/src/iabank/core/middleware.py`
+- [x] T022 Tenant model em `backend/src/iabank/core/models.py`
 
 ### Users Module
 - [ ] T023 User model em `backend/src/iabank/users/models.py`
