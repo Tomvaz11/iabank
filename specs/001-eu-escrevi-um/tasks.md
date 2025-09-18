@@ -58,9 +58,9 @@ Baseado na análise dos documentos disponíveis:
 ### Customers Module
 - [x] T028 Customer model em `backend/src/iabank/customers/models.py`
 - [x] T029 Address model em `backend/src/iabank/customers/models.py`
-- [ ] T030 [P] Customer domain entities em `backend/src/iabank/customers/domain/entities.py`
-- [ ] T031 [P] Customer domain services em `backend/src/iabank/customers/domain/services.py`
-- [ ] T032 Customer CRUD e credit analysis ViewSets em `backend/src/iabank/customers/views.py`
+- [x] T030 [P] Customer domain entities em `backend/src/iabank/customers/domain/entities.py`
+- [x] T031 [P] Customer domain services em `backend/src/iabank/customers/domain/services.py`
+- [x] T032 Customer CRUD e credit analysis ViewSets em `backend/src/iabank/customers/views.py`
 
 ### Operations Module
 - [ ] T033 Loan model em `backend/src/iabank/operations/models.py`

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Dict, Optional, Type
+from typing import Optional, Type
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from iabank.core.exceptions import TenantIsolationViolation
 from iabank.core.jwt_views import TokenObtainPairView, TokenRefreshView
 from iabank.core.logging import get_logger, log_business_event
+from iabank.core.views import ApiResponseMixin
 from iabank.users.domain.entities import UserEntity
 from iabank.users.domain.services import InvalidRoleError, UserService
 from iabank.users.models import User
@@ -26,50 +27,6 @@ from iabank.users.serializers import (
 
 
 logger = get_logger(__name__)
-
-
-class ApiResponseMixin:
-    """Helper para padronizar payloads das respostas."""
-
-    def _success(
-        self,
-        data: Any,
-        *,
-        status_code: int = status.HTTP_200_OK,
-        meta: Optional[Dict[str, Any]] = None,
-    ) -> Response:
-        payload: Dict[str, Any] = {"data": data}
-        if meta:
-            payload["meta"] = meta
-        return Response(payload, status=status_code)
-
-    def _pagination_meta(self, queryset=None) -> Dict[str, Any]:
-        paginator = getattr(self, "paginator", None)
-        if paginator and getattr(paginator, "page", None) is not None:
-            return {
-                "count": paginator.page.paginator.count,
-                "page": paginator.page.number,
-                "page_size": paginator.get_page_size(self.request),
-                "pages": paginator.page.paginator.num_pages,
-                "next": paginator.get_next_link(),
-                "previous": paginator.get_previous_link(),
-            }
-
-        total = queryset.count() if queryset is not None else 0
-        if total == 0:
-            page_size = paginator.get_page_size(self.request) if paginator else 0
-        else:
-            page_size = paginator.get_page_size(self.request) if paginator else total
-        page_size = page_size or total or 0
-        pages = (total + page_size - 1) // page_size if page_size else 0
-        return {
-            "count": total,
-            "page": 1 if total or pages else 0,
-            "page_size": page_size,
-            "pages": pages,
-            "next": None,
-            "previous": None,
-        }
 
 
 class AuthViewSet(ApiResponseMixin, viewsets.ViewSet):
