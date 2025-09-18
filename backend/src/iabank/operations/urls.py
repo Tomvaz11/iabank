@@ -1,19 +1,16 @@
 """
-URLs for operations app - Loan and installment management.
+URLs para app de operações - gestão de empréstimos e parcelas.
 """
 
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
+from .views import InstallmentViewSet, LoanViewSet
+
 router = DefaultRouter()
-# ViewSets will be registered here after implementation
-# router.register(r'loans', views.LoanViewSet)
-# router.register(r'installments', views.InstallmentViewSet)
+router.register(r"loans", LoanViewSet, basename="loan")
+router.register(r"installments", InstallmentViewSet, basename="installment")
 
 urlpatterns = [
-    # Include router URLs
     path("", include(router.urls)),
-    # Custom endpoints (will be implemented later)
-    # path('<uuid:loan_id>/installments/', views.LoanInstallmentsView.as_view(), name='loan_installments'),
-    # path('installments/<uuid:installment_id>/payments/', views.InstallmentPaymentsView.as_view(), name='installment_payments'),
 ]
