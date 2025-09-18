@@ -30,6 +30,15 @@ class LoanStatus(models.TextChoices):
     CANCELLED = "CANCELLED", "Cancelado"
 
 
+class InstallmentStatus(models.TextChoices):
+    """Estados possíveis para uma parcela de empréstimo."""
+
+    PENDING = "PENDING", "Pendente"
+    PARTIALLY_PAID = "PARTIALLY_PAID", "Parcialmente paga"
+    PAID = "PAID", "Paga"
+    OVERDUE = "OVERDUE", "Em atraso"
+
+
 class Loan(BaseTenantModel):
     """Representa um empréstimo concedido para um cliente."""
 
@@ -254,3 +263,213 @@ class Loan(BaseTenantModel):
 
     def __str__(self) -> str:
         return f"Loan({self.id})"
+
+
+class Installment(BaseTenantModel):
+    """Representa uma parcela individual de um empréstimo."""
+
+    loan = models.ForeignKey(
+        Loan,
+        on_delete=models.CASCADE,
+        related_name="installments",
+        help_text="Empréstimo ao qual a parcela pertence",
+    )
+    sequence = models.PositiveIntegerField(
+        help_text="Número sequencial da parcela dentro do empréstimo",
+    )
+    due_date = models.DateField(
+        help_text="Data de vencimento da parcela",
+    )
+    principal_amount = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Valor principal referente à parcela",
+    )
+    interest_amount = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Valor de juros incidente sobre a parcela",
+    )
+    total_amount = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Valor total devido na parcela (principal + juros)",
+    )
+    amount_paid = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Valor total pago até o momento",
+    )
+    payment_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Data do último pagamento registrado",
+    )
+    late_fee = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Multa por atraso aplicada à parcela",
+    )
+    interest_penalty = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        validators=[MinValueValidator(Decimal("0.00"))],
+        help_text="Juros de mora aplicados à parcela",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=InstallmentStatus.choices,
+        default=InstallmentStatus.PENDING,
+        help_text="Status atual da parcela",
+    )
+
+    class Meta:
+        db_table = "operations_installments"
+        ordering = ["due_date", "sequence"]
+        indexes = [
+            models.Index(
+                fields=["tenant_id", "loan"],
+                name="ops_inst_tenant_loan_idx",
+            ),
+            models.Index(
+                fields=["tenant_id", "status"],
+                name="ops_inst_tenant_status_idx",
+            ),
+            models.Index(
+                fields=["tenant_id", "due_date"],
+                name="ops_inst_tenant_due_idx",
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant_id", "loan", "sequence"],
+                name="ops_inst_unique_seq_per_loan",
+            ),
+            models.CheckConstraint(
+                check=Q(sequence__gt=0),
+                name="ops_inst_sequence_positive",
+            ),
+            models.CheckConstraint(
+                check=Q(principal_amount__gte=0),
+                name="ops_inst_principal_non_negative",
+            ),
+            models.CheckConstraint(
+                check=Q(interest_amount__gte=0),
+                name="ops_inst_interest_non_negative",
+            ),
+            models.CheckConstraint(
+                check=Q(total_amount__gte=0),
+                name="ops_inst_total_non_negative",
+            ),
+            models.CheckConstraint(
+                check=Q(amount_paid__gte=0),
+                name="ops_inst_amount_paid_non_negative",
+            ),
+        ]
+
+    def clean(self):
+        super().clean()
+
+        errors: dict[str, str] = {}
+
+        if not self.loan_id:
+            errors["loan"] = "Parcela deve estar associada a um empréstimo válido."
+        else:
+            loan_tenant = getattr(self.loan, "tenant_id", None)
+            if not loan_tenant:
+                errors["loan"] = "Empréstimo associado não possui tenant válido."
+            else:
+                normalized_tenant = self._normalize_tenant_id(loan_tenant)
+                if self.tenant_id and self.tenant_id != normalized_tenant:
+                    errors["tenant_id"] = "tenant_id deve coincidir com o tenant do empréstimo."
+                self.tenant_id = normalized_tenant
+
+        if self.sequence and self.sequence <= 0:
+            errors["sequence"] = "Sequência da parcela deve ser maior que zero."
+
+        monetary_fields = {
+            "principal_amount": self.principal_amount,
+            "interest_amount": self.interest_amount,
+            "total_amount": self.total_amount,
+            "amount_paid": self.amount_paid,
+            "late_fee": self.late_fee,
+            "interest_penalty": self.interest_penalty,
+        }
+
+        for field_name, value in monetary_fields.items():
+            if value is None:
+                continue
+            if value < Decimal("0.00"):
+                errors[field_name] = "Valor não pode ser negativo."
+
+        if self.principal_amount is not None and self.interest_amount is not None:
+            expected_total = (self.principal_amount + self.interest_amount).quantize(
+                Decimal("0.01")
+            )
+            if self.total_amount is None or self.total_amount.quantize(Decimal("0.01")) != expected_total:
+                errors["total_amount"] = "total_amount deve ser igual à soma de principal e juros."
+
+        amount_paid = self.amount_paid or Decimal("0.00")
+        total_with_penalties = (self.total_amount or Decimal("0.00")) + (
+            self.late_fee or Decimal("0.00")
+        ) + (self.interest_penalty or Decimal("0.00"))
+
+        if self.amount_paid is not None and amount_paid > total_with_penalties:
+            errors["amount_paid"] = "Valor pago não pode exceder o total devido incluindo encargos."
+
+        if self.status == InstallmentStatus.PAID:
+            if not self.payment_date:
+                errors["payment_date"] = "payment_date é obrigatório para parcelas pagas."
+            if (
+                self.amount_paid is not None
+                and total_with_penalties
+                and amount_paid.quantize(Decimal("0.01")) < total_with_penalties.quantize(Decimal("0.01"))
+            ):
+                errors["amount_paid"] = "Parcela marcada como paga deve ter quitação total incluindo encargos."
+
+        if self.status == InstallmentStatus.PARTIALLY_PAID:
+            if self.amount_paid is None or amount_paid <= Decimal("0.00"):
+                errors["amount_paid"] = "Pagamento parcial requer valor pago maior que zero."
+            elif total_with_penalties and amount_paid >= total_with_penalties:
+                errors["amount_paid"] = "Pagamento parcial não pode quitar totalmente a parcela."
+
+        if self.status == InstallmentStatus.PENDING and amount_paid > Decimal("0.00"):
+            errors["status"] = "Parcela pendente não deve possuir pagamentos registrados."
+
+        if self.payment_date and amount_paid <= Decimal("0.00"):
+            errors["payment_date"] = "Pagamento deve possuir valor positivo."
+
+        if self.loan_id and self.due_date and getattr(self.loan, "contract_date", None):
+            if self.due_date <= self.loan.contract_date:
+                errors["due_date"] = "Data de vencimento deve ser posterior à data do contrato."
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def get_audit_fields(self):  # type: ignore[override]
+        fields = super().get_audit_fields()
+        fields.update(
+            {
+                "loan_id": str(self.loan_id) if self.loan_id else None,
+                "sequence": self.sequence,
+                "status": self.status,
+                "total_amount": str(self.total_amount),
+                "amount_paid": str(self.amount_paid),
+            }
+        )
+        return fields
+
+    def __str__(self) -> str:
+        return f"Installment({self.id})"

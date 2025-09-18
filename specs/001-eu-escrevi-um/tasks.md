@@ -64,8 +64,8 @@ Baseado na análise dos documentos disponíveis:
 
 ### Operations Module
 - [x] T033 Loan model em `backend/src/iabank/operations/models.py`
-- [ ] T034 Installment model em `backend/src/iabank/operations/models.py`
-- [ ] T035 [P] Loan domain entities em `backend/src/iabank/operations/domain/entities.py`
+- [x] T034 Installment model em `backend/src/iabank/operations/models.py`
+- [x] T035 [P] Loan domain entities em `backend/src/iabank/operations/domain/entities.py`
 - [ ] T036 [P] Loan domain services (cálculos IOF, CET) em `backend/src/iabank/operations/domain/services.py`
 - [ ] T037 Loan, Installment e Payment ViewSets em `backend/src/iabank/operations/views.py`
 
