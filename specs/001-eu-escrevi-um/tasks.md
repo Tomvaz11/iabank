@@ -63,7 +63,7 @@ Baseado na análise dos documentos disponíveis:
 - [x] T032 Customer CRUD e credit analysis ViewSets em `backend/src/iabank/customers/views.py`
 
 ### Operations Module
-- [ ] T033 Loan model em `backend/src/iabank/operations/models.py`
+- [x] T033 Loan model em `backend/src/iabank/operations/models.py`
 - [ ] T034 Installment model em `backend/src/iabank/operations/models.py`
 - [ ] T035 [P] Loan domain entities em `backend/src/iabank/operations/domain/entities.py`
 - [ ] T036 [P] Loan domain services (cálculos IOF, CET) em `backend/src/iabank/operations/domain/services.py`
