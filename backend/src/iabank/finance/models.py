@@ -296,7 +296,7 @@ class PaymentCategory(BaseTenantModel):
     )
     is_active = models.BooleanField(
         default=True,
-        help_text="Indica se a categoria está ativa",
+        help_text="Indica se a categoria esta ativa",
     )
 
     class Meta:
@@ -321,10 +321,33 @@ class PaymentCategory(BaseTenantModel):
 
     def clean(self):
         super().clean()
+        errors: dict[str, str] = {}
+
         if self.name:
             self.name = self.name.strip()
-        if not self.name:
-            raise ValidationError({"name": "Nome da categoria é obrigatório"})
+        else:
+            errors["name"] = "Nome da categoria e obrigatorio"
+
+        if not self.type:
+            errors["type"] = "Tipo da categoria e obrigatorio"
+
+        if errors:
+            raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def get_audit_fields(self):  # type: ignore[override]
+        fields = super().get_audit_fields()
+        fields.update(
+            {
+                "name": self.name,
+                "type": self.type,
+                "is_active": self.is_active,
+            }
+        )
+        return fields
 
     def __str__(self) -> str:
         return f"PaymentCategory({self.name})"
@@ -335,7 +358,7 @@ class CostCenter(BaseTenantModel):
 
     code = models.CharField(
         max_length=20,
-        help_text="Código interno do centro de custo",
+        help_text="Codigo interno do centro de custo",
     )
     name = models.CharField(
         max_length=100,
@@ -343,11 +366,11 @@ class CostCenter(BaseTenantModel):
     )
     description = models.TextField(
         blank=True,
-        help_text="Descrição opcional",
+        help_text="Descricao opcional",
     )
     is_active = models.BooleanField(
         default=True,
-        help_text="Indica se o centro está ativo",
+        help_text="Indica se o centro esta ativo",
     )
 
     class Meta:
@@ -373,15 +396,33 @@ class CostCenter(BaseTenantModel):
         if self.code:
             self.code = self.code.strip().upper()
         else:
-            errors["code"] = "Código é obrigatório"
+            errors["code"] = "Codigo e obrigatorio"
 
         if self.name:
             self.name = self.name.strip()
         else:
-            errors["name"] = "Nome é obrigatório"
+            errors["name"] = "Nome e obrigatorio"
+
+        if self.description:
+            self.description = self.description.strip()
 
         if errors:
             raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def get_audit_fields(self):  # type: ignore[override]
+        fields = super().get_audit_fields()
+        fields.update(
+            {
+                "code": self.code,
+                "name": self.name,
+                "is_active": self.is_active,
+            }
+        )
+        return fields
 
     def __str__(self) -> str:
         return f"CostCenter({self.code})"
@@ -406,7 +447,7 @@ class Supplier(BaseTenantModel):
     )
     name = EncryptedCharField(
         max_length=255,
-        help_text="Nome ou razão social do fornecedor",
+        help_text="Nome ou razao social do fornecedor",
     )
     email = EncryptedEmailField(
         blank=True,
@@ -419,7 +460,7 @@ class Supplier(BaseTenantModel):
     )
     is_active = models.BooleanField(
         default=True,
-        help_text="Indica se o fornecedor está ativo",
+        help_text="Indica se o fornecedor esta ativo",
     )
 
     class Meta:
@@ -452,10 +493,13 @@ class Supplier(BaseTenantModel):
         if self.name:
             self.name = self.name.strip()
         else:
-            errors["name"] = "Nome do fornecedor é obrigatório"
+            errors["name"] = "Nome do fornecedor e obrigatorio"
 
         if self.email:
             self.email = self.email.strip().lower()
+
+        if self.phone:
+            self.phone = re.sub(r"\D", "", self.phone)
 
         if normalized_document and self.tenant_id:
             self.document = normalized_document
@@ -469,10 +513,25 @@ class Supplier(BaseTenantModel):
                 .exists()
             )
             if duplicate_exists:
-                errors["document"] = "Fornecedor já cadastrado para este tenant"
+                errors["document"] = "Fornecedor ja cadastrado para este tenant"
 
         if errors:
             raise ValidationError(errors)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def get_audit_fields(self):  # type: ignore[override]
+        fields = super().get_audit_fields()
+        fields.update(
+            {
+                "document_type": self.document_type,
+                "document_hash": self.document_hash,
+                "is_active": self.is_active,
+            }
+        )
+        return fields
 
     @staticmethod
     def _normalize_document(document_type: str | None, value: str | None) -> str:
@@ -480,7 +539,7 @@ class Supplier(BaseTenantModel):
             return _normalize_cnpj(value)
         if document_type == SupplierDocumentType.CPF:
             return _normalize_cpf(value or "")
-        raise ValidationError({"document_type": "Tipo de documento inválido"})
+        raise ValidationError({"document_type": "Tipo de documento invalido"})
 
     def __str__(self) -> str:
         return f"Supplier({self.name})"

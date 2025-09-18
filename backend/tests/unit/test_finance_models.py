@@ -136,6 +136,68 @@ class TestBankAccountModel:
         assert other_account.account_identifier_hash
 
 
+
+
+@pytest.mark.django_db
+class TestFinanceAuxiliaryModels:
+    """Testes adicionais para categorias, centros de custo e fornecedores."""
+
+    def test_payment_category_save_normalizes_name(self):
+        tenant = TenantFactory()
+        from iabank.finance.models import PaymentCategory, PaymentCategoryType
+
+        category = PaymentCategory(
+            tenant_id=tenant.id,
+            name="  Receita Operacional  ",
+            type=PaymentCategoryType.INCOME,
+        )
+        category.save()
+
+        assert category.name == "Receita Operacional"
+
+    def test_cost_center_save_applies_normalization(self):
+        tenant = TenantFactory()
+        from iabank.finance.models import CostCenter
+
+        cost_center = CostCenter(
+            tenant_id=tenant.id,
+            code="cc-fin-01",
+            name="  Operacoes Financeiras  ",
+            description="  Descricao Centro  ",
+        )
+        cost_center.save()
+
+        assert cost_center.code == "CC-FIN-01"
+        assert cost_center.name == "Operacoes Financeiras"
+        assert cost_center.description == "Descricao Centro"
+
+    def test_supplier_save_generates_document_hash_and_normalizes_fields(self):
+        tenant = TenantFactory()
+        from iabank.finance.models import Supplier, SupplierDocumentType
+
+        supplier = Supplier(
+            tenant_id=tenant.id,
+            document_type=SupplierDocumentType.CNPJ,
+            document=generate_cnpj(),
+            name="  Fornecedor Servicos  ",
+            email="contato@fornecedor.com",
+            phone="(11) 98888-7777",
+        )
+        supplier.save()
+
+        assert supplier.document_hash
+        assert supplier.name == "Fornecedor Servicos"
+        assert supplier.phone == "11988887777"
+
+        duplicate = Supplier(
+            tenant_id=tenant.id,
+            document_type=SupplierDocumentType.CNPJ,
+            document=supplier.document,
+            name="Outro Fornecedor",
+        )
+        with pytest.raises(ValidationError):
+            duplicate.save()
+
 @pytest.mark.django_db
 class TestFinancialTransactionModel:
     """Casos de teste para FinancialTransaction."""
@@ -186,7 +248,7 @@ class TestFinancialTransactionModel:
         cost_center = CostCenter(
             tenant_id=tenant.id,
             code="CC-001",
-            name="Operações",
+            name="Operacoes",
             description="Centro de custos principal",
             is_active=True,
         )
@@ -201,7 +263,7 @@ class TestFinancialTransactionModel:
             tenant_id=tenant.id,
             document_type=SupplierDocumentType.CNPJ,
             document=generate_cnpj(),
-            name="Fornecedor Serviços",
+            name="Fornecedor Servicos",
             email="contato@fornecedor.com",
             phone="11988887777",
         )
