@@ -70,8 +70,8 @@ Baseado na análise dos documentos disponíveis:
 - [x] T037 Loan, Installment e Payment ViewSets em `backend/src/iabank/operations/views.py`
 
 ### Finance Module
-- [ ] T038 BankAccount model em `backend/src/iabank/finance/models.py`
-- [ ] T039 FinancialTransaction model em `backend/src/iabank/finance/models.py`
+- [x] T038 BankAccount model em `backend/src/iabank/finance/models.py`
+- [x] T039 FinancialTransaction model em `backend/src/iabank/finance/models.py`
 - [ ] T040 PaymentCategory e CostCenter models em `backend/src/iabank/finance/models.py`
 - [ ] T041 Supplier model em `backend/src/iabank/finance/models.py`
 - [ ] T042 [P] Finance domain entities em `backend/src/iabank/finance/domain/entities.py`

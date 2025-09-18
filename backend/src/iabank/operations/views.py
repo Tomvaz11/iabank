@@ -1,5 +1,8 @@
 """ViewSets para operações de empréstimos e parcelas."""
-from __future__ import annotations\n\nfrom decimal import Decimal\nimport uuid
+from __future__ import annotations
+
+from decimal import Decimal
+import uuid
 from typing import Any, Dict, List
 
 from django.db.models import Prefetch
@@ -15,7 +18,11 @@ from iabank.core.logging import get_logger, log_business_event
 from iabank.core.models import Tenant
 from iabank.core.views import ApiResponseMixin
 from iabank.operations.domain.entities import InstallmentEntity, LoanEntity, LoanStatus
-from iabank.operations.domain.services import (\n    DEFAULT_IOF_DAILY_RATE,\n    DEFAULT_IOF_FIXED_RATE,\n    LoanService,\n)
+from iabank.operations.domain.services import (
+    DEFAULT_IOF_DAILY_RATE,
+    DEFAULT_IOF_FIXED_RATE,
+    LoanService,
+)
 from iabank.operations.models import Installment, InstallmentStatus, Loan
 from iabank.operations.serializers import (
     InstallmentPaymentSerializer,
