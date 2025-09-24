@@ -12,6 +12,7 @@ from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
 from .models import Tenant
+from .logging import bind_structlog_context
 
 
 logger = logging.getLogger(__name__)
@@ -56,6 +57,7 @@ class TenantMiddleware(MiddlewareMixin):
         request.tenant_id = tenant.id
         request._tenant_context_token = _current_tenant.set(tenant)
 
+        bind_structlog_context(tenant_id=tenant.id)
         self._set_rls_context(tenant)
         return None
 
