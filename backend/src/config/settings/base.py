@@ -72,6 +72,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django_otp.middleware.OTPMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
     'iabank.core.middleware.TenantMiddleware',  # Multi-tenancy middleware
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -261,6 +262,10 @@ CORS_ALLOW_CREDENTIALS = True
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
+SECURE_CROSS_ORIGIN_EMBEDDER_POLICY = "require-corp"
+SECURE_CROSS_ORIGIN_RESOURCE_POLICY = "same-origin"
 
 # Multi-tenancy settings
 TENANT_MODEL = "core.Tenant"
@@ -320,11 +325,13 @@ CONN_MAX_AGE = 60
 # Session settings
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_AGE = 86400  # 1 day
 
 # CSRF settings
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_SAMESITE = "Lax"
 
 # Brazilian regulatory compliance settings
 BRAZILIAN_REGULATIONS = {
