@@ -52,6 +52,34 @@ python -m pytest tests/ --tb=short
 | pgAdmin | http://localhost:5050 | admin@iabank.com / admin123 |
 | Redis Commander | http://localhost:8081 | - |
 
+### Execução do Celery (Workers + Beat)
+
+Para validar as tasks assíncronas (`T046`) utilize a infraestrutura acima (Redis obrigatório) e execute:
+
+```bash
+# Em um terminal: worker Celery
+cd backend
+PYTHONPATH=src celery -A config.celery worker --loglevel=info --pool=solo
+
+# Em outro terminal: scheduler (beat)
+cd backend
+PYTHONPATH=src celery -A config.celery beat --loglevel=info
+```
+
+Com os processos ativos, as tarefas periódicas configuradas em `config/celery.py` serão enfileiradas automaticamente:
+- `iabank.operations.tasks.update_iof_rates` (diário)
+- `iabank.operations.tasks.calculate_overdue_interest` (horário)
+- `iabank.finance.tasks.generate_daily_reports` (diário)
+
+Para uma verificação rápida sem manter processos rodando, você pode inspecionar a configuração carregada:
+
+```bash
+cd backend
+PYTHONPATH=src python3 -m celery -A config.celery report
+```
+
+O comando acima confirma broker/result backend, timezone e a agenda (`beat_schedule`) que inclui as tarefas adicionadas.
+
 ### Configuração Manual
 
 Se preferir configurar manualmente:

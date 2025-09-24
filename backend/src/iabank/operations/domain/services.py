@@ -526,6 +526,62 @@ class InstallmentService:
     PAYMENT_TOLERANCE = DEFAULT_PAYMENT_TOLERANCE
 
     @classmethod
+    def apply_overdue_interest(
+        cls,
+        installment: InstallmentEntity,
+        *,
+        reference_date: Optional[date] = None,
+        grace_days: int = 5,
+    ) -> InstallmentEntity:
+        """Aplica multa e juros de mora para parcelas vencidas.
+
+        Args:
+            installment: entidade de parcela a ser avaliada
+            reference_date: data de referência para cálculo (default: hoje)
+            grace_days: quantidade de dias de carência antes de aplicar encargos
+
+        Returns:
+            Entidade atualizada com encargos calculados quando necessário
+        """
+
+        if installment.status == InstallmentStatus.PAID:
+            return installment
+
+        today = reference_date or date.today()
+        if today <= installment.due_date:
+            return installment
+
+        days_overdue = (today - installment.due_date).days
+        if days_overdue <= 0:
+            return installment
+
+        if days_overdue <= grace_days and installment.status != InstallmentStatus.OVERDUE:
+            return installment
+
+        late_fee = _quantize_money(installment.total_amount * cls.LATE_FEE_RATE)
+        penalty_days = max(0, days_overdue - grace_days)
+        penalty = _quantize_money(
+            installment.total_amount * cls.DAILY_PENALTY_RATE * Decimal(penalty_days)
+        )
+
+        total_due = installment.total_amount + late_fee + penalty
+
+        if installment.amount_paid + cls.PAYMENT_TOLERANCE >= total_due:
+            status = InstallmentStatus.PAID
+        elif installment.amount_paid > MONEY_ZERO:
+            status = InstallmentStatus.PARTIALLY_PAID
+        else:
+            status = InstallmentStatus.OVERDUE
+
+        return installment.model_copy(
+            update={
+                "late_fee": late_fee,
+                "interest_penalty": penalty,
+                "status": status,
+            }
+        )
+
+    @classmethod
     def apply_payment(
         cls,
         installment: InstallmentEntity,
