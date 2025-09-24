@@ -5,7 +5,7 @@ from rest_framework.routers import DefaultRouter
 
 from . import views
 
-router = DefaultRouter()
+router = DefaultRouter(trailing_slash="/?")
 router.register(r"bank-accounts", views.BankAccountViewSet, basename="finance-bank-account")
 router.register(r"payment-categories", views.PaymentCategoryViewSet, basename="finance-payment-category")
 router.register(r"cost-centers", views.CostCenterViewSet, basename="finance-cost-center")

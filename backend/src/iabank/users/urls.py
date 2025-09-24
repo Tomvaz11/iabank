@@ -5,7 +5,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import AuthViewSet, UserViewSet
 
-router = DefaultRouter(trailing_slash="")
+router = DefaultRouter(trailing_slash="/?")
 router.register("users", UserViewSet, basename="users")
 
 auth_login = AuthViewSet.as_view({"post": "login"})

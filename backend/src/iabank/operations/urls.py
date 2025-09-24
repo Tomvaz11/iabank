@@ -7,7 +7,7 @@ from rest_framework.routers import DefaultRouter
 
 from .views import InstallmentViewSet, LoanViewSet
 
-router = DefaultRouter()
+router = DefaultRouter(trailing_slash="/?")
 router.register(r"loans", LoanViewSet, basename="loan")
 router.register(r"installments", InstallmentViewSet, basename="installment")
 

@@ -7,7 +7,7 @@ from rest_framework.routers import DefaultRouter
 
 from iabank.customers.views import CustomerViewSet
 
-router = DefaultRouter()
+router = DefaultRouter(trailing_slash="/?")
 router.register(r"", CustomerViewSet, basename="customer")
 
 urlpatterns = [
