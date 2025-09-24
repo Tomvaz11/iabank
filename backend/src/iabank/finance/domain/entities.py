@@ -13,7 +13,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    FieldValidationInfo,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
@@ -201,7 +201,7 @@ class BankAccountEntity(BaseModel):
 
     @field_validator("bank_name", mode="before")
     @classmethod
-    def _normalize_bank_name(cls, value: Optional[str], info: FieldValidationInfo) -> Optional[str]:
+    def _normalize_bank_name(cls, value: Optional[str], info: ValidationInfo) -> Optional[str]:
         if value is None or not value.strip():
             bank_code = (info.data or {}).get("bank_code")
             if bank_code in BACEN_REGISTERED_BANKS:
@@ -339,7 +339,7 @@ class SupplierEntity(BaseModel):
 
     @field_validator("document", mode="before")
     @classmethod
-    def _normalize_document(cls, value: str, info: FieldValidationInfo) -> str:
+    def _normalize_document(cls, value: str, info: ValidationInfo) -> str:
         document_type = (info.data or {}).get("document_type")
         if document_type == SupplierDocumentType.CNPJ:
             return _normalize_cnpj(value)

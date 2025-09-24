@@ -171,12 +171,17 @@ class TenantMiddleware(MiddlewareMixin):
 
     def _set_rls_context(self, tenant: Tenant):
         """Configura contexto de RLS no PostgreSQL."""
+        if not getattr(settings, "ENABLE_RLS", True):
+            return
+
+        conn = connections["default"]
         try:
-            conn = connections["default"]
             with conn.cursor() as cursor:
                 cursor.execute("SELECT set_tenant_context(%s)", [str(tenant.id)])
         except Exception as exc:  # pragma: no cover - logging auxiliar
             logger.warning("Failed to set RLS context: %s", exc)
+            with contextlib.suppress(Exception):
+                conn.rollback()
 
     def _clear_rls_context(self):
         """Remove contexto de RLS ao final da requisicao."""

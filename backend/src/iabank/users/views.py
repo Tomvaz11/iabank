@@ -4,6 +4,8 @@ from __future__ import annotations
 import uuid
 from typing import Optional, Type
 
+import json
+
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import permissions, status, viewsets
@@ -39,7 +41,17 @@ class AuthViewSet(ApiResponseMixin, viewsets.ViewSet):
     def login(self, request: Request, *args, **kwargs) -> Response:
         """Delegação para o fluxo customizado de emissão de tokens."""
 
-        logger.info("Login attempt", email=request.data.get("email"))
+        email = None
+        try:
+            raw_body = request._request.body  # type: ignore[attr-defined]
+            if raw_body:
+                payload = json.loads(raw_body.decode("utf-8"))
+                if isinstance(payload, dict):
+                    email = payload.get("email")
+        except (AttributeError, UnicodeDecodeError, json.JSONDecodeError):
+            email = None
+
+        logger.info("Login attempt", email=email)
         return self._dispatch(TokenObtainPairView, request, *args, **kwargs)
 
     @method_decorator(csrf_exempt)
