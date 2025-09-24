@@ -7,6 +7,7 @@ import os
 import logging.config
 from pathlib import Path
 
+from corsheaders.defaults import default_headers, default_methods
 from decouple import config
 from iabank.core.logging import configure_structlog
 
@@ -25,8 +26,13 @@ DEBUG = config("DEBUG", default=True, cast=bool)
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",
     default="localhost,127.0.0.1",
-    cast=lambda v: [s.strip() for s in v.split(",")],
+    cast=lambda v: [s.strip() for s in v.split(",") if s.strip()],
 )
+
+
+def csv_to_list(value: str) -> list[str]:
+    """Normaliza entradas separadas por vírgula removendo espaços vazios."""
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 # Application definition
 DJANGO_APPS = [
@@ -253,12 +259,28 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = config(
     "CORS_ALLOWED_ORIGINS",
     default="http://localhost:3000,http://127.0.0.1:3000",
-    cast=lambda v: [s.strip() for s in v.split(",")],
+    cast=csv_to_list,
 )
 
+CORS_ALLOWED_ORIGIN_REGEXES = config(
+    "CORS_ALLOWED_ORIGIN_REGEXES",
+    default=r"^https://.*\.iabank\.com$",
+    cast=csv_to_list,
+)
+
+_custom_headers = {header.lower() for header in ["x-tenant-id", "x-request-id"]}
+CORS_ALLOW_HEADERS = sorted({*default_headers, *_custom_headers})
+CORS_ALLOW_METHODS = list(default_methods)
+CORS_EXPOSE_HEADERS = ["X-Request-ID", "X-Tenant-ID", "Content-Disposition"]
 CORS_ALLOW_CREDENTIALS = True
+CORS_PREFLIGHT_MAX_AGE = config("CORS_PREFLIGHT_MAX_AGE", default=86400, cast=int)
 
 # Security Settings
+SECURE_HSTS_SECONDS = config("SECURE_HSTS_SECONDS", default=31536000, cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True, cast=bool
+)
+SECURE_HSTS_PRELOAD = config("SECURE_HSTS_PRELOAD", default=True, cast=bool)
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
