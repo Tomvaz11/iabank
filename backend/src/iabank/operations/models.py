@@ -144,7 +144,7 @@ class Loan(BaseTenantModel):
             ),
             models.Index(
                 fields=["tenant_id", "consultant"],
-                name="ops_loans_tenant_consultant_idx",
+                name="ops_loans_t_consult_idx",
             ),
         ]
         constraints = [

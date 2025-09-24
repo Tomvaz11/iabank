@@ -260,7 +260,10 @@ class LoanCreateSerializer(serializers.Serializer):
 class LoanUpdateSerializer(serializers.Serializer):
     """Permite atualização segura de informações do empréstimo."""
 
-    status = serializers.ChoiceField(choices=LoanStatus.choices, required=True)
+    status = serializers.ChoiceField(
+        choices=[(status.value, status.value) for status in LoanStatus],
+        required=True,
+    )
 
     def update(self, instance: Loan, validated_data: Dict[str, Any]) -> Loan:
         new_status = LoanStatus(validated_data["status"])
