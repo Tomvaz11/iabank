@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from django.db.models import Prefetch
 from django.utils import timezone
@@ -17,6 +17,18 @@ from iabank.core.exceptions import TenantIsolationViolation
 from iabank.core.logging import get_logger, log_business_event
 from iabank.core.models import Tenant
 from iabank.core.views import ApiResponseMixin
+from iabank.finance.models import (
+    BankAccount,
+    PaymentCategory,
+    PaymentCategoryType,
+    FinancialTransaction,
+    TransactionStatus as FinanceTransactionStatus,
+    TransactionType as FinanceTransactionType,
+)
+from iabank.finance.serializers import (
+    FinancialTransactionOutputSerializer,
+    FinancialTransactionSerializer,
+)
 from iabank.operations.domain.entities import InstallmentEntity, LoanEntity, LoanStatus
 from iabank.operations.domain.services import (
     DEFAULT_IOF_DAILY_RATE,
@@ -282,7 +294,17 @@ class InstallmentViewSet(ApiResponseMixin, viewsets.ReadOnlyModelViewSet):
             context=self.get_serializer_context(),
         )
 
-        transaction_payload = self._build_transaction_payload(updated_installment, serializer.validated_data)
+        transaction_instance = self._create_financial_transaction(
+            installment=updated_installment,
+            amount=serializer.validated_data["amount"],
+            payment_date=serializer.validated_data["payment_date"],
+            bank_account_id=serializer.validated_data.get("bank_account_id"),
+            request=request,
+        )
+        transaction_payload = FinancialTransactionOutputSerializer(
+            transaction_instance,
+            context=self.get_serializer_context(),
+        ).data
 
         log_business_event(
             event_type="business",
@@ -301,19 +323,63 @@ class InstallmentViewSet(ApiResponseMixin, viewsets.ReadOnlyModelViewSet):
             meta={"message": "Pagamento registrado com sucesso."},
         )
 
-    def _build_transaction_payload(self, installment: Installment, payload: Dict[str, Any]) -> Dict[str, Any]:
-        amount = payload.get("amount")
-        payment_date = payload.get("payment_date")
-        status_value = "PAID" if installment.status == InstallmentStatus.PAID else "PENDING"
+    def _create_financial_transaction(
+        self,
+        *,
+        installment: Installment,
+        amount: Decimal,
+        payment_date: Any,
+        bank_account_id: uuid.UUID | str | None,
+        request: Request,
+    ) -> FinancialTransaction:
+        tenant_uuid = uuid.UUID(str(installment.tenant_id))
+
+        account_id = bank_account_id or self._resolve_default_bank_account(tenant_uuid)
+        if account_id is None:
+            raise DRFValidationError({"bank_account_id": ["Conta bancária é obrigatória para registrar o pagamento."]})
+
+        if not isinstance(account_id, uuid.UUID):
+            account_id = uuid.UUID(str(account_id))
+
+        category = self._ensure_income_category(tenant_uuid)
         description = f"Pagamento parcela {installment.sequence} do empréstimo {installment.loan_id}"
-        return {
-            "id": None,
-            "type": "INCOME",
-            "amount": amount,
-            "description": description,
-            "reference_date": payment_date,
-            "status": status_value,
-        }
+
+        serializer = FinancialTransactionSerializer(
+            data={
+                "bank_account_id": str(account_id),
+                "type": FinanceTransactionType.INCOME.value,
+                "category_id": str(category.id),
+                "amount": amount,
+                "description": description,
+                "reference_date": payment_date,
+                "payment_date": payment_date,
+                "status": FinanceTransactionStatus.PAID.value,
+                "installment_id": str(installment.id),
+            },
+            context={"request": request, "tenant_id": tenant_uuid},
+        )
+        serializer.is_valid(raise_exception=True)
+        return serializer.save()
+
+    def _resolve_default_bank_account(self, tenant_id: uuid.UUID) -> Optional[uuid.UUID]:
+        account = (
+            BankAccount.objects.filter(tenant_id=tenant_id, is_main=True)
+            .values_list("id", flat=True)
+            .first()
+        )
+        return uuid.UUID(str(account)) if account else None
+
+    def _ensure_income_category(self, tenant_id: uuid.UUID) -> PaymentCategory:
+        category, created = PaymentCategory.objects.get_or_create(
+            tenant_id=tenant_id,
+            name="Receitas de Empréstimos",
+            defaults={"type": PaymentCategoryType.INCOME, "is_active": True},
+        )
+        if not created and category.type not in {PaymentCategoryType.INCOME, PaymentCategoryType.BOTH}:
+            category.type = PaymentCategoryType.INCOME
+            category.is_active = True
+            category.save(update_fields=["type", "is_active", "updated_at"])
+        return category
 
 
 def _normalize_history_type(history_type: str) -> str:

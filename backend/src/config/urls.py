@@ -26,8 +26,8 @@ urlpatterns = [
     path("api/v1/customers", include("iabank.customers.urls")),
     path("api/v1/loans/", include("iabank.operations.urls")),
     path("api/v1/loans", include("iabank.operations.urls")),
-    path("api/v1/finance/", include("iabank.finance.urls")),
-    path("api/v1/finance", include("iabank.finance.urls")),
+    path("api/v1/", include("iabank.finance.urls")),
+    path("api/v1", include("iabank.finance.urls")),
     # Prometheus metrics
     path("", include("django_prometheus.urls")),
 ]

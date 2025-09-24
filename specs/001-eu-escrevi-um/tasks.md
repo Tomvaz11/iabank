@@ -74,9 +74,9 @@ Baseado na análise dos documentos disponíveis:
 - [x] T039 FinancialTransaction model em `backend/src/iabank/finance/models.py`
 - [x] T040 PaymentCategory e CostCenter models em `backend/src/iabank/finance/models.py`
 - [x] T041 Supplier model em `backend/src/iabank/finance/models.py`
-- [ ] T042 [P] Finance domain entities em `backend/src/iabank/finance/domain/entities.py`
-- [ ] T043 [P] Finance domain services em `backend/src/iabank/finance/domain/services.py`
-- [ ] T044 Finance CRUD e Reports ViewSets em `backend/src/iabank/finance/views.py`
+- [x] T042 [P] Finance domain entities em `backend/src/iabank/finance/domain/entities.py`
+- [x] T043 [P] Finance domain services em `backend/src/iabank/finance/domain/services.py`
+- [x] T044 Finance CRUD e Reports ViewSets em `backend/src/iabank/finance/views.py`
 
 ## Phase 3.4: Integration
 
