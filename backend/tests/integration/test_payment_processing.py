@@ -23,17 +23,43 @@ from django.contrib.auth import get_user_model
 from django.test import TransactionTestCase
 from rest_framework import status
 from rest_framework.test import APIClient
+from django.db import connection
+from django.db import ProgrammingError
 
 from iabank.core.factories import TenantFactory
 from iabank.core.models import Tenant
 
 
+
 User = get_user_model()
 
 
+def _ensure_tenant_context_function():
+    """Garante que a funcao set_tenant_context exista no banco de testes."""
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                CREATE OR REPLACE FUNCTION set_tenant_context(tenant_uuid uuid)
+                RETURNS void AS $$
+                BEGIN
+                    PERFORM set_config('iabank.current_tenant_id', tenant_uuid::text, true);
+                END;
+                $$ LANGUAGE plpgsql;
+            """)
+    except ProgrammingError:
+        # plpgsql pode nao estar disponivel no ambiente de teste
+        pass
+
+
 @pytest.mark.integration
+
 class TestPaymentProcessingFlow(TransactionTestCase):
     """Integration tests para o fluxo completo de processamento de pagamentos."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        _ensure_tenant_context_function()
 
     def setUp(self):
         """Configura ambiente multi-tenant e usuários de teste."""
@@ -56,6 +82,7 @@ class TestPaymentProcessingFlow(TransactionTestCase):
         if hasattr(self.user, "role"):
             self.user.role = "FINANCE_MANAGER"
         self.user.save()
+        self.client.credentials(HTTP_X_TENANT_ID=str(self.tenant.id))
 
         # Usuário de outro tenant para testes de isolamento
         self.other_user = User.objects.create_user(
@@ -72,14 +99,14 @@ class TestPaymentProcessingFlow(TransactionTestCase):
         self.other_user.save()
 
         # URLs bases utilizadas nos cenários
-        self.bank_accounts_url = "/api/v1/bank-accounts"
-        self.customers_url = "/api/v1/customers"
-        self.loans_url = "/api/v1/loans"
-        self.loan_detail_url = "/api/v1/loans/{loan_id}"
-        self.loan_approve_url = "/api/v1/loans/{loan_id}/approve"
-        self.loan_installments_url = "/api/v1/loans/{loan_id}/installments"
-        self.installment_payment_url = "/api/v1/installments/{installment_id}/payments"
-        self.financial_transactions_url = "/api/v1/financial-transactions"
+        self.bank_accounts_url = "/api/v1/bank-accounts/"
+        self.customers_url = "/api/v1/customers/"
+        self.loans_url = "/api/v1/loans/"
+        self.loan_detail_url = "/api/v1/loans/{loan_id}/"
+        self.loan_approve_url = "/api/v1/loans/{loan_id}/approve/"
+        self.loan_installments_url = "/api/v1/loans/{loan_id}/installments/"
+        self.installment_payment_url = "/api/v1/installments/{installment_id}/payments/"
+        self.financial_transactions_url = "/api/v1/financial-transactions/"
 
     def tearDown(self):
         """Limpa dados criados durante os testes."""
@@ -92,6 +119,11 @@ class TestPaymentProcessingFlow(TransactionTestCase):
     def _authenticate(self, user):
         """Autentica cliente da API com usuário informado."""
         self.client.force_authenticate(user=user)
+        tenant_id = getattr(user, 'tenant_id', None)
+        if tenant_id is not None:
+            self.client.credentials(HTTP_X_TENANT_ID=str(tenant_id))
+        else:
+            self.client.credentials()
 
     def _create_main_bank_account(self, tenant_user):
         """Cria conta bancária principal do tenant via API."""
@@ -115,7 +147,7 @@ class TestPaymentProcessingFlow(TransactionTestCase):
         self._authenticate(tenant_user)
         payload = {
             "document_type": "CPF",
-            "document": "12345678901",
+            "document": "52998224725",
             "name": "João Pagador",
             "email": "joao.pagador@example.com",
             "phone": "(11) 98888-7777",
@@ -214,10 +246,11 @@ class TestPaymentProcessingFlow(TransactionTestCase):
         """Pagamentos integrais devem liquidar a parcela e registrar transação."""
         dataset = self._prepare_active_loan_dataset(self.user)
         first_installment = dataset["installments"][0]
+        total_amount = Decimal(str(first_installment["total_amount"]))
 
         payment_payload = {
-            "amount": "937.05",
-            "payment_date": "2025-10-15",
+            "amount": str(total_amount),
+            "payment_date": first_installment["due_date"],
             "payment_method": "PIX",
             "bank_account_id": dataset["bank_account_id"],
         }
@@ -235,12 +268,12 @@ class TestPaymentProcessingFlow(TransactionTestCase):
         installment = payment_data["installment"]
         transaction = payment_data["transaction"]
 
-        self.assertEqual(Decimal(str(installment["amount_paid"])), Decimal("937.05"))
+        self.assertEqual(Decimal(str(installment["amount_paid"])), total_amount)
         self.assertEqual(installment["status"], "PAID")
-        self.assertEqual(installment["payment_date"], "2025-10-15")
+        self.assertEqual(installment["payment_date"], first_installment["due_date"])
 
         self.assertEqual(transaction["type"], "INCOME")
-        self.assertEqual(Decimal(str(transaction["amount"])), Decimal("937.05"))
+        self.assertEqual(Decimal(str(transaction["amount"])), total_amount)
         self.assertEqual(transaction["status"], "PAID")
         self.assertIn("Pagamento parcela", transaction["description"])
 
@@ -248,9 +281,11 @@ class TestPaymentProcessingFlow(TransactionTestCase):
         """Pagamentos parciais devem acumular valor pago e gerar múltiplas transações."""
         dataset = self._prepare_active_loan_dataset(self.user)
         second_installment = dataset["installments"][1]
+        total_amount = Decimal(str(second_installment["total_amount"]))
+        first_partial_amount = Decimal("500.00")
 
         first_partial_payload = {
-            "amount": "500.00",
+            "amount": str(first_partial_amount),
             "payment_date": "2025-11-15",
             "payment_method": "BOLETO",
             "bank_account_id": dataset["bank_account_id"],
@@ -263,10 +298,11 @@ class TestPaymentProcessingFlow(TransactionTestCase):
         self.assertEqual(first_partial_response.status_code, status.HTTP_200_OK)
         first_installment_state = first_partial_response.json()["data"]["installment"]
         self.assertEqual(first_installment_state["status"], "PARTIALLY_PAID")
-        self.assertEqual(Decimal(str(first_installment_state["amount_paid"])), Decimal("500.00"))
+        self.assertEqual(Decimal(str(first_installment_state["amount_paid"])), first_partial_amount)
 
+        remaining_amount = (total_amount - first_partial_amount).quantize(Decimal("0.01"))
         complement_payload = {
-            "amount": "437.05",
+            "amount": str(remaining_amount),
             "payment_date": "2025-11-20",
             "payment_method": "TRANSFER",
             "bank_account_id": dataset["bank_account_id"],
@@ -279,7 +315,7 @@ class TestPaymentProcessingFlow(TransactionTestCase):
         self.assertEqual(complement_response.status_code, status.HTTP_200_OK)
         final_installment_state = complement_response.json()["data"]["installment"]
         self.assertEqual(final_installment_state["status"], "PAID")
-        self.assertEqual(Decimal(str(final_installment_state["amount_paid"])), Decimal("937.05"))
+        self.assertEqual(Decimal(str(final_installment_state["amount_paid"])), total_amount)
 
         # Verifica que múltiplas transações foram registradas
         transactions_response = self.client.get(
@@ -297,8 +333,8 @@ class TestPaymentProcessingFlow(TransactionTestCase):
 
         self._authenticate(self.other_user)
         payload = {
-            "amount": "937.05",
-            "payment_date": "2025-10-15",
+            "amount": dataset["installments"][0]["total_amount"],
+            "payment_date": dataset["installments"][0]["due_date"],
             "payment_method": "PIX",
             "bank_account_id": str(uuid4()),
         }

@@ -102,6 +102,8 @@ def custom_exception_handler(exc, context):
         response = _handle_unhandled_exceptions(exc, context)
 
     if response is not None:
+        if isinstance(exc, (DRFValidationError, DjangoValidationError)):
+            response.status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
         # Padroniza response para formato IABANK
         response.data = _format_error_response(exc, response, context)
 
