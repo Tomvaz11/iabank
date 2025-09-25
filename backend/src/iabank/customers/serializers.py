@@ -270,6 +270,8 @@ class CustomerCreateSerializer(serializers.Serializer):
             entity = _ensure_score_timestamp(entity)
         except DuplicatePrimaryAddressError as exc:
             raise serializers.ValidationError({"addresses": [str(exc)]}) from exc
+        except PydanticValidationError as exc:
+            raise serializers.ValidationError(_map_pydantic_errors(exc)) from exc
 
         try:
             return self._persist_entity(entity)

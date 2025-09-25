@@ -6,7 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal, ROUND_HALF_UP
 from enum import StrEnum
 from hashlib import sha256
-from typing import List, Optional
+from typing import Iterable, List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -203,6 +203,31 @@ class CustomerEntity(BaseModel):
     created_at: Optional[datetime] = Field(default=None)
     updated_at: Optional[datetime] = Field(default=None)
     addresses: List[AddressEntity] = Field(default_factory=list)
+
+    @field_validator("gender", mode="before")
+    @classmethod
+    def _normalize_gender(cls, value: Optional[str | CustomerGender]) -> Optional[CustomerGender | str]:
+        if value is None:
+            return None
+        if isinstance(value, CustomerGender):
+            return value
+        normalized = str(value).strip()
+        if not normalized:
+            return None
+        return CustomerGender(normalized.upper())
+
+    @field_validator("addresses", mode="before")
+    @classmethod
+    def _normalize_addresses(cls, value: Optional[Iterable]) -> List[AddressEntity] | Iterable:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        if hasattr(value, "all"):
+            return list(value.all())
+        if isinstance(value, tuple):
+            return list(value)
+        return value
 
     @field_validator("email")
     @classmethod
