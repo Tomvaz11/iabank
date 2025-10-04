@@ -74,6 +74,12 @@ When creating this spec from a user prompt:
 - **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
 - **FR-005**: System MUST [behavior, e.g., "log all security events"]
 
+### Non-Functional Requirements *(include if feature has specific NFRs)*
+- **NFR-001 (Reliability)**: The user registration flow MUST have a 99.9% availability SLO.
+- **NFR-002 (Performance)**: The login endpoint MUST respond in < 200ms at p95.
+- **NFR-003 (Security)**: All sensitive data in this feature MUST be encrypted in the database (field-level encryption).
+- **NFR-004 (Compliance)**: The feature MUST adhere to NIST security controls and generate WORM-compliant audit logs for all state changes.
+
 *Example of marking unclear requirements:*
 - **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
 - **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]

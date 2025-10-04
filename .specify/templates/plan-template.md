@@ -18,7 +18,7 @@
    → Update Progress Tracking: Initial Constitution Check
 5. Execute Phase 0 → research.md
    → If NEEDS CLARIFICATION remain: ERROR "Resolve unknowns"
-6. Execute Phase 1 → contracts, data-model.md, quickstart.md, agent-specific template file (e.g., `CLAUDE.md` for Claude Code, `.github/copilot-instructions.md` for GitHub Copilot, `GEMINI.md` for Gemini CLI, `QWEN.md` for Qwen Code, or `AGENTS.md` for all other agents).
+6. Execute Phase 1 → contracts, data-model.md, quickstart.md, agent-specific template file (e.g., `CLAUDE.md` for Claude Code, `.github/copilot-instructions.md` for GitHub Copilot, `GEMINI.md` for Gemini CLI, `QWEN.md` for Qwen Code or `AGENTS.md` for all other agents).
 7. Re-evaluate Constitution Check section
    → If new violations: Refactor design, return to Phase 1
    → Update Progress Tracking: Post-Design Constitution Check
@@ -47,7 +47,23 @@
 ## Constitution Check
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- **Artigo I (Arquitetura e Stack)**: A solução respeita o monolito modular, o monorepo e o stack Django/Postgres, React/Vite e Celery/Redis?
+- **Artigo II (Modularidade e Simplicidade)**: A feature está sendo projetada como um app modular Django e segue o padrão de lógica entre Models/Services?
+- **Artigo III (Test-First)**: O plano de implementação é estritamente compatível com TDD e garante testes falhando antes do código?
+- **Artigo IV (Teste de Integração)**: O plano de testes prioriza ambientes realistas com `factory-boy` e o cliente de teste do DRF?
+- **Artigo V (Documentação e Versionamento)**: A estratégia de documentação e versionamento para esta feature está clara e mantém SemVer?
+- **Artigo VI (SRE e Capacidade)**: SLOs, error budgets, p95/p99 e autoscaling orientado a capacidade foram considerados?
+- **Artigo VII (Observabilidade)**: A solução emite logs/traces/métricas via OpenTelemetry com correlação W3C e usa os stacks definidos no ADR-012, garantindo mascaramento de PII conforme ADR-010?
+- **Artigo VIII (Entrega Contínua)**: A entrega seguirá Trunk-Based Development, métricas DORA e estratégias seguras (feature flags, canary)?
+- **Artigo IX (Qualidade e Performance)**: O pipeline cobre os gates obrigatórios (85% cobertura, complexidade, lint, SAST/DAST/SCA, SBOM, k6)?
+- **Artigo X (Migrações Zero-Downtime)**: Migrações seguem expand/contract e operações não bloqueantes (`CREATE INDEX CONCURRENTLY`)?
+- **Artigo XI (Governança de API)**: Alterações seguem Contrato-Primeiro, RFC 9457, Rate Limiting, Idempotência, ETag e executam lint/diff + Pact conforme ADR-011?
+- **Artigo XII (Segurança por Design)**: O plano contempla cofre de segredos, criptografia de campo, mascaramento de PII e controles de frontend (CSP/Trusted Types) conforme ADR-010, além da matriz RBAC/ABAC?
+- **Artigo XIII (Multi-Tenant e LGPD)**: Acesso a dados mantém RLS, query managers com `tenant_id`, documentação RIPD/ROPA e políticas de retenção/direito ao esquecimento?
+- **Artigo XIV (IaC e GitOps)**: A infraestrutura usa Terraform, Policy-as-Code e GitOps conforme ADR-009?
+- **Artigo XV (Gestão de Dependências)**: Novas dependências passam pelo processo automatizado definido no ADR-008?
+- **Artigo XVI (Auditoria e FinOps)**: A feature produz trilhas WORM com verificação de integridade e aplica tagging/budgets de custos?
+- **Artigo XVII (Operações Proativas)**: Threat Modeling (STRIDE/LINDDUN), GameDays e runbooks atualizados estão previstos?
 
 ## Project Structure
 
@@ -216,4 +232,4 @@ directories captured above]
 - [ ] Complexity deviations documented
 
 ---
-*Based on Constitution v2.1.1 - See `/memory/constitution.md`*
+*Based on Constitution v5.1.1 - See `.specify/memory/constitution.md`*
