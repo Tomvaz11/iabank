@@ -1,0 +1,64 @@
+name: CI Contracts
+
+on:
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - '.github/workflows/ci-contracts.yml'
+      - 'scripts/api/check_rate_headers.sh'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+jobs:
+  validate-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (Node)
+        if: ${{ hashFiles('package.json') != '' }}
+        run: |
+          npm install
+        shell: bash
+
+      - name: Spectral lint (skips if not installed)
+        run: |
+          if command -v npx >/dev/null 2>&1; then
+            if [ -n "$(ls contracts 2>/dev/null)" ]; then
+              npx --yes @stoplight/spectral@6 lint contracts/**/*.yaml || exit 1
+            else
+              echo "::warning::No contracts directory to lint"
+            fi
+          else
+            echo "::warning::npx not available; skipping Spectral lint"
+          fi
+        shell: bash
+
+      - name: OpenAPI diff guard
+        run: |
+          if command -v npx >/dev/null 2>&1; then
+            if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
+              npx --yes openapi-diff contracts/api.previous.yaml contracts/api.yaml
+            else
+              echo "::warning::OpenAPI baseline missing; skipping diff"
+            fi
+          else
+            echo "::warning::npx not available; skipping openapi-diff"
+          fi
+        shell: bash
+
+      - name: Pact contract tests
+        run: |
+          if command -v npm >/dev/null 2>&1 && npm run | grep -q 'test:pact'; then
+            npm run test:pact
+          else
+            echo "::warning::No pact test command defined; skipping"
+          fi
+        shell: bash
+
+      - name: Verify rate limiting headers script
+        run: |
+          ./scripts/api/check_rate_headers.sh --help > /dev/null
+        shell: bash

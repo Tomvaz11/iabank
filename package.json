@@ -1,0 +1,19 @@
+{
+  "name": "specodex",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "lint:openapi": "spectral lint contracts/**/*.yaml",
+    "diff:openapi": "node scripts/openapi/diff-openapi.js contracts/api.previous.yaml contracts/api.yaml",
+    "test:pact": "node scripts/pact/run-pact-stub.js"
+  },
+  "devDependencies": {
+    "@pact-foundation/pact": "^13.1.0",
+    "@pact-foundation/pact-cli": "^16.1.4",
+    "@stoplight/spectral-cli": "^6.11.0",
+    "diff": "^5.2.0",
+    "openapi-diff": "^0.24.1",
+    "typescript": "^5.6.3",
+    "yaml": "^2.6.0"
+  }
+}

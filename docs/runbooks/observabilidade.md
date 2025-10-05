@@ -5,7 +5,7 @@ Executa o **ADR-012** alinhado ao Artigo VII da Constituição.
 ## Verificações Diárias
 1. **Logs estruturados**
    - Inspecione amostras no stack ELK/Sentry para confirmar formato JSON e ausência de PII.
-   - Teste `scripts/observability/check_structlog.py` (TODO implementar) para validar máscaras.
+   - Execute `python scripts/observability/check_structlog.py <arquivo_de_log>` para validar máscaras automaticamente.
 2. **Traces OpenTelemetry**
    - Garanta propagação `traceparent`/`tracestate` entre frontend e backend.
    - Verifique no collector que exportadores estão ativos (gRPC/HTTP).
@@ -19,5 +19,5 @@ Executa o **ADR-012** alinhado ao Artigo VII da Constituição.
 - Atualizar mapa de dependências no runbook com novos serviços instrumentados.
 
 ## Incidentes
-- Quando alertas DORA/SLO dispararem, siga `docs/runbooks/incident-response.md` (TODO criar).
+- Quando alertas DORA/SLO dispararem, siga `docs/runbooks/incident-response.md`.
 - Registre post-mortem com os spans relevantes.

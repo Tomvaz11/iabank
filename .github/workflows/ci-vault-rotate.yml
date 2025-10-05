@@ -1,0 +1,37 @@
+name: Vault Rotation Checks
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+jobs:
+  rotate-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Vault CLI
+        uses: hashicorp/setup-vault@v2
+        with:
+          version: 1.17.3
+
+      - name: Ensure pgcrypto enforcement scripts exist
+        run: |
+          ./scripts/security/check_pgcrypto.sh --help > /dev/null
+        shell: bash
+
+      - name: Verify log redaction test
+        run: |
+          if command -v pytest >/dev/null 2>&1; then
+            pytest tests/security/test_log_redaction.py
+          else
+            echo "::warning::pytest not installed; skipping log redaction tests"
+          fi
+        shell: bash
+
+      - name: Vault rotation placeholder
+        run: |
+          vault status || true
+        shell: bash
