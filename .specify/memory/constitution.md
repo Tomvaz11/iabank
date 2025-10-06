@@ -6,9 +6,9 @@ Relatório de Impacto da Sincronização:
   - Reforçadas obrigações de idempotência persistida, fallback de Trusted Types e verificação automatizada de RLS.
   - Sincronizadas orientações de pipeline/runbooks com novas salvaguardas de execução.
 - Templates que requerem atualização:
-  - ✅ /home/pizzaplanet/meus_projetos/specodex/.specify/templates/plan-template.md
-  - ✅ /home/pizzaplanet/meus_projetos/specodex/.specify/templates/spec-template.md
-  - ✅ /home/pizzaplanet/meus_projetos/specodex/.specify/templates/tasks-template.md
+  - ✅ /home/pizzaplanet/meus_projetos/iabank/.specify/templates/plan-template.md
+  - ✅ /home/pizzaplanet/meus_projetos/iabank/.specify/templates/spec-template.md
+  - ✅ /home/pizzaplanet/meus_projetos/iabank/.specify/templates/tasks-template.md
 - ADRs relacionados:
   - docs/adr/010-protecao-dados-sensiveis-e-segredos.md
   - docs/adr/011-governanca-de-apis-e-contratos.md
