@@ -1,23 +1,15 @@
 <!--
 Relatório de Impacto da Sincronização:
-- Mudança de versão: 5.1.0 → 5.1.1
-- Resumo das Mudanças:
-  - Adicionado glossário de terminologia normativa (RFC 2119/8174) para termos obrigatórios.
-  - Reforçadas obrigações de idempotência persistida, fallback de Trusted Types e verificação automatizada de RLS.
-  - Sincronizadas orientações de pipeline/runbooks com novas salvaguardas de execução.
-- Templates que requerem atualização:
-  - ✅ /home/pizzaplanet/meus_projetos/iabank/.specify/templates/plan-template.md
-  - ✅ /home/pizzaplanet/meus_projetos/iabank/.specify/templates/spec-template.md
-  - ✅ /home/pizzaplanet/meus_projetos/iabank/.specify/templates/tasks-template.md
-- ADRs relacionados:
-  - docs/adr/010-protecao-dados-sensiveis-e-segredos.md
-  - docs/adr/011-governanca-de-apis-e-contratos.md
-  - docs/adr/012-observabilidade-e-telemetria.md
-- Follow-up concluído:
-  - docs/runbooks/seguranca-pii-vault.md
-  - docs/runbooks/governanca-api.md
-  - docs/runbooks/observabilidade.md
-  - docs/pipelines/ci-required-checks.md
+- Mudança de versão: 5.1.1 → 5.2.0
+- Princípios modificados:
+  - Artigo XVIII: Governança da Constituição → Governança da Constituição e Fluxo Spec-Driven
+- Seções adicionadas: Nenhuma
+- Seções removidas: Nenhuma
+- Templates sincronizados:
+  - ✅ .specify/templates/plan-template.md
+  - ✅ .specify/templates/spec-template.md
+  - ✅ .specify/templates/tasks-template.md
+- Follow-up TODOs: Nenhum
 -->
 # Constituição do Projeto IABANK
 
@@ -104,9 +96,12 @@ Os termos **DEVE**, **NÃO DEVE**, **DEVERIA**, **PODE** e variações são usad
 
 ## Seção IV: Aplicação e Processo de Emenda
 
-### Artigo XVIII: Governança da Constituição
-- **Processo de Emenda**: Alterações nesta constituição DEVEM ser propostas via um Architectural Decision Record (ADR).
-- **Rastreabilidade**: Ferramentas e implementações específicas para cumprir os artigos podem ser detalhadas em ADRs.
-- **Conformidade**: Todos os membros da equipe e sistemas automatizados são responsáveis por defender esta constituição.
+### Artigo XVIII: Governança da Constituição e Fluxo Spec-Driven
+- **Fluxo Spec-Driven Development**: Toda entrega DEVE seguir o ciclo `/constitution → /specify → /clarify → /plan → /tasks`. Nenhum desenvolvimento DEVE iniciar enquanto `spec.md` não estiver aprovado e `plan.md` e `tasks.md` não refletirem as obrigações desta constituição. Cada artefato DEVE referenciar explicitamente os artigos aplicáveis e registrar pendências em `/clarify`.
+- **Processo de Emenda**: Alterações nesta constituição DEVEM ser propostas via Architectural Decision Record (ADR) com análise de impacto, plano de mitigação e atualização coordenada dos templates afetados.
+- **Versionamento da Constituição**: A numeração DEVE seguir SemVer. Mudanças que introduzem novos artigos ou obrigações implicam aumento MINOR; quebras ou remoções exigem MAJOR; ajustes editoriais permanecem em PATCH.
+- **Rastreabilidade**: Ferramentas e implementações específicas para cumprir os artigos DEVEM ser detalhadas em ADRs, specs e planos com links recíprocos.
+- **Conformidade**: Todos os membros da equipe e sistemas automatizados DEVEM defender esta constituição; violações DEVEM bloquear merges até saneamento evidenciado por testes e checklists.
+- **Auditoria Periódica**: A aderência DEVE ser revisitada a cada trimestre ou quando um ADR crítico for aprovado, com registros publicados em `docs/runbooks/`.
 
-**Versão**: 5.1.1 | **Ratificado**: 2025-10-02 | **Última Emenda**: 2025-10-04
+**Versão**: 5.2.0 | **Ratificado**: 2025-10-02 | **Última Emenda**: 2025-10-08

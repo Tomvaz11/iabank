@@ -5,111 +5,113 @@
 **Status**: Draft  
 **Input**: User description: "$ARGUMENTS"
 
-## User Scenarios & Testing *(mandatory)*
+> Referencias obrigatorias: `BLUEPRINT_ARQUITETURAL.md`, `adicoes_blueprint.md`, Constituicao v5.2.0 (Art. I-XVIII) e ADRs aplicaveis. Toda lacuna deve ser marcada com `[NEEDS CLARIFICATION]` e adicionada ao `/clarify`.
 
-<!--
-  IMPORTANT: User stories should be PRIORITIZED as user journeys ordered by importance.
-  Each user story/journey must be INDEPENDENTLY TESTABLE - meaning if you implement just ONE of them,
-  you should still have a viable MVP (Minimum Viable Product) that delivers value.
-  
-  Assign priorities (P1, P2, P3, etc.) to each story, where P1 is the most critical.
-  Think of each story as a standalone slice of functionality that can be:
-  - Developed independently
-  - Tested independently
-  - Deployed independently
-  - Demonstrated to users independently
--->
+## Contexto
 
-### User Story 1 - [Brief Title] (Priority: P1)
+Explique em 2-3 frases a dor do usuario, o objetivo da feature e o valor de negocio. Sinalize regulacoes ou integracoes criticas envolvidas.
 
-[Describe this user journey in plain language]
+## User Scenarios & Testing *(mandatorio)*
 
-**Why this priority**: [Explain the value and why it has this priority level]
+*As historias DEVEM ser fatias verticais independentes (INVEST) e testaveis de forma isolada. Mantenha o foco na jornada do usuario/persona e descreva como cada cenario prova o valor entregue.*
 
-**Independent Test**: [Describe how this can be tested independently - e.g., "Can be fully tested by [specific action] and delivers [specific value]"]
+### User Story 1 - [Titulo curto] (Prioridade: P1)
 
-**Acceptance Scenarios**:
+- **Persona & Objetivo**: [Quem se beneficia e qual problema resolve]  
+- **Valor de Negocio**: [Impacto observado ou metrica afetada]  
+- **Contexto Tecnico**: [Dominios tocados: backend/frontend/ops, integracoes externas, tenants afetados]
 
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
-2. **Given** [initial state], **When** [action], **Then** [expected outcome]
+**Independent Test**: [Ex.: "Fluxo validado via testes de contrato + integracao cobrindo casos felizes/tristes"]
 
----
+**Acceptance Scenarios (BDD)**:
+1. **Dado** [estado inicial multi-tenant], **Quando** [acao], **Entao** [resultado observavel + metricas]
+2. **Dado** [restricao de seguranca/compliance], **Quando** [acao nao permitida], **Entao** [bloqueio/log/auditoria]
 
-### User Story 2 - [Brief Title] (Priority: P2)
+### User Story 2 - [Titulo curto] (Prioridade: P2)
 
-[Describe this user journey in plain language]
+- **Persona & Objetivo**: [...]  
+- **Valor de Negocio**: [...]  
+- **Contexto Tecnico**: [...]
 
-**Why this priority**: [Explain the value and why it has this priority level]
+**Independent Test**: [...]
 
-**Independent Test**: [Describe how this can be tested independently]
+**Acceptance Scenarios (BDD)**:
+1. **Dado** [...] **Quando** [...] **Entao** [...]
 
-**Acceptance Scenarios**:
+### User Story 3 - [Titulo curto] (Prioridade: P3)
 
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
+- **Persona & Objetivo**: [...]  
+- **Valor de Negocio**: [...]  
+- **Contexto Tecnico**: [...]
 
----
+**Independent Test**: [...]
 
-### User Story 3 - [Brief Title] (Priority: P3)
+**Acceptance Scenarios (BDD)**:
+1. **Dado** [...] **Quando** [...] **Entao** [...]
 
-[Describe this user journey in plain language]
+> Adicione novas historias somente se entregarem valor independente. Utilize `[NEEDS CLARIFICATION]` quando houver duvidas sobre fluxo, persona ou restricoes.
 
-**Why this priority**: [Explain the value and why it has this priority level]
+### Edge Cases & Riscos Multi-Tenant
 
-**Independent Test**: [Describe how this can be tested independently]
+- O que acontece quando [tenant invalido ou ausencia de `tenant_id`]?
+- Como o sistema responde a [limites de rate limiting, retries idempotentes, conflitos de versao]?
+- Que evidencias cobrem [politicas RLS, mascaramento PII, budgets de erro]?
+- Quais falhas externas (APIs, fila, banco) precisam de fallback documentado?
 
-**Acceptance Scenarios**:
+## Requirements *(mandatorio)*
 
-1. **Given** [initial state], **When** [action], **Then** [expected outcome]
+### Constituicao & ADRs Impactados
 
----
+| Artigo/ADR | Obrigacao | Evidencia nesta feature |
+|------------|-----------|-------------------------|
+| Art. III (TDD) | Testes antes do codigo, cobrindo trajetorias felizes/tristes | |
+| Art. VIII (Entrega) | Estrategia de release segura (feature flag/canary/rollback) | |
+| Art. IX (CI) | Cobertura >=85 %, complexidade <=10, SAST/DAST/SCA, SBOM, k6 | |
+| Art. XI (API) | Contratos OpenAPI 3.1 + Pact atualizados, RFC 9457 | |
+| Art. XIII (LGPD/RLS) | Enforcar RLS, managers, retencao/direito ao esquecimento | |
+| Art. XVI (FinOps) | Custos rastreados, tags e budgets atualizados | |
+| ADR-010/011/012 | Seguranca de dados, governanca de API, observabilidade | |
+| Outros | [Ex.: ADR-00X, politica externa] | |
 
-[Add more user stories as needed, each with an assigned priority]
-
-### Edge Cases
-
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right edge cases.
--->
-
-- What happens when [boundary condition]?
-- How does system handle [error scenario]?
-
-## Requirements *(mandatory)*
-
-<!--
-  ACTION REQUIRED: The content in this section represents placeholders.
-  Fill them out with the right functional requirements.
--->
+Remova linhas nao aplicaveis apenas se justificar o motivo. Itens pendentes ficam com `[NEEDS CLARIFICATION]`.
 
 ### Functional Requirements
 
-- **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]
-- **FR-002**: System MUST [specific capability, e.g., "validate email addresses"]  
-- **FR-003**: Users MUST be able to [key interaction, e.g., "reset their password"]
-- **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
-- **FR-005**: System MUST [behavior, e.g., "log all security events"]
+- **FR-001**: [Persona] DEVE conseguir [resultado observavel] com autenticacao/autorizacao correta.
+- **FR-002**: Operacoes criticas DEVEM respeitar idempotencia (`Idempotency-Key`) e concorrencia (`ETag/If-Match`).
+- **FR-003**: Sistema DEVE persistir dados multi-tenant com RLS + managers aplicando `tenant_id`.
+- **FR-004**: Mensageria/tarefas assincronas DEVEM utilizar Celery + Redis com monitoracao de retries.
+- **FR-005**: [Fluxo especifico] DEVE expor metricas e eventos estruturados (OpenTelemetry/logs JSON).
+- **FR-006**: [NEEDS CLARIFICATION se requisito desconhecido].
 
-*Example of marking unclear requirements:*
+### Non-Functional Requirements
 
-- **FR-006**: System MUST authenticate users via [NEEDS CLARIFICATION: auth method not specified - email/password, SSO, OAuth?]
-- **FR-007**: System MUST retain user data for [NEEDS CLARIFICATION: retention period not specified]
+- **NFR-001 (SLO)**: Impacto previsto em SLO/SLI, orcamentos de erro consumidos e rollback criteria.
+- **NFR-002 (Performance)**: p95/p99 alvo, thresholds de k6, benchmarks previstos.
+- **NFR-003 (Observabilidade)**: Spans, logs, metricas e alertas necessarios, incluindo masking de PII.
+- **NFR-004 (Seguranca)**: Controles OWASP ASVS/SAMM, NIST SSDF e rotacao de segredos/vault.
+- **NFR-005 (FinOps)**: Tags de custo, limites de budget e monitoracao de consumo.
 
-### Key Entities *(include if feature involves data)*
+### Dados Sensiveis & Compliance
 
-- **[Entity 1]**: [What it represents, key attributes without implementation]
-- **[Entity 2]**: [What it represents, relationships to other entities]
+- Mapeie quais campos contem PII/PD (LGPD) e como serao criptografados/mascarados.
+- Defina politicas de retencao e direito ao esquecimento afetados.
+- Liste evidencias necessarias (RIPD/ROPA, auditoria WORM, runbooks atualizados).
 
-## Success Criteria *(mandatory)*
+## Success Criteria *(mandatorio)*
 
-<!--
-  ACTION REQUIRED: Define measurable success criteria.
-  These must be technology-agnostic and measurable.
--->
+### Metricas Mensuraveis
 
-### Measurable Outcomes
+- **SC-001**: [Ex.: "Usuarios concluem o fluxo em <N minutos/p95 < alvo SLO"].
+- **SC-002**: [Ex.: "Cobertura de testes >=85 % para modulos impactados; novos contratos Pact aprovados"].
+- **SC-003**: [Ex.: "Checklist LGPD/Security por tenant concluido sem violacoes"].
+- **SC-004**: [Ex.: "DORA - reducao de MTTR/falhas de mudanca em X%"].
+- **SC-005**: [Ex.: "Custo incremental <= orcamento definido em FinOps"].
 
-- **SC-001**: [Measurable metric, e.g., "Users can complete account creation in under 2 minutes"]
-- **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
-- **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
-- **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+Associe cada criterio aos testes ou dashboards que validam o resultado.
+
+## Outstanding Questions & Clarifications
+
+Liste perguntas para `/clarify`, priorizando lacunas que bloqueiam user stories ou obrigacoes constitucionais. Use o formato:
+
+- [Area] Pergunta?  Opcoes/Apostas, impacto, Artigo/ADR relacionado.
