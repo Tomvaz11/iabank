@@ -3,8 +3,8 @@
 ### Seu Papel e Tarefa
 **Papel**: Analista de Produto + Facilitador Spec-Driven Development (SDD).
 **Tarefa**: A partir dos anexos, extrair um índice de features (fatias verticais), auditar sua qualidade e gerar:
-1. Prompts `/specify` para TODAS as features.
-2. Uma lista de dúvidas para `/clarify` por feature.
+1. Prompts `/speckit.specify` para TODAS as features.
+2. Uma lista de dúvidas para `/speckit.clarify` por feature.
 
 ### Anexos (Fonte da Verdade)
 *   **[ANEXO_1]**: `./BLUEPRINT_ARQUITETURAL.md`
@@ -16,8 +16,8 @@
 ### Padrões e Regras Essenciais
 
 #### Fluxo e Comandos
-*   **Fluxo SDD**: `/constitution` → `/specify` → `/clarify` → `/plan` → `/tasks`.
-*   **/specify**: Foco no "o quê/por quê" (requisitos). Proibido stack/arquitetura (isso pertence ao `/plan`).
+*   **Fluxo SDD**: `/speckit.constitution` → `/speckit.specify` → `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks`.
+*   **/speckit.specify**: Foco no "o quê/por quê" (requisitos). Proibido stack/arquitetura (isso pertence ao `/speckit.plan`).
 *   **Incertezas**: Marcar sempre com `[NEEDS CLARIFICATION]`.
 
 #### Quality Gates
@@ -43,17 +43,17 @@ Para cada feature, avaliar:
 *   **DoR**: Passe/falha para cada ponto da DoR Mínima.
 *   **Story Map**: Posição na jornada; lacunas/sobreposições.
 
-**3. Detalhamento das Features (com prompts `/specify`)**
+**3. Detalhamento das Features (com prompts `/speckit.specify`)**
 Para cada feature:
 *   **Contexto**: 1-2 frases sobre "o quê/por quê".
 *   **ACs**: 5-8 bullets verificáveis (preferir BDD curta).
-*   **Prompt `/specify`**: Texto pronto para o agente, exigindo:
+*   **Prompt `/speckit.specify`**: Texto pronto para o agente, exigindo:
     *   Referências explícitas aos 2 anexos.
     *   Uso do template spec-kit (escopo, histórias, ACs, métricas).
     *   Proibição de decisões de stack.
     *   Marcação `[NEEDS CLARIFICATION]` para dúvidas.
 
-**4. Dúvidas para `/clarify` (por feature)**
+**4. Dúvidas para `/speckit.clarify` (por feature)**
 *   Lista de perguntas objetivas (negócio, regulatório, edge cases) com opções propostas para trade-offs.
 
 **5. Riscos & Dependências**
@@ -63,7 +63,7 @@ Para cada feature:
 **6. Plano de Execução Anotado**
 *   Ordem de implementação de TODAS as features, justificando por dependência e valor.
 *   Anotar explicitamente o conjunto MVP e os incrementos subsequentes (v1.1, v2.0).
-*   Reforçar o handshake: `/specify` → `/clarify` → `/plan` → `/tasks` por feature.
+*   Reforçar o handshake: `/speckit.specify` → `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks` por feature.
 
 ---
 
@@ -72,7 +72,7 @@ Para cada feature:
 *   **Fidelidade**: Ater-se 100% aos anexos. Incertezas devem ser marcadas com `[NEEDS CLARIFICATION]`, nunca inventadas.
 
 ### Critérios de Aceite (Meu Pedido)
-*   **Entregáveis**: Índice priorizado, Auditoria de qualidade, prompts `/specify` para todas as features, listas `/clarify` associadas, e clareza sobre o fluxo `/plan`/`/tasks`.
+*   **Entregáveis**: Índice priorizado, Auditoria de qualidade, prompts `/speckit.specify` para todas as features, listas `/speckit.clarify` associadas, e clareza sobre o fluxo `/speckit.plan`/`/speckit.tasks`.
 
 ### Notas para a IA
 *   **Enablers**: Identificar (infra/camada) e relacionar a features de valor.
@@ -84,7 +84,7 @@ Para cada feature:
 
 ### (Referências recentes do Spec-Kit, para você IA alinhar a análise)
 
-* GitHub Blog — *Spec-driven development using Markdown…* (fluxo com **/specify** focado no “o quê/por quê”; integração com agentes). ([The GitHub Blog][1])
-* GitHub Blog — *Get started with the open-source toolkit* (bootstrap via `uvx … specify init` e uso de **/specify** no agente). ([The GitHub Blog][3])
+* GitHub Blog — *Spec-driven development using Markdown…* (fluxo com **/speckit.specify** focado no “o quê/por quê”; integração com agentes). ([The GitHub Blog][1])
+* GitHub Blog — *Get started with the open-source toolkit* (bootstrap via `uvx … specify init` e uso de **/speckit.specify** no agente). ([The GitHub Blog][3])
 
 **FIQUE A VONTADE PARA CONSULTAR A WEB NO QUE PRECISAR**
