@@ -134,15 +134,18 @@ Esta especificacao consolida o indice de features, avaliacoes de prontidao e o p
 Contexto: Provisiona tenant, usuarios e politicas RBAC garantindo isolamento multi-tenant (`BaseTenantModel`, RLS) e auditoria WORM conforme `BLUEPRINT_ARQUITETURAL.md` §3.1 e §6.2.
 Acceptance criteria:
 - Cenario 1: Dado um superusuario com papel TenantOwner, quando registra um novo tenant, entao o sistema cria registros `Tenant`, perfis default (Owner, Gestor, Operador) e aplica RLS ativo em todos os modelos derivados de `BaseTenantModel`, registrando evento WORM com usuario, tenant e timestamp.
-- Cenario 2: Dado um gestor ajustando RBAC, quando habilita ou revoga escopos nas roles padrao, entao a mudanca respeita controle de concorrencia via `ETag`/`If-Match`, e e versionada via `django-simple-history` com hash de integridade e replicada ao front (FSD) sem conceder acesso cross-tenant.
-- Cenario 3: Dado um usuario sem permissao adequada, quando tenta acessar recurso de outro tenant, entao recebe 403 padronizado (RFC 9457) e o evento e logado com mascaramento de PII.
-- Cenario 4: Dado um tenant inativo, quando qualquer solicitacao de API chega, entao o middleware tenant-aware bloqueia e registra audit trail conforme Art. XI.
-- Cenario 5: Dado onboarding de tenant, quando o fluxo encerra, entao o tempo total e exibido no painel de execucao e triggers de compliance (RIPD, ROPA) sao inicializados automaticamente.
-- Cenario 6: Dado revisao trimestral, quando auditor solicita evidencias de RBAC, entao exportacao consolidada das roles e logs e gerada com Object Lock.
-- Cenario 7: Dado um TenantOwner autenticado com MFA TOTP, quando acessa os endpoints `/api/v1/tenants/` e `/api/v1/roles/`, entao a API exige prefixo de versao, valida o segundo fator e retorna Problem Details (RFC 9457) adequados para erros de autenticacao.
+- Cenario 2: Dado o provisionamento do tenant, quando as politicas RLS sao aplicadas, entao o sistema executa `CREATE POLICY` com escopo `tenant_id`, amarra o `SET local tenant.id` na sessao e valida (teste negativo) que consultas sem o binding retornam vazio.
+- Cenario 3: Dado um gestor ajustando RBAC, quando habilita ou revoga escopos nas roles padrao, entao a mudanca respeita controle de concorrencia via `ETag`/`If-Match`, e e versionada via `django-simple-history` com hash de integridade e replicada ao front (FSD) sem conceder acesso cross-tenant.
+- Cenario 4: Dado um usuario sem permissao adequada, quando tenta acessar recurso de outro tenant, entao recebe 403 padronizado (RFC 9457) e o evento e logado com mascaramento de PII.
+- Cenario 5: Dado um tenant inativo, quando qualquer solicitacao de API chega, entao o middleware tenant-aware bloqueia e registra audit trail conforme Art. XI.
+- Cenario 6: Dado onboarding de tenant, quando o fluxo encerra, entao o tempo total e exibido no painel de execucao e triggers de compliance (RIPD, ROPA) sao inicializados automaticamente.
+- Cenario 7: Dado revisao trimestral, quando auditor solicita evidencias de RBAC, entao exportacao consolidada das roles e logs e gerada com Object Lock.
+- Cenario 8: Dado um TenantOwner autenticado com MFA TOTP, quando acessa os endpoints `/api/v1/tenants/` e `/api/v1/roles/`, entao a API exige prefixo de versao, valida o segundo fator, emite novo `refresh_token` armazenado em cookie `HttpOnly`/`Secure`/`SameSite=Strict` e retorna Problem Details (RFC 9457) adequados para erros de autenticacao.
+- Cenario 9: Dado uma regra de acesso baseada em atributos (ABAC), quando um operador solicita acesso condicionado (ex.: escopo `cost_center=financas`), entao o motor de autorizacoes avalia atributos do usuario, do recurso e do contexto e os testes automatizados (`pytest`/`spectacular`) garantem cobertura de object-level permissions.
+- Cenario 10: Dado pipeline CI, quando executado, entao falha se detectar endpoints RBAC/ABAC sem testes de isolacao multi-tenant ou se politicas RLS sofrerem drift (comparacao declarativa com migrações).
 Prompt `/speckit.specify`:
 ```text
-F-01 Governanca de Tenants e RBAC Zero-Trust. Use BLUEPRINT_ARQUITETURAL.md §§2,3.1,6.2 e adicoes_blueprint.md itens 4,5,12,13. Produza a especificacao seguindo o template oficial (contexto, historias, requisitos, metricas, riscos) sem definir stack adicional. Garanta RLS, RBAC, MFA obrigatoria, auditoria WORM, controle de concorrencia com `ETag`/`If-Match`, versionamento `/api/v1` e Problem Details (RFC 9457), alinhado aos Arts. III, V, IX, XIII. Marque duvidas criticas com [NEEDS CLARIFICATION] e inclua BDD para ativacao de tenant, bloqueio cross-tenant, versionamento de roles, MFA e logs S3 Object Lock.
+F-01 Governanca de Tenants e RBAC Zero-Trust. Use BLUEPRINT_ARQUITETURAL.md §§2,3.1,6.2,19 e adicoes_blueprint.md itens 4,5,12,13. Produza a especificacao seguindo o template oficial (contexto, historias, requisitos, metricas, riscos) sem definir stack adicional. Garanta RLS com `CREATE POLICY` e binding de sessao, RBAC+ABAC com testes automatizados, MFA obrigatoria, auditoria WORM, controle de concorrencia com `ETag`/`If-Match`, versionamento `/api/v1`, refresh tokens seguros (`HttpOnly`/`Secure`/`SameSite=Strict`) e Problem Details (RFC 9457), alinhado aos Arts. III, V, IX, XIII. Marque duvidas criticas com [NEEDS CLARIFICATION] e inclua BDD para ativacao de tenant, bloqueio cross-tenant, versionamento de roles, MFA/refresh seguro, atributos de autorizacao e logs S3 Object Lock, referenciando OpenAPI 3.1 contract-first.
 ```
 
 #### F-02 Cadastro e KYC de Clientes e Consultores
@@ -156,9 +159,10 @@ Acceptance criteria:
 - Cenario 6: Dado fluxo de criacao massiva via CSV, quando registros invalidos sao detectados, entao o arquivo retorna com lista de erros por linha mantendo isolamento por tenant.
 - Cenario 7: Dado um operador atualizando um cliente existente, quando envia `If-Match` com o `ETag` correto, entao a atualizacao e aplicada e a resposta inclui novo `ETag`; quando o cabeçalho esta ausente ou desatualizado, o sistema responde `428 Precondition Required` com Problem Details.
 - Cenario 8: Dado consumidor utilizando a API REST, quando realiza requisicoes aos recursos `/api/v1/customers/` e `/api/v1/consultants/`, entao os headers `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` e `Retry-After` sao retornados e validados no limite de tenant.
+- Cenario 9: Dado pipeline CI, quando valida o contrato OpenAPI 3.1 e os DTOs/serializers, entao assegura que apenas campos minimamente necessários sao expostos ao frontend e falha caso PII nao mascarada seja detectada pelo lint de DTO.
 Prompt `/speckit.specify`:
 ```text
-F-02 Cadastro e KYC de Clientes e Consultores. Referencie BLUEPRINT_ARQUITETURAL.md §§2,3.1,3.2 e adicoes_blueprint.md itens 4,5,7,13. Gere especificacao completa (template Spec-Kit) focada em captura de PII, validacao KYC, consentimentos LGPD e integracao com trilha de auditoria. Proiba decisoes de implementacao, detalhe historias para cadastro manual, importacao em massa e direito ao esquecimento. Exija controle de concorrencia (`ETag`/`If-Match` + `428`), headers de rate limiting, versionamento `/api/v1`, Pact producer/consumer e metricas de qualidade de dados. Mantenha [NEEDS CLARIFICATION] para politicas pendentes.
+F-02 Cadastro e KYC de Clientes e Consultores. Referencie BLUEPRINT_ARQUITETURAL.md §§2,3.1,3.2 e adicoes_blueprint.md itens 4,5,7,13. Gere especificacao completa (template Spec-Kit) focada em captura de PII, validacao KYC, consentimentos LGPD e integracao com trilha de auditoria. Proiba decisoes de implementacao, detalhe historias para cadastro manual, importacao em massa e direito ao esquecimento. Exija controle de concorrencia (`ETag`/`If-Match` + `428`), headers de rate limiting, versionamento `/api/v1`, contrato OpenAPI 3.1 com lint/diff, Pact producer/consumer e metricas de qualidade/minimizacao de dados (lint de DTO contra PII). Mantenha [NEEDS CLARIFICATION] para politicas pendentes.
 ```
 
 #### F-03 Originacao de Emprestimo com Score e CET/IOF
@@ -175,7 +179,7 @@ Acceptance criteria:
 - Cenario 9: Dado pipeline CI em execucao, quando contrato Pact com o bureau e atualizado, entao o job valida compatibilidade producer/consumer e bloqueia merge em caso de quebra.
 Prompt `/speckit.specify`:
 ```text
-F-03 Originacao de Emprestimo com Score e CET/IOF. Utilize BLUEPRINT_ARQUITETURAL.md §§2,3.1.1,3.2 e adicoes_blueprint.md itens 1,4,7. Escreva especificacao orientada ao usuario cobrindo simulacao, consulta a bureau (Q1 em aberto), calculos CET/IOF e processo de arrependimento. Proiba escolhas de stack; detalhe requisitos regulatorios, estrutura frontend FSD (`features`/`entities`/`shared`), versionamento `/api/v1`, RateLimit headers, Pact para integrações externas e tratativas de falhas (circuit breaker, backoff, fallback manual). Preserve [NEEDS CLARIFICATION: Q1].
+F-03 Originacao de Emprestimo com Score e CET/IOF. Utilize BLUEPRINT_ARQUITETURAL.md §§2,3.1.1,3.2 e adicoes_blueprint.md itens 1,4,7. Escreva especificacao orientada ao usuario cobrindo simulacao, consulta a bureau (Q1 em aberto), calculos CET/IOF e processo de arrependimento. Proiba escolhas de stack; detalhe requisitos regulatorios, estrutura frontend FSD (`features`/`entities`/`shared`), versionamento `/api/v1`, contrato OpenAPI 3.1 com lint/diff, RateLimit headers, Pact para integrações externas e tratativas de falhas (circuit breaker, backoff, fallback manual). Preserve [NEEDS CLARIFICATION: Q1].
 ```
 
 #### F-04 Gestao de Parcelas e Recebimentos Automatizados
@@ -191,7 +195,7 @@ Acceptance criteria:
 - Cenario 8: Dado pipeline CI, quando PR altera payload de webhook ou rota `/api/v1/installments`, entao os contratos Pact producer/consumer sao validados antes do merge.
 Prompt `/speckit.specify`:
 ```text
-F-04 Gestao de Parcelas e Recebimentos Automatizados. Referencie BLUEPRINT_ARQUITETURAL.md §§2,3.1,6.1,26 e adicoes_blueprint.md itens 3,7,8. Produza especificacao que cubra schedule de parcelas, integracao com gateway (Q2), conciliacao idempotente, `acks_late`, controle de concorrencia (`ETag`/`If-Match`), versionamento `/api/v1`, RateLimit headers e tratamento de erros conforme RFC 9457. Inclua criterios de sucesso para taxas de adimplencia, DLQ, Pact de webhooks e rotinas de FinOps. Mantenha [NEEDS CLARIFICATION: Q2].
+F-04 Gestao de Parcelas e Recebimentos Automatizados. Referencie BLUEPRINT_ARQUITETURAL.md §§2,3.1,6.1,26 e adicoes_blueprint.md itens 3,7,8. Produza especificacao que cubra schedule de parcelas, integracao com gateway (Q2), conciliacao idempotente, `acks_late`, controle de concorrencia (`ETag`/`If-Match`), versionamento `/api/v1`, contrato OpenAPI 3.1 com lint/diff, RateLimit headers e tratamento de erros conforme RFC 9457. Inclua criterios de sucesso para taxas de adimplencia, DLQ, Pact de webhooks e rotinas de FinOps. Mantenha [NEEDS CLARIFICATION: Q2].
 ```
 
 #### F-05 Gestao de Contas a Pagar e Despesas Operacionais
@@ -199,16 +203,19 @@ Contexto: Orquestra cadastros de fornecedores, contas bancarias, centros de cust
 Acceptance criteria:
 - Cenario 1: Dado um gestor financeiro, quando cadastra fornecedor com CNPJ unico por tenant, entao o sistema valida documento, vincula categoria/cost center e gera log de auditoria.
 - Cenario 2: Dado uma despesa recorrente, quando agendamento e criado, entao `FinancialTransaction` registra status `PENDING`, associa `BankAccount` correto e agenda tarefa Celery para lembrete de pagamento.
-- Cenario 3: Dado um fluxo de aprovacao em duas etapas, quando um operador solicita pagamento acima do limite definido, entao o sistema exige aprovacao de Gestor, registra justificativa e bloqueia execucao ate confirmacao.
-- Cenario 4: Dado comprovante anexado, quando despesa e marcada como paga, entao evidencias (arquivo + hash) sao vinculadas ao audit trail e dados sensiveis sao mascarados nos logs.
-- Cenario 5: Dado limite orcamentario de centro de custo, quando nova despesa excede headroom, entao alerta e enviado ao painel FinOps e a aprovacao exige justificativa extra.
-- Cenario 6: Dado integracao com instalmento de emprestimo (comissao de consultor), quando despesa referenciada e liquidada, entao `Installment.payments` recebe referencia e conciliacao e atualizada.
-- Cenario 7: Dado uma requisicao de atualizacao de despesa via `/api/v1/payables/<id>`, quando o cliente envia `If-Match` coerente com o `ETag`, entao a alteracao e persistida; quando o cabecalho esta ausente ou incorreto, o sistema responde `428` com Problem Details e nao persiste a mudanca.
-- Cenario 8: Dado job de migracao, quando comandos de monitoramento rodam, entao garantem que indices compostos com `tenant_id` estejam ativos (`tenant, supplier`, `tenant, cost_center`) usando `CREATE INDEX CONCURRENTLY` quando necessario.
-- Cenario 9: Dado consumo da API `/api/v1/payables/`, quando o limite de requisicoes por tenant e aproximado, entao os headers `RateLimit-*` refletem o consumo e `Retry-After` orienta retentativas.
+- Cenario 3: Dado uma despesa criada via `/api/v1/payables/`, quando o cliente envia `Idempotency-Key` inedito, entao o registro e persistido; quando o mesmo `Idempotency-Key` reaparece, entao a API responde com 200/Problem Details idempotente sem duplicar pagamentos.
+- Cenario 4: Dado um fluxo de aprovacao em duas etapas, quando um operador solicita pagamento acima do limite definido, entao o sistema exige aprovacao de Gestor, registra justificativa e bloqueia execucao ate confirmacao.
+- Cenario 5: Dado comprovante anexado, quando despesa e marcada como paga, entao evidencias (arquivo + hash) sao vinculadas ao audit trail e dados sensiveis sao mascarados nos logs.
+- Cenario 6: Dado limite orcamentario de centro de custo, quando nova despesa excede headroom, entao alerta e enviado ao painel FinOps e a aprovacao exige justificativa extra.
+- Cenario 7: Dado integracao com instalmento de emprestimo (comissao de consultor), quando despesa referenciada e liquidada, entao `Installment.payments` recebe referencia e conciliacao e atualizada.
+- Cenario 8: Dado webhook de pagamento recebido do banco, quando `Idempotency-Key` já reconcilia transacao anterior, entao o processamento marca tentativa como duplicada e nao cria nova movimentacao.
+- Cenario 9: Dado uma requisicao de atualizacao de despesa via `/api/v1/payables/<id>`, quando o cliente envia `If-Match` coerente com o `ETag`, entao a alteracao e persistida; quando o cabecalho esta ausente ou incorreto, o sistema responde `428` com Problem Details e nao persiste a mudanca.
+- Cenario 10: Dado job de migracao, quando comandos de monitoramento rodam, entao garantem que indices compostos com `tenant_id` estejam ativos (`tenant, supplier`, `tenant, cost_center`) usando `CREATE INDEX CONCURRENTLY` quando necessario.
+- Cenario 11: Dado consumo da API `/api/v1/payables/`, quando o limite de requisicoes por tenant e aproximado, entao os headers `RateLimit-*` refletem o consumo e `Retry-After` orienta retentativas.
+- Cenario 12: Dado pipeline CI, quando executa lint OpenAPI 3.1/Pact, entao falha ao detectar novas rotas sem `Idempotency-Key` ou sem testes de autorizacao multi-tenant associados.
 Prompt `/speckit.specify`:
 ```text
-F-05 Gestao de Contas a Pagar e Despesas Operacionais. Utilize BLUEPRINT_ARQUITETURAL.md §§3.1,6.1,6.3 e adicoes_blueprint.md itens 3,8,11. Gere especificacao cobrindo cadastro de fornecedores/contas bancarias, politicas de aprovacao, controle de centros de custo e auditoria fiscal. Proiba decisoes de stack; inclua historias para despesas recorrentes, aprovacao em niveis, anexos de comprovantes e alertas de budget. Exija versionamento `/api/v1`, controle de concorrencia (`ETag`/`If-Match`), RateLimit por tenant, indices multi-tenant e Pact FE/BE. Registre assuncao ate definirmos Q9 (politica de aprovacao).
+F-05 Gestao de Contas a Pagar e Despesas Operacionais. Utilize BLUEPRINT_ARQUITETURAL.md §§3.1,6.1,6.3 e adicoes_blueprint.md itens 3,8,11. Gere especificacao cobrindo cadastro de fornecedores/contas bancarias, politicas de aprovacao, controle de centros de custo e auditoria fiscal. Proiba decisoes de stack; inclua historias para despesas recorrentes, aprovacao em niveis, anexos de comprovantes e alertas de budget. Exija versionamento `/api/v1`, contrato OpenAPI 3.1 com lint/diff, `Idempotency-Key` para criacao e webhooks, controle de concorrencia (`ETag`/`If-Match`), RateLimit por tenant, indices multi-tenant, deduplicacao de pagamentos e Pact FE/BE. Registre assuncao ate definirmos Q9 (politica de aprovacao).
 ```
 
 #### F-06 Cobranca, Renegociacao e Pipeline de Inadimplencia
@@ -224,7 +231,7 @@ Acceptance criteria:
 - Cenario 8: Dado pipeline CI, quando pactos de cobranca multicanal sao atualizados, entao os contratos producer/consumer sao verificados antes do merge.
 Prompt `/speckit.specify`:
 ```text
-F-06 Cobranca, Renegociacao e Pipeline de Inadimplencia. Use BLUEPRINT_ARQUITETURAL.md §§3.1,6.2,26 e adicoes_blueprint.md itens 2,3,8,10. Especifique jornadas de cobranca, renegociacao e exports auditaveis, sem definir stack. Inclua ACs para limites LGPD, DLQ, fallback manual, Pact producer/consumer, `acks_late`, RateLimit por tenant, controle de concorrencia (`ETag`/`If-Match`), versionamento `/api/v1` e alinhamento com runbooks.
+F-06 Cobranca, Renegociacao e Pipeline de Inadimplencia. Use BLUEPRINT_ARQUITETURAL.md §§3.1,6.2,26 e adicoes_blueprint.md itens 2,3,8,10. Especifique jornadas de cobranca, renegociacao e exports auditaveis, sem definir stack. Inclua ACs para limites LGPD, consentimento por canal, DLQ, fallback manual, Pact producer/consumer, `acks_late`, RateLimit por tenant, controle de concorrencia (`ETag`/`If-Match`), versionamento `/api/v1` e contrato OpenAPI 3.1 com lint/diff, mantendo alinhamento com runbooks.
 ```
 
 #### F-07 Painel Executivo de Performance e Telemetria SLO
@@ -236,9 +243,10 @@ Acceptance criteria:
 - Cenario 4: Dado incidentes, quando MTTR excede budget, entao painel destaca alerta e sugere GameDay conforme adicoes item 10.
 - Cenario 5: Dado FinOps, quando custo excede orcamento, entao painel exibe variacao versus budget com tags de custo.
 - Cenario 6: Dado inexistencia de metas SLO definidas, quando feature tenta publicar dashboards, entao processo bloqueia ate resposta da Q3.
+- Cenario 7: Dado ingestion de dados SLO/FinOps, quando divergencias entre fonte primária e painel são detectadas, entao o sistema sinaliza integridade quebrada, bloqueia atualização e exige reconciliação automática antes de liberar o dashboard.
 Prompt `/speckit.specify`:
 ```text
-F-07 Painel Executivo de Performance e Telemetria SLO. Referencie BLUEPRINT_ARQUITETURAL.md §§2,6.3, docs/slo/catalogo-slo.md e adicoes_blueprint.md itens 1,2,11. Elabore especificacao descrevendo dashboards, integrações OTEL, DORA e FinOps, sem decidir stack. Destaque dependencia de dados consolidados, integrações com a fundação FSD (F-10) e mantenha [NEEDS CLARIFICATION: Q3] para metas SLO iniciais. Inclua criterios para atualizar automaticamente error budgets e acionamentos.
+F-07 Painel Executivo de Performance e Telemetria SLO. Referencie BLUEPRINT_ARQUITETURAL.md §§2,6.3, docs/slo/catalogo-slo.md e adicoes_blueprint.md itens 1,2,11. Elabore especificacao descrevendo dashboards, integrações OTEL, DORA e FinOps, sem decidir stack. Destaque dependencia de dados consolidados, integrações com a fundação FSD (F-10) e mantenha [NEEDS CLARIFICATION: Q3] para metas SLO iniciais. Inclua criterios para atualizar automaticamente error budgets e acionamentos, verificações de integridade de métricas (late-binding) e geração de painéis FinOps por tenant/feature.
 ```
 
 #### F-08 Conformidade LGPD e Trilhas de Auditoria Imutaveis
@@ -252,9 +260,10 @@ Acceptance criteria:
 - Cenario 6: Dado plano de DR, quando failover ocorre, entao trilhas WORM permanecem intactas e reconciliadas.
 - Cenario 7: Dado rotacao programada de segredos, quando Vault gera nova chave e KMS realiza envelope encryption, entao aplicacoes atualizam credenciais sem downtime e auditoria registra a rotacao.
 - Cenario 8: Dado pedido de exclusao aprovado, quando dados sao anonimizados, entao chaves tecnicas persistem como hashes salinizados permitindo conciliacao contábil sem reidentificar titulares.
+- Cenario 9: Dado politica de retencao configurada (Q7 em aberto), quando expira o prazo minimo, entao a plataforma executa pseudonimizacao/expurgo conforme categoria de dado, preservando artefatos contabeis e registrando evidencia legal em WORM.
 Prompt `/speckit.specify`:
 ```text
-F-08 Conformidade LGPD e Trilhas de Auditoria Imutaveis. Utilize BLUEPRINT_ARQUITETURAL.md §§6.2,27 e adicoes_blueprint.md itens 4,5,6,12. Escreva especificacao cobrindo RLS, direito ao esquecimento, export LGPD, SBOM, trilhas WORM, rotacao automática de segredos (Vault/KMS) e pseudonimizacao segura. Proiba decisoes de stack adicionais e exija historias para auditoria, export, exclusao, reconciliacao contábil e DR. Mantenha alinhamento com Art. XIII e ADR-010.
+F-08 Conformidade LGPD e Trilhas de Auditoria Imutaveis. Utilize BLUEPRINT_ARQUITETURAL.md §§6.2,27 e adicoes_blueprint.md itens 4,5,6,12. Escreva especificacao cobrindo RLS, direito ao esquecimento, export LGPD, SBOM, trilhas WORM, rotacao automática de segredos (Vault/KMS) e politicas de pseudonimizacao vs. anonimização com retenção legal configurável. Proiba decisoes de stack adicionais e exija historias para auditoria, export, exclusao, reconciliacao contábil, DR e verificação de drift de conformidade no CI. Mantenha alinhamento com Art. XIII e ADR-010.
 ```
 
 #### F-09 Observabilidade, Resiliencia e Gestao de Incidentes
@@ -267,9 +276,11 @@ Acceptance criteria:
 - Cenario 5: Dado fila Celery atinge limite, quando backlog supera threshold, entao alerta e gerado e tasks non-critical sao rebaixadas conforme politica.
 - Cenario 6: Dado integracao externa indisponivel, quando circuito abre, entao fallback degrade graciosamente e orcamento de erro reduzido e recalculado.
 - Cenario 7: Dado job programado do Renovate ou sync do Argo CD, quando novas dependencias ou manifests sao aplicados, entao o fluxo GitOps registra a mudanca, executa politicas OPA e bloqueia divergencias.
+- Cenario 8: Dado pipeline de release, quando imagens e artefatos sao gerados, entao sao assinados (cosign/SLSA) e verificados antes do deploy, bloqueando publicacao sem proveniencia.
+- Cenario 9: Dado job de qualidade de codigo, quando avalia cobertura e complexidade, entao falha se complexidade ciclomática exceder 10 ou cobertura TDD < 85%, conforme Art. IX.
 Prompt `/speckit.specify`:
 ```text
-F-09 Observabilidade, Resiliencia e Gestao de Incidentes. Referencie BLUEPRINT_ARQUITETURAL.md §§6,26,27 e adicoes_blueprint.md itens 1,2,3,8,9,10,14, alem dos ADRs 008 e 009. Gere especificacao cobrindo pipelines CI/CD, SLOs, error budgets, chaos, feature flags, GitOps (Argo CD) e Renovate. Sem decisoes de stack; detalhe metricas de saturacao, thresholds k6, planos de DR, politicas de escalonamento e gates de OpenAPI diff/Pact. Marque dependencias das fatias de negocio e mantenha perguntas abertas conforme necessario.
+F-09 Observabilidade, Resiliencia e Gestao de Incidentes. Referencie BLUEPRINT_ARQUITETURAL.md §§6,26,27 e adicoes_blueprint.md itens 1,2,3,8,9,10,14, alem dos ADRs 008 e 009. Gere especificacao cobrindo pipelines CI/CD, SLOs, error budgets, chaos, feature flags, GitOps (Argo CD) e Renovate. Sem decisoes de stack; detalhe metricas de saturacao, thresholds k6, planos de DR, politicas de escalonamento, gates de OpenAPI 3.1 diff/Pact, assinatura/proveniência (cosign/SLSA), complexidade <= 10, cobertura mínima e validação Policy-as-Code (OPA). Marque dependencias das fatias de negocio e mantenha perguntas abertas conforme necessario.
 ```
 
 #### F-10 Fundacao Frontend FSD e UI Compartilhada
@@ -281,9 +292,10 @@ Acceptance criteria:
 - Cenario 4: Dado novo módulo de negocio (ex.: loans), quando scaffolding `features/loan-list` e criado, entao há integração com a camada `entities` correspondente e restrição de import cross-layer respeitada pelo lint.
 - Cenario 5: Dado pipeline CI do frontend, quando executado, entao validações de lint FSD, testes de interface e pactos FE/BE (via Pact ou msw contract tests) rodam e bloqueiam merge em caso de quebra.
 - Cenario 6: Dado requisito de acessibilidade, quando componente shared e renderizado, entao os checks Axe automatizados aprovam AA por padrão.
+- Cenario 7: Dado roteamento e telemetria configurados, quando URLs ou spans sao gerados, entao nenhum identificador PII aparece na rota/atributos e as políticas CSP com nonce/hash e Trusted Types são aplicadas e testadas automaticamente.
 Prompt `/speckit.specify`:
 ```text
-F-10 Fundacao Frontend FSD e UI Compartilhada. Referencie BLUEPRINT_ARQUITETURAL.md §4, docs de design system internos e adicoes_blueprint.md itens 1,2,13. Produza especificacao detalhando scaffolding FSD, Storybook/Chromatic, integrações com TanStack Query/Zustand, propagacao de OTEL no cliente, pactos FE/BE e critérios de acessibilidade. Evite definir libs alem das padronizadas; inclua métricas de cobertura visual, lint FSD e governança de imports.
+F-10 Fundacao Frontend FSD e UI Compartilhada. Referencie BLUEPRINT_ARQUITETURAL.md §4, docs de design system internos e adicoes_blueprint.md itens 1,2,13. Produza especificacao detalhando scaffolding FSD, Storybook/Chromatic, integrações com TanStack Query/Zustand, propagacao de OTEL no cliente, pactos FE/BE e critérios de acessibilidade. Evite definir libs alem das padronizadas; inclua métricas de cobertura visual, lint FSD, governança de imports, prevenção de PII em URLs/telemetria e política CSP rigorosa (nonce/hash + Trusted Types).
 ```
 
 #### F-11 Automacao de Seeds, Dados de Teste e Factories
@@ -295,9 +307,10 @@ Acceptance criteria:
 - Cenario 4: Dado teste de carga (k6), quando necessita dados massivos, entao comando gera dataset sintético paginado preservando limites regulatórios (CET/IOF) e quotas de RateLimit.
 - Cenario 5: Dado exercício de DR, quando réplicas sao promovidas, entao script de verificação confirma integridade das seeds e sinaliza desvios.
 - Cenario 6: Dado necessidade de reset local, quando desenvolvedor executa script, entao dados são recriados sem vazar PII real (usa dados sintéticos) e relatórios de cobertura TDD se mantêm >= 85%.
+- Cenario 7: Dado parametro de volumetria (Q11), quando comando `seed_data` e executado com perfis distintos (dev, staging, carga), entao gera datasets proporcionais por tenant sem quebrar RateLimit ou exceder quotas de armazenamento, registrando estatisticas no CI.
 Prompt `/speckit.specify`:
 ```text
-F-11 Automacao de Seeds, Dados de Teste e Factories. Referencie BLUEPRINT_ARQUITETURAL.md §§3.1,6,26, adicoes_blueprint.md itens 1,3,8,11 e Constituicao Art. III/IV. Escreva especificacao contemplando comandos `seed_data`, factories `factory-boy`, mascaramento de PII, integração com CI/CD, Argo CD e testes de carga. Inclua critérios para validação automatizada das seeds, anonimização, suportes a DR e geração de datasets sintéticos sem quebrar RateLimit/API `/api/v1`.
+F-11 Automacao de Seeds, Dados de Teste e Factories. Referencie BLUEPRINT_ARQUITETURAL.md §§3.1,6,26, adicoes_blueprint.md itens 1,3,8,11 e Constituicao Art. III/IV. Escreva especificacao contemplando comandos `seed_data`, factories `factory-boy`, mascaramento de PII, integração com CI/CD, Argo CD e testes de carga. Inclua critérios para validação automatizada das seeds, anonimização, suportes a DR, parametrização de volumetria (Q11) por ambiente/tenant e geração de datasets sintéticos sem quebrar RateLimit/API `/api/v1`.
 ```
 
 ## Requirements *(mandatorio)*
@@ -307,7 +320,7 @@ F-11 Automacao de Seeds, Dados de Teste e Factories. Referencie BLUEPRINT_ARQUIT
 | Artigo/ADR | Obrigacao | Evidencia nesta feature |
 |------------|-----------|-------------------------|
 | Art. III (TDD) | Testes antes do código cobrindo fluxos felizes/tristes | ACs BDD em F-01 a F-11, seeds automatizadas (F-11) e lint FSD (F-10) reforçam TDD |
-| Art. V (Documentação & Versionamento) | API versionada (`/api/v1`) e contratos atualizados | Prompts de F-01 a F-06 e F-10 exigem prefixo de versão, Problem Details e sync OpenAPI |
+| Art. V (Documentação & Versionamento) | API versionada (`/api/v1`) e contratos atualizados | Prompts de F-01 a F-06 e F-10 exigem prefixo de versão, Problem Details e contratos OpenAPI 3.1 com lint/diff |
 | Art. VII (Observabilidade) | OTEL, logs estruturados, mascaramento | F-03, F-07, F-09 e F-10 propagam contexto OTEL, mascaram PII e expõem métricas |
 | Art. VIII (Entrega) | Releases seguros (feature flags, canary, rollback) | F-04 e F-09 tratam feature flags, canários e DLQ; F-10 exige rollout controlado de UI |
 | Art. IX (CI) | Cobertura ≥85%, SAST/DAST/SCA, SBOM, k6 | Gates descritos em F-09, lint/Storybook em F-10 e validação de seeds em F-11 |
@@ -324,7 +337,7 @@ F-11 Automacao de Seeds, Dados de Teste e Factories. Referencie BLUEPRINT_ARQUIT
 
 ### Functional Requirements
 
-- FR-001: O sistema deve permitir cadastro e ativacao de tenants com RLS aplicado automaticamente em todos os modelos que herdam `BaseTenantModel`.
+- FR-001: O sistema deve permitir cadastro e ativacao de tenants com RLS aplicado automaticamente em todos os modelos que herdam `BaseTenantModel`, disponibilizando RBAC/ABAC auditável com testes automatizados de object-level permissions.
 - FR-002: Processos de KYC devem validar CPF/CNPJ por tenant, armazenar consentimentos LGPD e disponibilizar exportacoes anonimizadas.
 - FR-003: A originacao de emprestimos deve calcular CET e IOF conforme regulacao, registrar interacoes com bureau externo e bloquear juros acima do limite legal.
 - FR-004: A gestao de parcelas deve gerar agendas com status rastreados, emitir cobrancas PIX/Boleto com `Idempotency-Key` e conciliar pagamentos via webhooks idempotentes.
@@ -332,7 +345,7 @@ F-11 Automacao de Seeds, Dados de Teste e Factories. Referencie BLUEPRINT_ARQUIT
 - FR-006: A pipeline de cobranca deve automatizar notificacoes, renegociacoes e escalonamentos com logs auditaveis e limites de contato configuraveis.
 - FR-007: Dashboards executivos devem consolidar KPIs de carteira, SLOs e DORA com filtros por tenant e alertas de budget.
 - FR-008: Trilhas de auditoria devem armazenar alteracoes em WORM com integridade verificavel e suportar direito ao esquecimento sem vazamento de PII.
-- FR-009: Pipelines de operacao devem executar gates de CI (SAST/DAST/SCA, SBOM, k6) e acionar runbooks e feature flags conforme politicas definidas.
+- FR-009: Pipelines de operacao devem executar gates de CI (SAST/DAST/SCA, SBOM, k6), validar Policy-as-Code (OPA), verificar proveniência (cosign/SLSA) e acionar runbooks e feature flags conforme politicas definidas.
 - FR-010: O frontend deve prover scaffolding Feature-Sliced Design (`app/`, `features/`, `entities/`, `shared/`, `widgets/`) com components compartilhados testados (Storybook/Chromatic) e telemetria OTEL cliente.
 - FR-011: Seeds, factories (`factory-boy`) e scripts `seed_data` devem gerar dados sintéticos multi-tenant, mascarar PII e ser validados automaticamente no CI/CD e nos fluxos de DR.
 
@@ -345,6 +358,7 @@ F-11 Automacao de Seeds, Dados de Teste e Factories. Referencie BLUEPRINT_ARQUIT
 - NFR-005 (FinOps): Custos de gateway e infraestrutura devem ser tagueados por tenant e mantidos dentro do budget mensal definido, com alertas de 80% e 100%.
 - NFR-006 (Governanca de API): Endpoints mutadores devem expor `RateLimit-*`, exigir `Idempotency-Key` quando pertinente e aplicar `ETag`/`If-Match` com respostas `428` em caso de conflito.
 - NFR-007 (UX & Acessibilidade): Componentes compartilhados do frontend devem cumprir WCAG 2.1 AA com verificacoes automatizadas (Axe) e histórico de regressao visual controlado.
+- NFR-008 (Qualidade de Código): Pipelines de CI devem garantir cobertura ≥85%, complexidade ciclomática ≤10 e assinatura/proveniência verificada antes de deploy.
 
 ### Dados Sensiveis & Compliance
 
@@ -398,7 +412,7 @@ Campos PII (CPF, RG, endereco, telefone, contas bancarias) devem ser criptografa
 | F-08 | F-01 a F-07 | Trilhas auditam eventos gerados pelas fatias anteriores e politicas de segredo |
 | F-09 | F-01 a F-08, F-11 | Observabilidade e GitOps dependem de eventos, seeds realistas e compliance |
 | F-10 | F-01 a F-03 | Precisa de APIs versionadas e contratos tipados para estruturar hooks FSD |
-| F-11 | F-01 a F-06, F-09 | Seeds refletem dados de produção e suportam pipelines CI/CD e DR |
+| F-11 | F-01 a F-06 (integra com F-09) | Seeds refletem dados de produção, alimentam testes/DR e integram com observabilidade sem depender do go-live de F-09 |
 
 | Risco | Categoria | Impacto | Mitigacao alinhada ao blueprint |
 |-------|-----------|---------|--------------------------------|
@@ -412,6 +426,12 @@ Campos PII (CPF, RG, endereco, telefone, contas bancarias) devem ser criptografa
 | Quebra de contrato FE/BE por falta de Pact | Arquitetura | Deploys quebrados e regressao no frontend | Pact producer/consumer obrigatório em F-03, F-04, F-05 e F-10 com gate no CI |
 | Parallel change incompleto em migrações | Operacional | Inconsistência de dados e downtime | Seguir padrão expand/backfill/contract com `CREATE INDEX CONCURRENTLY` e ensaios de DR (F-04, F-05, F-11) |
 | Pipelines sem gates de seguranca | Tec | Bugs graves em prod | Exigir SAST/DAST/SCA, SBOM, OpenAPI diff e pactos (F-09) |
+| Supply chain sem assinatura/proveniência | Segurança | Artefatos adulterados indo para produção | Assinar/verificar imagens com cosign/SLSA no pipeline (F-09) |
+| Configuração inadequada de Vault/Argo/Terraform | Operacional/Segurança | Vazamento de segredos ou indisponibilidade | Policy-as-Code (OPA), peer-review e testes em staging antes de produção (F-08, F-09) |
+| Drift de conformidade (PII sem pgcrypto/RLS) | Compliance | Quebra de requisitos LGPD e auditoria | Gates automáticos no CI para detectar campos PII sem criptografia e ausência de testes de isolamento (F-01, F-08) |
+| Performance degradada em larga escala | Performance | Consultas lentas e degradação de UX | Revisões periódicas de `EXPLAIN ANALYZE`, índices `CONCURRENTLY` e monitoramento de slow queries (F-04, F-07, F-09) |
+| Custos cloud descontrolados (FinOps) | Financeiro | Estouro de orçamento operacional | Dashboards FinOps por tenant/feature, alertas de 80/100% e revisões trimestrais (F-07, F-09) |
+| PII em URLs/telemetria frontend | Segurança/Privacidade | Vazamento de dados sensíveis | Lint de rotas, processadores OTEL de redaction e testes automatizados no frontend (F-10) |
 
 ## Success Criteria *(mandatorio)*
 
