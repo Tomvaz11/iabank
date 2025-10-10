@@ -17,16 +17,16 @@ Esta especificacao consolida o indice de features, avaliacoes de prontidao e o p
 
 | ID | Nome da Feature | Persona | Valor de Negocio | Risco (reg/tec) | Dependencias | MVP/Pós-MVP | Observacoes |
 |----|-----------------|---------|------------------|-----------------|--------------|-------------|-------------|
-| F-01 | Governanca de Tenants e RBAC Zero-Trust | Gestor/Administrador do tenant | Onboarding seguro e isolamento de dados habilitando monetizacao multi-tenant | Reg alto (LGPD, RLS) | Modelos core (`Tenant`, `User`), PostgreSQL RLS, política MFA (Blueprint §19) | MVP | Garante baseline de permissoes, MFA mandatório e auditoria para todas as demais fatias |
+| F-01 | Governanca de Tenants e RBAC Zero-Trust | Gestor/Administrador do tenant | Onboarding seguro e isolamento de dados habilitando monetizacao multi-tenant | Reg alto (LGPD, RLS) | Modelos core (`Tenant`, `User`), PostgreSQL RLS, política MFA (Blueprint §19) | MVP | Garante baseline de permissoes, MFA TOTP dedicado mandatório e auditoria para todas as demais fatias |
 | F-02 | Cadastro e KYC de Clientes e Consultores | Consultor de credito / Backoffice | Qualidade de dados e conformidade KYC para pipeline de emprestimos | Reg alto (LGPD, KYC) | F-01, `customers` e `operations` DTOs, contratos Pact `/api/v1` | MVP | Exige coleta segura de PII, controle de concorrencia otimista e sincronizacao com auditoria |
 | F-03 | Originacao de Emprestimo com Score e CET/IOF | Consultor de credito | Contratos conformes (CET, IOF) e aprovacao assistida por score externo | Reg alto (Banco Central) | F-01, F-02, F-10, `LoanCreateDTO`, integrações externas (bureau, Pact) | MVP | Integracao inicial com Serasa Experian define contratos e cronograma do MVP. |
 | F-04 | Gestao de Parcelas e Recebimentos Automatizados | Gestor financeiro | Liquidez previsivel via agendas, cobranca PIX/Boleto e conciliacao | Reg alto (pagamentos) | F-03, modelos `Installment`/`FinancialTransaction`, Celery resiliente (acks_late), rate limiting | MVP | Priorizado o gateway SaaS Asaas para PIX/Boleto no MVP. |
-| F-05 | Gestao de Contas a Pagar e Despesas Operacionais | Gestor financeiro / Backoffice | Controle de caixa de saida, compliance fiscal e previsibilidade de despesas | Reg medio (fiscal/FinOps) | F-01, F-04, modelos `finance`, índices multi-tenant (Blueprint §6.3) | MVP | Requer politica de aprovacao e integracao banco-fornecedor (ver Q9) |
-| F-06 | Cobranca, Renegociacao e Pipeline de Inadimplencia | Consultor/Cobrador | Reduz churn e inadimplencia com trilhas multi-canal e renegociacao | Reg medio (LGPD contato) | F-04, F-05, runbooks de cobranca, Celery (acks_late), pactos API | MVP | Necessita auditoria de interacoes, limites LGPD e politicas de contato transparente |
+| F-05 | Gestao de Contas a Pagar e Despesas Operacionais | Gestor financeiro / Backoffice | Controle de caixa de saida, compliance fiscal e previsibilidade de despesas | Reg medio (fiscal/FinOps) | F-01, F-04, modelos `finance`, índices multi-tenant (Blueprint §6.3) | MVP | Politica de aprovacao em duas etapas (solicitante -> gestor centro de custo -> financeiro) e integracao banco-fornecedor alinhadas ao MVP |
+| F-06 | Cobranca, Renegociacao e Pipeline de Inadimplencia | Consultor/Cobrador | Reduz churn e inadimplencia com trilhas multi-canal e renegociacao | Reg medio (LGPD contato) | F-04, F-05, runbooks de cobranca, Celery (acks_late), pactos API | MVP | Canal primario: WhatsApp Business API; requer auditoria de interacoes, limites LGPD e politicas de contato transparente |
 | F-07 | Painel Executivo de Performance e Telemetria SLO | Gestor executivo | Visibilidade de KPIs (CET, inadimplencia, DORA, SLO) para decisoes rapidas | Tec alto (observabilidade, dados) | F-02 a F-06, catálogo SLO, Data Mart, OTEL padronizado | v1.1 | Metas SLO iniciais: p95 600 ms, p99 1 s, MTTR 1 h, erro <1%; dashboards calibram alertas e budgets com esses targets. |
-| F-08 | Conformidade LGPD e Trilhas de Auditoria Imutaveis | Auditor/Compliance Officer | Evidencias LGPD (RIPD/ROPA), WORM e direito ao esquecimento auditavel | Reg critico (LGPD, auditoria) | F-01, F-02, F-04, F-05, `django-simple-history`, Object Lock, Vault/KMS | MVP | Inclui automatizacao de artefatos LGPD, rotação de segredos e rastreabilidade cruzada |
-| F-09 | Observabilidade, Resiliencia e Gestao de Incidentes | SRE/Platform | Garantia de estabilidade (SLO, error budget, Chaos/GameDay) | Tec alto (SRE) | F-01 a F-08, pipelines CI/CD, OTEL, Argo CD (GitOps), Renovate | v2.0 | Sustenta operacao contendo DORA, testes de carga, feature flags e playbooks |
-| F-10 | Fundacao Frontend FSD e UI Compartilhada | Tech Lead Frontend / Squad UI | Base consistente FSD (features/entities/shared) habilitando entrega vertical rápida e segura | Tec alto (frontend) | Blueprint §4, design system baseline, Pact FE/BE, Storybook/Chromatic | MVP | Garante scaffolding inicial da SPA, contratos de UI e telemetria client-side |
+| F-08 | Conformidade LGPD e Trilhas de Auditoria Imutaveis | Auditor/Compliance Officer | Evidencias LGPD (RIPD/ROPA), WORM e direito ao esquecimento auditavel | Reg critico (LGPD, auditoria) | F-01, F-02, F-04, F-05, `django-simple-history`, Object Lock, Vault/KMS | MVP | Retencao WORM: 30 dias legais + 5 anos adicionais; inclui automatizacao de artefatos LGPD, rotacao de segredos e rastreabilidade cruzada |
+| F-09 | Observabilidade, Resiliencia e Gestao de Incidentes | SRE/Platform | Garantia de estabilidade (SLO, error budget, Chaos/GameDay) | Tec alto (SRE) | F-01 a F-08, pipelines CI/CD, OTEL, Argo CD (GitOps), Renovate | v2.0 | Sustenta operacao contendo DORA, testes de carga, feature flags e playbooks; GameDays bimestrais definidos |
+| F-10 | Fundacao Frontend FSD e UI Compartilhada | Tech Lead Frontend / Squad UI | Base consistente FSD (features/entities/shared) habilitando entrega vertical rápida e segura | Tec alto (frontend) | Blueprint §4, design system baseline, Pact FE/BE, Storybook/Chromatic | MVP | Design system base: Tailwind CSS + componentes proprietarios; garante scaffolding inicial da SPA, contratos de UI e telemetria client-side |
 | F-11 | Automacao de Seeds, Dados de Teste e Factories | QA / Engenharia de Plataforma | Dados confiaveis para TDD/integração e ambientes realistas com isolamento multi-tenant | Tec medio (TestOps) | Art. III/IV, factory-boy, comandos `seed_data`, pipelines CI, Argo CD | MVP | Mantém suites TDD verdes, executa load seeds em ambientes e reforça DR rehearsals |
 
 ## Clarifications
@@ -35,6 +35,14 @@ Esta especificacao consolida o indice de features, avaliacoes de prontidao e o p
 - Q: Para o MVP da originacao (F-03), qual bureau de credito devemos priorizar para integracao? → A: Serasa Experian (Option B)
 - Q: Para as cobrancas automatizadas do F-04, qual gateway PIX/Boleto devemos priorizar? → A: Gateway SaaS especializado (Asaas) (Option B)
 - Q: Para os dashboards executivos (F-07/F-09), qual conjunto de metas SLO iniciais devemos adotar? → A: Option B — p95 600 ms / p99 1 s / MTTR 1 h / erro <1%
+- Q: Para F-01, qual estratégia de MFA devemos adotar para o perfil TenantOwner? → A: TOTP dedicado (Option A)
+- Q: Para F-02 (KYC), qual provedor de validação documental devemos priorizar para o MVP? → A: Abordagem híbrida (Option C)
+- Q: Para F-05, qual política de aprovação de despesas adotamos no MVP? → A: Fluxo em duas etapas (solicitante -> gestor centro de custo -> financeiro) (Option B)
+- Q: Para F-06, qual canal devemos priorizar para cobrança ativa no MVP? → A: WhatsApp Business API (Option A)
+- Q: Para F-08, qual retenção WORM mínima além dos 30 dias legais devemos adotar? → A: 5 anos adicionais (Option B)
+- Q: Para F-09, qual periodicidade de GameDays devemos adotar no MVP? → A: Bimestral (Option B)
+- Q: Para F-10, qual design system base devemos adotar no MVP? → A: Tailwind CSS + componentes proprietários (Option C)
+- Q: Para as seeds sintéticas multi-tenant (F-11), qual volumetria alvo devemos garantir já no seed inicial? → A: Option C (configurável por ambiente)
 
 ## User Scenarios & Testing *(mandatorio)*
 
@@ -115,7 +123,7 @@ Esta especificacao consolida o indice de features, avaliacoes de prontidao e o p
 ### User Story 9 - Observabilidade, Resiliencia e Gestao de Incidentes (F-09)
 
 - Alinhamento Spec-Kit: OK - entrega circuito completo de SLO, alertas, chaos e runbooks seguindo adicoes itens 1,2,3,10.
-- INVEST: I Pass; N Pass (foco em operacao); V Pass (error budget e MTTR); E Falha (depende de features transacionais e compliance F-08 para logs mascarados); S Pass (exigencia SRE); T Pass (criterios de monitoracao e GameDay).
+- INVEST: I Pass; N Pass (foco em operacao); V Pass (error budget e MTTR); E Falha (depende de features transacionais e compliance F-08 para logs mascarados); S Pass (exigencia SRE); T Pass (criterios de monitoracao e GameDay bimestral).
 - DoR: Persona Pass; Objetivo Pass (estabilidade); Valor Pass (reduz downtime); Restricoes Pass (OpenTelemetry, budgets, DORA); Dependencias Falha (precisa de dados instrumentados e dashboards); Metrica Pass (MTTR <= metas).
 - Story Map: Camada "Operar & Evoluir" sustentando roadmap continuo.
 
@@ -125,7 +133,7 @@ Esta especificacao consolida o indice de features, avaliacoes de prontidao e o p
 
 - Alinhamento Spec-Kit: OK - estabelece base tecnica indispensavel para features verticais de UI (Blueprint §4).
 - INVEST: I Pass; N Pass (escopo restrito a fundacao); V Pass (reduz lead time de novas telas); E Pass (contratos claros entre camadas FSD); S Pass (governanca de UX, acessibilidade); T Pass (lint, Storybook/Chromatic, Pact FE/BE).
-- DoR: Persona Pass (Tech Lead Frontend); Objetivo Pass (scaffolding da SPA); Valor Pass (padroniza entrega); Restricoes Pass (OTEL client-side, design tokens); Dependencias Pass (repositorio, pipeline CI); Metrica Pass (tempo de bootstrap <= 30 min, cobertura visual >= 90%).
+- DoR: Persona Pass (Tech Lead Frontend); Objetivo Pass (scaffolding da SPA); Valor Pass (padroniza entrega); Restricoes Pass (OTEL client-side, Tailwind CSS baseline, design tokens); Dependencias Pass (repositorio, pipeline CI); Metrica Pass (tempo de bootstrap <= 30 min, cobertura visual >= 90%).
 - Story Map: Camada "Fundacao" anterior a F-02/F-03/F-07.
 
 ### User Story 11 - Automacao de Seeds, Dados de Teste e Factories (F-11)
@@ -165,8 +173,9 @@ Acceptance criteria:
 - Cenario 5: Dado direito ao esquecimento acionado, quando auditor aprova requisicao, entao dados sensiveis sao anonimizados e logs registram operador, timestamp e motivo.
 - Cenario 6: Dado fluxo de criacao massiva via CSV, quando registros invalidos sao detectados, entao o arquivo retorna com lista de erros por linha mantendo isolamento por tenant.
 - Cenario 7: Dado um operador atualizando um cliente existente, quando envia `If-Match` com o `ETag` correto, entao a atualizacao e aplicada e a resposta inclui novo `ETag`; quando o cabeçalho esta ausente ou desatualizado, o sistema responde `428 Precondition Required` com Problem Details.
-- Cenario 8: Dado consumidor utilizando a API REST, quando realiza requisicoes aos recursos `/api/v1/customers/` e `/api/v1/consultants/`, entao os headers `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` e `Retry-After` sao retornados e validados no limite de tenant.
-- Cenario 9: Dado pipeline CI, quando valida o contrato OpenAPI 3.1 e os DTOs/serializers, entao assegura que apenas campos minimamente necessários sao expostos ao frontend e falha caso PII nao mascarada seja detectada pelo lint de DTO.
+- Cenario 8: Dado processamento KYC em andamento, quando a API automatizada aprova o documento dentro do SLA, entao o status e atualizado e a auditoria registra a referencia externa; quando a API retorna erro ou sinaliza alerta, entao o caso e roteado para fila de revisao manual auditada com SLA distinto e bloqueio de prosseguimento ate decisao humana.
+- Cenario 9: Dado consumidor utilizando a API REST, quando realiza requisicoes aos recursos `/api/v1/customers/` e `/api/v1/consultants/`, entao os headers `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` e `Retry-After` sao retornados e validados no limite de tenant.
+- Cenario 10: Dado pipeline CI, quando valida o contrato OpenAPI 3.1 e os DTOs/serializers, entao assegura que apenas campos minimamente necessários sao expostos ao frontend e falha caso PII nao mascarada seja detectada pelo lint de DTO.
 Prompt `/speckit.specify`:
 ```text
 F-02 Cadastro e KYC de Clientes e Consultores. Referencie BLUEPRINT_ARQUITETURAL.md §§2,3.1,3.2 e adicoes_blueprint.md itens 4,5,7,13. Gere especificacao completa (template Spec-Kit) focada em captura de PII, validacao KYC, consentimentos LGPD e integracao com trilha de auditoria. Proiba decisoes de implementacao, detalhe historias para cadastro manual, importacao em massa e direito ao esquecimento. Exija controle de concorrencia (`ETag`/`If-Match` + `428`), headers de rate limiting, versionamento `/api/v1`, contrato OpenAPI 3.1 com lint/diff, Pact producer/consumer e metricas de qualidade/minimizacao de dados (lint de DTO contra PII). Mantenha [NEEDS CLARIFICATION] para politicas pendentes.
@@ -222,11 +231,11 @@ Acceptance criteria:
 - Cenario 12: Dado pipeline CI, quando executa lint OpenAPI 3.1/Pact, entao falha ao detectar novas rotas sem `Idempotency-Key` ou sem testes de autorizacao multi-tenant associados.
 Prompt `/speckit.specify`:
 ```text
-F-05 Gestao de Contas a Pagar e Despesas Operacionais. Utilize BLUEPRINT_ARQUITETURAL.md §§3.1,6.1,6.3 e adicoes_blueprint.md itens 3,8,11. Gere especificacao cobrindo cadastro de fornecedores/contas bancarias, politicas de aprovacao, controle de centros de custo e auditoria fiscal. Proiba decisoes de stack; inclua historias para despesas recorrentes, aprovacao em niveis, anexos de comprovantes e alertas de budget. Exija versionamento `/api/v1`, contrato OpenAPI 3.1 com lint/diff, `Idempotency-Key` para criacao e webhooks, controle de concorrencia (`ETag`/`If-Match`), RateLimit por tenant, indices multi-tenant, deduplicacao de pagamentos e Pact FE/BE. Registre assuncao ate definirmos Q9 (politica de aprovacao).
+F-05 Gestao de Contas a Pagar e Despesas Operacionais. Utilize BLUEPRINT_ARQUITETURAL.md §§3.1,6.1,6.3 e adicoes_blueprint.md itens 3,8,11. Gere especificacao cobrindo cadastro de fornecedores/contas bancarias, politicas de aprovacao, controle de centros de custo e auditoria fiscal. Proiba decisoes de stack; inclua historias para despesas recorrentes, aprovacao em niveis, anexos de comprovantes e alertas de budget. Exija versionamento `/api/v1`, contrato OpenAPI 3.1 com lint/diff, `Idempotency-Key` para criacao e webhooks, controle de concorrencia (`ETag`/`If-Match`), RateLimit por tenant, indices multi-tenant, deduplicacao de pagamentos e Pact FE/BE. Registre politica de aprovacao em duas etapas (solicitante -> gestor centro de custo -> financeiro) conforme clarificacao atual.
 ```
 
 #### F-06 Cobranca, Renegociacao e Pipeline de Inadimplencia
-Contexto: Garante trilhas de cobranca multicanal, esteiras de renegociacao e governance de contato alinhada a LGPD e runbooks de cobranca (`docs/runbooks/governanca-api.md`).
+Contexto: Garante trilhas de cobranca multicanal (WhatsApp Business API como canal primario), esteiras de renegociacao e governance de contato alinhada a LGPD e runbooks de cobranca (`docs/runbooks/governanca-api.md`).
 Acceptance criteria:
 - Cenario 1: Dado parcela em atraso, quando SLA de X dias expira, entao sistema dispara tarefa Celery que agenda notificacoes multicanal e registra auditoria com justificativa.
 - Cenario 2: Dado negociacao proposta, quando consultor registra acordo via `/api/v1/collections/renegotiations/<id>`, entao o novo cronograma e gerado com `expand/contract`, controles `ETag`/`If-Match` e auditoria WORM.
@@ -267,18 +276,18 @@ Acceptance criteria:
 - Cenario 6: Dado plano de DR, quando failover ocorre, entao trilhas WORM permanecem intactas e reconciliadas.
 - Cenario 7: Dado rotacao programada de segredos, quando Vault gera nova chave e KMS realiza envelope encryption, entao aplicacoes atualizam credenciais sem downtime e auditoria registra a rotacao.
 - Cenario 8: Dado pedido de exclusao aprovado, quando dados sao anonimizados, entao chaves tecnicas persistem como hashes salinizados permitindo conciliacao contábil sem reidentificar titulares.
-- Cenario 9: Dado politica de retencao configurada (Q7 em aberto), quando expira o prazo minimo, entao a plataforma executa pseudonimizacao/expurgo conforme categoria de dado, preservando artefatos contabeis e registrando evidencia legal em WORM.
+- Cenario 9: Dado politica de retencao configurada para 5 anos adicionais alem dos 30 dias legais, quando expira o prazo minimo, entao a plataforma executa pseudonimizacao/expurgo conforme categoria de dado, preservando artefatos contabeis e registrando evidencia legal em WORM.
 Prompt `/speckit.specify`:
 ```text
-F-08 Conformidade LGPD e Trilhas de Auditoria Imutaveis. Utilize BLUEPRINT_ARQUITETURAL.md §§6.2,27 e adicoes_blueprint.md itens 4,5,6,12. Escreva especificacao cobrindo RLS, direito ao esquecimento, export LGPD, SBOM, trilhas WORM, rotacao automática de segredos (Vault/KMS) e politicas de pseudonimizacao vs. anonimização com retenção legal configurável. Proiba decisoes de stack adicionais e exija historias para auditoria, export, exclusao, reconciliacao contábil, DR e verificação de drift de conformidade no CI. Mantenha alinhamento com Art. XIII e ADR-010.
+F-08 Conformidade LGPD e Trilhas de Auditoria Imutaveis. Utilize BLUEPRINT_ARQUITETURAL.md §§6.2,27 e adicoes_blueprint.md itens 4,5,6,12. Escreva especificacao cobrindo RLS, direito ao esquecimento, export LGPD, SBOM, trilhas WORM, rotacao automática de segredos (Vault/KMS) e politicas de pseudonimizacao vs. anonimização com retenção legal configurada para 5 anos adicionais além dos 30 dias obrigatórios. Proiba decisoes de stack adicionais e exija historias para auditoria, export, exclusao, reconciliacao contábil, DR e verificação de drift de conformidade no CI. Mantenha alinhamento com Art. XIII e ADR-010.
 ```
 
 #### F-09 Observabilidade, Resiliencia e Gestao de Incidentes
-Contexto: Reforca SRE com pipelines OTEL, limites de fila, testes de carga (k6), feature flags, GameDays e runbooks (adicoes itens 1,2,3,8,10).
+Contexto: Reforca SRE com pipelines OTEL, limites de fila, testes de carga (k6), feature flags, GameDays bimestrais e runbooks (adicoes itens 1,2,3,8,10).
 Acceptance criteria:
 - Cenario 1: Dado deploy em producao, quando pipelines CI executam, entao stages de SAST/DAST/SCA, SBOM, performance (k6), OpenAPI lint/diff e Pact producer/consumer precisam passar antes do release.
 - Cenario 2: Dado evento de saturacao, quando metricas excedem limiar, entao autoscaling dispara com base em SLO definido e notifica error budget policy.
-- Cenario 3: Dado incidente simulado em GameDay, quando tarefas sao executadas, entao runbook e atualizado com achados e MTTR registrado.
+- Cenario 3: Dado GameDay bimestral agendado, quando incidente simulado e executado, entao runbook e atualizado com achados, MTTR registrado e backlog de melhorias priorizado.
 - Cenario 4: Dado feature flag critica, quando toggled, entao logs auditados mostram autor, justificativa e rollback path.
 - Cenario 5: Dado fila Celery atinge limite, quando backlog supera threshold, entao alerta e gerado e tasks non-critical sao rebaixadas conforme politica.
 - Cenario 6: Dado integracao externa indisponivel, quando circuito abre, entao fallback degrade graciosamente e orcamento de erro reduzido e recalculado.
@@ -300,9 +309,10 @@ Acceptance criteria:
 - Cenario 5: Dado pipeline CI do frontend, quando executado, entao validações de lint FSD, testes de interface e pactos FE/BE (via Pact ou msw contract tests) rodam e bloqueiam merge em caso de quebra.
 - Cenario 6: Dado requisito de acessibilidade, quando componente shared e renderizado, entao os checks Axe automatizados aprovam AA por padrão.
 - Cenario 7: Dado roteamento e telemetria configurados, quando URLs ou spans sao gerados, entao nenhum identificador PII aparece na rota/atributos e as políticas CSP com nonce/hash e Trusted Types são aplicadas e testadas automaticamente.
+- Cenario 8: Dado o design system base em Tailwind CSS, quando componentes `shared/ui` sao construidos, entao utilizam tokens configurados no `tailwind.config.ts`, documentam variações multi-tenant e passam validação automática de consistência (lint + Storybook).
 Prompt `/speckit.specify`:
 ```text
-F-10 Fundacao Frontend FSD e UI Compartilhada. Referencie BLUEPRINT_ARQUITETURAL.md §4, docs de design system internos e adicoes_blueprint.md itens 1,2,13. Produza especificacao detalhando scaffolding FSD, Storybook/Chromatic, integrações com TanStack Query/Zustand, propagacao de OTEL no cliente, pactos FE/BE e critérios de acessibilidade. Evite definir libs alem das padronizadas; inclua métricas de cobertura visual, lint FSD, governança de imports, prevenção de PII em URLs/telemetria e política CSP rigorosa (nonce/hash + Trusted Types).
+F-10 Fundacao Frontend FSD e UI Compartilhada. Referencie BLUEPRINT_ARQUITETURAL.md §4, docs de design system internos e adicoes_blueprint.md itens 1,2,13. Produza especificacao detalhando scaffolding FSD, Storybook/Chromatic, integrações com TanStack Query/Zustand, propagacao de OTEL no cliente, pactos FE/BE e critérios de acessibilidade. Reforce o uso de Tailwind CSS como base oficial do design system (conforme blueprint), permitindo theming multi-tenant via tokens personalizados. Inclua métricas de cobertura visual, lint FSD, governança de imports, prevenção de PII em URLs/telemetria e política CSP rigorosa (nonce/hash + Trusted Types).
 ```
 
 #### F-11 Automacao de Seeds, Dados de Teste e Factories
@@ -314,7 +324,7 @@ Acceptance criteria:
 - Cenario 4: Dado teste de carga (k6), quando necessita dados massivos, entao comando gera dataset sintético paginado preservando limites regulatórios (CET/IOF) e quotas de RateLimit.
 - Cenario 5: Dado exercício de DR, quando réplicas sao promovidas, entao script de verificação confirma integridade das seeds e sinaliza desvios.
 - Cenario 6: Dado necessidade de reset local, quando desenvolvedor executa script, entao dados são recriados sem vazar PII real (usa dados sintéticos) e relatórios de cobertura TDD se mantêm >= 85%.
-- Cenario 7: Dado parametro de volumetria (Q11), quando comando `seed_data` e executado com perfis distintos (dev, staging, carga), entao gera datasets proporcionais por tenant sem quebrar RateLimit ou exceder quotas de armazenamento, registrando estatisticas no CI.
+- Cenario 7: Dado o perfil `dev`, quando comando `seed_data` e executado, entao gera 100 clientes e 200 emprestimos por tenant; dado o perfil `staging`, entao gera 1.000 clientes e 5.000 emprestimos; dado o perfil `carga`, entao gera volumetria configuravel declarada via variavel de ambiente sem quebrar RateLimit nem exceder quotas de armazenamento, registrando estatisticas no CI.
 Prompt `/speckit.specify`:
 ```text
 F-11 Automacao de Seeds, Dados de Teste e Factories. Referencie BLUEPRINT_ARQUITETURAL.md §§3.1,6,26, adicoes_blueprint.md itens 1,3,8,11 e Constituicao Art. III/IV. Escreva especificacao contemplando comandos `seed_data`, factories `factory-boy`, mascaramento de PII, integração com CI/CD, Argo CD e testes de carga. Inclua critérios para validação automatizada das seeds, anonimização, suportes a DR, parametrização de volumetria (Q11) por ambiente/tenant e geração de datasets sintéticos sem quebrar RateLimit/API `/api/v1`.
@@ -340,15 +350,15 @@ F-11 Automacao de Seeds, Dados de Teste e Factories. Referencie BLUEPRINT_ARQUIT
 | ADR-010 (Proteção de Dados) | pgcrypto, Vault, mascaramento de PII | F-02, F-08 e F-11 abordam criptografia, rotação automática e anonimização |
 | ADR-011 (Governança de API) | Lint/diff, Pact, RateLimit, Idempotência | F-02 a F-06 exigem Pact, RateLimit headers, `Idempotency-Key` e `ETag` |
 | ADR-012 (Observabilidade Padronizada) | structlog, django-prometheus, Sentry | F-07, F-09 e F-10 especificam telemetria padronizada e dashboards SLO |
-| Runbooks, DR, GameDays | Ensaios de DR e incidentes | F-06, F-09 e F-11 vinculam runbooks, DR piloto light e exercícios periódicos |
+| Runbooks, DR, GameDays | Ensaios de DR e incidentes | F-06, F-09 e F-11 vinculam runbooks, DR piloto light e GameDays bimestrais |
 
 ### Functional Requirements
 
-- FR-001: O sistema deve permitir cadastro e ativacao de tenants com RLS aplicado automaticamente em todos os modelos que herdam `BaseTenantModel`, disponibilizando RBAC/ABAC auditável com testes automatizados de object-level permissions.
-- FR-002: Processos de KYC devem validar CPF/CNPJ por tenant, armazenar consentimentos LGPD e disponibilizar exportacoes anonimizadas.
+- FR-001: O sistema deve permitir cadastro e ativacao de tenants com RLS aplicado automaticamente em todos os modelos que herdam `BaseTenantModel`, disponibilizando RBAC/ABAC auditável com testes automatizados de object-level permissions e exigindo MFA TOTP dedicado para TenantOwner com auditoria automatizada.
+- FR-002: Processos de KYC devem validar CPF/CNPJ por tenant, armazenar consentimentos LGPD, combinar verificacao automatizada via API oficial com revisao manual auditada e disponibilizar exportacoes anonimizadas.
 - FR-003: A originacao de emprestimos deve calcular CET e IOF conforme regulacao, registrar interacoes com bureau externo e bloquear juros acima do limite legal.
 - FR-004: A gestao de parcelas deve gerar agendas com status rastreados, emitir cobrancas PIX/Boleto com `Idempotency-Key` e conciliar pagamentos via webhooks idempotentes.
-- FR-005: O modulo financeiro deve controlar contas a pagar, fornecedores e centros de custo com aprovacao multinivel, anexos auditaveis e integracao com contas bancarias.
+- FR-005: O modulo financeiro deve controlar contas a pagar, fornecedores e centros de custo com aprovacao em duas etapas (operador → gestor), anexos auditaveis e integracao com contas bancarias.
 - FR-006: A pipeline de cobranca deve automatizar notificacoes, renegociacoes e escalonamentos com logs auditaveis e limites de contato configuraveis.
 - FR-007: Dashboards executivos devem consolidar KPIs de carteira, SLOs e DORA com filtros por tenant e alertas de budget.
 - FR-008: Trilhas de auditoria devem armazenar alteracoes em WORM com integridade verificavel e suportar direito ao esquecimento sem vazamento de PII.
@@ -369,15 +379,15 @@ F-11 Automacao de Seeds, Dados de Teste e Factories. Referencie BLUEPRINT_ARQUIT
 
 ### Dados Sensiveis & Compliance
 
-Campos PII (CPF, RG, endereco, telefone, contas bancarias) devem ser criptografados com pgcrypto no Postgres, mascarados em logs e removidos de exports nao auditados. Serializadores/DTOs devem aplicar minimizacao de dados e validacoes automatizadas (lint no CI) para impedir vazamentos para o frontend (ADR-010). Politicas de retencao seguem LGPD: dados de clientes ativos retidos por 5 anos apos quitacao, com suporte a direito ao esquecimento em ate 30 dias. Evidencias necessarias: RIPD/DPIA por feature, ROPA atualizado por tenant, Object Lock configurado para auditoria, provas de mascaramento em pipelines de observabilidade e auditorias de anonimização pós-exclusão.
+Campos PII (CPF, RG, endereco, telefone, contas bancarias) devem ser criptografados com pgcrypto no Postgres, mascarados em logs e removidos de exports nao auditados. Serializadores/DTOs devem aplicar minimizacao de dados e validacoes automatizadas (lint no CI) para impedir vazamentos para o frontend (ADR-010). Politicas de retencao seguem LGPD: dados de clientes ativos retidos por 5 anos apos quitacao, com suporte a direito ao esquecimento em ate 30 dias. Trilhas WORM permanecem bloqueadas por 5 anos adicionais alem dos 30 dias legais, com expiracoes automatizadas auditadas e alertas de proximidade. Evidencias necessarias: RIPD/DPIA por feature, ROPA atualizado por tenant, Object Lock configurado para auditoria, provas de mascaramento em pipelines de observabilidade e auditorias de anonimização pós-exclusão.
 
 ### 4. Duvidas para `/speckit.clarify` (por feature)
 
 #### F-01 Governanca de Tenants e RBAC Zero-Trust
-- Q4: Qual estrategia de autenticao multi-fator deve ser adotada para TenantOwner? Opcoes: A) TOTP integrado; B) SSO corporativo; C) Email OTP com limite. Impacto: controles Art. V e risco de takeover.
+- Resolvido: MFA TOTP dedicado obrigatório para TenantOwner com enforcement documentado e auditoria periódica.
 
 #### F-02 Cadastro e KYC de Clientes e Consultores
-- Q5: Quais provedores de validacao documental devem ser suportados no MVP? Opcoes: A) Upload manual com auditoria; B) API automatizada (ex: Serpro); C) Hibrido.
+- Resolvido: MVP adota abordagem hibrida (upload auditado + API automatizada) para validacao documental, balanceando SLA e compliance.
 
 #### F-03 Originacao de Emprestimo com Score e CET/IOF
 - Resolvido: Bureau inicial = Serasa Experian; alinhar contratos, custos e SLA de aprovacao com esse provedor.
@@ -386,25 +396,25 @@ Campos PII (CPF, RG, endereco, telefone, contas bancarias) devem ser criptografa
 - Resolvido: Gateway SaaS Asaas priorizado para PIX/Boleto; alinhar homologacoes, SLA e custos recorrentes com esse parceiro.
 
 #### F-05 Gestao de Contas a Pagar e Despesas Operacionais
-- Q9: Qual politica de aprovacao de despesas deve reger o MVP? Opcoes: A) Aprovação unica ate limite definido; B) Fluxo em duas etapas (operador → gestor); C) Configuravel por centro de custo. Impacto em segregacao de funcoes, riscos fiscais e velocidade de pagamento.
+- Resolvido: MVP adota fluxo de aprovacao em duas etapas (operador → gestor) com limites auditaveis por faixa de valor.
 
 #### F-06 Cobranca, Renegociacao e Pipeline de Inadimplencia
-- Q6: Qual canal deve ser considerado prioritario para cobranca ativa? Opcoes: A) WhatsApp Business API; B) Email + SMS; C) Discador humano. Impacto em compliance LGPD e produtividade.
+- Resolvido: Canal primario de cobranca ativa sera WhatsApp Business API, com consentimentos e auditoria alinhados a LGPD.
 
 #### F-07 Painel Executivo de Performance e Telemetria SLO
 - Resolvido: SLOs iniciais = p95 600 ms, p99 1 s, MTTR 1 h, erro <1%; calibrar alertas e error budget policy com estes targets.
 
 #### F-08 Conformidade LGPD e Trilhas de Auditoria Imutaveis
-- Q7: Qual politica de retencao minima deve ser aplicada a trilhas WORM alem dos 30 dias legais? Opcoes: A) 1 ano; B) 5 anos; C) 10 anos, com custo associado.
+- Resolvido: Trilhas WORM manterao 5 anos adicionais alem dos 30 dias legais para equilibrar auditoria e custos.
 
 #### F-09 Observabilidade, Resiliencia e Gestao de Incidentes
-- Q8: Com que frequencia os GameDays devem ocorrer no MVP? Opcoes: A) Trimestral; B) Bimestral; C) Mensal. Impacta capacidade da equipe e maturidade SRE.
+- Resolvido: GameDays bimestrais garantem cadencia de melhoria continua sem sobrecarregar squads.
 
 #### F-10 Fundacao Frontend FSD e UI Compartilhada
-- Q10: Qual referencial de design system deve ser adotado inicialmente? Opcoes: A) Biblioteca proprietaria (tokens customizados); B) Material-UI (com theming multi-tenant); C) Tailwind + componentes proprietarios. Impacta acessibilidade, velocidade e lock-in.
+- Resolvido: Design system base sera Tailwind CSS com componentes proprietarios conforme blueprint; tokens multi-tenant devem derivar desta fundacao.
 
 #### F-11 Automacao de Seeds, Dados de Teste e Factories
-- Q11: Qual volumetria alvo de dados sintéticos por tenant deve ser suportada no seed inicial? Opcoes: A) 100 clientes/200 emprestimos; B) 1k clientes/5k emprestimos; C) Configurável por ambiente. Impacta tempo de seed, custos e testes de carga.
+- Resolvido: Seeds sintéticas devem suportar perfis `dev` (100 clientes/200 empréstimos), `staging` (1.000/5.000) e `carga` configurável por ambiente com proteção de RateLimit.
 
 ### 5. Riscos & Dependencias
 
@@ -427,7 +437,7 @@ Campos PII (CPF, RG, endereco, telefone, contas bancarias) devem ser criptografa
 | Vazamento de PII via serializer/DTO | Seguranca/Compliance | Exposicao de dados sensiveis ao frontend | Lint de DTO, mascaramento automatizado e pactos FE/BE garantindo campos mínimos (F-02, F-10, F-11) |
 | Integracao com bureau indisponivel ou cara | Reg/Negocio | Atraso na aprovacao e risco de fraude | Implementar fallback manual com justificativa, monitorar SLA e contrato escalavel (F-03) |
 | Falha de conciliacao PIX/Boleto | Financeiro | Fluxo de caixa impreciso | Retentativas Celery com backoff, `acks_late` e alertas FinOps (F-04) |
-| Aprovação de despesas sem segregacao adequada | Financeiro/Fiscal | Pagamentos indevidos, risco de fraude e penalidades fiscais | Fluxo multi-nivel configuravel, limites por centro de custo e auditoria WORM de aprovadores (F-05) |
+| Aprovação de despesas sem segregacao adequada | Financeiro/Fiscal | Pagamentos indevidos, risco de fraude e penalidades fiscais | Fluxo em duas etapas (solicitante -> gestor centro de custo -> financeiro), limites por centro de custo e auditoria WORM de aprovadores (F-05) |
 | Contato de cobranca em desacordo com LGPD | Reg | Multas e reputacao | Configurar politicas de consentimento, logs auditados e limitadores por canal (F-06) |
 | Dashboards sem metas SLO definidas | Operacional | Alertas irrelevantes e decisoes equivocadas | Clarificar Q3, alinhar com catalogo SLO e publicar budgets (F-07, F-09) |
 | Quebra de contrato FE/BE por falta de Pact | Arquitetura | Deploys quebrados e regressao no frontend | Pact producer/consumer obrigatório em F-03, F-04, F-05 e F-10 com gate no CI |
@@ -448,7 +458,7 @@ Campos PII (CPF, RG, endereco, telefone, contas bancarias) devem ser criptografa
 - SC-002: 98% dos cadastros KYC (F-02) passam na primeira submissao; erros sao tratados em ate 1 dia util.
 - SC-003: 90% dos emprestimos aprovados (F-03) exibem CET/IOF corretos e documentados, com taxa de arrependimento < 5%.
 - SC-004: Taxa de adimplencia automatica (F-04) >= 92% em 60 dias, com conciliacao idempotente registrada.
-- SC-005: 95% das despesas aprovadas (F-05) seguem fluxo multinivel em ate 2 dias uteis, com zero ocorrencias de aprovacao fora de politica.
+- SC-005: 95% das despesas aprovadas (F-05) seguem fluxo em duas etapas (solicitante -> gestor centro de custo -> financeiro) em ate 2 dias uteis, com zero ocorrencias de aprovacao fora de politica.
 - SC-006: Inadimplencia >30 dias (F-06) reduzida em 20% apos 3 ciclos, com renegociacoes documentadas.
 - SC-007: Dashboards executivos (F-07) apresentam p95 de API atualizado e error budget em tempo real para 100% dos tenants ativos.
 - SC-008: 100% das solicitacoes LGPD (F-08) atendidas em ate 30 dias com evidencia WORM.
@@ -461,19 +471,12 @@ Campos PII (CPF, RG, endereco, telefone, contas bancarias) devem ser criptografa
 
 - Passo 0 (Fundacao Técnica): Entregar F-10 (scaffolding FSD) e F-11 (seeds/factories) antes das demais features para suportar TDD, UI compartilhada e observabilidade.
 - Passo 1 (MVP Core): Executar F-01 -> F-02 -> F-03 garantindo base multi-tenant, dados KYC e originacao regulatoria. Cada feature deve seguir o handshake `/speckit.specify` → `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks`.
-- Passo 2 (Fluxo Financeiro MVP): Implementar F-04, F-05 e F-06 em paralelo controlado, pois compartilham agenda de parcelas, despesas e cobrancas. Integracao com gateway Asaas priorizada; alinhar aprovacao de despesas (Q9).
+- Passo 2 (Fluxo Financeiro MVP): Implementar F-04, F-05 e F-06 em paralelo controlado, pois compartilham agenda de parcelas, despesas e cobrancas. Integracao com gateway Asaas priorizada; aplicar fluxo de aprovacao em duas etapas ja validado.
 - Passo 3 (Compliance MVP): Entregar F-08 em paralelo ao Passo 2 para garantir cobertura LGPD e auditoria antes do go-live.
 - Passo 4 (Incremento v1.1): Planejar F-07 apos consolidar dados transacionais (incluindo telemetria do frontend via F-10) usando SLOs definidos (p95 600 ms, p99 1 s, MTTR 1 h, erro <1%); alimenta visao executiva.
-- Passo 5 (Incremento v2.0): Tratar F-09 para elevar maturidade SRE, incorporando GameDays, Renovate e GitOps (Argo CD).
+- Passo 5 (Incremento v2.0): Tratar F-09 para elevar maturidade SRE, incorporando GameDays bimestrais, Renovate e GitOps (Argo CD).
 - MVP declarado: F-10, F-11, F-01, F-02, F-03, F-04, F-05, F-06 e F-08 concluidos e validados. Incremento v1.1: F-07. Incremento v2.0: F-09.
 - Reforcar handshake Spec-Kit por feature antes de evoluir para `/speckit.plan` e `/speckit.tasks`, garantindo checklist completo e clarificacoes respondidas.
 
 ## Outstanding Questions & Clarifications
-- [NEEDS CLARIFICATION: Q4 - Qual estrategia de MFA deve ser adotada para TenantOwner (TOTP dedicado, SSO corporativo ou Email OTP)? Impacta UX e compliance (F-01).]
-- [NEEDS CLARIFICATION: Q5 - Qual provedor de validacao documental KYC deve ser priorizado (upload auditado, API automatizada ou hibrido)? Define custo e SLA (F-02).]
-- [NEEDS CLARIFICATION: Q6 - Qual canal principal de cobranca ativa sera adotado (WhatsApp, Email/SMS, Discador)? Altera runbooks e consentimentos (F-06).]
-- [NEEDS CLARIFICATION: Q7 - Qual retencao WORM minima deve ser aplicada alem dos 30 dias legais (1, 5 ou 10 anos)? Afeta custos de storage (F-08).]
-- [NEEDS CLARIFICATION: Q8 - Qual periodicidade de GameDays (trimestral, bimestral, mensal) sera praticada? Impacta agenda e maturidade SRE (F-09).]
-- [NEEDS CLARIFICATION: Q9 - Qual politica de aprovacao de despesas (limite unico, duas etapas, configuravel)? Afeta segregacao de funcoes (F-05).]
-- [NEEDS CLARIFICATION: Q10 - Qual design system base deve nortear a fundacao FSD (proprietario, Material-UI, Tailwind custom)? Impacta acessibilidade e velocidade (F-10).]
-- [NEEDS CLARIFICATION: Q11 - Qual volumetria alvo de dados sinteticos por tenant deve ser usada nas seeds (100/200, 1k/5k, configuravel)? Impacta tempo de populacao e testes (F-11).]
+Nenhuma pendência aberta; referências consolidadas na seção `## Clarifications`.
