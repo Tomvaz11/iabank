@@ -19,15 +19,22 @@ Esta especificacao consolida o indice de features, avaliacoes de prontidao e o p
 |----|-----------------|---------|------------------|-----------------|--------------|-------------|-------------|
 | F-01 | Governanca de Tenants e RBAC Zero-Trust | Gestor/Administrador do tenant | Onboarding seguro e isolamento de dados habilitando monetizacao multi-tenant | Reg alto (LGPD, RLS) | Modelos core (`Tenant`, `User`), PostgreSQL RLS, política MFA (Blueprint §19) | MVP | Garante baseline de permissoes, MFA mandatório e auditoria para todas as demais fatias |
 | F-02 | Cadastro e KYC de Clientes e Consultores | Consultor de credito / Backoffice | Qualidade de dados e conformidade KYC para pipeline de emprestimos | Reg alto (LGPD, KYC) | F-01, `customers` e `operations` DTOs, contratos Pact `/api/v1` | MVP | Exige coleta segura de PII, controle de concorrencia otimista e sincronizacao com auditoria |
-| F-03 | Originacao de Emprestimo com Score e CET/IOF | Consultor de credito | Contratos conformes (CET, IOF) e aprovacao assistida por score externo | Reg alto (Banco Central) | F-01, F-02, F-10, `LoanCreateDTO`, integrações externas (bureau, Pact) | MVP | [NEEDS CLARIFICATION: Q1 - Bureau de credito prioritario (SPC, Serasa, outro)? Impacta contratos e integracao.] |
-| F-04 | Gestao de Parcelas e Recebimentos Automatizados | Gestor financeiro | Liquidez previsivel via agendas, cobranca PIX/Boleto e conciliacao | Reg alto (pagamentos) | F-03, modelos `Installment`/`FinancialTransaction`, Celery resiliente (acks_late), rate limiting | MVP | [NEEDS CLARIFICATION: Q2 - Gateway PIX/Boleto preferido? Impacta SLA, certificacoes e roadmap financeiro.] |
+| F-03 | Originacao de Emprestimo com Score e CET/IOF | Consultor de credito | Contratos conformes (CET, IOF) e aprovacao assistida por score externo | Reg alto (Banco Central) | F-01, F-02, F-10, `LoanCreateDTO`, integrações externas (bureau, Pact) | MVP | Integracao inicial com Serasa Experian define contratos e cronograma do MVP. |
+| F-04 | Gestao de Parcelas e Recebimentos Automatizados | Gestor financeiro | Liquidez previsivel via agendas, cobranca PIX/Boleto e conciliacao | Reg alto (pagamentos) | F-03, modelos `Installment`/`FinancialTransaction`, Celery resiliente (acks_late), rate limiting | MVP | Priorizado o gateway SaaS Asaas para PIX/Boleto no MVP. |
 | F-05 | Gestao de Contas a Pagar e Despesas Operacionais | Gestor financeiro / Backoffice | Controle de caixa de saida, compliance fiscal e previsibilidade de despesas | Reg medio (fiscal/FinOps) | F-01, F-04, modelos `finance`, índices multi-tenant (Blueprint §6.3) | MVP | Requer politica de aprovacao e integracao banco-fornecedor (ver Q9) |
 | F-06 | Cobranca, Renegociacao e Pipeline de Inadimplencia | Consultor/Cobrador | Reduz churn e inadimplencia com trilhas multi-canal e renegociacao | Reg medio (LGPD contato) | F-04, F-05, runbooks de cobranca, Celery (acks_late), pactos API | MVP | Necessita auditoria de interacoes, limites LGPD e politicas de contato transparente |
-| F-07 | Painel Executivo de Performance e Telemetria SLO | Gestor executivo | Visibilidade de KPIs (CET, inadimplencia, DORA, SLO) para decisoes rapidas | Tec alto (observabilidade, dados) | F-02 a F-06, catálogo SLO, Data Mart, OTEL padronizado | v1.1 | [NEEDS CLARIFICATION: Q3 - Metas iniciais de SLO (p95 API, MTTR) para dashboards? Necessario calibrar alertas e budgets.] |
+| F-07 | Painel Executivo de Performance e Telemetria SLO | Gestor executivo | Visibilidade de KPIs (CET, inadimplencia, DORA, SLO) para decisoes rapidas | Tec alto (observabilidade, dados) | F-02 a F-06, catálogo SLO, Data Mart, OTEL padronizado | v1.1 | Metas SLO iniciais: p95 600 ms, p99 1 s, MTTR 1 h, erro <1%; dashboards calibram alertas e budgets com esses targets. |
 | F-08 | Conformidade LGPD e Trilhas de Auditoria Imutaveis | Auditor/Compliance Officer | Evidencias LGPD (RIPD/ROPA), WORM e direito ao esquecimento auditavel | Reg critico (LGPD, auditoria) | F-01, F-02, F-04, F-05, `django-simple-history`, Object Lock, Vault/KMS | MVP | Inclui automatizacao de artefatos LGPD, rotação de segredos e rastreabilidade cruzada |
 | F-09 | Observabilidade, Resiliencia e Gestao de Incidentes | SRE/Platform | Garantia de estabilidade (SLO, error budget, Chaos/GameDay) | Tec alto (SRE) | F-01 a F-08, pipelines CI/CD, OTEL, Argo CD (GitOps), Renovate | v2.0 | Sustenta operacao contendo DORA, testes de carga, feature flags e playbooks |
 | F-10 | Fundacao Frontend FSD e UI Compartilhada | Tech Lead Frontend / Squad UI | Base consistente FSD (features/entities/shared) habilitando entrega vertical rápida e segura | Tec alto (frontend) | Blueprint §4, design system baseline, Pact FE/BE, Storybook/Chromatic | MVP | Garante scaffolding inicial da SPA, contratos de UI e telemetria client-side |
 | F-11 | Automacao de Seeds, Dados de Teste e Factories | QA / Engenharia de Plataforma | Dados confiaveis para TDD/integração e ambientes realistas com isolamento multi-tenant | Tec medio (TestOps) | Art. III/IV, factory-boy, comandos `seed_data`, pipelines CI, Argo CD | MVP | Mantém suites TDD verdes, executa load seeds em ambientes e reforça DR rehearsals |
+
+## Clarifications
+
+### Session 2025-10-10
+- Q: Para o MVP da originacao (F-03), qual bureau de credito devemos priorizar para integracao? → A: Serasa Experian (Option B)
+- Q: Para as cobrancas automatizadas do F-04, qual gateway PIX/Boleto devemos priorizar? → A: Gateway SaaS especializado (Asaas) (Option B)
+- Q: Para os dashboards executivos (F-07/F-09), qual conjunto de metas SLO iniciais devemos adotar? → A: Option B — p95 600 ms / p99 1 s / MTTR 1 h / erro <1%
 
 ## User Scenarios & Testing *(mandatorio)*
 
@@ -166,36 +173,36 @@ F-02 Cadastro e KYC de Clientes e Consultores. Referencie BLUEPRINT_ARQUITETURAL
 ```
 
 #### F-03 Originacao de Emprestimo com Score e CET/IOF
-Contexto: Viabiliza simulacao, analise e aprovacao de emprestimos com calculo CET/IOF, verificacoes de Lei da Usura e consulta a bureau externo (`LoanCreateDTO`, wizard `NewLoanWizard`).
+Contexto: Viabiliza simulacao, analise e aprovacao de emprestimos com calculo CET/IOF, verificacoes de Lei da Usura e consulta ao bureau externo Serasa Experian (`LoanCreateDTO`, wizard `NewLoanWizard`). APIs e workflows devem sustentar os SLOs iniciais definidos (p95 600 ms, p99 1 s).
 Acceptance criteria:
-- Cenario 1: Dado um consultor com cliente elegivel, quando executa simulacao preenchendo montante, taxa e parcelas, entao o sistema calcula CET mensal/anual, IOF e exibe detalhes antes da aprovacao.
-- Cenario 2: Dado integracao com bureau disponivel, quando solicitada analise, entao a resposta (score, flags) e anexada ao processo e armazenada com idempotency-key e timeout controlado.
+- Cenario 1: Dado um consultor com cliente elegivel, quando executa simulacao preenchendo montante, taxa e parcelas, entao o sistema calcula CET mensal/anual, IOF e exibe detalhes antes da aprovacao garantindo latencia p95 <= 600 ms.
+- Cenario 2: Dado integracao com Serasa Experian disponivel, quando solicitada analise, entao a resposta (score, flags) e anexada ao processo e armazenada com idempotency-key e timeout controlado dentro do p99 de 1 s.
 - Cenario 3: Dado juros acima do limite legal, quando simulacao ocorre, entao o sistema bloqueia aprovacao e fornece mensagem com referencias legais (Lei da Usura).
 - Cenario 4: Dado direito de arrependimento em ate 7 dias, quando pedido e registrado, entao o contrato muda para status `CANCELED`, parcelas sao anuladas e auditoria registra motivo.
-- Cenario 5: Dado falha no bureau, quando o consultor tenta reprocessar, entao o sistema usa retry com backoff exponencial e permite fallback manual com justificativa.
+- Cenario 5: Dado falha no servico da Serasa Experian, quando o consultor tenta reprocessar, entao o sistema usa retry com backoff exponencial e permite fallback manual com justificativa.
 - Cenario 6: Dado consultor tenta emitir contrato sem consentimento LGPD, quando fluxo avanca, entao e bloqueado ate consentimento ser registrado.
 - Cenario 7: Dado `NewLoanWizard` no frontend, quando a jornada e carregada, entao os componentes seguem o padrão FSD (camadas `features/loan-origination`, `entities/customer`, `shared/ui`) com gerenciamento de estado definido e telemetria OTEL configurada.
 - Cenario 8: Dado requisicao REST para `/api/v1/loans/`, quando simulacao ou aprovacao e executada, entao a API responde com `RateLimit-*` headers, `Retry-After` quando aplicavel e Problem Details padronizados para erros de negocio.
-- Cenario 9: Dado pipeline CI em execucao, quando contrato Pact com o bureau e atualizado, entao o job valida compatibilidade producer/consumer e bloqueia merge em caso de quebra.
+- Cenario 9: Dado pipeline CI em execucao, quando contrato Pact com a Serasa Experian e atualizado, entao o job valida compatibilidade producer/consumer e bloqueia merge em caso de quebra.
 Prompt `/speckit.specify`:
 ```text
-F-03 Originacao de Emprestimo com Score e CET/IOF. Utilize BLUEPRINT_ARQUITETURAL.md §§2,3.1.1,3.2 e adicoes_blueprint.md itens 1,4,7. Escreva especificacao orientada ao usuario cobrindo simulacao, consulta a bureau (Q1 em aberto), calculos CET/IOF e processo de arrependimento. Proiba escolhas de stack; detalhe requisitos regulatorios, estrutura frontend FSD (`features`/`entities`/`shared`), versionamento `/api/v1`, contrato OpenAPI 3.1 com lint/diff, RateLimit headers, Pact para integrações externas e tratativas de falhas (circuit breaker, backoff, fallback manual). Preserve [NEEDS CLARIFICATION: Q1].
+F-03 Originacao de Emprestimo com Score e CET/IOF. Utilize BLUEPRINT_ARQUITETURAL.md §§2,3.1.1,3.2 e adicoes_blueprint.md itens 1,4,7. Escreva especificacao orientada ao usuario cobrindo simulacao, integracao com o bureau Serasa Experian definido para o MVP, calculos CET/IOF e processo de arrependimento. Proiba escolhas de stack; detalhe requisitos regulatorios, estrutura frontend FSD (`features`/`entities`/`shared`), versionamento `/api/v1`, contrato OpenAPI 3.1 com lint/diff, RateLimit headers, Pact para integrações externas e tratativas de falhas (circuit breaker, backoff, fallback manual). Detalhe contratos e SLAs esperados com a Serasa Experian e garanta aderencia aos SLOs de latencia p95 600 ms / p99 1 s / MTTR 1 h / taxa de erro <1%.
 ```
 
 #### F-04 Gestao de Parcelas e Recebimentos Automatizados
-Contexto: Automatiza agenda de parcelas, integracao com gateway PIX/Boleto, conciliacao financeira (`FinancialTransaction`, Celery) e falhas tolerantes (`adicoes` itens 7,8).
+Contexto: Automatiza agenda de parcelas, integracao com o gateway PIX/Boleto Asaas, conciliacao financeira (`FinancialTransaction`, Celery) e falhas tolerantes (`adicoes` itens 7,8) aderentes aos SLOs definidos (p95 600 ms, p99 1 s, MTTR 1 h, erro <1%).
 Acceptance criteria:
-- Cenario 1: Dado emprestimo aprovado, quando primeiro cronograma e gerado, entao parcelas recebem status inicial, datas e valores com CET aplicado e RLS garantido.
-- Cenario 2: Dado integracao PIX/Boleto, quando cobranca e emitida, entao o sistema gera QR-code ou boleto com `Idempotency-Key`, registra evento e atualiza status apos conciliacao automatica.
-- Cenario 3: Dado pagamento recebido, quando gateway envia webhook, entao conciliacao usa `retry_backoff` em Celery com `acks_late=True`, atualiza `FinancialTransaction` e `Installment` de forma idempotente e registra o `Idempotency-Key` resolvido.
-- Cenario 4: Dado limite de rate limiting do gateway, quando excedido, entao o sistema respeita `429` com `Retry-After`, retorna `RateLimit-Limit/Remaining/Reset` por tenant e reprograma tarefa mantendo orcamento de erro.
+- Cenario 1: Dado emprestimo aprovado, quando primeiro cronograma e gerado, entao parcelas recebem status inicial, datas e valores com CET aplicado e RLS garantido dentro do p95 de 600 ms.
+- Cenario 2: Dado integracao com o Asaas, quando cobranca e emitida, entao o sistema gera QR-code ou boleto com `Idempotency-Key`, registra evento e atualiza status apos conciliacao automatica.
+- Cenario 3: Dado pagamento recebido, quando gateway envia webhook, entao conciliacao usa `retry_backoff` em Celery com `acks_late=True`, atualiza `FinancialTransaction` e `Installment` de forma idempotente, registra o `Idempotency-Key` resolvido e recupera incidentes com MTTR <= 1 h.
+- Cenario 4: Dado limite de rate limiting do Asaas, quando excedido, entao o sistema respeita `429` com `Retry-After`, retorna `RateLimit-Limit/Remaining/Reset` por tenant e reprograma tarefa mantendo orcamento de erro.
 - Cenario 5: Dado falha de conciliacao, quando tentativa falha 3 vezes, entao tarefa migra para DLQ com contexto completo para analise manual.
 - Cenario 6: Dado tenant com auditoria ativa, quando parcelas sao liquidadas, entao logs exportam eventos para WORM e dashboard financeiro.
 - Cenario 7: Dado uma parcela sendo atualizada via API, quando requisicao inclui `If-Match` coerente com o `ETag`, entao a atualizacao e aplicada; quando o cabecalho falta ou diverge, entao retorna `428` com Problem Details.
-- Cenario 8: Dado pipeline CI, quando PR altera payload de webhook ou rota `/api/v1/installments`, entao os contratos Pact producer/consumer sao validados antes do merge.
+- Cenario 8: Dado pipeline CI, quando PR altera payload de webhook ou rota `/api/v1/installments`, entao os contratos Pact producer/consumer com o Asaas sao validados antes do merge.
 Prompt `/speckit.specify`:
 ```text
-F-04 Gestao de Parcelas e Recebimentos Automatizados. Referencie BLUEPRINT_ARQUITETURAL.md §§2,3.1,6.1,26 e adicoes_blueprint.md itens 3,7,8. Produza especificacao que cubra schedule de parcelas, integracao com gateway (Q2), conciliacao idempotente, `acks_late`, controle de concorrencia (`ETag`/`If-Match`), versionamento `/api/v1`, contrato OpenAPI 3.1 com lint/diff, RateLimit headers e tratamento de erros conforme RFC 9457. Inclua criterios de sucesso para taxas de adimplencia, DLQ, Pact de webhooks e rotinas de FinOps. Mantenha [NEEDS CLARIFICATION: Q2].
+F-04 Gestao de Parcelas e Recebimentos Automatizados. Referencie BLUEPRINT_ARQUITETURAL.md §§2,3.1,6.1,26 e adicoes_blueprint.md itens 3,7,8. Produza especificacao que cubra schedule de parcelas, integracao com o gateway SaaS Asaas definido para o MVP, conciliacao idempotente, `acks_late`, controle de concorrencia (`ETag`/`If-Match`), versionamento `/api/v1`, contrato OpenAPI 3.1 com lint/diff, RateLimit headers e tratamento de erros conforme RFC 9457. Inclua criterios de sucesso para taxas de adimplencia, DLQ, Pact de webhooks e rotinas de FinOps alinhadas ao Asaas.
 ```
 
 #### F-05 Gestao de Contas a Pagar e Despesas Operacionais
@@ -242,11 +249,11 @@ Acceptance criteria:
 - Cenario 3: Dado deploy em producao, quando pipeline CI roda, entao DORA lead time e taxa de falha atualizam automaticamente.
 - Cenario 4: Dado incidentes, quando MTTR excede budget, entao painel destaca alerta e sugere GameDay conforme adicoes item 10.
 - Cenario 5: Dado FinOps, quando custo excede orcamento, entao painel exibe variacao versus budget com tags de custo.
-- Cenario 6: Dado inexistencia de metas SLO definidas, quando feature tenta publicar dashboards, entao processo bloqueia ate resposta da Q3.
+- Cenario 6: Dado metas SLO definidas (p95 600 ms, p99 1 s, MTTR 1 h, erro <1%), quando feature publica dashboards, entao os painéis mostram budgets calculados com base nesses targets e bloqueiam deploy se projeções indicarem violação.
 - Cenario 7: Dado ingestion de dados SLO/FinOps, quando divergencias entre fonte primária e painel são detectadas, entao o sistema sinaliza integridade quebrada, bloqueia atualização e exige reconciliação automática antes de liberar o dashboard.
 Prompt `/speckit.specify`:
 ```text
-F-07 Painel Executivo de Performance e Telemetria SLO. Referencie BLUEPRINT_ARQUITETURAL.md §§2,6.3, docs/slo/catalogo-slo.md e adicoes_blueprint.md itens 1,2,11. Elabore especificacao descrevendo dashboards, integrações OTEL, DORA e FinOps, sem decidir stack. Destaque dependencia de dados consolidados, integrações com a fundação FSD (F-10) e mantenha [NEEDS CLARIFICATION: Q3] para metas SLO iniciais. Inclua criterios para atualizar automaticamente error budgets e acionamentos, verificações de integridade de métricas (late-binding) e geração de painéis FinOps por tenant/feature.
+F-07 Painel Executivo de Performance e Telemetria SLO. Referencie BLUEPRINT_ARQUITETURAL.md §§2,6.3, docs/slo/catalogo-slo.md e adicoes_blueprint.md itens 1,2,11. Elabore especificacao descrevendo dashboards, integrações OTEL, DORA e FinOps, sem decidir stack. Destaque dependencia de dados consolidados, integrações com a fundação FSD (F-10) e utilize os SLOs iniciais definidos (p95 600 ms, p99 1 s, MTTR 1 h, erro <1%) como baseline para budgets, alertas e governanca de desempenho. Inclua criterios para atualizar automaticamente error budgets e acionamentos, verificações de integridade de métricas (late-binding) e geração de painéis FinOps por tenant/feature.
 ```
 
 #### F-08 Conformidade LGPD e Trilhas de Auditoria Imutaveis
@@ -373,10 +380,10 @@ Campos PII (CPF, RG, endereco, telefone, contas bancarias) devem ser criptografa
 - Q5: Quais provedores de validacao documental devem ser suportados no MVP? Opcoes: A) Upload manual com auditoria; B) API automatizada (ex: Serpro); C) Hibrido.
 
 #### F-03 Originacao de Emprestimo com Score e CET/IOF
-- Q1: Qual bureau de credito deve ser integrado primeiro (SPC Brasil, Serasa Experian, outro)? Impacto direto em contratos, custo e SLA de aprovacao.
+- Resolvido: Bureau inicial = Serasa Experian; alinhar contratos, custos e SLA de aprovacao com esse provedor.
 
 #### F-04 Gestao de Parcelas e Recebimentos Automatizados
-- Q2: Qual gateway PIX/Boleto deve ser priorizado (Banco Parceiro atual, Gateway SaaS, Engenharia proprietaria)? Impacta homologacoes, custos e roadmap.
+- Resolvido: Gateway SaaS Asaas priorizado para PIX/Boleto; alinhar homologacoes, SLA e custos recorrentes com esse parceiro.
 
 #### F-05 Gestao de Contas a Pagar e Despesas Operacionais
 - Q9: Qual politica de aprovacao de despesas deve reger o MVP? Opcoes: A) Aprovação unica ate limite definido; B) Fluxo em duas etapas (operador → gestor); C) Configuravel por centro de custo. Impacto em segregacao de funcoes, riscos fiscais e velocidade de pagamento.
@@ -385,7 +392,7 @@ Campos PII (CPF, RG, endereco, telefone, contas bancarias) devem ser criptografa
 - Q6: Qual canal deve ser considerado prioritario para cobranca ativa? Opcoes: A) WhatsApp Business API; B) Email + SMS; C) Discador humano. Impacto em compliance LGPD e produtividade.
 
 #### F-07 Painel Executivo de Performance e Telemetria SLO
-- Q3: Quais metas SLO iniciais (latencia p95/p99, MTTR, taxa de erro) devem ser adotadas por produto? Necessario para calibrar alertas e error budget policy.
+- Resolvido: SLOs iniciais = p95 600 ms, p99 1 s, MTTR 1 h, erro <1%; calibrar alertas e error budget policy com estes targets.
 
 #### F-08 Conformidade LGPD e Trilhas de Auditoria Imutaveis
 - Q7: Qual politica de retencao minima deve ser aplicada a trilhas WORM alem dos 30 dias legais? Opcoes: A) 1 ano; B) 5 anos; C) 10 anos, com custo associado.
@@ -454,18 +461,14 @@ Campos PII (CPF, RG, endereco, telefone, contas bancarias) devem ser criptografa
 
 - Passo 0 (Fundacao Técnica): Entregar F-10 (scaffolding FSD) e F-11 (seeds/factories) antes das demais features para suportar TDD, UI compartilhada e observabilidade.
 - Passo 1 (MVP Core): Executar F-01 -> F-02 -> F-03 garantindo base multi-tenant, dados KYC e originacao regulatoria. Cada feature deve seguir o handshake `/speckit.specify` → `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks`.
-- Passo 2 (Fluxo Financeiro MVP): Implementar F-04, F-05 e F-06 em paralelo controlado, pois compartilham agenda de parcelas, despesas e cobrancas. Priorizar integracao com gateway apos resposta da Q2 e alinhar aprovacao de despesas (Q9).
+- Passo 2 (Fluxo Financeiro MVP): Implementar F-04, F-05 e F-06 em paralelo controlado, pois compartilham agenda de parcelas, despesas e cobrancas. Integracao com gateway Asaas priorizada; alinhar aprovacao de despesas (Q9).
 - Passo 3 (Compliance MVP): Entregar F-08 em paralelo ao Passo 2 para garantir cobertura LGPD e auditoria antes do go-live.
-- Passo 4 (Incremento v1.1): Planejar F-07 apos consolidar dados transacionais (incluindo telemetria do frontend via F-10); depende das respostas da Q3 para metas SLO e alimenta visao executiva.
+- Passo 4 (Incremento v1.1): Planejar F-07 apos consolidar dados transacionais (incluindo telemetria do frontend via F-10) usando SLOs definidos (p95 600 ms, p99 1 s, MTTR 1 h, erro <1%); alimenta visao executiva.
 - Passo 5 (Incremento v2.0): Tratar F-09 para elevar maturidade SRE, incorporando GameDays, Renovate e GitOps (Argo CD).
 - MVP declarado: F-10, F-11, F-01, F-02, F-03, F-04, F-05, F-06 e F-08 concluidos e validados. Incremento v1.1: F-07. Incremento v2.0: F-09.
 - Reforcar handshake Spec-Kit por feature antes de evoluir para `/speckit.plan` e `/speckit.tasks`, garantindo checklist completo e clarificacoes respondidas.
 
 ## Outstanding Questions & Clarifications
-
-- [NEEDS CLARIFICATION: Q1 - Qual bureau de credito (SPC, Serasa ou outro) deve ser integrado no MVP da originacao? Impacta contratos, custo e cronograma (F-03).]
-- [NEEDS CLARIFICATION: Q2 - Qual gateway PIX/Boleto e prioridade para as cobrancas automatizadas? Define homologacoes, SLA e custos recorrentes (F-04).]
-- [NEEDS CLARIFICATION: Q3 - Quais metas SLO iniciais (p95, p99, MTTR, taxa de erro) devem alimentar o painel executivo? Necessario para calibrar alertas, error budgets e planos de resposta (F-07, F-09).]
 - [NEEDS CLARIFICATION: Q4 - Qual estrategia de MFA deve ser adotada para TenantOwner (TOTP dedicado, SSO corporativo ou Email OTP)? Impacta UX e compliance (F-01).]
 - [NEEDS CLARIFICATION: Q5 - Qual provedor de validacao documental KYC deve ser priorizado (upload auditado, API automatizada ou hibrido)? Define custo e SLA (F-02).]
 - [NEEDS CLARIFICATION: Q6 - Qual canal principal de cobranca ativa sera adotado (WhatsApp, Email/SMS, Discador)? Altera runbooks e consentimentos (F-06).]
