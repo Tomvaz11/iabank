@@ -55,7 +55,7 @@ specs/[###-feature-name]/
 
 ### Codigo-Fonte (repositorio)
 
-Descreva os diretorios reais do repositorio que sofrerao alteracao (extraia do blueprint, da arvore atual ou do plano arquitetural) e explique como obedecem aos Artigos I e II. Inclua novos diretorios somente com justificativa.
+Descreva os diretorios reais do repositorio que sofrerao alteracao (extraia dos blueprints, da arvore atual ou do plano arquitetural) e explique como obedecem aos Artigos I e II. Inclua novos diretorios somente com justificativa.
 
 ```
 # Exemplo (remova assim que detalhar a estrutura real)
