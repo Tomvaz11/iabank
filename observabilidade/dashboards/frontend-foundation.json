@@ -1,0 +1,39 @@
+{
+  "$schema": "https://grafana.com/schemas/dashboard/v1.json",
+  "title": "Frontend Foundation — SC & UX",
+  "tags": ["foundation", "frontend", "sc", "ux"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "LCP p95",
+      "targets": [
+        { "expr": "lighthouse_lcp_p95{tenant=~\".*\"}", "legendFormat": "{{tenant}}" }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "SC-001 — Tempo médio scaffolding (min)",
+      "targets": [
+        { "expr": "avg_over_time(sc_001_scaffolding_minutes[7d])", "legendFormat": "7d avg" }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "SC-002 — Cobertura visual Chromatic (%)",
+      "targets": [
+        { "expr": "chromatic_coverage_percent{critical=\"true\"}", "legendFormat": "critical" }
+      ],
+      "fieldConfig": { "defaults": { "min": 0, "max": 100 } }
+    },
+    {
+      "type": "table",
+      "title": "RLS Alerts",
+      "targets": [
+        { "expr": "sum by (tenant) (increase(rls_policy_violations_total[24h]))", "legendFormat": "{{tenant}}" }
+      ]
+    }
+  ],
+  "refresh": "30s",
+  "time": { "from": "now-7d", "to": "now" }
+}
