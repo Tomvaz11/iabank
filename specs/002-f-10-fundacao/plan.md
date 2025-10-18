@@ -94,7 +94,7 @@ Estabelecer a fundação frontend descrita em `/home/pizzaplanet/meus_projetos/i
 ## Backend Integration Notes
 
 - **Apps e Localização**: 
-  - `backend/apps/tenancy/` receberá modelos `TenantThemeToken`, managers (`TenantThemeTokenManager`, `TenantScopedQuerySet`), migrações de RLS (`0025_enable_rls_frontend.sql`) e serviços de sincronização.
+  - `backend/apps/tenancy/` receberá modelos `TenantThemeToken`, managers (`TenantThemeTokenManager`, `TenantScopedQuerySet`), migrações de RLS (`0025_enable_rls_frontend.py`) e serviços de sincronização.
   - `backend/apps/foundation/` (novo app) encapsulará views DRF (`ThemeViewSet`, `FeatureScaffoldView`, `TenantMetricViewSet`), serializers e validações específicas da fundação.
   - `backend/apps/contracts/` armazenará `ApiContractArtifact` e `ContractDiffReport` com sinais para lint/diff.
 - **Migração Expand/Contract** (nomenclatura padronizada):
@@ -126,21 +126,23 @@ Estabelecer a fundação frontend descrita em `/home/pizzaplanet/meus_projetos/i
 
 ## Tooling & Automation Deliverables
 
-- **CLI Scaffolding**: Criar pacote `frontend/scripts/foundation-cli` com comando `pnpm foundation:scaffold`. Estrutura:
+- **CLI Scaffolding**: Criar pacote `frontend/scripts/foundation-cli` com comando `pnpm foundation:scaffold feature`. Estrutura:
   - `src/index.ts`: entrypoint CLI (Commander).
   - `src/generators/*`: templates FSD (TanStack, Zustand, story skeletons).
   - `src/services/metrics.ts`: coleta duração, envia para endpoint metrics.
   - Testes no Vitest (`__tests__/scaffold.cli.spec.ts`) cobrindo sucesso/falhas.
 - **Tokens Pipeline**: Scripts `pnpm foundation:tokens pull/build` residem em `frontend/scripts/tokens/`. Utilizar `node-fetch` para baixar JSON do backend, `fs` para atualizar `shared/config/theme/tenants.ts` e `tokens.css`. Tests `tokens.spec.ts` garantem sincronismo com `docs/design-system/tokens.md`.
 - **Observabilidade CLI**: `pnpm foundation:otel verify` em `frontend/scripts/otel/verify.ts` gera trace `FOUNDATION-TENANT-BOOTSTRAP`, injeta baggage `tenant_id`, `feature_name`, valida mascaramento (checa se PII é omitido) e grava relatório.
-- **CI Workflow**: `/.github/workflows/ci/frontend-foundation.yml` com jobs:
+- **CI Workflow**: `/.github/workflows/ci/frontend-foundation.yml` (owner: Plataforma/DevEx, reviewers: Frontend Foundation Guild + SRE) com jobs:
   1. `lint` (ESLint + lint-fsd rules).
   2. `test` (Vitest, Playwright, Pact, coverage ≥ 85%).
   3. `contracts` (Spectral, OpenAPI-diff, Pact publish).
   4. `visual-accessibility` (Chromatic + axe) com gate de cobertura ≥95% por tenant.
   5. `performance` (Lighthouse budgets + k6).
-  6. `security` (npm audit, dependabot check, Snyk optional, SBOM CycloneDX geração/validação com gate por severidade alta).
+  6. `security` (npm audit, verificação de alertas Renovate, Snyk opcional, SBOM CycloneDX geração/validação com gate por severidade alta).
+  7. `ci-outage-guard` (script que aplica política fail-open/fail-closed, adiciona label `ci-outage` quando necessário e abre follow-up automatizado).
 - **Linter Rules**: Custom ESLint plugin `eslint-plugin-fsd-boundaries` configurado em `frontend/.eslintrc.cjs`, com testes e regras import path.
+- **Renovate Automation** (owner: Plataforma/DevEx; reviewer: Segurança): Garantir `renovate.json` na raiz alinhado ao ADR-008, job `/.github/workflows/renovate-validation.yml` validando schema e bloqueando PRs com config inválida; métricas de execução publicadas em `observabilidade/dashboards/frontend-foundation.json` (seção FinOps).
 
 ## Observability & Security Implementation
 
@@ -157,12 +159,26 @@ Estabelecer a fundação frontend descrita em `/home/pizzaplanet/meus_projetos/i
   - Enforce: mover diretivas para CSP principal após período de observação; criar `window.trustedTypes.createPolicy('foundation-ui', { createHTML, createScriptURL })` em `app/providers/security.tsx`.
   - E2E: adicionar verificação de ausência de `TrustedTypePolicyViolation` nos testes após enforcement.
 - **Vault Integration**: Quickstart requer `vault kv get foundation/frontend` com chaves `cspNonceSecret`, `trustedTypesPolicy`, `pgcryptoKey`. Exportar em dev como `FOUNDATION_CSP_NONCE`, `FOUNDATION_TRUSTED_TYPES_POLICY`, `FOUNDATION_PGCRYPTO_KEY`. Documentar fallback local e alertas.
+- **Throughput & Saturação (NFR-007)** (owner: SRE; co-owner: Frontend Foundation Guild): Instrumentar métricas `foundation_frontend_cpu_percent` e `foundation_frontend_memory_percent` via Prometheus (Argo CD sidecar) e `foundation_api_throughput` via k6 + OTEL. Configurar alertas p95 < 70% no dashboard, acionando autoscaling via HPA (limites 60% warning / 70% critical) e abertura automática de ticket `@SC-001`.
+- **FinOps & Custos (NFR-005)** (owner: Frontend Foundation Guild; reviewer: FinOps chapter): Coletar consumo de Chromatic, Lighthouse e pipelines via API das ferramentas e tagging `tenant`/`feature`. Script `scripts/finops/foundation-costs.ts` gera relatório diário, integra com dashboard e dispara alerta ao atingir 80% do budget mensal. Evidências anexadas no runbook.
+- **CI Outage Policy (NFR-008)** (owner: Plataforma/DevEx; escalation: SRE + Segurança): Implementar script `scripts/ci/handle-outage.ts` acionado pelo job `ci-outage-guard` que:
+  - Detecta falhas de serviços Chromatic/Lighthouse/axe através de APIs/status codes.
+  - Em branches não-release, aplica label `ci-outage`, registra justificativa e abre task automática em `tasks.md`.
+  - Em release/main, mantém gates fail-closed e aborta pipeline.
+  - Registra evento OTEL `foundation_ci_outage` com `tenant_id`, `tool`, `branch`.
+
+## Threat Modeling & Risk Register (PR-001)
+
+- **Cadência**: Fazer sessão STRIDE/LINDDUN a cada release major e a cada mudança crítica em roteamento, OTT, tokens ou contratos. Registrar datas e participantes em `docs/runbooks/frontend-foundation.md` (seção Threat Modeling).
+- **Artefato**: Utilizar template `docs/security/threat-model-template.md` (novo) versionado em `docs/security/threat-models/frontend-foundation/<release>.md`. Incluir diagrama de fluxo de dados, ataques, mitigação e owners.
+- **Responsáveis**: Frontend Foundation Guild lidera; SRE e Segurança participam obrigatoriamente. Tarefas de mitigação entram no backlog de arquitetura com tag `@SC-005`.
+- **Integração CI**: Job `ci/threat-model-lint` valida presença do arquivo atualizado para o release corrente e falha PRs sem a seção "Mitigation Status".
 
 ## Governance Artifacts
 
 - **ADR Perf-Front**: Registrar em `docs/adr/adr-perf-front.md` (incluído neste plano) com formato ADR padrão (Context → Decision → Consequences). Linkar Art. IX e clarificação de 2025-10-12; justificar Lighthouse+k6; budgets; owners (Frontend Guild + SRE); rollback.
-- **Runbook Atualizado**: `docs/runbooks/frontend-foundation.md` (incluído neste plano) contendo: ativação de flags `foundation.fsd`/`design-system.theming`, monitoramento SC-001/SC-005, procedimentos para Chromatic/Lighthouse incidentes, handling de CSP/TT (report-only → enforce), pontos de contato DS Guild.
-- **Dashboards & Tags**: Guardar configuração `observabilidade/dashboards/frontend-foundation.json` com widgets LCP, coverage Chromatic, RLS alerts. Garantir tags `@SC-00x` apareçam nas tasks e testes correspondentes. (Stub incluído neste repositório como parte do plano.)
+- **Runbook Atualizado**: `docs/runbooks/frontend-foundation.md` (incluído neste plano) contendo: ativação de flags `foundation.fsd`/`design-system.theming`, monitoramento SC-001/SC-005, procedimentos para Chromatic/Lighthouse incidentes, gestão de FinOps (controle 80/100%), execução do threat modeling e política `ci-outage` (com owners e escalonamentos).
+- **Dashboards & Tags**: Guardar configuração `observabilidade/dashboards/frontend-foundation.json` com widgets LCP, coverage Chromatic, FinOps (custo por tool/tenant), throughput/saturação e alertas RLS. Garantir tags `@SC-00x` apareçam nas tasks e testes correspondentes. (Stub incluído neste repositório como parte do plano.)
 - **Compliance Evidence**: `docs/lgpd/rls-evidence.md` (incluído neste plano) com scripts/fluxos de verificação RLS, checklists LGPD (retenção, direito ao esquecimento) e evidências mínimas para QA.
 ## Complexity Tracking
 

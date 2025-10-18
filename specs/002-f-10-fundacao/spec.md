@@ -89,7 +89,7 @@ Sem uma fundacao FSD padronizada, cada squad frontend cria estruturas distintas,
 
 ### Functional Requirements
 
-- **FR-001**: O scaffolding FSD deve criar automaticamente estrutura `app/pages/features/entities/shared`, arquivos base de Storybook, hooks de TanStack Query e store Zustand, concluindo em <= 10 minutos com relatorio de sucesso.
+- **FR-001**: O scaffolding FSD deve criar automaticamente estrutura `app/pages/features/entities/shared`, arquivos base de Storybook, hooks de TanStack Query e store Zustand, concluindo em < 5 minutos com relatorio de sucesso.
 - **FR-002**: Políticas de lint FSD DEVEM aplicar camadas estritas e API pública, bloqueando ciclos e reportando por PR (fail‑closed no CI):
   - Camadas: `app → pages → features → entities → shared`.
   - Direção: apenas “para baixo” (camada superior pode importar inferiores; o inverso é proibido).

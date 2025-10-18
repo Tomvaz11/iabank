@@ -1,5 +1,6 @@
 # iabank Development Guidelines
 
+RESPONDA O USUARIO EM PT-BR
 Auto-generated from all feature plans. Last updated: 2025-10-14
 
 ## Active Technologies
