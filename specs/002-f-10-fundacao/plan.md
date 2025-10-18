@@ -11,17 +11,28 @@ Estabelecer a fundação frontend descrita em `/home/pizzaplanet/meus_projetos/i
 
 ## Technical Context
 
+**Language/Version**: Python 3.11; Node.js 20; TypeScript 5.6.  
+**Primary Dependencies**: Django 4.2 LTS; Django REST Framework 3.15; Celery 5.3; Redis 7; React 18; Vite 5; TanStack Query 5; Zustand 4; Spectral; Pact; Terraform; Argo CD; OpenTelemetry SDK; Sentry.  
+**Storage**: PostgreSQL 15 (pgcrypto); Redis 7; Hashicorp Vault Transit.  
+**Testing**: Vitest; Testing Library; Playwright; Pact (Jest); Spectral/OpenAPI-diff; k6; Lighthouse Budgets; Django TestCase.  
+**Target Platform**: SPA multi-tenant servida via CDN/Web; backend Django via API; GitHub Actions e Argo CD em clusters Kubernetes.  
+**Project Type**: web monorepo (pastas `backend/`, `frontend/`, `infra/`, `contracts/`, `docs/`, `observabilidade/`).  
+**Performance Goals**: LCP ≤ 2.5s p95; TTI ≤ 3.5s; CLS ≤ 0.1; lead time < 1 dia; erro < 15%; k6 p95 < 500ms; Chromatic ≥95% por tenant.  
+**Constraints**: Trusted Types enforced; CSP `'strict-dynamic'` com nonce; RLS obrigatório; expand/contract; tags `@SC-xxx`; pipelines fail-closed (Chromatic, Lighthouse, Pact, Spectral).  
+**Scale/Scope**: Tenants Alfa/Beta; impactos em `frontend/`, `backend/apps/tenancy`, `backend/apps/foundation`, `contracts/`, `infra/terraform`, `infra/argocd`, `docs/design-system/`, `observabilidade/`.
+
+### Contexto Expandido
+
 **Backend**: Django 4.2 LTS + DRF 3.15 em `/home/pizzaplanet/meus_projetos/iabank/backend`, mantendo monolito modular com apps `tenancy`, `contracts` e `audit` para RLS, OpenAPI 3.1 e mascaramento de PII (Art. I, XI, XIII; ADR-010, ADR-011). Schema versionado em `contracts/api.yaml` com codegen determinístico.  
 **Frontend**: SPA React 18 + TypeScript 5.6 + Vite 5 em `/home/pizzaplanet/meus_projetos/iabank/frontend`, estrutura FSD (`app/pages/features/entities/shared`) conforme Blueprint §4; TanStack Query 5 para dados particionados por tenant, Zustand 4 para estado global, Hooks nativos para local (Art. I; adicoes_blueprint.md §13).  
 **Async/Infra**: Celery 5.3 + Redis 7 para fila de tarefas pact/Chromatic/lighthouse no CI e jobs de sincronização de tokens; provisionamento descrito em Terraform + Argo CD manifests (`infra/terraform`, `infra/argocd`) alinhados ao Art. I e XIV.  
 **Persistencia/Dados**: PostgreSQL 15 com pgcrypto habilitado para campos PII (CPF, email) e políticas RLS por tenant aplicadas nas views expostas ao frontend; managers garantem `tenant_id` automático (Art. I, X, XIII; adicoes_blueprint.md §4).  
-**Testing**: TDD obrigatório com Vitest + Testing Library para UI, Playwright para scaffolding end-to-end e Jest Pact para consumidores; Spectral/OpenAPI-diff, k6 e Lighthouse gates integrados ao pipeline (Art. III, IX; ADR-011, clarificação Perf-Front).  
+**Testing Detalhado**: TDD obrigatório com Vitest + Testing Library para UI, Playwright para scaffolding end-to-end e Jest Pact para consumidores; Spectral/OpenAPI-diff, k6 e Lighthouse gates integrados ao pipeline (Art. III, IX; ADR-011, clarificação Perf-Front).  
 **Observabilidade**: OpenTelemetry JS SDK com W3C Trace Context e baggage de `tenant_id` propagada; integração com collector padronizado e Sentry para front/back; mascaramento de PII via allowlist/blocklist (Art. VII; ADR-012).  
-**Seguranca/Compliance**: CSP nonce com `script-src 'strict-dynamic' 'nonce-{...}'` e política de Trusted Types (30 dias em Report‑Only → enforce), sanitização de sinks, política de PII em URLs/telemetria, Vault para segredos front/back (Art. XII, XIII, XVI; adicoes_blueprint.md §13).  
-**Project Type**: Monorepo com `backend/`, `frontend/`, `infra/`, `contracts/` e `docs/`, obedecendo o fluxo `constitution → specify → clarify → plan → tasks` e guard rails do Blueprint (Art. I, II, XVIII).  
+**Segurança/Compliance**: CSP nonce com `script-src 'strict-dynamic' 'nonce-{...}'` e política de Trusted Types (30 dias em Report-Only → enforce), sanitização de sinks, política de PII em URLs/telemetria, Vault para segredos front/back (Art. XII, XIII, XVI; adicoes_blueprint.md §13).  
 **Performance Targets**: SLO UX (LCP ≤ 2.5s p95, TTI ≤ 3.5s) monitorados por Lighthouse budgets; DORA lead time < 1 dia e erro < 15%; TanStack Query caches por criticidade (`meta.tags`) sustentam SC-001/SC-002 (Art. VI, VIII, IX).  
-**Restricoes**: TDD pré-implementação, expand/contract para mudanças de schema, RLS obrigatório, Trusted Types enforcement, tags `@SC-xxx`, fail-closed para contratos/Chromatic/Lighthouse em release; sem pendências de clarificação (Art. III, IX, XI, XIII, XVIII).  
-**Escopo/Impacto**: Afeta `frontend/` (scaffolding FSD, Storybook, Tailwind tokens), `backend/apps/tenancy` (managers RLS), `contracts/api.yaml`, `contracts/pacts/frontend-consumer/`, CI pipelines (GitHub Actions), `docs/design-system/`, `infra/terraform` e `infra/argocd` para GitOps rollouts multi-tenant.
+**Restrições Operacionais**: TDD pré-implementação, expand/contract para mudanças de schema, RLS obrigatório, Trusted Types enforcement, tags `@SC-xxx`, fail-closed para contratos/Chromatic/Lighthouse em release; fluxo constitution → specify → clarify → plan → tasks sob guard rails do blueprint (Art. I, II, XVIII); sem pendências de clarificação (Art. III, IX, XI, XIII, XVIII).  
+**Escopo/Impacto**: Afeta `frontend/` (scaffolding FSD, Storybook, Tailwind tokens), `backend/apps/tenancy` (managers RLS), `backend/apps/foundation` (novos serviços DRF), `contracts/api.yaml`, `contracts/pacts/frontend-consumer/`, CI pipelines (GitHub Actions), `docs/design-system/`, `infra/terraform` e `infra/argocd` para GitOps rollouts multi-tenant.
 
 ## Constitution Check
 
