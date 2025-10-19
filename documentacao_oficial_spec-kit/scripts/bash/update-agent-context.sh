@@ -231,13 +231,42 @@ format_technology_stack() {
 
 get_project_structure() {
     local project_type="$1"
-    
-    if [[ "$project_type" == *"web"* ]]; then
-        echo "backend/\\nfrontend/\\ntests/"
+
+    # 1) Tokens entre crases (ex.: `backend/`, `frontend/`)
+    local tokens=()
+    local bt_matches
+    bt_matches=$(printf '%s\n' "$project_type" | grep -oE '`[^`]+`' || true)
+    if [[ -n "$bt_matches" ]]; then
+        while IFS= read -r match; do
+            local token="${match//\`/}"
+            [[ "$token" != */ ]] && token="${token}/"
+            tokens+=("$token")
+        done <<< "$bt_matches"
     else
-        echo "src/\\ntests/"
+        # 2) Fallback: palavras terminadas com "/"
+        local slash_matches
+        slash_matches=$(printf '%s\n' "$project_type" | grep -oE '[A-Za-z0-9_-]+/' | sort -u || true)
+        if [[ -n "$slash_matches" ]]; then
+            while IFS= read -r token; do
+                tokens+=("$token")
+            done <<< "$slash_matches"
+        fi
+    fi
+
+    # 3) Se tokens foram identificados, devolve-os como linhas reais
+    if [[ ${#tokens[@]} -gt 0 ]]; then
+        printf '%s\n' "${tokens[@]}"
+        return 0
+    fi
+
+    # 4) Fallback final conforme heurística original
+    if [[ "$project_type" == *"web"* ]]; then
+        printf 'backend/\nfrontend/\ntests/\n'
+    else
+        printf 'src/\ntests/\n'
     fi
 }
+
 
 get_commands_for_language() {
     local lang="$1"
@@ -250,7 +279,7 @@ get_commands_for_language() {
             echo "cargo test && cargo clippy"
             ;;
         *"JavaScript"*|*"TypeScript"*)
-            echo "npm test \\&\\& npm run lint"
+            echo "npm test && npm run lint"
             ;;
         *)
             echo "# Add commands for $lang"
@@ -296,59 +325,59 @@ create_new_agent_file() {
     local language_conventions
     language_conventions=$(get_language_conventions "$NEW_LANG")
     
-    # Perform substitutions with error checking using safer approach
-    # Escape special characters for sed by using a different delimiter or escaping
-    local escaped_lang=$(printf '%s\n' "$NEW_LANG" | sed 's/[\[\.*^$()+{}|]/\\&/g')
-    local escaped_framework=$(printf '%s\n' "$NEW_FRAMEWORK" | sed 's/[\[\.*^$()+{}|]/\\&/g')
-    local escaped_branch=$(printf '%s\n' "$CURRENT_BRANCH" | sed 's/[\[\.*^$()+{}|]/\\&/g')
-    
-    # Build technology stack and recent change strings conditionally
-    local tech_stack
-    if [[ -n "$escaped_lang" && -n "$escaped_framework" ]]; then
-        tech_stack="- $escaped_lang + $escaped_framework ($escaped_branch)"
-    elif [[ -n "$escaped_lang" ]]; then
-        tech_stack="- $escaped_lang ($escaped_branch)"
-    elif [[ -n "$escaped_framework" ]]; then
-        tech_stack="- $escaped_framework ($escaped_branch)"
-    else
-        tech_stack="- ($escaped_branch)"
+    local tech_stack_base
+    tech_stack_base=$(format_technology_stack "$NEW_LANG" "$NEW_FRAMEWORK")
+    local tech_entries=()
+    if [[ -n "$tech_stack_base" ]]; then
+        tech_entries+=("- $tech_stack_base ($CURRENT_BRANCH)")
+    fi
+    if [[ -n "$NEW_DB" && "$NEW_DB" != "N/A" && "$NEW_DB" != "NEEDS CLARIFICATION" ]]; then
+        tech_entries+=("- $NEW_DB ($CURRENT_BRANCH)")
+    fi
+    local full_tech_stack=""
+    if [[ ${#tech_entries[@]} -gt 0 ]]; then
+        full_tech_stack=$(printf '%s\n' "${tech_entries[@]}")
+        full_tech_stack=${full_tech_stack%$'\n'}
     fi
 
-    local recent_change
-    if [[ -n "$escaped_lang" && -n "$escaped_framework" ]]; then
-        recent_change="- $escaped_branch: Added $escaped_lang + $escaped_framework"
-    elif [[ -n "$escaped_lang" ]]; then
-        recent_change="- $escaped_branch: Added $escaped_lang"
-    elif [[ -n "$escaped_framework" ]]; then
-        recent_change="- $escaped_branch: Added $escaped_framework"
-    else
-        recent_change="- $escaped_branch: Added"
+    local recent_change="- $CURRENT_BRANCH: Added"
+    if [[ -n "$tech_stack_base" ]]; then
+        recent_change="- $CURRENT_BRANCH: Added $tech_stack_base"
+    elif [[ -n "$NEW_DB" && "$NEW_DB" != "N/A" && "$NEW_DB" != "NEEDS CLARIFICATION" ]]; then
+        recent_change="- $CURRENT_BRANCH: Added $NEW_DB"
     fi
 
-    local substitutions=(
-        "s|\[PROJECT NAME\]|$project_name|"
-        "s|\[DATE\]|$current_date|"
-        "s|\[EXTRACTED FROM ALL PLAN.MD FILES\]|$tech_stack|"
-        "s|\[ACTUAL STRUCTURE FROM PLANS\]|$project_structure|g"
-        "s|\[ONLY COMMANDS FOR ACTIVE TECHNOLOGIES\]|$commands|"
-        "s|\[LANGUAGE-SPECIFIC, ONLY FOR LANGUAGES IN USE\]|$language_conventions|"
-        "s|\[LAST 3 FEATURES AND WHAT THEY ADDED\]|$recent_change|"
-    )
-    
-    for substitution in "${substitutions[@]}"; do
-        if ! sed -i.bak -e "$substitution" "$temp_file"; then
-            log_error "Failed to perform substitution: $substitution"
-            rm -f "$temp_file" "$temp_file.bak"
-            return 1
-        fi
-    done
-    
-    # Convert \n sequences to actual newlines
-    newline=$(printf '\n')
-    sed -i.bak2 "s/\\\\n/${newline}/g" "$temp_file"
-    
-    # Clean up backup files
-    rm -f "$temp_file.bak" "$temp_file.bak2"
+    local content
+    content=$(<"$temp_file")
+
+    content=$(PROJECT_NAME="$project_name" \
+        CURRENT_DATE="$current_date" \
+        TECH_STACK="$full_tech_stack" \
+        PROJECT_STRUCTURE="$project_structure" \
+        COMMANDS="$commands" \
+        LANGUAGE_CONVENTIONS="$language_conventions" \
+        RECENT_CHANGE="$recent_change" \
+        CONTENT="$content" \
+        python3 - <<'PY'
+import os
+
+content = os.environ["CONTENT"]
+replacements = {
+    "[PROJECT NAME]": os.environ["PROJECT_NAME"],
+    "[DATE]": os.environ["CURRENT_DATE"],
+    "[EXTRACTED FROM ALL PLAN.MD FILES]": os.environ["TECH_STACK"],
+    "[ACTUAL STRUCTURE FROM PLANS]": os.environ["PROJECT_STRUCTURE"],
+    "[ONLY COMMANDS FOR ACTIVE TECHNOLOGIES]": os.environ["COMMANDS"],
+    "[LANGUAGE-SPECIFIC, ONLY FOR LANGUAGES IN USE]": os.environ["LANGUAGE_CONVENTIONS"],
+    "[LAST 3 FEATURES AND WHAT THEY ADDED]": os.environ["RECENT_CHANGE"],
+}
+for key, value in replacements.items():
+    content = content.replace(key, value)
+print(content, end="")
+PY
+)
+
+    printf '%s' "$content" > "$temp_file"
     
     return 0
 }
@@ -356,115 +385,215 @@ create_new_agent_file() {
 
 
 
+
 update_existing_agent_file() {
     local target_file="$1"
     local current_date="$2"
-    
+
     log_info "Updating existing agent context file..."
-    
-    # Use a single temporary file for atomic update
+
+    local manual_additions=""
+    manual_additions=$(sed -n '/<!-- MANUAL ADDITIONS START -->/,/<!-- MANUAL ADDITIONS END -->/{/<!--/!p;}' "$target_file" 2>/dev/null || true)
+
+    local old_tech_lines=()
+    local old_change_lines=()
+    if [[ -f "$target_file" ]]; then
+        mapfile -t old_tech_lines < <(sed -n '/## Active Technologies/,/##/{/##/!p;}' "$target_file" | grep '^- ' || true)
+        mapfile -t old_change_lines < <(awk '
+            BEGIN { in_changes=0 }
+            /^## Recent Changes$/ { in_changes=1; next }
+            {
+                if (in_changes) {
+                    if ($0 ~ /^##[[:space:]]/ || $0 ~ /^<!--/) { in_changes=0; next }
+                    if ($0 ~ /^- /) { print }
+                }
+            }
+        ' "$target_file" || true)
+    fi
+
     local temp_file
     temp_file=$(mktemp) || {
         log_error "Failed to create temporary file"
         return 1
     }
-    
-    # Process the file in one pass
-    local tech_stack=$(format_technology_stack "$NEW_LANG" "$NEW_FRAMEWORK")
-    local new_tech_entries=()
-    local new_change_entry=""
-    
-    # Prepare new technology entries
-    if [[ -n "$tech_stack" ]] && ! grep -q "$tech_stack" "$target_file"; then
-        new_tech_entries+=("- $tech_stack ($CURRENT_BRANCH)")
+
+    local project_name
+    project_name=$(basename "$REPO_ROOT")
+
+    if ! create_new_agent_file "$target_file" "$temp_file" "$project_name" "$current_date"; then
+        log_error "Failed to regenerate agent file content."
+        rm -f "$temp_file"
+        return 1
     fi
-    
-    if [[ -n "$NEW_DB" ]] && [[ "$NEW_DB" != "N/A" ]] && [[ "$NEW_DB" != "NEEDS CLARIFICATION" ]] && ! grep -q "$NEW_DB" "$target_file"; then
+
+    local tech_stack_base
+    tech_stack_base=$(format_technology_stack "$NEW_LANG" "$NEW_FRAMEWORK")
+
+    local new_tech_entries=()
+    if [[ -n "$tech_stack_base" ]]; then
+        new_tech_entries+=("- $tech_stack_base ($CURRENT_BRANCH)")
+    fi
+    if [[ -n "$NEW_DB" && "$NEW_DB" != "N/A" && "$NEW_DB" != "NEEDS CLARIFICATION" ]]; then
         new_tech_entries+=("- $NEW_DB ($CURRENT_BRANCH)")
     fi
-    
-    # Prepare new change entry
-    if [[ -n "$tech_stack" ]]; then
-        new_change_entry="- $CURRENT_BRANCH: Added $tech_stack"
-    elif [[ -n "$NEW_DB" ]] && [[ "$NEW_DB" != "N/A" ]] && [[ "$NEW_DB" != "NEEDS CLARIFICATION" ]]; then
+
+    declare -A seen_tech=()
+    local final_tech_lines=()
+    local entry
+    for entry in "${new_tech_entries[@]}"; do
+        [[ -z "$entry" ]] && continue
+        if [[ -z "${seen_tech[$entry]+_}" ]]; then
+            seen_tech["$entry"]=1
+            final_tech_lines+=("$entry")
+        fi
+    done
+    for entry in "${old_tech_lines[@]}"; do
+        [[ -z "$entry" ]] && continue
+        entry=$(printf '%s' "$entry" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [[ -z "$entry" ]] && continue
+        if [[ -z "${seen_tech[$entry]+_}" ]]; then
+            seen_tech["$entry"]=1
+            final_tech_lines+=("$entry")
+        fi
+    done
+
+    local new_change_entry=""
+    if [[ -n "$tech_stack_base" ]]; then
+        new_change_entry="- $CURRENT_BRANCH: Added $tech_stack_base"
+    elif [[ -n "$NEW_DB" && "$NEW_DB" != "N/A" && "$NEW_DB" != "NEEDS CLARIFICATION" ]]; then
         new_change_entry="- $CURRENT_BRANCH: Added $NEW_DB"
     fi
-    
-    # Process file line by line
-    local in_tech_section=false
-    local in_changes_section=false
-    local tech_entries_added=false
-    local changes_entries_added=false
-    local existing_changes_count=0
-    
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        # Handle Active Technologies section
-        if [[ "$line" == "## Active Technologies" ]]; then
-            echo "$line" >> "$temp_file"
-            in_tech_section=true
-            continue
-        elif [[ $in_tech_section == true ]] && [[ "$line" =~ ^##[[:space:]] ]]; then
-            # Add new tech entries before closing the section
-            if [[ $tech_entries_added == false ]] && [[ ${#new_tech_entries[@]} -gt 0 ]]; then
-                printf '%s\n' "${new_tech_entries[@]}" >> "$temp_file"
-                tech_entries_added=true
-            fi
-            echo "$line" >> "$temp_file"
-            in_tech_section=false
-            continue
-        elif [[ $in_tech_section == true ]] && [[ -z "$line" ]]; then
-            # Add new tech entries before empty line in tech section
-            if [[ $tech_entries_added == false ]] && [[ ${#new_tech_entries[@]} -gt 0 ]]; then
-                printf '%s\n' "${new_tech_entries[@]}" >> "$temp_file"
-                tech_entries_added=true
-            fi
-            echo "$line" >> "$temp_file"
-            continue
-        fi
-        
-        # Handle Recent Changes section
-        if [[ "$line" == "## Recent Changes" ]]; then
-            echo "$line" >> "$temp_file"
-            # Add new change entry right after the heading
-            if [[ -n "$new_change_entry" ]]; then
-                echo "$new_change_entry" >> "$temp_file"
-            fi
-            in_changes_section=true
-            changes_entries_added=true
-            continue
-        elif [[ $in_changes_section == true ]] && [[ "$line" =~ ^##[[:space:]] ]]; then
-            echo "$line" >> "$temp_file"
-            in_changes_section=false
-            continue
-        elif [[ $in_changes_section == true ]] && [[ "$line" == "- "* ]]; then
-            # Keep only first 2 existing changes
-            if [[ $existing_changes_count -lt 2 ]]; then
-                echo "$line" >> "$temp_file"
-                ((existing_changes_count++))
-            fi
-            continue
-        fi
-        
-        # Update timestamp
-        if [[ "$line" =~ \*\*Last\ updated\*\*:.*[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] ]]; then
-            echo "$line" | sed "s/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/$current_date/" >> "$temp_file"
-        else
-            echo "$line" >> "$temp_file"
-        fi
-    done < "$target_file"
-    
-    # Post-loop check: if we're still in the Active Technologies section and haven't added new entries
-    if [[ $in_tech_section == true ]] && [[ $tech_entries_added == false ]] && [[ ${#new_tech_entries[@]} -gt 0 ]]; then
-        printf '%s\n' "${new_tech_entries[@]}" >> "$temp_file"
+
+    declare -A seen_changes=()
+    local final_change_lines=()
+    if [[ -n "$new_change_entry" ]]; then
+        seen_changes["$new_change_entry"]=1
+        final_change_lines+=("$new_change_entry")
     fi
-    
-    # Move temp file to target atomically
+    for entry in "${old_change_lines[@]}"; do
+        entry=$(printf '%s' "$entry" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        [[ -z "$entry" ]] && continue
+        if [[ -z "${seen_changes[$entry]+_}" ]]; then
+            seen_changes["$entry"]=1
+            final_change_lines+=("$entry")
+        fi
+        if (( ${#final_change_lines[@]} >= 3 )); then
+            break
+        fi
+    done
+
+    local tech_lines_str=""
+    if (( ${#final_tech_lines[@]} > 0 )); then
+        printf -v tech_lines_str '%s\n' "${final_tech_lines[@]}"
+        tech_lines_str=${tech_lines_str%$'\n'}
+    fi
+
+    local change_lines_str=""
+    if (( ${#final_change_lines[@]} > 0 )); then
+        printf -v change_lines_str '%s\n' "${final_change_lines[@]}"
+        change_lines_str=${change_lines_str%$'\n'}
+    fi
+
+    local rewritten_file
+    rewritten_file=$(mktemp) || {
+        log_error "Failed to create temporary file"
+        rm -f "$temp_file"
+        return 1
+    }
+
+    awk -v tech="$tech_lines_str" -v changes="$change_lines_str" '
+        BEGIN {
+            tech_len = split(tech, tech_arr, "\n");
+            change_len = split(changes, change_arr, "\n");
+        }
+        {
+            if ($0 == "## Active Technologies") {
+                print $0;
+                if (tech_len > 0) {
+                    for (i = 1; i <= tech_len; i++) {
+                        if (tech_arr[i] != "")
+                            print tech_arr[i];
+                    }
+                }
+                print "";
+                section = "tech";
+                next;
+            }
+            if (section == "tech") {
+                if ($0 ~ /^##[[:space:]]/ ) {
+                    section = "";
+                    print $0;
+                }
+                next;
+            }
+            if ($0 == "## Recent Changes") {
+                print $0;
+                if (change_len > 0) {
+                    for (i = 1; i <= change_len; i++) {
+                        if (change_arr[i] != "")
+                            print change_arr[i];
+                    }
+                }
+                print "";
+                section = "changes";
+                next;
+            }
+            if (section == "changes") {
+                if ($0 ~ /^##[[:space:]]/ || $0 ~ /^<!--/) {
+                    section = "";
+                    print $0;
+                }
+                next;
+            }
+            print $0;
+        }
+    ' "$temp_file" > "$rewritten_file"
+
+    mv "$rewritten_file" "$temp_file"
+
+    if [[ -n "$manual_additions" ]]; then
+        local manual_file
+        manual_file=$(mktemp) || {
+            log_error "Failed to create temporary file"
+            rm -f "$temp_file"
+            return 1
+        }
+        printf '%s\n' "$manual_additions" > "$manual_file"
+        # Reinjeção segura do bloco MANUAL: a condição deve estar dentro de um bloco de ação
+        if ! awk -v file="$manual_file" '
+            BEGIN { skip = 0 }
+            /<!-- MANUAL ADDITIONS START -->/ {
+                print;
+                while ((getline line < file) > 0) print line;
+                close(file);
+                skip = 1;
+                next;
+            }
+            /<!-- MANUAL ADDITIONS END -->/ {
+                skip = 0;
+                print;
+                next;
+            }
+            {
+                if (skip == 1) next;
+                print;
+            }
+        ' "$temp_file" > "$temp_file.updated"; then
+            log_error "Failed to re-inject manual additions"
+            rm -f "$manual_file" "$temp_file.updated"
+            rm -f "$temp_file"
+            return 1
+        fi
+        mv "$temp_file.updated" "$temp_file"
+        rm -f "$manual_file"
+    fi
+
     if ! mv "$temp_file" "$target_file"; then
         log_error "Failed to update target file"
         rm -f "$temp_file"
         return 1
     fi
-    
+
     return 0
 }
 #==============================================================================
@@ -736,4 +865,3 @@ main() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
 fi
-
