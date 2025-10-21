@@ -156,7 +156,7 @@ O foco desta fundação é garantir isolamento multi-tenant, governança de desi
 - **Implementação**:
   - Criado em `backend/apps/contracts/models.py` (classe nova).
   - Persistido via workflow GitHub Actions (job `contracts`) chamando endpoint `POST /contracts/diff-reports`.
-  - Visualização planejada em dashboard `observability/dashboards/frontend-foundation.json`.
+  - Visualização planejada em dashboard `observabilidade/dashboards/frontend-foundation.json`.
 
 ## Relationships Diagram (textual)
 

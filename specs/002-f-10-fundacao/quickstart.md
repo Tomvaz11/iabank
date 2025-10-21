@@ -72,7 +72,7 @@ pnpm pact:verify
 pnpm lighthouse --config frontend/lighthouse.config.mjs
 pnpm k6 run tests/performance/frontend-smoke.js
 ```
-- Certifique-se de cobertura ≥85% e budgets Lighthouse (LCP ≤ 2.5s, TTI ≤ 3.5s).
+- Certifique-se de cobertura ≥85% e budgets Lighthouse (LCP ≤ 2.5s, TTI ≤ 3.0s).
  - Budgets e racional estão descritos em `docs/adr/adr-perf-front.md`.
 
 ## 9. Atualizar Contratos

@@ -17,7 +17,7 @@ Estabelecer a fundação frontend descrita em `/home/pizzaplanet/meus_projetos/i
 **Testing**: Vitest; Testing Library; Playwright; Pact (Jest); Spectral/OpenAPI-diff; k6; Lighthouse Budgets; Django TestCase.  
 **Target Platform**: SPA multi-tenant servida via CDN/Web; backend Django via API; GitHub Actions e Argo CD em clusters Kubernetes.  
 **Project Type**: web monorepo (pastas `backend/`, `frontend/`, `infra/`, `contracts/`, `docs/`, `observabilidade/`).  
-**Performance Goals**: LCP ≤ 2.5s p95; TTI ≤ 3.5s; CLS ≤ 0.1; lead time < 1 dia; erro < 15%; k6 p95 < 500ms; Chromatic ≥95% por tenant.  
+**Performance Goals**: LCP ≤ 2.5s p95; TTI ≤ 3.0s; CLS ≤ 0.1; DORA lead time p95 < 30 horas úteis; Change Failure Rate < 15%; k6 p95 < 500ms; Chromatic ≥95% por tenant.  
 **Constraints**: Trusted Types enforced; CSP `'strict-dynamic'` com nonce; RLS obrigatório; expand/contract; tags `@SC-xxx`; pipelines fail-closed (Chromatic, Lighthouse, Pact, Spectral).  
 **Scale/Scope**: Tenants Alfa/Beta; impactos em `frontend/`, `backend/apps/tenancy`, `backend/apps/foundation`, `contracts/`, `infra/terraform`, `infra/argocd`, `docs/design-system/`, `observabilidade/`.
 
@@ -30,7 +30,7 @@ Estabelecer a fundação frontend descrita em `/home/pizzaplanet/meus_projetos/i
 **Testing Detalhado**: TDD obrigatório com Vitest + Testing Library para UI, Playwright para scaffolding end-to-end e Jest Pact para consumidores; Spectral/OpenAPI-diff, k6 e Lighthouse gates integrados ao pipeline (Art. III, IX; ADR-011, clarificação Perf-Front).  
 **Observabilidade**: OpenTelemetry JS SDK com W3C Trace Context e baggage de `tenant_id` propagada; integração com collector padronizado e Sentry para front/back; mascaramento de PII via allowlist/blocklist (Art. VII; ADR-012).  
 **Segurança/Compliance**: CSP nonce com `script-src 'strict-dynamic' 'nonce-{...}'` e política de Trusted Types (30 dias em Report-Only → enforce), sanitização de sinks, política de PII em URLs/telemetria, Vault para segredos front/back (Art. XII, XIII, XVI; adicoes_blueprint.md §13).  
-**Performance Targets**: SLO UX (LCP ≤ 2.5s p95, TTI ≤ 3.5s) monitorados por Lighthouse budgets; DORA lead time < 1 dia e erro < 15%; TanStack Query caches por criticidade (`meta.tags`) sustentam SC-001/SC-002 (Art. VI, VIII, IX).  
+**Performance Targets**: SLO UX (LCP ≤ 2.5s p95, TTI ≤ 3.0s) monitorados por Lighthouse budgets; DORA lead time p95 < 30 horas úteis e Change Failure Rate < 15%; TanStack Query caches por criticidade (`meta.tags`) sustentam SC-001/SC-002 (Art. VI, VIII, IX).  
 **Restrições Operacionais**: TDD pré-implementação, expand/contract para mudanças de schema, RLS obrigatório, Trusted Types enforcement, tags `@SC-xxx`, fail-closed para contratos/Chromatic/Lighthouse em release; fluxo constitution → specify → clarify → plan → tasks sob guard rails do blueprint (Art. I, II, XVIII); sem pendências de clarificação (Art. III, IX, XI, XIII, XVIII).  
 **Escopo/Impacto**: Afeta `frontend/` (scaffolding FSD, Storybook, Tailwind tokens), `backend/apps/tenancy` (managers RLS), `backend/apps/foundation` (novos serviços DRF), `contracts/api.yaml`, `contracts/pacts/frontend-consumer/`, CI pipelines (GitHub Actions), `docs/design-system/`, `infra/terraform` e `infra/argocd` para GitOps rollouts multi-tenant.
 
@@ -98,7 +98,7 @@ Estabelecer a fundação frontend descrita em `/home/pizzaplanet/meus_projetos/i
 - **Playwright (frontend/tests/e2e/foundation.scaffold.spec.ts)**: Simular comando CLI via UI devtools, confirmar roteamento por subdomínio, verificar placeholders de loading/erro definidos na clarificação (skeleton/spinner/toast) e garantir ausência de PII em URL. Cenários: scaffolding completo <5min (timer medido), login multi-tenant, fallback de path em dev.
 - **Pact (frontend/tests/state/query-cache.pact.ts)**: Contratos para `GET /api/v1/tenants/{tenantId}/themes/current`, `POST /features/scaffold`, `GET /tenant-metrics`. Cobrir status 200/201/202, 409, 422 e `application/problem+json` com RFC 9457. Anexar tags `@SC-003`.
 - **Django Tests (backend/apps/tenancy/tests/test_rls_enforcement.py)**: Validar políticas RLS e managers (`TenantThemeTokenManager`, `FeatureTemplateRegistrationManager`) impedindo cross-tenant. Incluir testes para pgcrypto (`tenant_theme_token.json_payload` encriptado), ETag/idempotência (`POST scaffold` repetido), `X-Tenant-Id` obrigatório.
-- **Lighthouse Budgets**: Configurar `frontend/lighthouse.config.mjs` com metas LCP ≤ 2.5s, TTI ≤ 3.5s, CLS ≤ 0.1. Executar via `pnpm lighthouse --config ...` e falhar PR se budgets estourarem (Art. IX).
+- **Lighthouse Budgets**: Configurar `frontend/lighthouse.config.mjs` com metas LCP ≤ 2.5s, TTI ≤ 3.0s, CLS ≤ 0.1. Executar via `pnpm lighthouse --config ...` e falhar PR se budgets estourarem (Art. IX).
 - **k6 Smoke**: Script `tests/performance/frontend-smoke.js` exercendo endpoints de scaffolding (p95 < 500ms), tokens e métricas com cabeçalhos `X-Tenant-Id`, `traceparent`. Exportar resultados para dashboards SLO (`SC-001`, `SC-002`).
 - **Chromatic + axe-core**: Stories críticos (Button, Card, LayoutShell, TenantSwitcher) devem ter variações Alfa/Beta/default com cobertura ≥95% e zero violações `axe`. Falhas bloqueiam merge (fail-closed). O job de CI deve validar a cobertura via script (`frontend/scripts/chromatic/check-coverage.ts`) e falhar abaixo do threshold.
 
@@ -153,6 +153,8 @@ Estabelecer a fundação frontend descrita em `/home/pizzaplanet/meus_projetos/i
   6. `security` (npm audit, verificação de alertas Renovate, Snyk opcional, SBOM CycloneDX geração/validação com gate por severidade alta).
   7. `ci-outage-guard` (script que aplica política fail-open/fail-closed, adiciona label `ci-outage` quando necessário e abre follow-up automatizado).
 - **Linter Rules**: Custom ESLint plugin `eslint-plugin-fsd-boundaries` configurado em `frontend/.eslintrc.cjs`, com testes e regras import path.
+  - Regras: camadas FSD (`app → pages → features → entities → shared`), direção top→down; proibir cross‑feature; API pública apenas via `index.ts`; detecção de ciclos; e regra para uso indevido de Zustand (vetar estado local/efêmero em store — preferir `useState`/`useReducer`).
+  - Testes: fixtures cobrindo violações típicas e casos positivos; integração no job `lint` (fail‑closed) com exemplos de violação documentados em `docs/`.
 - **Renovate Automation** (owner: Plataforma/DevEx; reviewer: Segurança): Garantir `renovate.json` na raiz alinhado ao ADR-008, job `/.github/workflows/renovate-validation.yml` validando schema e bloqueando PRs com config inválida; métricas de execução publicadas em `observabilidade/dashboards/frontend-foundation.json` (seção FinOps).
 
 ## Observability & Security Implementation

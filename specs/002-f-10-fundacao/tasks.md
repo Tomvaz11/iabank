@@ -1,7 +1,7 @@
 # Tasks: F-10 Fundação Frontend FSD e UI Compartilhada
 
 **Input**: Artefatos em `/home/pizzaplanet/meus_projetos/iabank/specs/002-f-10-fundacao/` (spec.md, plan.md, research.md, data-model.md, contracts/, quickstart.md)  
-**Pré-requisitos**: `plan.md` aprovado; pendências do `/clarify` resolvidas/registradas; Node 20 + pnpm 9; Python 3.12 + Poetry; Docker local conforme `quickstart.md`
+**Pré-requisitos**: `plan.md` aprovado; pendências do `/clarify` resolvidas/registradas; Node 20 + pnpm 9; Python 3.11; Docker local conforme `quickstart.md`
 
 **Testes (Art. III)**: TDD é obrigatório nesta feature. Escreva testes primeiro e valide o estágio vermelho (falhando) antes da implementação. Registre o commit/execução que comprova o estado vermelho.
 
@@ -10,7 +10,7 @@
 ## Fase 0: TDD & Contratos Obrigatórios (Art. III, Art. XI)
 
 - [ ] T001 [P] [FOUND] Preparar linters de contratos (Spectral) e script de diff OpenAPI (criar `contracts/.spectral.yaml`, `contracts/scripts/openapi-diff.sh` e `package.json` root com `scripts.openapi`)
-- [ ] T007 [P] [FOUND] Adicionar setup de performance: Lighthouse e k6 (arquivos: `frontend/lighthouse.config.mjs`, `contracts/perf/frontend-smoke.js`) com budgets de UX; rodar e registrar falha inicial
+- [ ] T007 [P] [FOUND] Adicionar setup de performance: Lighthouse e k6 (arquivos: `frontend/lighthouse.config.mjs`, `tests/performance/frontend-smoke.js`) com budgets de UX; rodar e registrar falha inicial
 - [ ] T008 [FOUND] Adicionar job de CI “contracts” (arquivo: `.github/workflows/ci/frontend-foundation.yml`) que execute Spectral, OpenAPI-diff e Pact referenciando os testes por US (estado vermelho permitido até implementação)
 - [ ] T090 [P] [FOUND] Criar Pact inicial `frontend/tests/state/query-cache.pact.ts` cobrindo `GET /api/v1/tenants/{tenantId}/themes/current`, `POST /features/scaffold` e `GET /tenant-metrics` (estado vermelho controlado)
 - [ ] T091 [P] [FOUND] Adicionar teste RLS `backend/apps/tenancy/tests/test_rls_enforcement.py` validando políticas, pgcrypto e obrigatoriedade de `X-Tenant-Id` (estado vermelho controlado)
@@ -25,6 +25,7 @@
 - [ ] T012 [FOUND] Configurar Vitest + Testing Library (arquivos: `frontend/vitest.config.ts`, `frontend/setupTests.ts`, `frontend/src/tests/utils/test-utils.tsx`)
 - [ ] T013 [FOUND] Configurar Playwright básico para stories e smoke (arquivo: `frontend/playwright.config.ts`)
 - [ ] T014 [FOUND] Esqueleto CI “frontend-foundation” (arquivo: `.github/workflows/ci/frontend-foundation.yml`) com jobs vazios: `lint`, `test`, `contracts`, `visual-accessibility`, `performance`, `security`
+- [ ] T109 [FOUND] Popular job `lint` no CI com ESLint + `eslint-plugin-fsd-boundaries` (fail‑closed) e regras de boundaries + uso indevido de Zustand
 - [ ] T092 [P] [FOUND] Configurar Renovate (arquivo: `renovate.json`) e workflow `/.github/workflows/renovate-validation.yml` validando schema/assignees
 
 **Checkpoint**: Projeto inicial executa `pnpm install`, `pnpm lint`, `pnpm test` básicos.
@@ -33,8 +34,8 @@
 
 ### Base da plataforma
 
-- [ ] T015 [FOUND] Configurar TanStack Query com partição por tenant (arquivo: `frontend/src/shared/api/queryClient.ts` com chaves `['tenant', tenantId, ...]` e políticas via `meta.tags`)
-- [ ] T016 [FOUND] Configurar Zustand store para shell global (arquivo: `frontend/src/app/store/index.ts` com slices `tenant`, `theme`, `session`)
+- [ ] T015 [FOUND] Configurar TanStack Query com partição por tenant (arquivo: `frontend/src/shared/api/queryClient.ts` com chaves `['tenant', tenantId, ...]` e políticas via `meta.tags`; expor `resetOnTenantChange` para limpar `QueryClient` na troca de tenant)
+- [ ] T016 [FOUND] Configurar Zustand store para shell global (arquivo: `frontend/src/app/store/index.ts` com slices `tenant`, `theme`, `session`), com reset de estados sensíveis na troca de tenant
 - [ ] T017 [FOUND] Configurar client HTTP com `X-Tenant-Id` + Trace Context (arquivo: `frontend/src/shared/api/client.ts` com interceptors/fetch e headers `traceparent`/`tracestate`)
 - [ ] T018 [FOUND] Tipar variáveis de ambiente (arquivo: `frontend/src/shared/config/env.ts` + `frontend/.env.example` com `OTEL_*`, `TENANT_DEFAULT`)
 - [ ] T019 [FOUND] Ajustar managers de tenancy (arquivo: `backend/apps/tenancy/managers.py`) para injetar `tenant_id` automaticamente
@@ -77,9 +78,9 @@
 - [ ] T032 [US1] Migração `0002_frontend_foundation_backfill.py` (arquivo: `backend/apps/foundation/migrations/0002_frontend_foundation_backfill.py`)
 - [ ] T033 [P] [US1] CLI `foundation:scaffold` (arquivo: `frontend/scripts/scaffolding/index.ts` + script em `frontend/package.json`)
 - [ ] T034 [P] [US1] Registrar no roteador multi-tenant (arquivo: `frontend/src/app/providers/router.tsx` + atualização `frontend/src/app/index.tsx`)
-- [ ] T035 [US1] Lint FSD e governança de imports (arquivos: `frontend/.eslintrc.cjs`, `frontend/scripts/eslint-plugin-fsd-boundaries/`)
+- [ ] T035 [US1] Lint FSD e governança de imports + regra de uso de Zustand (banir estado local/efêmero em store) (arquivos: `frontend/.eslintrc.cjs`, `frontend/scripts/eslint-plugin-fsd-boundaries/`)
 - [ ] T036 [US1] Atualizar `quickstart.md` com fluxo final (arquivo: `specs/002-f-10-fundacao/quickstart.md`)
-- [ ] T037 [US1] Instrumentar tempo de scaffolding (SC-001) (arquivo: `backend/apps/foundation/services/scaffold_registrar.py` + métrica em `observability/dashboards/frontend-foundation.json`)
+- [ ] T037 [US1] Instrumentar tempo de scaffolding (SC-001) (arquivo: `backend/apps/foundation/services/scaffold_registrar.py` + métrica em `observabilidade/dashboards/frontend-foundation.json`, alimentando painel DORA: lead time p95 < 30h úteis)
 
 ### Resiliência e controles adicionais
 
@@ -106,8 +107,10 @@
 - [ ] T047 [US2] CSS de tokens (arquivo: `frontend/src/shared/ui/tokens.css`)
 - [ ] T048 [P] [US2] Storybook multi-tenant (arquivos: `frontend/.storybook/main.ts`, `frontend/.storybook/preview.ts` com `html[data-tenant]`)
 - [ ] T049 [P] [US2] Componente `Button` + API pública (arquivos: `frontend/src/shared/ui/button/index.ts`, `frontend/src/shared/ui/button/Button.tsx`)
+- [ ] T052 [P] [US2] Componentes base de estado de dados (Skeleton, Empty, Error) em `frontend/src/shared/ui/` + stories e testes alinhados a FR-005c
 - [ ] T050 [US2] Job Chromatic no CI (arquivo: `.github/workflows/ci/frontend-foundation.yml` – job `visual-accessibility` com cobertura >=95% — releases fail-closed; non-release fail-open)
 - [ ] T098 [US2] Criar `frontend/scripts/chromatic/check-coverage.ts` e integrar no job `visual-accessibility` para validar cobertura >=95% por tenant
+- [ ] T110 [FOUND] Popular job `visual-accessibility` no CI integrando Chromatic + axe (Storybook) com gates: cobertura >=95% por tenant e WCAG 2.2 AA (fail‑closed em release)
 
 ### Observabilidade e governança adicionais
 
@@ -123,7 +126,7 @@
 ## Fase 5: User Story 3 — Telemetria, Pactos e Controles de Privacidade (Prioridade P3)
 
 ### Testes (executar antes da implementação)
-- [ ] T051 [P] [US3] Verificação de OTEL no cliente (arquivo: `frontend/tests/otel/propagation.spec.ts` com spans e baggage `tenant_id`)
+- [ ] T051 [P] [US3] Verificação de OTEL no cliente (arquivo: `frontend/tests/otel/propagation.spec.ts` com spans e baggage `tenant_id`) e medição de cobertura de spans >90% das interações críticas (NFR-003)
 - [ ] T052 [P] [US3] Teste de mascaramento de PII (arquivo: `frontend/tests/otel/masking.spec.ts` cobrindo regex de CPF/email/telefone)
 - [ ] T053 [P] [US3] Scanner CSP/Trusted Types (arquivo: `frontend/tests/security/csp_trusted_types.spec.ts` validando report-only → enforce)
 - [ ] T054 [P] [US3] Pact consumer para `GET /api/v1/tenant-metrics/{tenantId}/sc` (arquivo: `contracts/pacts/frontend-consumer/list_sc_metrics.pact.ts`)
@@ -147,10 +150,11 @@
 
 ### Runbooks e operações
 
-- [ ] T061 [FOUND] Dashboard SC-001..SC-005 (arquivo: `observability/dashboards/frontend-foundation.json`)
+- [ ] T061 [FOUND] Dashboard SC-001..SC-005 (arquivo: `observabilidade/dashboards/frontend-foundation.json`), incluindo painel de Error Budget (5% mensal; alerta/pausa ao atingir 80%)
 - [ ] T062 [FOUND] Atualizar runbook com evidências de rollout/gates (arquivo: `docs/runbooks/frontend-foundation.md`)
+- [ ] T113 [FOUND] Harmonizar referências “observability/” vs “observabilidade/” em documentos legados (ex.: `docs/adr/adr-perf-front.md:16`, instruções que citam `scripts/observability/check_structlog.py`) sem renomear diretórios/arquivos existentes
 - [ ] T063 [FOUND] Garantir tags `@SC-00x` em testes e PRs (arquivos: `frontend/tests/**/*`, `.github/workflows/ci/frontend-foundation.yml`)
-- [ ] T100 [FOUND] Criar `scripts/finops/foundation-costs.ts` coletando uso Chromatic/Lighthouse/pipelines e integrando com `observability/dashboards/frontend-foundation.json` + runbook
+- [ ] T100 [FOUND] Criar `scripts/finops/foundation-costs.ts` coletando uso Chromatic/Lighthouse/pipelines e integrando com `observabilidade/dashboards/frontend-foundation.json` + runbook
 - [ ] T101 [FOUND] Implementar `scripts/ci/handle-outage.ts` e integrar job `ci-outage-guard` para aplicar label `ci-outage`, registrar justificativa e emitir evento OTEL
 - [ ] T105 [P] [FOUND] Registrar ADR `docs/adr/adr-perf-front.md` formalizando uso conjunto de Lighthouse+k6
 - [ ] T106 [P] [FOUND] Criar `docs/lgpd/rls-evidence.md` com scripts/checklists de verificação RLS e PII
@@ -166,15 +170,17 @@
 - [ ] T086 [P] [FOUND] SAST (Semgrep) com política de severidade (releases fail-closed)
 - [ ] T087 [P] [FOUND] DAST (OWASP ZAP baseline) contra stack local (releases fail-closed)
 - [ ] T088 [P] [FOUND] SCA: pnpm audit + Poetry safety/pip-audit + SBOM validate (fail para High/Critical)
+- [ ] T112 [FOUND] Popular job `security` no CI agregando SAST (Semgrep), DAST (ZAP), SCA (pnpm audit + safety/pip-audit) e SBOM CycloneDX (fail‑closed em release)
 - [ ] T102 [P] [FOUND] Adicionar `docs/security/threat-model-template.md` com estrutura STRIDE/LINDDUN oficial
 - [ ] T103 [FOUND] Versionar primeiro artefato `docs/security/threat-models/frontend-foundation/v1.0.md` preenchendo sessão inicial
 - [ ] T104 [FOUND] Incluir job `ci/threat-model-lint` em `.github/workflows/ci/frontend-foundation.yml` validando presença/atualização do threat model
 
 ### Observabilidade e métricas avançadas
 
-- [ ] T089 [P] [FOUND] Playwright-Lighthouse com budgets (LCP ≤ 2.5s, TTI ≤ 3.5s) e gates no CI
+- [ ] T089 [P] [FOUND] Playwright-Lighthouse com budgets (LCP ≤ 2.5s, TTI ≤ 3.0s) e gates no CI
+- [ ] T111 [FOUND] Popular job `performance` no CI integrando Playwright-Lighthouse com budgets (LCP ≤ 2.5s, TTI ≤ 3.0s) e publicar evidências no dashboard
 - [ ] T107 [FOUND] Instrumentar métricas `foundation_frontend_cpu_percent`/`foundation_frontend_memory_percent` via sidecar Prometheus (`infra/argocd/frontend-foundation/`) e alerts HPA
-- [ ] T108 [FOUND] Publicar métrica `foundation_api_throughput` (k6 → OTEL) e automatizar alerta/ticket `@SC-001` (`tests/performance/frontend-smoke.js`, `scripts/observability/alert-handler.ts`, dashboards)
+- [ ] T108 [FOUND] Publicar métrica `foundation_api_throughput` (k6 → OTEL) e automatizar alerta/ticket `@SC-001` (`tests/performance/frontend-smoke.js`, `scripts/observabilidade/alert-handler.ts`, dashboards)
 
 ---
 
@@ -206,7 +212,7 @@
 
 ## Contagem de Tarefas
 
-- Total: 102
-- Por história: US1 = 17, US2 = 20, US3 = 12
+ - Total: 108
+ - Por história: US1 = 17, US2 = 21, US3 = 12
 - TDD & Contratos = 5, Setup = 7, Fundamentos = 19, Final = 22
-- Oportunidades de paralelização: 40 tarefas marcadas [P]
+ - Oportunidades de paralelização: 41 tarefas marcadas [P]
