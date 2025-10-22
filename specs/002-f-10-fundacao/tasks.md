@@ -19,14 +19,14 @@
 
 ## Fase 1: Setup do Projeto (inicialização)
 
-- [ ] T009 [FOUND] Inicializar workspaces pnpm e Node (arquivos: `package.json` root com `workspaces`, `.nvmrc`, `.tool-versions`, `.npmrc` travando pnpm 9)
-- [ ] T010 [FOUND] Configurar formatação e lint base (arquivos: `.editorconfig`, `.prettierrc`, `.eslintignore`, `.gitignore`)
-- [ ] T011 [FOUND] Inicializar SPA React+TS+Vite em `frontend/` (arquivos: `frontend/package.json`, `frontend/vite.config.ts`, `frontend/tsconfig.json`, `frontend/src/main.tsx`, `frontend/index.html`)
-- [ ] T012 [FOUND] Configurar Vitest + Testing Library (arquivos: `frontend/vitest.config.ts`, `frontend/setupTests.ts`, `frontend/src/tests/utils/test-utils.tsx`)
-- [ ] T013 [FOUND] Configurar Playwright básico para stories e smoke (arquivo: `frontend/playwright.config.ts`)
-- [ ] T014 [FOUND] Esqueleto CI “frontend-foundation” (arquivo: `.github/workflows/ci/frontend-foundation.yml`) com jobs vazios: `lint`, `test`, `contracts`, `visual-accessibility`, `performance`, `security`
-- [ ] T109 [FOUND] Popular job `lint` no CI com ESLint + `eslint-plugin-fsd-boundaries` (fail‑closed) e regras de boundaries + uso indevido de Zustand
-- [ ] T092 [P] [FOUND] Configurar Renovate (arquivo: `renovate.json`) e workflow `/.github/workflows/renovate-validation.yml` validando schema/assignees
+- [X] T009 [FOUND] Inicializar workspaces pnpm e Node (arquivos: `package.json` root com `workspaces`, `.nvmrc`, `.tool-versions`, `.npmrc` travando pnpm 9)
+- [X] T010 [FOUND] Configurar formatação e lint base (arquivos: `.editorconfig`, `.prettierrc`, `.eslintignore`, `.gitignore`)
+- [X] T011 [FOUND] Inicializar SPA React+TS+Vite em `frontend/` (arquivos: `frontend/package.json`, `frontend/vite.config.ts`, `frontend/tsconfig.json`, `frontend/src/main.tsx`, `frontend/index.html`)
+- [X] T012 [FOUND] Configurar Vitest + Testing Library (arquivos: `frontend/vitest.config.ts`, `frontend/setupTests.ts`, `frontend/src/tests/utils/test-utils.tsx`)
+- [X] T013 [FOUND] Configurar Playwright básico para stories e smoke (arquivo: `frontend/playwright.config.ts`)
+- [X] T014 [FOUND] Esqueleto CI “frontend-foundation” (arquivo: `.github/workflows/ci/frontend-foundation.yml`) com jobs vazios: `lint`, `test`, `contracts`, `visual-accessibility`, `performance`, `security`
+- [X] T109 [FOUND] Popular job `lint` no CI com ESLint + `eslint-plugin-fsd-boundaries` (fail‑closed) e regras de boundaries + uso indevido de Zustand
+- [X] T092 [P] [FOUND] Configurar Renovate (arquivo: `renovate.json`) e workflow `/.github/workflows/renovate-validation.yml` validando schema/assignees
 
 **Checkpoint**: Projeto inicial executa `pnpm install`, `pnpm lint`, `pnpm test` básicos.
 

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommitTypeAll(chore)",
+    ":disableDependencyDashboardAutomerge"
+  ],
+  "timezone": "America/Sao_Paulo",
+  "dependencyDashboard": true,
+  "prConcurrentLimit": 5,
+  "assignees": ["frontend-foundation-guild"],
+  "reviewers": ["@iabank/arquitetura-fundacao"],
+  "labels": ["dependencies", "renovate"],
+  "schedule": ["after 10pm and before 6am on Sunday"],
+  "packageRules": [
+    {
+      "matchManagers": ["npm"],
+      "matchPaths": ["frontend/**"],
+      "groupName": "frontend dependencies",
+      "stabilityDays": 3
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["react", "react-dom", "typescript", "vite"],
+      "labels": ["critical-upgrade"],
+      "prPriority": 1,
+      "stabilityDays": 7
+    }
+  ]
+}

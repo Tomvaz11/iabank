@@ -1,0 +1,21 @@
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  color: #0f172a;
+  background-color: #f8fafc;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 960px;
+  padding: 2rem;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+}

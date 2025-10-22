@@ -2,7 +2,25 @@
   "name": "iabank",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.12.2",
+  "engines": {
+    "node": ">=20.0.0 <21",
+    "pnpm": ">=9.0.0 <10"
+  },
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
+    "dev": "pnpm --filter @iabank/frontend-foundation dev",
+    "build:frontend": "pnpm --filter @iabank/frontend-foundation build",
+    "lint": "pnpm --filter @iabank/frontend-foundation lint",
+    "test": "pnpm --filter @iabank/frontend-foundation test",
+    "test:watch": "pnpm --filter @iabank/frontend-foundation test:watch",
+    "test:coverage": "pnpm --filter @iabank/frontend-foundation test:coverage",
+    "test:e2e": "pnpm --filter @iabank/frontend-foundation test:e2e",
+    "typecheck": "pnpm --filter @iabank/frontend-foundation typecheck",
+    "format": "pnpm exec prettier --check .",
+    "format:write": "pnpm exec prettier --write .",
     "openapi:lint": "pnpm exec spectral lint --ruleset=contracts/.spectral.yaml contracts/api.yaml contracts/api.previous.yaml specs/002-f-10-fundacao/contracts/**/*.yaml",
     "openapi:diff": "contracts/scripts/openapi-diff.sh",
     "openapi": "pnpm openapi:lint && pnpm openapi:diff",
