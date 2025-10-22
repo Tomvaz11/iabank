@@ -9,11 +9,11 @@
 
 ## Fase 0: TDD & Contratos Obrigatórios (Art. III, Art. XI)
 
-- [ ] T001 [P] [FOUND] Preparar linters de contratos (Spectral) e script de diff OpenAPI (criar `contracts/.spectral.yaml`, `contracts/scripts/openapi-diff.sh` e `package.json` root com `scripts.openapi`)
-- [ ] T007 [P] [FOUND] Adicionar setup de performance: Lighthouse e k6 (arquivos: `frontend/lighthouse.config.mjs`, `tests/performance/frontend-smoke.js`) com budgets de UX; rodar e registrar falha inicial
-- [ ] T008 [FOUND] Adicionar job de CI “contracts” (arquivo: `.github/workflows/ci/frontend-foundation.yml`) que execute Spectral, OpenAPI-diff e Pact referenciando os testes por US (estado vermelho permitido até implementação)
-- [ ] T090 [P] [FOUND] Criar Pact inicial `frontend/tests/state/query-cache.pact.ts` cobrindo `GET /api/v1/tenants/{tenantId}/themes/current`, `POST /features/scaffold` e `GET /tenant-metrics` (estado vermelho controlado)
-- [ ] T091 [P] [FOUND] Adicionar teste RLS `backend/apps/tenancy/tests/test_rls_enforcement.py` validando políticas, pgcrypto e obrigatoriedade de `X-Tenant-Id` (estado vermelho controlado)
+- [X] T001 [P] [FOUND] Preparar linters de contratos (Spectral) e script de diff OpenAPI (criar `contracts/.spectral.yaml`, `contracts/scripts/openapi-diff.sh` e `package.json` root com `scripts.openapi`)
+- [X] T007 [P] [FOUND] Adicionar setup de performance: Lighthouse e k6 (arquivos: `frontend/lighthouse.config.mjs`, `tests/performance/frontend-smoke.js`) com budgets de UX; rodar e registrar falha inicial
+- [X] T008 [FOUND] Adicionar job de CI “contracts” (arquivo: `.github/workflows/ci/frontend-foundation.yml`) que execute Spectral, OpenAPI-diff e Pact referenciando os testes por US (estado vermelho permitido até implementação)
+- [X] T090 [P] [FOUND] Criar Pact inicial `frontend/tests/state/query-cache.pact.ts` cobrindo `GET /api/v1/tenants/{tenantId}/themes/current`, `POST /features/scaffold` e `GET /tenant-metrics` (estado vermelho controlado)
+- [X] T091 [P] [FOUND] Adicionar teste RLS `backend/apps/tenancy/tests/test_rls_enforcement.py` validando políticas, pgcrypto e obrigatoriedade de `X-Tenant-Id` (estado vermelho controlado)
 
 **Checkpoint**: Tarefas de TDD/contratos criadas e falhando (vermelho) – pronto para iniciar setup.
 

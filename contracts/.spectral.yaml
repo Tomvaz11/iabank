@@ -1,0 +1,26 @@
+extends:
+  - spectral:oas
+
+rules:
+  info-description:
+    description: "Todos os contratos OpenAPI devem fornecer um resumo descritivo."
+    given: $.info
+    then:
+      field: description
+      function: truthy
+    severity: error
+  operation-success-response:
+    description: "Operações precisam declarar pelo menos uma resposta de sucesso."
+    given: $.paths[*][*]
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required:
+            - responses
+          properties:
+            responses:
+              type: object
+              minProperties: 1
+    severity: error
