@@ -107,7 +107,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Placeholder
-        run: echo 'TODO: implementar execução de Storybook/Chromatic e axe-core.'
+        run: echo 'TODO implementar execução de Storybook/Chromatic e axe-core.'
 
   performance:
     name: Performance Budgets
@@ -118,7 +118,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Placeholder
-        run: echo 'TODO: integrar Lighthouse e k6.'
+        run: echo 'TODO integrar Lighthouse e k6.'
 
   security:
     name: Security Checks
@@ -128,5 +128,48 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Placeholder
-        run: echo 'TODO: configurar Semgrep/DAST/SCA e SBOM.'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Instalar dependências Python de segurança
+        run: pip install --upgrade pip && pip install -r requirements-dev.txt bandit
+
+      - name: SAST (Bandit)
+        run: scripts/security/run_sast.sh
+
+      - name: DAST/Segurança dinâmica
+        run: scripts/security/run_dast.sh
+
+      - name: Validação pgcrypto
+        run: python scripts/security/check_pgcrypto.py
+
+      - name: pnpm audit (SCA)
+        run: pnpm audit:frontend
+
+      - name: Gerar SBOM CycloneDX
+        run: |
+          mkdir -p sbom
+          pnpm sbom:frontend
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-frontend-foundation
+          path: sbom/frontend-foundation.json

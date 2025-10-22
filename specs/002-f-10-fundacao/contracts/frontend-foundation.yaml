@@ -1,10 +1,10 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: IABANK Frontend Foundation API
   version: 0.1.0
-  summary: >
-    Contratos frontend-backend para scaffolding FSD, tokens multi-tenant
-    e métricas operacionais conforme spec F-10.
+  description: |
+    Espelho oficial do contrato frontend foundation para referência dentro do
+    diretório de especificações e alinhamento com os squads consumidores.
   contact:
     name: Frontend Foundation Guild
     email: fe-foundation@iabank.com
@@ -20,7 +20,26 @@ tags:
     description: Operações de scaffolding e métricas SC.
   - name: DesignSystem
     description: Artefatos do design system multi-tenant.
+  - name: Health
+    description: Monitoramento de integridade dos serviços fundamentais.
 paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Retorna o status de saúde do serviço de fundação frontend.
+      operationId: getHealthCheck
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
   /api/v1/tenants/{tenantId}/themes/current:
     get:
       tags: [Tenants]
@@ -165,7 +184,7 @@ paths:
           name: tag
           schema:
             type: string
-          description: Filtrar por tag (ex.: `critical`).
+          description: "Filtrar por tag (ex.: `critical`)."
         - $ref: '#/components/parameters/TraceParent'
         - $ref: '#/components/parameters/TraceState'
       responses:
@@ -437,7 +456,7 @@ components:
           minimum: 0
         metadata:
           type: object
-          description: Campos adicionais (ex.: versão do CLI).
+          description: "Campos adicionais (ex.: versão do CLI)."
           additionalProperties: true
     FeatureScaffoldResponse:
       type: object

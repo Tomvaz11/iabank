@@ -24,16 +24,19 @@
     "openapi:lint": "pnpm exec spectral lint --ruleset=contracts/.spectral.yaml contracts/api.yaml contracts/api.previous.yaml specs/002-f-10-fundacao/contracts/**/*.yaml",
     "openapi:diff": "contracts/scripts/openapi-diff.sh",
     "openapi": "pnpm openapi:lint && pnpm openapi:diff",
-    "pact:verify": "pnpm exec vitest run frontend/tests/state/query-cache.pact.ts --runInBand",
-    "contracts:verify": "pnpm openapi && pnpm pact:verify"
+    "pact:verify": "pnpm exec vitest run tests/state/query-cache.pact.ts --root frontend",
+    "contracts:verify": "pnpm openapi && pnpm pact:verify",
+    "sbom:frontend": "pnpm --filter @iabank/frontend-foundation exec cyclonedx-npm --output-file sbom/frontend-foundation.json --output-format json --append-dir",
+    "audit:frontend": "pnpm --filter @iabank/frontend-foundation audit --prod --json"
   },
   "devDependencies": {
+    "@cyclonedx/cyclonedx-npm": "^1.9.0",
     "@pact-foundation/pact": "^13.1.0",
     "@pact-foundation/pact-cli": "^16.1.4",
     "@stoplight/spectral-cli": "^6.11.0",
     "diff": "^5.2.0",
     "openapi-diff": "^0.24.1",
-    "typescript": "^5.6.3",
+    "typescript": "^5.9.3",
     "vitest": "^2.0.5",
     "yaml": "^2.6.0"
   }

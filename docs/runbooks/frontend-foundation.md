@@ -7,6 +7,16 @@ Escopo
 - Gestão de FinOps, throughput/saturação (NFR-005/NFR-007) e política de outage no CI (NFR-008).
 
 Pré-requisitos
+- Base da plataforma (TanStack Query + Zustand + HTTP):
+  - `frontend/src/shared/api/queryClient.ts` exporta `buildTenantQueryKey` e `resetOnTenantChange`. Toda troca de tenant deve invocar esse helper para limpar caches e revalidar dados críticos (`meta.tags` com `critical` reduzem `staleTime` para 30s e ativam refetch agressivo).
+  - `frontend/src/app/store/index.ts` expõe `useAppStore` com slices `tenant`, `theme`, `session`. Métodos `setTenant`/`resetSensitiveState` limpam estados sensíveis e chamam `resetOnTenantChange`.
+  - `frontend/src/shared/api/client.ts` centraliza o fetch multi-tenant. Sempre use essas funções para preservar cabeçalhos obrigatórios (`X-Tenant-Id`, `traceparent`, `tracestate`) e idempotência.
+  - Variáveis de ambiente são tipadas em `frontend/src/shared/config/env.ts`; configure-as via `.env` ou provider secreto antes de rodar `pnpm dev/test`.
+  - O stub de OTEL (`frontend/src/app/providers/telemetry.tsx`) inicializa o cliente e garante `shutdown` limpo. Integrações reais plugarão nesse ponto.
+- RLS e pgcrypto:
+  - Migração `backend/apps/tenancy/migrations/0025_enable_rls_frontend.py` habilita `pgcrypto` e aciona `SELECT iabank.apply_tenant_rls_policies()` definido em `backend/apps/tenancy/sql/rls_policies.sql`.
+  - Use `backend.apps.tenancy.managers.use_tenant()` para escopar operações ORM. Managers injetam `tenant_id` automaticamente e levantam `TenantContextError` se usados sem contexto.
+
 - Acesso a ConfigCat (ou feature flag provider) nos ambientes.
 - Acesso a observabilidade e Sentry.
 - Permissões de deploy via Argo CD.

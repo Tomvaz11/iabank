@@ -34,16 +34,16 @@
 
 ### Base da plataforma
 
-- [ ] T015 [FOUND] Configurar TanStack Query com partição por tenant (arquivo: `frontend/src/shared/api/queryClient.ts` com chaves `['tenant', tenantId, ...]` e políticas via `meta.tags`; expor `resetOnTenantChange` para limpar `QueryClient` na troca de tenant)
-- [ ] T016 [FOUND] Configurar Zustand store para shell global (arquivo: `frontend/src/app/store/index.ts` com slices `tenant`, `theme`, `session`), com reset de estados sensíveis na troca de tenant
-- [ ] T017 [FOUND] Configurar client HTTP com `X-Tenant-Id` + Trace Context (arquivo: `frontend/src/shared/api/client.ts` com interceptors/fetch e headers `traceparent`/`tracestate`)
-- [ ] T018 [FOUND] Tipar variáveis de ambiente (arquivo: `frontend/src/shared/config/env.ts` + `frontend/.env.example` com `OTEL_*`, `TENANT_DEFAULT`)
-- [ ] T019 [FOUND] Ajustar managers de tenancy (arquivo: `backend/apps/tenancy/managers.py`) para injetar `tenant_id` automaticamente
-- [ ] T020 [FOUND] Habilitar `pgcrypto` e políticas RLS expandidas (arquivos: `backend/apps/tenancy/migrations/0025_enable_rls_frontend.py`, `backend/apps/tenancy/sql/rls_policies.sql`)
-- [ ] T021 [FOUND] Inicializar Observabilidade base (arquivo: `frontend/src/app/providers/telemetry.tsx` com stub de OTEL Web SDK)
-- [ ] T022 [FOUND] Criar runbook inicial (arquivo: `docs/runbooks/frontend-foundation.md` com procedimentos de flags, rollback e gates)
-- [ ] T023 [FOUND] Configurar geração de SBOM CycloneDX e auditorias (arquivo: `.github/workflows/ci/frontend-foundation.yml` – job `security`)
-- [ ] T024 [FOUND] Preparar base de contratos canônicos (arquivo: `contracts/api.yaml` seedado com `specs/002-f-10-fundacao/contracts/frontend-foundation.yaml` + script `pnpm openapi:generate`)
+- [X] T015 [FOUND] Configurar TanStack Query com partição por tenant (arquivo: `frontend/src/shared/api/queryClient.ts` com chaves `['tenant', tenantId, ...]` e políticas via `meta.tags`; expor `resetOnTenantChange` para limpar `QueryClient` na troca de tenant)
+- [X] T016 [FOUND] Configurar Zustand store para shell global (arquivo: `frontend/src/app/store/index.ts` com slices `tenant`, `theme`, `session`), com reset de estados sensíveis na troca de tenant
+- [X] T017 [FOUND] Configurar client HTTP com `X-Tenant-Id` + Trace Context (arquivo: `frontend/src/shared/api/client.ts` com interceptors/fetch e headers `traceparent`/`tracestate`)
+- [X] T018 [FOUND] Tipar variáveis de ambiente (arquivo: `frontend/src/shared/config/env.ts` + `frontend/.env.example` com `OTEL_*`, `TENANT_DEFAULT`)
+- [X] T019 [FOUND] Ajustar managers de tenancy (arquivo: `backend/apps/tenancy/managers.py`) para injetar `tenant_id` automaticamente
+- [X] T020 [FOUND] Habilitar `pgcrypto` e políticas RLS expandidas (arquivos: `backend/apps/tenancy/migrations/0025_enable_rls_frontend.py`, `backend/apps/tenancy/sql/rls_policies.sql`)
+- [X] T021 [FOUND] Inicializar Observabilidade base (arquivo: `frontend/src/app/providers/telemetry.tsx` com stub de OTEL Web SDK)
+- [X] T022 [FOUND] Criar runbook inicial (arquivo: `docs/runbooks/frontend-foundation.md` com procedimentos de flags, rollback e gates)
+- [X] T023 [FOUND] Configurar geração de SBOM CycloneDX e auditorias (arquivo: `.github/workflows/ci/frontend-foundation.yml` – job `security`)
+- [X] T024 [FOUND] Preparar base de contratos canônicos (arquivo: `contracts/api.yaml` seedado com `specs/002-f-10-fundacao/contracts/frontend-foundation.yaml` + script `pnpm openapi:generate`)
 
 ### Observabilidade e feature flags
 
