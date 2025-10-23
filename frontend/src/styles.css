@@ -9,13 +9,36 @@ body {
   margin: 0;
 }
 
-main {
+.scaffold-shell {
   max-width: 960px;
   padding: 2rem;
   margin: 0 auto;
+  display: grid;
+  gap: 2rem;
 }
 
-h1 {
+.scaffold-header h1 {
   font-size: 2rem;
   margin-bottom: 0.75rem;
+}
+
+.scaffold-tenant-selector {
+  display: grid;
+  gap: 0.5rem;
+  max-width: 240px;
+}
+
+.scaffold-tenant-selector select {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid #cbd5f5;
+}
+
+.scaffold-summary {
+  display: grid;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  border-radius: 1rem;
+  background: #0f172a;
+  color: #f8fafc;
 }

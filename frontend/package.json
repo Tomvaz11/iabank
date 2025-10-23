@@ -12,7 +12,8 @@
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "foundation:scaffold": "node --loader ./scripts/scaffolding/loader.mjs ./scripts/scaffolding/index.ts"
   },
   "dependencies": {
     "configcat-js": "^9.4.0",
