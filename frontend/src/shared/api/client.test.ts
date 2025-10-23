@@ -33,28 +33,28 @@ describe('client HTTP multi-tenant', () => {
   it('envia cabeçalhos obrigatórios ao buscar temas do tenant', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
+      headers: new Headers(),
       json: () => Promise.resolve({ theme: {} }),
     });
     vi.stubGlobal('fetch', fetchMock);
 
     await getTenantTheme({ tenantId: 'tenant-alfa', traceContext });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.local.test/api/v1/tenants/tenant-alfa/themes/current',
-      expect.objectContaining({
-        method: 'GET',
-        headers: expect.objectContaining({
-          'X-Tenant-Id': 'tenant-alfa',
-          traceparent: traceContext.traceparent,
-          tracestate: traceContext.tracestate,
-        }),
-      }),
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.local.test/api/v1/tenants/tenant-alfa/themes/current');
+    expect(init?.method).toBe('GET');
+
+    const headers = new Headers(init?.headers as HeadersInit);
+    expect(headers.get('X-Tenant-Id')).toBe('tenant-alfa');
+    expect(headers.get('traceparent')).toBe(traceContext.traceparent);
+    expect(headers.get('tracestate')).toBe(traceContext.tracestate);
   });
 
   it('propaga idempotency-key e payload ao registrar scaffolding', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
+      headers: new Headers(),
       json: () => Promise.resolve({ ok: true }),
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -66,22 +66,21 @@ describe('client HTTP multi-tenant', () => {
       traceContext,
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.local.test/api/v1/tenants/tenant-beta/features/scaffold',
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          'Content-Type': 'application/json',
-          'Idempotency-Key': 'uuid-123',
-        }),
-        body: JSON.stringify({ slice: 'app' }),
-      }),
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.local.test/api/v1/tenants/tenant-beta/features/scaffold');
+    expect(init?.method).toBe('POST');
+    expect(init?.body).toBe(JSON.stringify({ slice: 'app' }));
+
+    const headers = new Headers(init?.headers as HeadersInit);
+    expect(headers.get('Content-Type')).toBe('application/json');
+    expect(headers.get('Idempotency-Key')).toBe('uuid-123');
   });
 
   it('anexa paginação padrão ao listar métricas de sucesso', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
+      headers: new Headers(),
       json: () => Promise.resolve({ results: [] }),
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -93,14 +92,12 @@ describe('client HTTP multi-tenant', () => {
       traceContext,
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.local.test/api/v1/tenant-metrics/tenant-gamma/sc?page=2&page_size=50',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          'X-Tenant-Id': 'tenant-gamma',
-        }),
-      }),
-    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.local.test/api/v1/tenant-metrics/tenant-gamma/sc?page=2&page_size=50');
+
+    const headers = new Headers(init?.headers as HeadersInit);
+    expect(headers.get('X-Tenant-Id')).toBe('tenant-gamma');
   });
 
   it('lança erro quando a resposta não é bem sucedida', async () => {
@@ -108,6 +105,7 @@ describe('client HTTP multi-tenant', () => {
       ok: false,
       status: 403,
       statusText: 'Forbidden',
+      headers: new Headers({ 'Content-Type': 'application/json' }),
       json: () => Promise.resolve({ detail: 'blocked' }),
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -117,6 +115,6 @@ describe('client HTTP multi-tenant', () => {
         tenantId: 'tenant-alfa',
         traceContext,
       }),
-    ).rejects.toThrow(/403/);
+    ).rejects.toMatchObject({ status: 403 });
   });
 });

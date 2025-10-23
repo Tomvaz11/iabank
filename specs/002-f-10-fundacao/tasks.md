@@ -47,18 +47,18 @@
 
 ### Observabilidade e feature flags
 
-- [ ] T093 [P] [FOUND] Integrar ConfigCat no frontend (`frontend/src/shared/config/flags.ts`, `frontend/src/app/providers/flags.tsx`) com fallback local e canário por tenant para `foundation.fsd` / `design-system.theming`
-- [ ] T094 [P] [FOUND] Provisionar feature flags no backend (`backend/config/feature_flags.py`, `backend/apps/foundation/services/flag_gate.py`) aplicando rollout por tenant e fallback offline
-- [ ] T095 [FOUND] Alinhar script de performance para `tests/performance/frontend-smoke.js` e atualizar `package.json`/job `performance` em `.github/workflows/ci/frontend-foundation.yml`
+- [X] T093 [P] [FOUND] Integrar ConfigCat no frontend (`frontend/src/shared/config/flags.ts`, `frontend/src/app/providers/flags.tsx`) com fallback local e canário por tenant para `foundation.fsd` / `design-system.theming`
+- [X] T094 [P] [FOUND] Provisionar feature flags no backend (`backend/config/feature_flags.py`, `backend/apps/foundation/services/flag_gate.py`) aplicando rollout por tenant e fallback offline
+- [X] T095 [FOUND] Alinhar script de performance para `tests/performance/frontend-smoke.js` e atualizar `package.json`/job `performance` em `.github/workflows/ci/frontend-foundation.yml`
 
 ### Governança de contratos e secrets
 
-- [ ] T064 [FOUND] OpenAPI TS client codegen e wiring (`frontend/src/shared/api/generated`, script `pnpm openapi:generate` e uso nos serviços)
-- [ ] T065 [FOUND] Variáveis de ambiente frontend: adicionar `FOUNDATION_CSP_NONCE`, `FOUNDATION_TRUSTED_TYPES_POLICY`, `FOUNDATION_PGCRYPTO_KEY` em `frontend/src/shared/config/env.ts` e `frontend/.env.example`
-- [ ] T066 [FOUND] Fallback de Vault em dev: documentar e implementar fallback seguro em `docs/runbooks/frontend-foundation.md`
-- [ ] T067 [FOUND] Estender `ApiContractArtifact` (campos `breaking_change`, `released_at`) em `backend/apps/contracts/models.py` + migração
-- [ ] T068 [FOUND] Criar `ContractDiffReport` em `backend/apps/contracts/models.py` + migração e admin
-- [ ] T069 [FOUND] Sinais em `backend/apps/contracts/signals.py` para persistir resultados de Spectral/OpenAPI-diff (job `contracts`)
+- [X] T064 [FOUND] OpenAPI TS client codegen e wiring (`frontend/src/shared/api/generated`, script `pnpm openapi:generate` e uso nos serviços)
+- [X] T065 [FOUND] Variáveis de ambiente frontend: adicionar `FOUNDATION_CSP_NONCE`, `FOUNDATION_TRUSTED_TYPES_POLICY`, `FOUNDATION_PGCRYPTO_KEY` em `frontend/src/shared/config/env.ts` e `frontend/.env.example`
+- [X] T066 [FOUND] Fallback de Vault em dev: documentar e implementar fallback seguro em `docs/runbooks/frontend-foundation.md`
+- [X] T067 [FOUND] Estender `ApiContractArtifact` (campos `breaking_change`, `released_at`) em `backend/apps/contracts/models.py` + migração
+- [X] T068 [FOUND] Criar `ContractDiffReport` em `backend/apps/contracts/models.py` + migração e admin
+- [X] T069 [FOUND] Sinais em `backend/apps/contracts/signals.py` para persistir resultados de Spectral/OpenAPI-diff (job `contracts`)
 
 **Checkpoint**: Fundamentos prontos. US1/US2/US3 podem iniciar em paralelo.
 

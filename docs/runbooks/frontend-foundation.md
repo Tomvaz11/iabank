@@ -60,6 +60,11 @@ CSP e Trusted Types
 - Dev local: plugin Vite injeta nonce e mantém TT em report-only.
 - Auditar violações e abrir follow-ups.
 
+Fallback de Vault (dev/local)
+- Caso o Vault esteja indisponível, copie `frontend/.env.example` para `frontend/.env.local` e ajuste os valores marcados como fallback (`VITE_FOUNDATION_CSP_NONCE`, `VITE_FOUNDATION_TRUSTED_TYPES_POLICY`, `VITE_FOUNDATION_PGCRYPTO_KEY`). Esses valores são determinísticos para desenvolvimento (`nonce-dev-fallback`, `foundation-ui-dev`, `dev-only-pgcrypto-key`) e não devem ser usados fora do ambiente local.
+- Execute `pnpm --filter @iabank/frontend-foundation dev` após configurar o arquivo para garantir que o front-end encontre os segredos. Sempre que o Vault voltar, substitua os valores pelo conteúdo oficial via `vault kv get foundation/frontend` e remova o arquivo local.
+- Nunca faça commit de `.env.local`. A ausência desse arquivo deve disparar o procedimento padrão de login no Vault antes de iniciar qualquer pipeline.
+
 Política de Outage no CI (NFR-008)
 - Job `ci-outage-guard` executa `scripts/ci/handle-outage.ts` após Chromatic/Lighthouse/axe.
 - Branches não-release: detectar outage ⇒ adicionar label `ci-outage`, criar subtask em `tasks.md`, anexar log da ferramenta e registrar evento OTEL `foundation_ci_outage`.

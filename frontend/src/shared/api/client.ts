@@ -1,59 +1,29 @@
 import { env } from '../config/env';
+import type { FeatureScaffoldRequest } from './generated/models/FeatureScaffoldRequest';
+import type { FeatureScaffoldResponse } from './generated/models/FeatureScaffoldResponse';
+import type { TenantMetricPage } from './generated/models/TenantMetricPage';
+import type { TenantThemeResponse } from './generated/models/TenantThemeResponse';
+import { ApiError } from './generated/core/ApiError';
+import type { ApiRequestOptions } from './generated/core/ApiRequestOptions';
+import { OpenAPI } from './generated/core/OpenAPI';
+import { request as openApiRequest } from './generated/core/request';
 
 export type TraceContext = {
   traceparent: string;
   tracestate?: string;
 };
 
-type HttpMethod = 'GET' | 'POST';
+OpenAPI.CREDENTIALS = 'include';
+OpenAPI.WITH_CREDENTIALS = true;
 
-type RequestConfig = {
-  path: string;
-  method: HttpMethod;
-  tenantId: string;
-  traceContext: TraceContext;
-  query?: Record<string, string | number | undefined>;
-  body?: Record<string, unknown>;
-  idempotencyKey?: string;
-};
+type HeadersRecord = Record<string, string | undefined>;
 
-export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly statusText: string,
-    public readonly payload: unknown,
-  ) {
-    super(`Request failed with status ${status}: ${statusText}`);
-  }
-}
-
-const buildUrl = (path: string, query?: RequestConfig['query']): string => {
-  const url = new URL(`${env.API_BASE_URL}${path}`);
-
-  if (query) {
-    Object.entries(query).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        url.searchParams.set(key, String(value));
-      }
-    });
-  }
-
-  return url.toString();
-};
-
-const request = async <TResponse>({
-  path,
-  method,
-  tenantId,
-  traceContext,
-  body,
-  query,
-  idempotencyKey,
-}: RequestConfig): Promise<TResponse> => {
-  const url = buildUrl(path, query);
-
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
+const buildHeaders = (
+  tenantId: string,
+  traceContext: TraceContext,
+  extraHeaders?: HeadersRecord,
+): Record<string, string> => {
+  const headers: Record<string, string> = {
     'X-Tenant-Id': tenantId,
     traceparent: traceContext.traceparent,
   };
@@ -62,30 +32,20 @@ const request = async <TResponse>({
     headers.tracestate = traceContext.tracestate;
   }
 
-  if (idempotencyKey) {
-    headers['Idempotency-Key'] = idempotencyKey;
+  if (extraHeaders) {
+    Object.entries(extraHeaders).forEach(([key, value]) => {
+      if (value) {
+        headers[key] = value;
+      }
+    });
   }
 
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-    credentials: 'include',
-    mode: 'cors',
-  });
+  return headers;
+};
 
-  if (!response.ok) {
-    let payload: unknown = null;
-    try {
-      payload = await response.json();
-    } catch {
-      payload = await response.text();
-    }
-
-    throw new ApiError(response.status, response.statusText ?? 'Error', payload);
-  }
-
-  return response.json() as Promise<TResponse>;
+const execute = <T>(options: ApiRequestOptions) => {
+  OpenAPI.BASE = env.API_BASE_URL;
+  return openApiRequest<T>(OpenAPI, options);
 };
 
 export type GetTenantThemeParams = {
@@ -93,37 +53,40 @@ export type GetTenantThemeParams = {
   traceContext: TraceContext;
 };
 
-export const getTenantTheme = async <TResponse = unknown>({
+export const getTenantTheme = ({
   tenantId,
   traceContext,
-}: GetTenantThemeParams): Promise<TResponse> =>
-  request<TResponse>({
+}: GetTenantThemeParams): Promise<TenantThemeResponse> =>
+  execute<TenantThemeResponse>({
     method: 'GET',
-    path: `/api/v1/tenants/${tenantId}/themes/current`,
-    tenantId,
-    traceContext,
+    url: '/api/v1/tenants/{tenantId}/themes/current',
+    path: { tenantId },
+    headers: buildHeaders(tenantId, traceContext),
   });
 
 export type RegisterFeatureScaffoldParams = {
   tenantId: string;
   idempotencyKey: string;
-  payload: Record<string, unknown>;
+  payload: FeatureScaffoldRequest;
   traceContext: TraceContext;
 };
 
-export const registerFeatureScaffold = async <TResponse = unknown>({
+export const registerFeatureScaffold = ({
   tenantId,
   idempotencyKey,
   payload,
   traceContext,
-}: RegisterFeatureScaffoldParams): Promise<TResponse> =>
-  request<TResponse>({
+}: RegisterFeatureScaffoldParams): Promise<FeatureScaffoldResponse | unknown> =>
+  execute({
     method: 'POST',
-    path: `/api/v1/tenants/${tenantId}/features/scaffold`,
-    tenantId,
-    traceContext,
-    idempotencyKey,
+    url: '/api/v1/tenants/{tenantId}/features/scaffold',
+    path: { tenantId },
+    headers: buildHeaders(tenantId, traceContext, {
+      'Idempotency-Key': idempotencyKey,
+      'Content-Type': 'application/json',
+    }),
     body: payload,
+    mediaType: 'application/json',
   });
 
 export type ListTenantSuccessMetricsParams = {
@@ -133,19 +96,21 @@ export type ListTenantSuccessMetricsParams = {
   traceContext: TraceContext;
 };
 
-export const listTenantSuccessMetrics = async <TResponse = unknown>({
+export const listTenantSuccessMetrics = ({
   tenantId,
   page,
   pageSize,
   traceContext,
-}: ListTenantSuccessMetricsParams): Promise<TResponse> =>
-  request<TResponse>({
+}: ListTenantSuccessMetricsParams): Promise<TenantMetricPage> =>
+  execute<TenantMetricPage>({
     method: 'GET',
-    path: `/api/v1/tenant-metrics/${tenantId}/sc`,
-    tenantId,
-    traceContext,
+    url: '/api/v1/tenant-metrics/{tenantId}/sc',
+    path: { tenantId },
+    headers: buildHeaders(tenantId, traceContext),
     query: {
       page,
       page_size: pageSize,
     },
   });
+
+export { ApiError };

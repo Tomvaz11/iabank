@@ -5,7 +5,7 @@ Aplicação operacional do **ADR-011** e do Artigo XI da Constituição.
 ## Checklist por Entrega
 1. **Contratos OpenAPI**
    - Confirme que o arquivo em `/contracts/api.yaml` foi atualizado.
-   - Execute `pnpm run lint:openapi` (Spectral) e `pnpm run diff:openapi` (openapi-diff). Ambos DEVEM falhar o pipeline se houver erro.
+   - Execute `pnpm run openapi:lint` (Spectral) e `pnpm run openapi:diff` (openapi-diff). Ambos DEVEM falhar o pipeline se houver erro.
 2. **Testes de contrato (Pact)**
    - Rode `pnpm run test:pact` e verifique publicação do pacto no broker.
    - Garanta que consumidores atualizaram verificações (`pact-broker can-i-deploy`).

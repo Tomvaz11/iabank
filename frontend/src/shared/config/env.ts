@@ -6,6 +6,10 @@ const schema = z.object({
   VITE_OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url(),
   VITE_OTEL_SERVICE_NAME: z.string().min(1),
   VITE_OTEL_RESOURCE_ATTRIBUTES: z.string().min(1),
+  VITE_CONFIGCAT_SDK_KEY: z.string().optional(),
+  VITE_FOUNDATION_CSP_NONCE: z.string().min(1),
+  VITE_FOUNDATION_TRUSTED_TYPES_POLICY: z.string().min(1),
+  VITE_FOUNDATION_PGCRYPTO_KEY: z.string().min(1),
 });
 
 type RawEnv = z.input<typeof schema>;
@@ -16,6 +20,10 @@ export type AppEnv = {
   OTEL_EXPORTER_OTLP_ENDPOINT: string;
   OTEL_SERVICE_NAME: string;
   OTEL_RESOURCE_ATTRIBUTES: Record<string, string>;
+  CONFIGCAT_SDK_KEY?: string;
+  FOUNDATION_CSP_NONCE: string;
+  FOUNDATION_TRUSTED_TYPES_POLICY: string;
+  FOUNDATION_PGCRYPTO_KEY: string;
 };
 
 const parseResourceAttributes = (value: string): Record<string, string> =>
@@ -49,6 +57,10 @@ export const createEnv = (raw: Partial<Record<keyof RawEnv, unknown>>): AppEnv =
     OTEL_EXPORTER_OTLP_ENDPOINT: normalizeBaseUrl(result.data.VITE_OTEL_EXPORTER_OTLP_ENDPOINT),
     OTEL_SERVICE_NAME: result.data.VITE_OTEL_SERVICE_NAME,
     OTEL_RESOURCE_ATTRIBUTES: parseResourceAttributes(result.data.VITE_OTEL_RESOURCE_ATTRIBUTES),
+    CONFIGCAT_SDK_KEY: result.data.VITE_CONFIGCAT_SDK_KEY?.trim() || undefined,
+    FOUNDATION_CSP_NONCE: result.data.VITE_FOUNDATION_CSP_NONCE.trim(),
+    FOUNDATION_TRUSTED_TYPES_POLICY: result.data.VITE_FOUNDATION_TRUSTED_TYPES_POLICY.trim(),
+    FOUNDATION_PGCRYPTO_KEY: result.data.VITE_FOUNDATION_PGCRYPTO_KEY.trim(),
   };
 };
 

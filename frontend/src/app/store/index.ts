@@ -41,6 +41,7 @@ export type AppStoreState = InitialSlices & {
   setTheme: (theme: Partial<Omit<ThemeSlice, 'tokens'>> & { tokens: Record<string, string> }) => void;
   resetTheme: () => void;
   setSession: (session: SetSessionPayload) => void;
+  setFeatureFlags: (flags: Record<string, boolean>) => void;
   clearSession: () => void;
   resetSensitiveState: () => void;
 };
@@ -122,6 +123,14 @@ export const createAppStore = (
         session: {
           user: session.user,
           featureFlags: { ...session.featureFlags },
+        },
+      });
+    },
+    setFeatureFlags: (flags) => {
+      set({
+        session: {
+          ...get().session,
+          featureFlags: { ...flags },
         },
       });
     },
