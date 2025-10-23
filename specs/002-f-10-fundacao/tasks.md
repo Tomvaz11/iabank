@@ -71,11 +71,11 @@
 - [X] T097 [P] [US1] Teste Playwright e2e (`frontend/tests/e2e/foundation.scaffold.spec.ts`) validando roteamento multi-tenant, tempo <5min e ausência de PII em URLs
 
 ### Implementação
-- [ ] T028 [US1] Modelo `FeatureTemplateRegistration` (arquivo: `backend/apps/foundation/models/feature_template_registration.py`)
-- [ ] T029 [US1] Serializer `FeatureTemplateRegistrationSerializer` (arquivo: `backend/apps/foundation/serializers/feature_template.py`)
-- [ ] T030 [US1] View/URL DRF `registerFeatureScaffold` (arquivo: `backend/apps/foundation/api/views.py`, `backend/apps/foundation/api/urls.py`)
-- [ ] T031 [US1] Serviço `ScaffoldRegistrar` (arquivo: `backend/apps/foundation/services/scaffold_registrar.py`)
-- [ ] T032 [US1] Migração `0002_frontend_foundation_backfill.py` (arquivo: `backend/apps/foundation/migrations/0002_frontend_foundation_backfill.py`)
+- [X] T028 [US1] Modelo `FeatureTemplateRegistration` (arquivo: `backend/apps/foundation/models/feature_template_registration.py`)
+- [X] T029 [US1] Serializer `FeatureTemplateRegistrationSerializer` (arquivo: `backend/apps/foundation/serializers/feature_template.py`)
+- [X] T030 [US1] View/URL DRF `registerFeatureScaffold` (arquivo: `backend/apps/foundation/api/views.py`, `backend/apps/foundation/api/urls.py`)
+- [X] T031 [US1] Serviço `ScaffoldRegistrar` (arquivo: `backend/apps/foundation/services/scaffold_registrar.py`)
+- [X] T032 [US1] Migração `0002_frontend_foundation_backfill.py` (arquivo: `backend/apps/foundation/migrations/0002_frontend_foundation_backfill.py`)
 - [ ] T033 [P] [US1] CLI `foundation:scaffold` (arquivo: `frontend/scripts/scaffolding/index.ts` + script em `frontend/package.json`)
 - [ ] T034 [P] [US1] Registrar no roteador multi-tenant (arquivo: `frontend/src/app/providers/router.tsx` + atualização `frontend/src/app/index.tsx`)
 - [ ] T035 [US1] Lint FSD e governança de imports + regra de uso de Zustand (banir estado local/efêmero em store) (arquivos: `frontend/.eslintrc.cjs`, `frontend/scripts/eslint-plugin-fsd-boundaries/`)

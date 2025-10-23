@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'backend.apps.contracts',
     'backend.apps.tenancy',
+    'backend.apps.foundation',
 ]
 
 MIDDLEWARE = [
