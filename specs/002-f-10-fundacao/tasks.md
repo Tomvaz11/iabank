@@ -65,10 +65,10 @@
 ## Fase 3: User Story 1 — Scaffolding FSD Convergente (Prioridade P1)
 
 ### Testes (executar antes da implementação)
-- [ ] T025 [P] [US1] Pact consumer de scaffolding (arquivo: `contracts/pacts/frontend-consumer/register_feature_scaffold.pact.ts`)
-- [ ] T026 [P] [US1] Teste de CLI de scaffolding (arquivo: `frontend/tests/scaffolding/scaffolding.spec.ts`)
-- [ ] T027 [P] [US1] Teste DRF para `POST /api/v1/tenants/{tenantId}/features/scaffold` (arquivo: `backend/apps/foundation/tests/test_register_feature_scaffold.py`)
-- [ ] T097 [P] [US1] Teste Playwright e2e (`frontend/tests/e2e/foundation.scaffold.spec.ts`) validando roteamento multi-tenant, tempo <5min e ausência de PII em URLs
+- [X] T025 [P] [US1] Pact consumer de scaffolding (arquivo: `contracts/pacts/frontend-consumer/register_feature_scaffold.pact.ts`)
+- [X] T026 [P] [US1] Teste de CLI de scaffolding (arquivo: `frontend/tests/scaffolding/scaffolding.spec.ts`)
+- [X] T027 [P] [US1] Teste DRF para `POST /api/v1/tenants/{tenantId}/features/scaffold` (arquivo: `backend/apps/foundation/tests/test_register_feature_scaffold.py`)
+- [X] T097 [P] [US1] Teste Playwright e2e (`frontend/tests/e2e/foundation.scaffold.spec.ts`) validando roteamento multi-tenant, tempo <5min e ausência de PII em URLs
 
 ### Implementação
 - [ ] T028 [US1] Modelo `FeatureTemplateRegistration` (arquivo: `backend/apps/foundation/models/feature_template_registration.py`)
