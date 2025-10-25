@@ -1,0 +1,67 @@
+{
+  "consumer": {
+    "name": "FrontendFoundationDesignSystem"
+  },
+  "interactions": [
+    {
+      "description": "uma requisição para listar stories filtradas",
+      "request": {
+        "headers": {
+          "X-Tenant-Id": "tenant-alfa",
+          "traceparent": "00-ffffffffffffffffffffffffffffffff-eeeeeeeeeeeeeeee-01",
+          "tracestate": "tenant-id=tenant-alfa"
+        },
+        "method": "GET",
+        "path": "/api/v1/design-system/stories",
+        "query": "componentId=shared%2fui%2fbutton&page=1&page_size=10&tag=critical"
+      },
+      "response": {
+        "body": {
+          "data": [
+            {
+              "axeStatus": "pass",
+              "chromaticBuild": "build-001",
+              "componentId": "shared/ui/button",
+              "coveragePercent": 98.5,
+              "id": "f3a1b2c3-d4e5-6789-8abc-def012345678",
+              "storyId": "Primary",
+              "storybookUrl": "https://chromatic.example.com/story/button-primary",
+              "tags": [
+                "critical",
+                "button"
+              ],
+              "tenantId": "tenant-alfa",
+              "updatedAt": "2025-01-01T12:00:00Z"
+            }
+          ],
+          "pagination": {
+            "page": 1,
+            "perPage": 10,
+            "totalItems": 1,
+            "totalPages": 1
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8",
+          "ETag": "\"stories-tenant-alfa-v1\""
+        },
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "13.2.0"
+    },
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  },
+  "provider": {
+    "name": "IABankFoundationAPI"
+  }
+}

@@ -5,20 +5,25 @@ import json
 import time
 from typing import Any
 from uuid import UUID
+import uuid
 
 from django.core.cache import cache
+from django.core.paginator import EmptyPage, Paginator
+from django.db import connection, models
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.viewsets import ViewSet
 
 from backend.apps.foundation.idempotency import (
     ScaffoldIdempotencyRegistry,
     ScaffoldIdempotencyScope,
 )
 from backend.apps.foundation.serializers import (
+    DesignSystemStorySerializer,
     FeatureScaffoldRequestSerializer,
     FeatureTemplateRegistrationSerializer,
     TenantThemeSerializer,
@@ -26,6 +31,7 @@ from backend.apps.foundation.serializers import (
 from backend.apps.foundation.services.scaffold_registrar import ScaffoldRegistrar
 from backend.apps.tenancy.managers import use_tenant
 from backend.apps.tenancy.models import Tenant, TenantThemeToken
+from backend.apps.foundation.models import DesignSystemStory
 from ratelimit.decorators import ratelimit
 
 
@@ -192,6 +198,93 @@ class RegisterFeatureScaffoldView(APIView):
         for key, value in rate_headers.items():
             response[key] = value
 
+        return response
+
+
+class DesignSystemStoryViewSet(ViewSet):
+    http_method_names = ['get']
+
+    def list(self, request: HttpRequest, *args: Any, **kwargs: Any) -> Response:
+        try:
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 25))
+        except ValueError:
+            return Response(
+                {'errors': {'pagination': ['Parâmetros de paginação inválidos.']}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if page < 1 or page_size < 1 or page_size > 100:
+            return Response(
+                {'errors': {'pagination': ['Parâmetros de paginação fora do intervalo permitido.']}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tenant_header = request.headers.get('X-Tenant-Id')
+        tenant_filter: UUID | None = None
+        if tenant_header:
+            try:
+                tenant_filter = uuid.UUID(tenant_header)
+            except ValueError:
+                return Response(
+                    {'errors': {'X-Tenant-Id': ['Cabeçalho X-Tenant-Id inválido.']}},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        queryset = DesignSystemStory.objects.select_related('tenant').order_by('-updated_at')
+
+        if tenant_filter:
+            queryset = queryset.filter(models.Q(tenant_id=tenant_filter) | models.Q(tenant__isnull=True))
+
+        component_id = request.query_params.get('componentId')
+        if component_id:
+            queryset = queryset.filter(component_id=component_id)
+
+        tag = request.query_params.get('tag')
+        if tag:
+            if connection.features.supports_json_field_contains:
+                queryset = queryset.filter(tags__contains=[tag])
+            else:
+                queryset = queryset.filter(tags__icontains=tag)
+
+        paginator = Paginator(queryset, page_size)
+
+        if paginator.count == 0:
+            serialized: list[dict[str, Any]] = []
+            current_page = page
+            total_pages = 0
+        else:
+            try:
+                page_obj = paginator.page(page)
+            except EmptyPage:
+                page_obj = paginator.page(paginator.num_pages)
+            serialized = DesignSystemStorySerializer(page_obj.object_list, many=True).data
+            current_page = page_obj.number
+            total_pages = paginator.num_pages
+
+        payload = {
+            'data': serialized,
+            'pagination': {
+                'page': current_page,
+                'perPage': page_size,
+                'totalItems': paginator.count,
+                'totalPages': total_pages,
+            },
+        }
+
+        etag_source = json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
+        etag_value = f'"{hashlib.sha256(etag_source).hexdigest()}"'
+
+        if_none_match = request.headers.get('If-None-Match')
+        if if_none_match:
+            requested = {token.strip() for token in if_none_match.split(',') if token.strip()}
+            if '*' in requested or etag_value in requested:
+                not_modified = Response(status=status.HTTP_304_NOT_MODIFIED)
+                not_modified['ETag'] = etag_value
+                return not_modified
+
+        response = Response(payload, status=status.HTTP_200_OK)
+        response['ETag'] = etag_value
         return response
 
 

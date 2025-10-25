@@ -1,4 +1,5 @@
 import { env } from '../config/env';
+import type { DesignSystemStoryPage } from './generated/models/DesignSystemStoryPage';
 import type { FeatureScaffoldRequest } from './generated/models/FeatureScaffoldRequest';
 import type { FeatureScaffoldResponse } from './generated/models/FeatureScaffoldResponse';
 import type { TenantMetricPage } from './generated/models/TenantMetricPage';
@@ -112,5 +113,48 @@ export const listTenantSuccessMetrics = ({
       page_size: pageSize,
     },
   });
+
+export type ListDesignSystemStoriesParams = {
+  tenantId?: string;
+  page: number;
+  pageSize: number;
+  traceContext: TraceContext;
+  filters?: {
+    componentId?: string;
+    tag?: string;
+  };
+};
+
+export const listDesignSystemStories = ({
+  tenantId,
+  page,
+  pageSize,
+  traceContext,
+  filters,
+}: ListDesignSystemStoriesParams): Promise<DesignSystemStoryPage> => {
+  const headers: Record<string, string> = {
+    traceparent: traceContext.traceparent,
+  };
+
+  if (traceContext.tracestate) {
+    headers.tracestate = traceContext.tracestate;
+  }
+
+  if (tenantId) {
+    headers['X-Tenant-Id'] = tenantId;
+  }
+
+  return execute<DesignSystemStoryPage>({
+    method: 'GET',
+    url: '/api/v1/design-system/stories',
+    headers,
+    query: {
+      page,
+      page_size: pageSize,
+      ...(filters?.componentId ? { componentId: filters.componentId } : {}),
+      ...(filters?.tag ? { tag: filters.tag } : {}),
+    },
+  });
+};
 
 export { ApiError };
