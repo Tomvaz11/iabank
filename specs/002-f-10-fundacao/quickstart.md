@@ -14,7 +14,7 @@
 ```bash
 git checkout 002-f-10-fundacao
 pnpm install
-poetry install --only scaffolding
+poetry install --with dev
 ```
 
 ## 3. Provisionar Infra Local
