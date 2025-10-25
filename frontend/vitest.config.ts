@@ -6,7 +6,11 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: [path.resolve(__dirname, 'setupTests.ts')],
-    include: ['src/**/*.{test,spec,pact}.{ts,tsx}', 'tests/**/*.{test,spec,pact}.{ts,tsx}'],
+    include: [
+      'src/**/*.{test,spec,pact}.{ts,tsx}',
+      'tests/**/*.{test,spec,pact}.{ts,tsx}',
+      path.resolve(__dirname, '../contracts/pacts/**/*.pact.ts'),
+    ],
     exclude: ['tests/e2e/**'],
     passWithNoTests: true,
     coverage: {

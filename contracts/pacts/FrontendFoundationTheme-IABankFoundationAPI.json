@@ -1,0 +1,99 @@
+{
+  "consumer": {
+    "name": "FrontendFoundationTheme"
+  },
+  "interactions": [
+    {
+      "description": "uma requisição para recuperar o tema corrente do tenant",
+      "request": {
+        "headers": {
+          "X-Tenant-Id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+          "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01",
+          "tracestate": "tenant-id=a1b2c3d4-e5f6-7890-1234-567890abcdef"
+        },
+        "matchingRules": {
+          "$.header.traceparent": {
+            "match": "type"
+          },
+          "$.header.tracestate": {
+            "match": "type"
+          }
+        },
+        "method": "GET",
+        "path": "/api/v1/tenants/a1b2c3d4-e5f6-7890-1234-567890abcdef/themes/current"
+      },
+      "response": {
+        "body": {
+          "categories": {
+            "foundation": {
+              "colorOnPrimary": "#FFFFFF",
+              "colorPrimary": "#0A66C2"
+            },
+            "semantic": {
+              "infoDefault": "#2563EB"
+            }
+          },
+          "generatedAt": "2025-01-01T12:00:00Z",
+          "tenantId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+          "version": "1.2.3",
+          "wcagReport": {
+            "contrastRatio": 4.5,
+            "status": "pass"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8",
+          "ETag": "W/\"0123456789abcdef0123456789abcdef\"",
+          "RateLimit-Limit": "300",
+          "RateLimit-Remaining": "299",
+          "RateLimit-Reset": "2025-01-01T12:00:00Z"
+        },
+        "matchingRules": {
+          "$.body.categories": {
+            "match": "type"
+          },
+          "$.body.generatedAt": {
+            "format": "iso8601",
+            "match": "datetime"
+          },
+          "$.body.version": {
+            "match": "regex",
+            "regex": "^\\d+\\.\\d+\\.\\d+$"
+          },
+          "$.body.wcagReport": {
+            "match": "type"
+          },
+          "$.header.ETag": {
+            "match": "regex",
+            "regex": "^W\\/\\\"[a-f0-9]{32}\\\"$"
+          },
+          "$.header['RateLimit-Limit']": {
+            "match": "integer"
+          },
+          "$.header['RateLimit-Remaining']": {
+            "match": "integer"
+          },
+          "$.header['RateLimit-Reset']": {
+            "match": "type"
+          }
+        },
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "13.2.0"
+    },
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  },
+  "provider": {
+    "name": "IABankFoundationAPI"
+  }
+}

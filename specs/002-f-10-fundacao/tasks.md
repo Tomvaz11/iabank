@@ -93,9 +93,9 @@
 ## Fase 4: User Story 2 — Design System Multi-tenant Observável (Prioridade P2)
 
 ### Testes (executar antes da implementação)
-- [ ] T038 [P] [US2] Pact consumer para `GET /api/v1/tenants/{tenantId}/themes/current` (arquivo: `contracts/pacts/frontend-consumer/get_tenant_theme.pact.ts`)
-- [ ] T039 [P] [US2] Test runner de acessibilidade para Storybook (arquivo: `frontend/.storybook/test-runner.ts` com axe-core) — falhar se houver violações WCAG 2.2 AA
-- [ ] T040 [P] [US2] Stories de componente `Button` com variações por tenant + asserções de tema (arquivo: `frontend/src/shared/ui/button/Button.stories.tsx`)
+- [X] T038 [P] [US2] Pact consumer para `GET /api/v1/tenants/{tenantId}/themes/current` (arquivo: `contracts/pacts/frontend-consumer/get_tenant_theme.pact.ts`)
+- [X] T039 [P] [US2] Test runner de acessibilidade para Storybook (arquivo: `frontend/.storybook/test-runner.ts` com axe-core) — falhar se houver violações WCAG 2.2 AA
+- [X] T040 [P] [US2] Stories de componente `Button` com variações por tenant + asserções de tema (arquivo: `frontend/src/shared/ui/button/Button.stories.tsx`)
 
 ### Implementação
 - [ ] T041 [US2] Modelo `TenantThemeToken` (arquivo: `backend/apps/tenancy/models/tenant_theme_token.py`)
