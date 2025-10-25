@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 
 import pytest
+from django.core.cache import cache
 from django.apps import apps
 from django.urls import reverse
 from rest_framework import status
@@ -47,6 +48,7 @@ def build_payload() -> dict[str, object]:
 @pytest.mark.django_db
 class TestRegisterFeatureScaffoldAPI:
     def setup_method(self) -> None:
+        cache.clear()
         self.client = APIClient()
         self.tenant = Tenant.objects.create(
             slug='tenant-alfa',
@@ -75,6 +77,7 @@ class TestRegisterFeatureScaffoldAPI:
         assert response.status_code == status.HTTP_201_CREATED
         assert response['Idempotency-Key'] == idempotency_key
         assert response['Location'].endswith(f'/features/scaffold/{payload["featureSlug"]}')
+        assert 'ETag' in response
 
         body = response.json()
         assert body['tenantId'] == tenant_id
@@ -142,3 +145,171 @@ class TestRegisterFeatureScaffoldAPI:
         assert feature_slug == payload['featureSlug']
         expected_minutes = payload['durationMs'] / 60000
         assert duration_minutes == pytest.approx(expected_minutes, rel=1e-3)
+
+    def test_replay_with_same_idempotency_key_returns_existing(self) -> None:
+        payload = build_payload()
+        tenant_id = str(self.tenant.id)
+        idempotency_key = '00000000-0000-4000-8000-000000000456'
+
+        first_response = self.client.post(
+            reverse(API_PATH_NAME, kwargs={'tenant_id': tenant_id}),
+            data=payload,
+            format='json',
+            **{
+                'HTTP_X_TENANT_ID': tenant_id,
+                'HTTP_IDEMPOTENCY_KEY': idempotency_key,
+                'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+            },
+        )
+        assert first_response.status_code == status.HTTP_201_CREATED
+
+        first_body = first_response.json()
+
+        second_response = self.client.post(
+            reverse(API_PATH_NAME, kwargs={'tenant_id': tenant_id}),
+            data=payload,
+            format='json',
+            **{
+                'HTTP_X_TENANT_ID': tenant_id,
+                'HTTP_IDEMPOTENCY_KEY': idempotency_key,
+                'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+            },
+        )
+
+        assert second_response.status_code == status.HTTP_200_OK
+        assert second_response['Idempotency-Key'] == idempotency_key
+        assert 'ETag' in second_response
+        second_body = second_response.json()
+        assert second_body['scaffoldId'] == first_body['scaffoldId']
+
+    def test_rejects_different_idempotency_key_within_ttl_window(self) -> None:
+        payload = build_payload()
+        tenant_id = str(self.tenant.id)
+        original_key = '00000000-0000-4000-8000-000000000789'
+        conflicting_key = '00000000-0000-4000-8000-000000000790'
+
+        initial_response = self.client.post(
+            reverse(API_PATH_NAME, kwargs={'tenant_id': tenant_id}),
+            data=payload,
+            format='json',
+            **{
+                'HTTP_X_TENANT_ID': tenant_id,
+                'HTTP_IDEMPOTENCY_KEY': original_key,
+                'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+            },
+        )
+        assert initial_response.status_code == status.HTTP_201_CREATED
+
+        conflict_response = self.client.post(
+            reverse(API_PATH_NAME, kwargs={'tenant_id': tenant_id}),
+            data=payload,
+            format='json',
+            **{
+                'HTTP_X_TENANT_ID': tenant_id,
+                'HTTP_IDEMPOTENCY_KEY': conflicting_key,
+                'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+            },
+        )
+
+        assert conflict_response.status_code == status.HTTP_409_CONFLICT
+        assert 'Idempotency-Key' in conflict_response.json().get('errors', {})
+
+    def test_if_none_match_returns_not_modified_when_etag_matches(self) -> None:
+        payload = build_payload()
+        tenant_id = str(self.tenant.id)
+        idempotency_key = '00000000-0000-4000-8000-000000000888'
+
+        first_response = self.client.post(
+            reverse(API_PATH_NAME, kwargs={'tenant_id': tenant_id}),
+            data=payload,
+            format='json',
+            **{
+                'HTTP_X_TENANT_ID': tenant_id,
+                'HTTP_IDEMPOTENCY_KEY': idempotency_key,
+                'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+            },
+        )
+        assert first_response.status_code == status.HTTP_201_CREATED
+        etag = first_response['ETag']
+
+        replay_response = self.client.post(
+            reverse(API_PATH_NAME, kwargs={'tenant_id': tenant_id}),
+            data=payload,
+            format='json',
+            **{
+                'HTTP_X_TENANT_ID': tenant_id,
+                'HTTP_IDEMPOTENCY_KEY': idempotency_key,
+                'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+                'HTTP_IF_NONE_MATCH': etag,
+            },
+        )
+
+        assert replay_response.status_code == status.HTTP_304_NOT_MODIFIED
+        assert replay_response['ETag'] == etag
+        assert replay_response['Idempotency-Key'] == idempotency_key
+
+    def test_if_none_match_star_blocks_when_registration_exists(self) -> None:
+        payload = build_payload()
+        tenant_id = str(self.tenant.id)
+        idempotency_key = '00000000-0000-4000-8000-000000000889'
+
+        first_response = self.client.post(
+            reverse(API_PATH_NAME, kwargs={'tenant_id': tenant_id}),
+            data=payload,
+            format='json',
+            **{
+                'HTTP_X_TENANT_ID': tenant_id,
+                'HTTP_IDEMPOTENCY_KEY': idempotency_key,
+                'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+            },
+        )
+        assert first_response.status_code == status.HTTP_201_CREATED
+
+        second_response = self.client.post(
+            reverse(API_PATH_NAME, kwargs={'tenant_id': tenant_id}),
+            data=payload,
+            format='json',
+            **{
+                'HTTP_X_TENANT_ID': tenant_id,
+                'HTTP_IDEMPOTENCY_KEY': idempotency_key,
+                'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+                'HTTP_IF_NONE_MATCH': '*',
+            },
+        )
+
+        assert second_response.status_code == status.HTTP_412_PRECONDITION_FAILED
+        assert second_response['ETag'] == first_response['ETag']
+
+    def test_rate_limit_enforced_after_thirty_requests(self) -> None:
+        tenant_id = str(self.tenant.id)
+
+        for idx in range(30):
+            payload = build_payload()
+            payload['featureSlug'] = f'loan-tracking-{idx}'
+            response = self.client.post(
+                reverse(API_PATH_NAME, kwargs={'tenant_id': tenant_id}),
+                data=payload,
+                format='json',
+                **{
+                    'HTTP_X_TENANT_ID': tenant_id,
+                    'HTTP_IDEMPOTENCY_KEY': f'00000000-0000-4000-8000-{idx:012d}',
+                    'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+                },
+            )
+            assert response.status_code == status.HTTP_201_CREATED
+
+        payload = build_payload()
+        payload['featureSlug'] = 'loan-tracking-limit'
+        limited_response = self.client.post(
+            reverse(API_PATH_NAME, kwargs={'tenant_id': tenant_id}),
+            data=payload,
+            format='json',
+            **{
+                'HTTP_X_TENANT_ID': tenant_id,
+                'HTTP_IDEMPOTENCY_KEY': '00000000-0000-4000-8000-999999999999',
+                'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+            },
+        )
+
+        assert limited_response.status_code == status.HTTP_429_TOO_MANY_REQUESTS
+        assert limited_response['Retry-After'] == '60'

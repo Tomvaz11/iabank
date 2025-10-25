@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'ratelimit',
     'backend.apps.contracts',
     'backend.apps.tenancy',
     'backend.apps.foundation',

@@ -84,9 +84,9 @@
 
 ### Resiliência e controles adicionais
 
-- [ ] T070 [US1] Enforçar `Idempotency-Key` (unicidade por tenantId+featureSlug; TTL 86400; ecoar cabeçalho na resposta 201)
-- [ ] T071 [US1] Gerar e validar `ETag` nas respostas de scaffolding (If-None-Match)
-- [ ] T072 [US1] Rate limiting 30/min para `POST /features/scaffold` com `django-ratelimit` e cabeçalho `Retry-After`
+ - [X] T070 [US1] Enforçar `Idempotency-Key` (unicidade por tenantId+featureSlug; TTL 86400; ecoar cabeçalho na resposta 201)
+ - [X] T071 [US1] Gerar e validar `ETag` nas respostas de scaffolding (If-None-Match)
+ - [X] T072 [US1] Rate limiting 30/min para `POST /features/scaffold` com `django-ratelimit` e cabeçalho `Retry-After`
 
 **Checkpoint**: US1 completa; CLI gera FSD, backend registra scaffolding e gates verdes.
 

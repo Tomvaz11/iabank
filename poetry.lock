@@ -90,6 +90,18 @@ files = [
 prometheus-client = ">=0.7"
 
 [[package]]
+name = "django-ratelimit"
+version = "3.0.1"
+description = "Cache-based rate-limiting for Django."
+optional = false
+python-versions = ">=3.4"
+groups = ["main"]
+files = [
+    {file = "django-ratelimit-3.0.1.tar.gz", hash = "sha256:73223d860abd5c5d7b9a807fabb39a6220068129b514be8d78044b52607ab154"},
+    {file = "django_ratelimit-3.0.1-py2.py3-none-any.whl", hash = "sha256:857e797f23de948b204a31dba9d88aea3ce731b7a5d926d0240c772e19b5486f"},
+]
+
+[[package]]
 name = "djangorestframework"
 version = "3.15.2"
 description = "Web APIs for Django, made easy."
@@ -394,4 +406,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.11"
-content-hash = "f319e96562f5ffa6c995ef7922354ba0db260d6b1453f37a82736cf268389fd8"
+content-hash = "b924c4041cba6e373ec4d35c3676387e14b5f6c96ec511b3b22324106d506cde"
