@@ -59,6 +59,13 @@ module.exports = {
       }
     },
     {
+      files: ['tests/e2e/**/*.{ts,tsx}'],
+      rules: {
+        'testing-library/prefer-screen-queries': 'off',
+        'testing-library/render-result-naming-convention': 'off'
+      }
+    },
+    {
       files: ['vite.config.ts', 'vitest.config.ts', 'playwright.config.ts'],
       env: {
         browser: false,

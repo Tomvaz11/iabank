@@ -5,16 +5,23 @@ import { describe, expect, it, vi } from 'vitest';
 import { createAppStore } from '../store';
 import type { AppStore } from '../store';
 import { FlagsProvider, resetFeatureFlagClientFactory, setFeatureFlagClientFactory } from './flags';
+import type { FeatureFlagSnapshot } from '../../shared/config/flags';
+
+const buildSnapshot = (overrides: Partial<FeatureFlagSnapshot> = {}): FeatureFlagSnapshot => ({
+  'foundation.fsd': false,
+  'design-system.theming': false,
+  ...overrides,
+});
 
 type StubClient = ReturnType<typeof createStubClient>;
 
-const createStubClient = (snapshots: Record<string, Record<string, boolean>>) => {
+const createStubClient = (snapshots: Record<string, FeatureFlagSnapshot>) => {
   const listeners = new Set<() => void>();
 
   return {
     getSnapshot: vi.fn(async (tenantId: string | null) => {
       const key = tenantId ?? 'default';
-      return snapshots[key] ?? snapshots.default ?? {};
+      return snapshots[key] ?? snapshots.default ?? buildSnapshot();
     }),
     subscribe: vi.fn((callback: () => void) => {
       listeners.add(callback);
@@ -24,7 +31,7 @@ const createStubClient = (snapshots: Record<string, Record<string, boolean>>) =>
     emitChange: () => {
       listeners.forEach((listener) => listener());
     },
-    updateSnapshot: (tenantId: string | null, snapshot: Record<string, boolean>) => {
+    updateSnapshot: (tenantId: string | null, snapshot: FeatureFlagSnapshot) => {
       snapshots[tenantId ?? 'default'] = snapshot;
     },
   };
@@ -61,14 +68,8 @@ describe('FlagsProvider', () => {
     });
 
     const client = createStubClient({
-      'tenant-alfa': {
-        'foundation.fsd': true,
-        'design-system.theming': false,
-      },
-      default: {
-        'foundation.fsd': false,
-        'design-system.theming': false,
-      },
+      'tenant-alfa': buildSnapshot({ 'foundation.fsd': true }),
+      default: buildSnapshot(),
     });
 
     renderWithProvider(store, client);
@@ -97,14 +98,8 @@ describe('FlagsProvider', () => {
     });
 
     const client = createStubClient({
-      'tenant-alfa': {
-        'foundation.fsd': true,
-        'design-system.theming': true,
-      },
-      'tenant-beta': {
-        'foundation.fsd': false,
-        'design-system.theming': true,
-      },
+      'tenant-alfa': buildSnapshot({ 'foundation.fsd': true, 'design-system.theming': true }),
+      'tenant-beta': buildSnapshot({ 'design-system.theming': true }),
     });
 
     renderWithProvider(store, client);
@@ -132,10 +127,7 @@ describe('FlagsProvider', () => {
   it('encerra o client ao desmontar', async () => {
     const store = createAppStore();
     const client = createStubClient({
-      default: {
-        'foundation.fsd': false,
-        'design-system.theming': false,
-      },
+      default: buildSnapshot(),
     });
 
     setFeatureFlagClientFactory(() => client);

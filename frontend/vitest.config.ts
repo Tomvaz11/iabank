@@ -7,6 +7,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: [path.resolve(__dirname, 'setupTests.ts')],
     include: ['src/**/*.{test,spec,pact}.{ts,tsx}', 'tests/**/*.{test,spec,pact}.{ts,tsx}'],
+    exclude: ['tests/e2e/**'],
     passWithNoTests: true,
     coverage: {
       reporter: ['text', 'lcov'],

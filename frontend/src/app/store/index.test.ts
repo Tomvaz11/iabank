@@ -14,7 +14,7 @@ const resetOnTenantChangeMock = vi.mocked(resetOnTenantChange);
 describe('store global (Zustand)', () => {
   beforeEach(() => {
     act(() => {
-      useAppStore.setState(useAppStore.getInitialState());
+      useAppStore.setState(useAppStore.getInitialSlices());
     });
     vi.clearAllMocks();
   });

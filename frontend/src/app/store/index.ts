@@ -47,7 +47,7 @@ export type AppStoreState = InitialSlices & {
 };
 
 export type AppStore = UseBoundStore<StoreApi<AppStoreState>> & {
-  getInitialState: () => InitialSlices;
+  getInitialSlices: () => InitialSlices;
 };
 
 const createInitialSlices = (): InitialSlices => ({
@@ -149,7 +149,7 @@ export const createAppStore = (
   }));
 
   const store = useBoundStore as AppStore;
-  store.getInitialState = () => cloneSlices(baseState);
+  store.getInitialSlices = () => cloneSlices(baseState);
 
   return store;
 };

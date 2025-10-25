@@ -1,13 +1,8 @@
-import {
-  QueryClient,
-  type QueryClientConfig,
-  type QueryKey,
-  type QueryOptions,
-} from '@tanstack/react-query';
+import { QueryClient, type QueryClientConfig, type QueryKey } from '@tanstack/react-query';
 
 type QueryDefaults = {
   staleTime: number;
-  cacheTime: number;
+  gcTime: number;
   refetchOnWindowFocus: boolean;
   refetchOnReconnect: boolean | 'always';
   retry: number;
@@ -18,7 +13,7 @@ const CRITICAL_TAG = 'critical';
 
 const BASE_QUERY_DEFAULTS: QueryDefaults = {
   staleTime: 5 * 60 * 1000,
-  cacheTime: 10 * 60 * 1000,
+  gcTime: 10 * 60 * 1000,
   refetchOnWindowFocus: false,
   refetchOnReconnect: true,
   retry: 2,
@@ -27,7 +22,7 @@ const BASE_QUERY_DEFAULTS: QueryDefaults = {
 
 const CRITICAL_QUERY_DEFAULTS: QueryDefaults = {
   staleTime: 30 * 1000,
-  cacheTime: 10 * 60 * 1000,
+  gcTime: 10 * 60 * 1000,
   refetchOnWindowFocus: true,
   refetchOnReconnect: 'always',
   retry: 3,
@@ -50,46 +45,38 @@ export const resolveQueryDefaults = (tags?: string[]): QueryDefaults => {
   return BASE_QUERY_DEFAULTS;
 };
 
-type QueryOptionsWithMeta = QueryOptions<unknown, unknown, unknown, QueryKey>;
+type QueryOptionsWithMeta = Parameters<QueryClient['defaultQueryOptions']>[0];
 
-const applyPoliciesToOptions = <T extends QueryOptionsWithMeta>(options: T): T => {
+const applyPoliciesToOptions = (options: QueryOptionsWithMeta): QueryOptionsWithMeta => {
   const tags = (options.meta?.tags ?? []) as string[];
   const defaults = resolveQueryDefaults(tags);
   const isCritical = tags.includes(CRITICAL_TAG);
 
-  const resolveValue = <K extends keyof QueryDefaults>(
-    key: K,
-    current: T[K],
-  ): T[K] => {
-    if (isCritical) {
-      return defaults[key] as T[K];
-    }
+  const next = { ...options } as QueryOptionsWithMeta & Partial<QueryDefaults>;
+  const target = next as unknown as Record<string, unknown>;
 
-    return (typeof current === 'undefined' ? defaults[key] : current) as T[K];
+  const apply = <K extends keyof QueryDefaults>(key: K) => {
+    const current = target[key as string];
+    if (isCritical || typeof current === 'undefined') {
+      target[key as string] = defaults[key];
+    }
   };
 
-  return {
-    ...options,
-    staleTime: resolveValue('staleTime', options.staleTime),
-    cacheTime: resolveValue('cacheTime', options.cacheTime),
-    refetchOnWindowFocus: resolveValue(
-      'refetchOnWindowFocus',
-      options.refetchOnWindowFocus as T['refetchOnWindowFocus'],
-    ),
-    refetchOnReconnect: resolveValue(
-      'refetchOnReconnect',
-      options.refetchOnReconnect as T['refetchOnReconnect'],
-    ),
-    retry: resolveValue('retry', options.retry as T['retry']),
-    retryDelay: resolveValue('retryDelay', options.retryDelay as T['retryDelay']),
-  } as T;
+  apply('staleTime');
+  apply('gcTime');
+  apply('refetchOnWindowFocus');
+  apply('refetchOnReconnect');
+  apply('retry');
+  apply('retryDelay');
+
+  return next;
 };
 
 const createConfig = (defaults: QueryDefaults): QueryClientConfig => ({
   defaultOptions: {
     queries: {
       staleTime: defaults.staleTime,
-      cacheTime: defaults.cacheTime,
+      gcTime: defaults.gcTime,
       retry: defaults.retry,
       retryDelay: defaults.retryDelay,
       refetchOnWindowFocus: defaults.refetchOnWindowFocus,
@@ -99,7 +86,7 @@ const createConfig = (defaults: QueryDefaults): QueryClientConfig => ({
       structuralSharing: true,
     },
     mutations: {
-      cacheTime: 5 * 60 * 1000,
+      gcTime: 5 * 60 * 1000,
       retry: 1,
       retryDelay: defaults.retryDelay,
       networkMode: 'always',
@@ -112,8 +99,10 @@ export const createTenantQueryClient = (): QueryClient => {
   const client = new QueryClient(createConfig(defaults));
   const baseDefaultQueryOptions = client.defaultQueryOptions.bind(client);
 
-  client.defaultQueryOptions = ((options) =>
-    applyPoliciesToOptions(baseDefaultQueryOptions(options))) as QueryClient['defaultQueryOptions'];
+  client.defaultQueryOptions = ((options: QueryOptionsWithMeta) =>
+    applyPoliciesToOptions(
+      baseDefaultQueryOptions(options) as unknown as QueryOptionsWithMeta,
+    )) as unknown as QueryClient['defaultQueryOptions'];
 
   return client;
 };

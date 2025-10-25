@@ -3,8 +3,9 @@ import {
   getTenantTheme,
   listTenantSuccessMetrics,
   registerFeatureScaffold,
-  TraceContext,
+  type TraceContext,
 } from './client';
+import type { FeatureScaffoldRequest } from './generated/models/FeatureScaffoldRequest';
 
 vi.mock('../config/env', () => ({
   env: {
@@ -59,10 +60,30 @@ describe('client HTTP multi-tenant', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
+    const payload: FeatureScaffoldRequest = {
+      featureSlug: 'loan-tracking',
+      initiatedBy: 'tester',
+      slices: [
+        {
+          slice: 'app',
+          files: [
+            {
+              path: 'app/index.ts',
+              checksum: 'sha256-abc',
+            },
+          ],
+        },
+      ],
+      lintCommitHash: 'sha1-hash',
+      scReferences: ['@SC-001'],
+      durationMs: 1200,
+      metadata: { cliVersion: '0.1.0' },
+    };
+
     await registerFeatureScaffold({
       tenantId: 'tenant-beta',
       idempotencyKey: 'uuid-123',
-      payload: { slice: 'app' },
+      payload,
       traceContext,
     });
 
@@ -70,7 +91,7 @@ describe('client HTTP multi-tenant', () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('https://api.local.test/api/v1/tenants/tenant-beta/features/scaffold');
     expect(init?.method).toBe('POST');
-    expect(init?.body).toBe(JSON.stringify({ slice: 'app' }));
+    expect(init?.body).toBe(JSON.stringify(payload));
 
     const headers = new Headers(init?.headers as HeadersInit);
     expect(headers.get('Content-Type')).toBe('application/json');

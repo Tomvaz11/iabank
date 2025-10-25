@@ -23,7 +23,7 @@ describe('queryClient', () => {
     const defaults = resolveQueryDefaults();
 
     expect(defaults.staleTime).toBe(5 * 60 * 1000);
-    expect(defaults.cacheTime).toBe(10 * 60 * 1000);
+    expect(defaults.gcTime).toBe(10 * 60 * 1000);
     expect(defaults.refetchOnWindowFocus).toBe(false);
     expect(defaults.refetchOnReconnect).toBe(true);
     expect(defaults.retry).toBe(2);
@@ -33,7 +33,7 @@ describe('queryClient', () => {
     const defaults = resolveQueryDefaults(['critical']);
 
     expect(defaults.staleTime).toBe(30 * 1000);
-    expect(defaults.cacheTime).toBeGreaterThanOrEqual(5 * 60 * 1000);
+    expect(defaults.gcTime).toBeGreaterThanOrEqual(5 * 60 * 1000);
     expect(defaults.refetchOnWindowFocus).toBe(true);
     expect(defaults.refetchOnReconnect).toBe('always');
     expect(defaults.retry).toBe(3);
@@ -53,7 +53,7 @@ describe('queryClient', () => {
 
     expect(client.getDefaultOptions().queries).toMatchObject({
       staleTime: 5 * 60 * 1000,
-      cacheTime: 10 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       retry: 2,
@@ -72,10 +72,12 @@ describe('queryClient', () => {
       .getQueryCache()
       .find({ queryKey: buildTenantQueryKey('tenant-alfa', 'themes') });
 
-    expect(query?.options.staleTime).toBe(30 * 1000);
-    expect(query?.options.refetchOnWindowFocus).toBe(true);
-    expect(query?.options.refetchOnReconnect).toBe('always');
-    expect(query?.options.retry).toBe(3);
+    const options = query?.options as Record<string, unknown> | undefined;
+
+    expect(options?.staleTime).toBe(30 * 1000);
+    expect(options?.refetchOnWindowFocus).toBe(true);
+    expect(options?.refetchOnReconnect).toBe('always');
+    expect(options?.retry).toBe(3);
 
     await resetOnTenantChange(client);
   });
@@ -91,10 +93,12 @@ describe('queryClient', () => {
       .getQueryCache()
       .find({ queryKey: buildTenantQueryKey('tenant-beta', 'themes') });
 
-    expect(query?.options.staleTime).toBe(5 * 60 * 1000);
-    expect(query?.options.refetchOnWindowFocus).toBe(false);
-    expect(query?.options.refetchOnReconnect).toBe(true);
-    expect(query?.options.retry).toBe(2);
+    const options = query?.options as Record<string, unknown> | undefined;
+
+    expect(options?.staleTime).toBe(5 * 60 * 1000);
+    expect(options?.refetchOnWindowFocus).toBe(false);
+    expect(options?.refetchOnReconnect).toBe(true);
+    expect(options?.retry).toBe(2);
 
     await resetOnTenantChange(client);
   });
