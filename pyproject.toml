@@ -18,6 +18,12 @@ django-ratelimit = "3.0.1"
 pytest = "8.3.3"
 pytest-django = "4.8.0"
 bandit = "1.7.9"
+ruff = "0.6.9"
+
+[tool.ruff]
+extend-exclude = [
+  "documentacao_oficial_spec-kit/**",
+]
 
 [build-system]
 requires = ["poetry-core>=1.8.0"]

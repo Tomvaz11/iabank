@@ -8,6 +8,8 @@ from uuid import UUID
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
+import time
+from django.core.cache import cache
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -36,8 +38,48 @@ from ratelimit.decorators import ratelimit
 )
 class RegisterFeatureScaffoldView(APIView):
     def post(self, request: HttpRequest, tenant_id: UUID, *args: Any, **kwargs: Any) -> Response:
+        # Rate limit policy (aligned to ADR-011): 30 req/min per tenant
+        RATE_LIMIT = 30
+        WINDOW_SECONDS = 60
+
+        def rate_key(tid: str) -> str:
+            return f'foundation:scaffold:ratelimit:{tid}'
+
+        def update_and_get_rate_headers(tid: str, limited: bool = False) -> dict[str, str]:
+            now = int(time.time())
+            key = rate_key(tid)
+            data = cache.get(key)
+            if not isinstance(data, dict) or 'count' not in data or 'window_start' not in data:
+                data = {'count': 0, 'window_start': now}
+
+            # reset window if expired
+            elapsed = now - int(data['window_start'])
+            if elapsed >= WINDOW_SECONDS:
+                data = {'count': 0, 'window_start': now}
+                elapsed = 0
+
+            # only increment if request is not already blocked by decorator
+            if not limited:
+                data['count'] = int(data['count']) + 1
+
+            # remaining and reset computation
+            remaining = max(0, RATE_LIMIT - int(data['count']))
+            reset = max(1, WINDOW_SECONDS - elapsed)
+
+            # persist with TTL until window end
+            cache.set(key, data, timeout=reset)
+
+            headers = {
+                'RateLimit-Limit': f'{RATE_LIMIT};w={WINDOW_SECONDS}',
+                'RateLimit-Remaining': str(remaining),
+                'RateLimit-Reset': str(reset),
+            }
+            return headers
+
+        tenant_uuid = str(tenant_id)
+
         if getattr(request, 'limited', False):
-            retry_after_seconds = '60'
+            headers = update_and_get_rate_headers(tenant_uuid, limited=True)
             response = Response(
                 {
                     'errors': {
@@ -48,10 +90,12 @@ class RegisterFeatureScaffoldView(APIView):
                 },
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
-            response['Retry-After'] = retry_after_seconds
+            # Required headers per ADR-011 / Runbook
+            response['Retry-After'] = headers['RateLimit-Reset']
+            for k, v in headers.items():
+                response[k] = v
             return response
 
-        tenant_uuid = str(tenant_id)
         idempotency_key = request.headers.get('Idempotency-Key')
 
         if not idempotency_key:
@@ -130,6 +174,7 @@ class RegisterFeatureScaffoldView(APIView):
                     not_modified['Location'] = location
                     return not_modified
 
+        # Build success response
         response = Response(serialized_payload, status=status.HTTP_201_CREATED)
         response['Idempotency-Key'] = idempotency_key
         response['ETag'] = etag_value
@@ -140,5 +185,10 @@ class RegisterFeatureScaffoldView(APIView):
 
         if response.status_code == status.HTTP_200_OK:
             response['ETag'] = etag_value
+
+        # Attach RateLimit headers on success as well
+        rate_headers = update_and_get_rate_headers(tenant_uuid, limited=False)
+        for k, v in rate_headers.items():
+            response[k] = v
 
         return response
