@@ -1,0 +1,286 @@
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+export type TenantThemeResponse = {
+  tenantId: string;
+  version: string;
+  generatedAt: string;
+  categories: Record<string, Record<string, string>>;
+  wcagReport?: Record<string, Record<string, unknown>>;
+};
+
+export type CachedTenantTokens = {
+  alias: string;
+  tenantId: string;
+  etag?: string | null;
+  payload: TenantThemeResponse;
+};
+
+type PullTenantTokensOptions = {
+  tenantId: string;
+  tenantAlias?: string;
+  endpoint?: string;
+  cacheDir?: string;
+  fetchImpl?: typeof fetch;
+};
+
+type BuildTenantArtifactsOptions = {
+  cacheDir?: string;
+  tenantsConfigPath?: string;
+  tokensCssPath?: string;
+};
+
+const projectRoot = path.resolve(process.cwd());
+const DEFAULT_CACHE_DIR = path.join(projectRoot, 'frontend', 'scripts', 'tokens', 'cache');
+const DEFAULT_TENANTS_PATH = path.join(projectRoot, 'frontend', 'src', 'shared', 'config', 'theme', 'tenants.ts');
+const DEFAULT_CSS_PATH = path.join(projectRoot, 'frontend', 'src', 'shared', 'ui', 'tokens.css');
+
+const buildApiUrl = (endpoint: string, tenantId: string): string => {
+  const base = endpoint.endsWith('/') ? endpoint.slice(0, -1) : endpoint;
+  return `${base}/api/v1/tenants/${tenantId}/themes/current`;
+};
+
+const ensureUuid = (value: string): string => {
+  if (!UUID_REGEX.test(value)) {
+    throw new Error(`tenant-id inválido: "${value}". Informe um UUID (ex.: 00000000-0000-0000-0000-000000000001).`);
+  }
+  return value.toLowerCase();
+};
+
+const normalizeAlias = (value: string | undefined, fallback: string): string => {
+  if (!value) {
+    return fallback;
+  }
+  return value;
+};
+
+const getCacheDir = (cacheDir?: string): string => cacheDir ?? DEFAULT_CACHE_DIR;
+
+export const pullTenantTokens = async (
+  options: PullTenantTokensOptions,
+): Promise<CachedTenantTokens> => {
+  const tenantId = ensureUuid(options.tenantId);
+  const tenantAlias = normalizeAlias(options.tenantAlias, tenantId);
+  const cacheDir = getCacheDir(options.cacheDir);
+  const endpoint = options.endpoint ?? process.env.FOUNDATION_API_URL ?? 'http://localhost:8000';
+  const fetchFn = options.fetchImpl ?? fetch;
+
+  const response = await fetchFn(buildApiUrl(endpoint, tenantId), {
+    headers: {
+      Accept: 'application/json',
+      'X-Tenant-Id': tenantId,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Falha ao buscar tokens do tenant ${tenantAlias}: ${response.status} ${response.statusText}`);
+  }
+
+  const payload = (await response.json()) as TenantThemeResponse;
+  const etag = response.headers.get('ETag') ?? response.headers.get('etag');
+
+  const cached: CachedTenantTokens = {
+    alias: tenantAlias,
+    tenantId,
+    etag,
+    payload,
+  };
+
+  await mkdir(cacheDir, { recursive: true });
+  const filePath = path.join(cacheDir, `${tenantId}.json`);
+  await writeFile(filePath, JSON.stringify(cached, null, 2), 'utf-8');
+
+  return cached;
+};
+
+const normalizeValue = (value: unknown): string => {
+  if (value == null) {
+    return '';
+  }
+  return String(value);
+};
+
+const formatTsObject = (data: Record<string, Record<string, Record<string, string>>>, versions: Record<string, string>, ids: Record<string, string>): string => {
+  const lines: string[] = [];
+  lines.push('// Auto-gerado por foundation:tokens. Não editar manualmente.');
+  lines.push(
+    [
+      'export type TenantTokenCategories = {',
+      '  foundation: Record<string, string>;',
+      '  semantic: Record<string, string>;',
+      '  component: Record<string, string>;',
+      '};',
+    ].join('\n'),
+  );
+  lines.push('');
+  lines.push('export const tenantTokens: Record<string, TenantTokenCategories> = {');
+  const tenantEntries = Object.entries(data).sort(([a], [b]) => a.localeCompare(b));
+  tenantEntries.forEach(([alias, categories], index) => {
+    const categoryEntries = Object.entries(categories)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .flatMap(([category, tokens]) => {
+        const tokenLines = Object.entries(tokens)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([token, value]) => `      '${token}': '${value}',`);
+        return [`    ${category}: {`, ...tokenLines, '    },'];
+      });
+
+    lines.push(`  '${alias}': {`);
+    lines.push(...categoryEntries);
+    lines.push(index === tenantEntries.length - 1 ? '  }' : '  },');
+  });
+  lines.push('} as const;');
+  lines.push('');
+  lines.push('export const tenantVersions: Record<string, string> = {');
+  Object.entries(versions)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .forEach(([alias, version], index, array) => {
+      const comma = index === array.length - 1 ? '' : ',';
+      lines.push(`  '${alias}': '${version}'${comma}`);
+    });
+  lines.push('} as const;');
+  lines.push('');
+  lines.push('export const tenantIds: Record<string, string> = {');
+  Object.entries(ids)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .forEach(([alias, id], index, array) => {
+      const comma = index === array.length - 1 ? '' : ',';
+      lines.push(`  '${alias}': '${id}'${comma}`);
+    });
+  lines.push('} as const;');
+  lines.push('');
+  return `${lines.join('\n')}`;
+};
+
+const toCssVariable = (token: string): string => `--${token.replace(/\./g, '-')}`;
+
+const formatCss = (data: Array<{ alias: string; categories: Record<string, Record<string, string>> }>): string => {
+  const blocks = data.map(({ alias, categories }) => {
+    const flattened = Object.values(categories).reduce<Record<string, string>>((acc, current) => {
+      Object.entries(current).forEach(([token, value]) => {
+        acc[token] = value;
+      });
+      return acc;
+    }, {});
+
+    const lines = Object.entries(flattened)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([token, value]) => `  ${toCssVariable(token)}: ${normalizeValue(value)};`)
+      .join('\n');
+
+    return `html[data-tenant="${alias}"] {\n${lines}\n}`;
+  });
+
+  if (blocks.length === 0) {
+    return '/* Nenhum tenant disponível para tokens. */\n';
+  }
+
+  return ['/* Auto-gerado por foundation:tokens. Não editar manualmente. */', ...blocks].join('\n\n') + '\n';
+};
+
+export const buildTenantArtifacts = async (
+  options: BuildTenantArtifactsOptions = {},
+): Promise<void> => {
+  const cacheDir = getCacheDir(options.cacheDir);
+  const tenantsConfigPath = options.tenantsConfigPath ?? DEFAULT_TENANTS_PATH;
+  const tokensCssPath = options.tokensCssPath ?? DEFAULT_CSS_PATH;
+
+  await mkdir(cacheDir, { recursive: true });
+  await mkdir(path.dirname(tenantsConfigPath), { recursive: true });
+  await mkdir(path.dirname(tokensCssPath), { recursive: true });
+
+  const files = await readdir(cacheDir);
+  const tenants: CachedTenantTokens[] = [];
+
+  for (const file of files) {
+    if (!file.endsWith('.json')) {
+      continue;
+    }
+    const content = await readFile(path.join(cacheDir, file), 'utf-8');
+    const parsed = JSON.parse(content) as CachedTenantTokens;
+    tenants.push(parsed);
+  }
+
+  tenants.sort((a, b) => a.alias.localeCompare(b.alias));
+
+  const categoriesByAlias: Record<string, Record<string, Record<string, string>>> = {};
+  const versionsByAlias: Record<string, string> = {};
+  const idsByAlias: Record<string, string> = {};
+
+  tenants.forEach((tenant) => {
+    categoriesByAlias[tenant.alias] = tenant.payload.categories;
+    versionsByAlias[tenant.alias] = tenant.payload.version;
+    idsByAlias[tenant.alias] = tenant.tenantId;
+  });
+
+  const tsContent = formatTsObject(categoriesByAlias, versionsByAlias, idsByAlias);
+  await writeFile(tenantsConfigPath, `${tsContent}\n`, 'utf-8');
+
+  const cssPayload = formatCss(tenants.map((tenant) => ({ alias: tenant.alias, categories: tenant.payload.categories })));
+  await writeFile(tokensCssPath, cssPayload, 'utf-8');
+};
+
+const parseCliArgs = (argv: string[]): { command: string; args: string[] } => {
+  if (argv.length === 0) {
+    throw new Error('Informe um subcomando. Ex.: foundation:tokens pull --tenant-id <uuid>');
+  }
+  const [command, ...rest] = argv;
+  return { command, args: rest };
+};
+
+const parseOptions = (tokens: string[]): Record<string, string> => {
+  const options: Record<string, string> = {};
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (!token.startsWith('--')) {
+      throw new Error(`Argumento inválido: ${token}`);
+    }
+    const key = token.slice(2);
+    const value = tokens[index + 1];
+    if (!value || value.startsWith('--')) {
+      throw new Error(`Argumento "${token}" requer um valor.`);
+    }
+    options[key] = value;
+    index += 1;
+  }
+  return options;
+};
+
+const runCli = async (): Promise<void> => {
+  const [, , ...rawArgs] = process.argv;
+  const { command, args } = parseCliArgs(rawArgs);
+  const options = parseOptions(args);
+
+  if (command === 'pull') {
+    const tenantId = options['tenant-id'] ?? options['tenant'];
+    if (!tenantId) {
+      throw new Error('Informe --tenant-id <uuid> (ou --tenant quando for UUID).');
+    }
+    const alias = options['alias'] ?? options['tenant-alias'] ?? options['tenant'];
+    const endpoint = options['endpoint'];
+    await pullTenantTokens({ tenantId, tenantAlias: alias, endpoint });
+    return;
+  }
+
+  if (command === 'build') {
+    await buildTenantArtifacts();
+    return;
+  }
+
+  throw new Error(`Subcomando desconhecido: ${command}`);
+};
+
+const isCli = (): boolean => {
+  const expected = pathToFileURL(process.argv[1] ?? '').href;
+  return import.meta.url === expected;
+};
+
+if (isCli()) {
+  runCli().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
+}

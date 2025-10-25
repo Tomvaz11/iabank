@@ -98,10 +98,10 @@
 - [X] T040 [P] [US2] Stories de componente `Button` com variações por tenant + asserções de tema (arquivo: `frontend/src/shared/ui/button/Button.stories.tsx`)
 
 ### Implementação
-- [ ] T041 [US2] Modelo `TenantThemeToken` (arquivo: `backend/apps/tenancy/models/tenant_theme_token.py`)
-- [ ] T042 [US2] Serializer de tema (arquivo: `backend/apps/foundation/serializers/theme.py`)
-- [ ] T043 [US2] View DRF `getTenantTheme` (arquivo: `backend/apps/foundation/api/views.py` + rota)
-- [ ] T044 [US2] Script `foundation:tokens` (pull/build) (arquivos: `frontend/scripts/tokens/index.ts`, `frontend/package.json` scripts)
+- [X] T041 [US2] Modelo `TenantThemeToken` (arquivo: `backend/apps/tenancy/models/tenant_theme_token.py`)
+- [X] T042 [US2] Serializer de tema (arquivo: `backend/apps/foundation/serializers/theme.py`)
+- [X] T043 [US2] View DRF `getTenantTheme` (arquivo: `backend/apps/foundation/api/views.py` + rota)
+- [X] T044 [US2] Script `foundation:tokens` (pull/build) (arquivos: `frontend/scripts/tokens/index.ts`, `frontend/package.json` scripts)
 - [ ] T045 [P] [US2] Tailwind config com tokens e CSS vars (arquivo: `frontend/tailwind.config.ts`)
 - [ ] T046 [US2] Configuração de tenants (arquivo: `frontend/src/shared/config/theme/tenants.ts`)
 - [ ] T047 [US2] CSS de tokens (arquivo: `frontend/src/shared/ui/tokens.css`)

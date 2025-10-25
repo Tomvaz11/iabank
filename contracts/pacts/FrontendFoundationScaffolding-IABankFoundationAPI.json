@@ -1,0 +1,126 @@
+{
+  "consumer": {
+    "name": "FrontendFoundationScaffolding"
+  },
+  "interactions": [
+    {
+      "description": "uma requisição para registrar scaffolding de feature",
+      "request": {
+        "body": {
+          "durationMs": 2450,
+          "featureSlug": "loan-tracking",
+          "initiatedBy": "0f7d5cf5-2367-4dbd-9d5d-1c2bde561111",
+          "lintCommitHash": "1234567890abcdef1234567890abcdef12345678",
+          "metadata": {
+            "cliVersion": "0.1.0"
+          },
+          "scReferences": [
+            "@SC-001",
+            "@SC-003"
+          ],
+          "slices": [
+            {
+              "files": [
+                {
+                  "checksum": "4a7d1ed414474e4033ac29ccb8653d9b00000000000000000000000000000000",
+                  "path": "src/features/loan-tracking/index.ts"
+                }
+              ],
+              "slice": "features"
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json",
+          "Idempotency-Key": "00000000-0000-4000-8000-000000000123",
+          "X-Tenant-Id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+          "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-00",
+          "tracestate": "tenant-id=a1b2c3d4-e5f6-7890-1234-567890abcdef"
+        },
+        "matchingRules": {
+          "$.header.traceparent": {
+            "match": "type"
+          },
+          "$.header.tracestate": {
+            "match": "type"
+          }
+        },
+        "method": "POST",
+        "path": "/api/v1/tenants/a1b2c3d4-e5f6-7890-1234-567890abcdef/features/scaffold"
+      },
+      "response": {
+        "body": {
+          "metrics": [
+            {
+              "code": "SC-001",
+              "collectedAt": "2025-01-01T12:00:00Z",
+              "source": "ci",
+              "value": 275000
+            }
+          ],
+          "recordedAt": "2025-01-01T12:00:00Z",
+          "scaffoldId": "20000000-0000-4000-8000-000000000000",
+          "status": "initiated",
+          "tenantId": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8",
+          "Idempotency-Key": "00000000-0000-4000-8000-000000000123",
+          "Location": "/api/v1/tenants/a1b2c3d4-e5f6-7890-1234-567890abcdef/features/scaffold/loan-tracking"
+        },
+        "matchingRules": {
+          "$.body.metrics": {
+            "match": "type",
+            "min": 1
+          },
+          "$.body.metrics[*].code": {
+            "match": "regex",
+            "regex": "^SC-00[1-5]$"
+          },
+          "$.body.metrics[*].collectedAt": {
+            "format": "iso8601",
+            "match": "datetime"
+          },
+          "$.body.metrics[*].source": {
+            "match": "regex",
+            "regex": "^(ci|chromatic|lighthouse|manual)$"
+          },
+          "$.body.metrics[*].value": {
+            "match": "type"
+          },
+          "$.body.recordedAt": {
+            "format": "iso8601",
+            "match": "datetime"
+          },
+          "$.body.scaffoldId": {
+            "match": "regex",
+            "regex": "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+          },
+          "$.header.Location": {
+            "match": "regex",
+            "regex": "^\\/api\\/v1\\/tenants\\/[a-z0-9-]+\\/features\\/scaffold\\/[a-z0-9-]+$"
+          },
+          "$.header['Idempotency-Key']": {
+            "match": "type"
+          }
+        },
+        "status": 201
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "13.2.0"
+    },
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  },
+  "provider": {
+    "name": "IABankFoundationAPI"
+  }
+}

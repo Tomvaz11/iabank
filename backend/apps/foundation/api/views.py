@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import time
 from typing import Any
 from uuid import UUID
 
+from django.core.cache import cache
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
-import time
-from django.core.cache import cache
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -21,10 +21,38 @@ from backend.apps.foundation.idempotency import (
 from backend.apps.foundation.serializers import (
     FeatureScaffoldRequestSerializer,
     FeatureTemplateRegistrationSerializer,
+    TenantThemeSerializer,
 )
 from backend.apps.foundation.services.scaffold_registrar import ScaffoldRegistrar
-from backend.apps.tenancy.models.tenant import Tenant
+from backend.apps.tenancy.managers import use_tenant
+from backend.apps.tenancy.models import Tenant, TenantThemeToken
 from ratelimit.decorators import ratelimit
+
+
+def _update_rate_limit(cache_key: str, *, limit: int, window: int, increment: bool) -> dict[str, str]:
+    now = int(time.time())
+    data = cache.get(cache_key)
+    if not isinstance(data, dict) or 'count' not in data or 'window_start' not in data:
+        data = {'count': 0, 'window_start': now}
+
+    elapsed = now - int(data['window_start'])
+    if elapsed >= window:
+        data = {'count': 0, 'window_start': now}
+        elapsed = 0
+
+    if increment:
+        data['count'] = int(data['count']) + 1
+
+    remaining = max(0, limit - int(data['count']))
+    reset = window if not increment else max(1, window - elapsed)
+
+    cache.set(cache_key, data, timeout=reset)
+
+    return {
+        'RateLimit-Limit': f'{limit};w={window}',
+        'RateLimit-Remaining': str(remaining),
+        'RateLimit-Reset': str(reset),
+    }
 
 
 @method_decorator(
@@ -38,48 +66,19 @@ from ratelimit.decorators import ratelimit
 )
 class RegisterFeatureScaffoldView(APIView):
     def post(self, request: HttpRequest, tenant_id: UUID, *args: Any, **kwargs: Any) -> Response:
-        # Rate limit policy (aligned to ADR-011): 30 req/min per tenant
-        RATE_LIMIT = 30
-        WINDOW_SECONDS = 60
-
-        def rate_key(tid: str) -> str:
-            return f'foundation:scaffold:ratelimit:{tid}'
-
-        def update_and_get_rate_headers(tid: str, limited: bool = False) -> dict[str, str]:
-            now = int(time.time())
-            key = rate_key(tid)
-            data = cache.get(key)
-            if not isinstance(data, dict) or 'count' not in data or 'window_start' not in data:
-                data = {'count': 0, 'window_start': now}
-
-            # reset window if expired
-            elapsed = now - int(data['window_start'])
-            if elapsed >= WINDOW_SECONDS:
-                data = {'count': 0, 'window_start': now}
-                elapsed = 0
-
-            # only increment if request is not already blocked by decorator
-            if not limited:
-                data['count'] = int(data['count']) + 1
-
-            # remaining and reset computation
-            remaining = max(0, RATE_LIMIT - int(data['count']))
-            reset = max(1, WINDOW_SECONDS - elapsed)
-
-            # persist with TTL until window end
-            cache.set(key, data, timeout=reset)
-
-            headers = {
-                'RateLimit-Limit': f'{RATE_LIMIT};w={WINDOW_SECONDS}',
-                'RateLimit-Remaining': str(remaining),
-                'RateLimit-Reset': str(reset),
-            }
-            return headers
+        rate_limit = 30
+        window_seconds = 60
 
         tenant_uuid = str(tenant_id)
+        cache_key = f'foundation:scaffold:ratelimit:{tenant_uuid}'
 
         if getattr(request, 'limited', False):
-            headers = update_and_get_rate_headers(tenant_uuid, limited=True)
+            headers = _update_rate_limit(
+                cache_key,
+                limit=rate_limit,
+                window=window_seconds,
+                increment=False,
+            )
             response = Response(
                 {
                     'errors': {
@@ -90,10 +89,9 @@ class RegisterFeatureScaffoldView(APIView):
                 },
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
-            # Required headers per ADR-011 / Runbook
             response['Retry-After'] = headers['RateLimit-Reset']
-            for k, v in headers.items():
-                response[k] = v
+            for key, value in headers.items():
+                response[key] = value
             return response
 
         idempotency_key = request.headers.get('Idempotency-Key')
@@ -174,7 +172,6 @@ class RegisterFeatureScaffoldView(APIView):
                     not_modified['Location'] = location
                     return not_modified
 
-        # Build success response
         response = Response(serialized_payload, status=status.HTTP_201_CREATED)
         response['Idempotency-Key'] = idempotency_key
         response['ETag'] = etag_value
@@ -186,9 +183,103 @@ class RegisterFeatureScaffoldView(APIView):
         if response.status_code == status.HTTP_200_OK:
             response['ETag'] = etag_value
 
-        # Attach RateLimit headers on success as well
-        rate_headers = update_and_get_rate_headers(tenant_uuid, limited=False)
-        for k, v in rate_headers.items():
-            response[k] = v
+        rate_headers = _update_rate_limit(
+            cache_key,
+            limit=rate_limit,
+            window=window_seconds,
+            increment=True,
+        )
+        for key, value in rate_headers.items():
+            response[key] = value
+
+        return response
+
+
+@method_decorator(
+    ratelimit(
+        key='header:x-tenant-id',
+        rate='60/m',
+        method='GET',
+        block=False,
+    ),
+    name='get',
+)
+class TenantThemeView(APIView):
+    def get(self, request: HttpRequest, tenant_id: UUID, *args: Any, **kwargs: Any) -> Response:
+        rate_limit = 60
+        window_seconds = 60
+        tenant_uuid = str(tenant_id)
+        cache_key = f'foundation:tenant-theme:ratelimit:{tenant_uuid}'
+
+        tenant_header = request.headers.get('X-Tenant-Id')
+        if tenant_header != tenant_uuid:
+            return Response(
+                {'errors': {'X-Tenant-Id': ['Cabeçalho X-Tenant-Id inválido ou ausente.']}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if getattr(request, 'limited', False):
+            headers = _update_rate_limit(
+                cache_key,
+                limit=rate_limit,
+                window=window_seconds,
+                increment=False,
+            )
+            response = Response(
+                {'errors': {'rateLimit': ['Limite de 60 requisições por minuto excedido.']}},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+            response['Retry-After'] = headers['RateLimit-Reset']
+            for key, value in headers.items():
+                response[key] = value
+            return response
+
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+
+        with use_tenant(tenant.id):
+            scoped = TenantThemeToken.objects.scoped(tenant.id)
+            default_token = (
+                scoped.filter(is_default=True).order_by('-updated_at').first()
+                or scoped.order_by('-updated_at').first()
+            )
+
+            if default_token is None:
+                return Response(status=status.HTTP_404_NOT_FOUND)
+
+            tokens = list(scoped.filter(version=default_token.version))
+
+        serializer = TenantThemeSerializer(instance={'tenant': tenant, 'tokens': tokens})
+        payload = serializer.data
+
+        etag_source = json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
+        etag_value = f'"{hashlib.sha256(etag_source).hexdigest()}"'
+
+        if_none_match = request.headers.get('If-None-Match')
+        if if_none_match:
+            requested_etags = {token.strip() for token in if_none_match.split(',') if token.strip()}
+            if '*' in requested_etags or etag_value in requested_etags:
+                not_modified = Response(status=status.HTTP_304_NOT_MODIFIED)
+                not_modified['ETag'] = etag_value
+                rate_headers = _update_rate_limit(
+                    cache_key,
+                    limit=rate_limit,
+                    window=window_seconds,
+                    increment=False,
+                )
+                for key, value in rate_headers.items():
+                    not_modified[key] = value
+                return not_modified
+
+        response = Response(payload, status=status.HTTP_200_OK)
+        response['ETag'] = etag_value
+
+        rate_headers = _update_rate_limit(
+            cache_key,
+            limit=rate_limit,
+            window=window_seconds,
+            increment=True,
+        )
+        for key, value in rate_headers.items():
+            response[key] = value
 
         return response
