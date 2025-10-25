@@ -112,4 +112,31 @@ describe('foundation:tokens script', () => {
     expect(cssContent).toContain('--color-brand-primary: #1E3A8A;');
     expect(cssContent).toContain('--button-primary-bg: #1E3A8A;');
   });
+
+  it('rejeita payload sem categorias válidas', async () => {
+    const invalidResponse = {
+      ...SAMPLE_RESPONSE,
+      categories: {
+        foundation: {
+          'color.brand.primary': 123,
+        },
+      },
+    } satisfies Partial<TenantThemeResponse> as TenantThemeResponse;
+
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(invalidResponse), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    await expect(
+      pullTenantTokens({
+        tenantId: SAMPLE_RESPONSE.tenantId,
+        fetchImpl: fetchMock,
+        tenantAlias: 'tenant-alfa',
+        endpoint: 'https://api.iabank.test',
+      }),
+    ).rejects.toThrow(/TokenSchema/);
+  });
 });

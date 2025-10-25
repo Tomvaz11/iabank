@@ -114,9 +114,9 @@
 
 ### Observabilidade e governança adicionais
 
-- [ ] T073 [P] [US2] Validar tema com Zod `TokenSchema` (backend serializer + compile step frontend)
-- [ ] T074 [P] [US2] Ingerir auditoria WCAG em `TenantThemeToken.wcag_report` e gate antes de `is_default=true`
-- [ ] T075 [US2] Modelo `DesignSystemStory` + migração (`backend/apps/foundation/models/design_system_story.py`)
+- [X] T073 [P] [US2] Validar tema com Zod `TokenSchema` (backend serializer + compile step frontend)
+- [X] T074 [P] [US2] Ingerir auditoria WCAG em `TenantThemeToken.wcag_report` e gate antes de `is_default=true`
+- [X] T075 [US2] Modelo `DesignSystemStory` + migração (`backend/apps/foundation/models/design_system_story.py`)
 - [ ] T076 [P] [US2] Serializer/mapeamento de metadados (Chromatic/axe → campos do modelo)
 - [ ] T077 [US2] `DesignSystemStoryViewSet.list` com paginação e filtros (`componentId`, `tag`) + rotas DRF
 - [ ] T078 [P] [US2] Teste API/Pact consumer para `GET /api/v1/design-system/stories`

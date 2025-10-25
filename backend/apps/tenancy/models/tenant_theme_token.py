@@ -52,6 +52,41 @@ class TenantThemeToken(models.Model):
                 'Tokens semânticos e de componentes exigem relatório WCAG associado.',
             )
 
+        if self.wcag_report and not isinstance(self.wcag_report, dict):
+            errors.setdefault('wcag_report', []).append('Relatório WCAG deve ser um objeto JSON.')
+
+        wcag_data: dict[str, object] | None = self.wcag_report if isinstance(self.wcag_report, dict) else None
+
+        if self.category != self.Category.FOUNDATION and self.is_default:
+            if not wcag_data:
+                errors.setdefault('wcag_report', []).append(
+                    'Auditoria WCAG válida é obrigatória para marcar tokens padrão.',
+                )
+            else:
+                status = str(wcag_data.get('status', '')).lower()
+                if status != 'pass':
+                    errors.setdefault('wcag_report', []).append(
+                        'Somente tokens com status WCAG "pass" podem ser definidos como padrão.',
+                    )
+
+                violations = wcag_data.get('violations', [])
+                if violations is None:
+                    wcag_data['violations'] = []
+                elif isinstance(violations, list):
+                    if len(violations) > 0:
+                        errors.setdefault('wcag_report', []).append(
+                            'Resolva violações WCAG antes de marcar o token como padrão.',
+                        )
+                else:
+                    errors.setdefault('wcag_report', []).append('Campo "violations" deve ser uma lista.')
+
+                if status == 'pass':
+                    self.wcag_report = {
+                        **wcag_data,
+                        'status': 'pass',
+                        'violations': wcag_data.get('violations', []),
+                    }
+
         if errors:
             raise ValidationError(errors)
 

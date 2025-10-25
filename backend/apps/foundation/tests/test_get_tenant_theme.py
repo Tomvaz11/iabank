@@ -32,7 +32,7 @@ class GetTenantThemeApiTest(APITestCase):
                 version='1.0.0',
                 category=TenantThemeToken.Category.SEMANTIC,
                 json_payload={'surface.background': '#ffffff'},
-                wcag_report={'contrast': 'AA'},
+                wcag_report={'contrast': 'AA', 'status': 'pass', 'violations': []},
                 is_default=True,
             )
 

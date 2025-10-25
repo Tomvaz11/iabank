@@ -47,3 +47,48 @@ class TenantThemeTokenValidationTest(TestCase):
 
             # Não deve levantar erro de validação.
             token.full_clean()
+
+    def test_prevents_default_when_wcag_status_is_not_pass(self) -> None:
+        with use_tenant(self.tenant.id):
+            token = TenantThemeToken(
+                version='1.0.0',
+                category=TenantThemeToken.Category.SEMANTIC,
+                json_payload={'surface.background': '#ffffff'},
+                wcag_report={'status': 'fail', 'violations': []},
+                is_default=True,
+            )
+            token.tenant = self.tenant
+
+            with self.assertRaises(ValidationError) as exc:
+                token.full_clean()
+
+        self.assertIn('wcag_report', exc.exception.message_dict)
+
+    def test_prevents_default_when_wcag_has_violations(self) -> None:
+        with use_tenant(self.tenant.id):
+            token = TenantThemeToken(
+                version='1.0.0',
+                category=TenantThemeToken.Category.COMPONENT,
+                json_payload={'button.primary.bg': '#1E3A8A'},
+                wcag_report={'status': 'pass', 'violations': [{'id': 'color-contrast'}]},
+                is_default=True,
+            )
+            token.tenant = self.tenant
+
+            with self.assertRaises(ValidationError) as exc:
+                token.full_clean()
+
+        self.assertIn('wcag_report', exc.exception.message_dict)
+
+    def test_allows_default_when_wcag_pass_without_violations(self) -> None:
+        with use_tenant(self.tenant.id):
+            token = TenantThemeToken(
+                version='1.0.0',
+                category=TenantThemeToken.Category.COMPONENT,
+                json_payload={'button.primary.bg': '#1E3A8A'},
+                wcag_report={'status': 'pass', 'violations': []},
+                is_default=True,
+            )
+            token.tenant = self.tenant
+
+            token.full_clean()

@@ -1,22 +1,19 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { ZodError } from 'zod';
+
+import { TenantThemeResponseSchema, TokenCategories, TenantThemePayload } from './token-schema';
 
 const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
-export type TenantThemeResponse = {
-  tenantId: string;
-  version: string;
-  generatedAt: string;
-  categories: Record<string, Record<string, string>>;
-  wcagReport?: Record<string, Record<string, unknown>>;
-};
+export type TenantThemeResponse = TenantThemePayload;
 
 export type CachedTenantTokens = {
   alias: string;
   tenantId: string;
   etag?: string | null;
-  payload: TenantThemeResponse;
+  payload: TenantThemePayload;
 };
 
 type PullTenantTokensOptions = {
@@ -37,6 +34,26 @@ const projectRoot = path.resolve(process.cwd());
 const DEFAULT_CACHE_DIR = path.join(projectRoot, 'frontend', 'scripts', 'tokens', 'cache');
 const DEFAULT_TENANTS_PATH = path.join(projectRoot, 'frontend', 'src', 'shared', 'config', 'theme', 'tenants.ts');
 const DEFAULT_CSS_PATH = path.join(projectRoot, 'frontend', 'src', 'shared', 'ui', 'tokens.css');
+
+const formatZodIssues = (error: ZodError): string =>
+  error.issues
+    .map((issue) => {
+      const pathLabel = issue.path.length > 0 ? issue.path.join('.') : 'root';
+      return `${pathLabel}: ${issue.message}`;
+    })
+    .join('; ');
+
+const parseTenantThemeResponse = (value: unknown, context: string): TenantThemePayload => {
+  try {
+    return TenantThemeResponseSchema.parse(value);
+  } catch (error) {
+    if (error instanceof ZodError) {
+      const details = formatZodIssues(error);
+      throw new Error(`${context}: falha ao validar TokenSchema — ${details}`);
+    }
+    throw error;
+  }
+};
 
 const buildApiUrl = (endpoint: string, tenantId: string): string => {
   const base = endpoint.endsWith('/') ? endpoint.slice(0, -1) : endpoint;
@@ -79,7 +96,7 @@ export const pullTenantTokens = async (
     throw new Error(`Falha ao buscar tokens do tenant ${tenantAlias}: ${response.status} ${response.statusText}`);
   }
 
-  const payload = (await response.json()) as TenantThemeResponse;
+  const payload = parseTenantThemeResponse(await response.json(), 'Resposta da API de tokens');
   const etag = response.headers.get('ETag') ?? response.headers.get('etag');
 
   const cached: CachedTenantTokens = {
@@ -103,7 +120,7 @@ const normalizeValue = (value: unknown): string => {
   return String(value);
 };
 
-const formatTsObject = (data: Record<string, Record<string, Record<string, string>>>, versions: Record<string, string>, ids: Record<string, string>): string => {
+const formatTsObject = (data: Record<string, TokenCategories>, versions: Record<string, string>, ids: Record<string, string>): string => {
   const lines: string[] = [];
   lines.push('// Auto-gerado por foundation:tokens. Não editar manualmente.');
   lines.push(
@@ -157,7 +174,7 @@ const formatTsObject = (data: Record<string, Record<string, Record<string, strin
 
 const toCssVariable = (token: string): string => `--${token.replace(/\./g, '-')}`;
 
-const formatCss = (data: Array<{ alias: string; categories: Record<string, Record<string, string>> }>): string => {
+const formatCss = (data: Array<{ alias: string; categories: TokenCategories }>): string => {
   const blocks = data.map(({ alias, categories }) => {
     const flattened = Object.values(categories).reduce<Record<string, string>>((acc, current) => {
       Object.entries(current).forEach(([token, value]) => {
@@ -199,14 +216,19 @@ export const buildTenantArtifacts = async (
     if (!file.endsWith('.json')) {
       continue;
     }
-    const content = await readFile(path.join(cacheDir, file), 'utf-8');
+    const filePath = path.join(cacheDir, file);
+    const content = await readFile(filePath, 'utf-8');
     const parsed = JSON.parse(content) as CachedTenantTokens;
-    tenants.push(parsed);
+    const validatedPayload = parseTenantThemeResponse(
+      parsed.payload,
+      `Cache de tokens (${filePath})`,
+    );
+    tenants.push({ ...parsed, payload: validatedPayload });
   }
 
   tenants.sort((a, b) => a.alias.localeCompare(b.alias));
 
-  const categoriesByAlias: Record<string, Record<string, Record<string, string>>> = {};
+  const categoriesByAlias: Record<string, TokenCategories> = {};
   const versionsByAlias: Record<string, string> = {};
   const idsByAlias: Record<string, string> = {};
 
@@ -277,6 +299,8 @@ const isCli = (): boolean => {
   const expected = pathToFileURL(process.argv[1] ?? '').href;
   return import.meta.url === expected;
 };
+
+export { TokenSchema, tokenSchemaJson, tenantThemeSchemaJson } from './token-schema';
 
 if (isCli()) {
   runCli().catch((error) => {
