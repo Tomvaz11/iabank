@@ -106,8 +106,51 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Placeholder
-        run: echo 'TODO implementar execução de Storybook/Chromatic e axe-core.'
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Storybook estático
+        run: pnpm --filter @iabank/frontend-foundation storybook:build
+
+      - name: Instalar navegadores Playwright
+        run: pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps
+
+      - name: Executar Chromatic
+        env:
+          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+        run: |
+          pnpm chromatic:ci
+        working-directory: frontend
+
+      - name: Validar cobertura visual por tenant
+        env:
+          CHROMATIC_MIN_COVERAGE: '95'
+        run: |
+          pnpm chromatic:check -- --output chromatic-coverage.json
+        working-directory: frontend
+
+      - name: Executar test-runner do Storybook (axe/WCAG)
+        run: pnpm --filter @iabank/frontend-foundation storybook:test
+
+      - name: Publicar artefatos Chromatic
+        uses: actions/upload-artifact@v4
+        with:
+          name: chromatic-coverage
+          path: |
+            frontend/storybook-static
+            frontend/chromatic-coverage.json
 
   performance:
     name: Performance Budgets

@@ -14,7 +14,12 @@
     "test:e2e": "playwright test",
     "typecheck": "tsc --noEmit",
     "foundation:scaffold": "node --loader ./scripts/scaffolding/loader.mjs ./scripts/scaffolding/index.ts",
-    "foundation:tokens": "node --loader ./scripts/scaffolding/loader.mjs ./scripts/tokens/index.ts"
+    "foundation:tokens": "node --loader ./scripts/scaffolding/loader.mjs ./scripts/tokens/index.ts",
+    "storybook": "storybook dev -p 6006 --no-open --disable-telemetry",
+    "storybook:build": "storybook build --output-dir storybook-static --quiet --disable-telemetry",
+    "storybook:test": "storybook test --watch=false --quiet",
+    "chromatic:ci": "chromatic --project-token $CHROMATIC_PROJECT_TOKEN --storybook-build-dir=storybook-static --exit-once-uploaded --exit-zero-on-changes --only-changed",
+    "chromatic:check": "node --loader ./scripts/scaffolding/loader.mjs ./scripts/chromatic/check-coverage.ts --stories storybook-static/stories.json --verbose"
   },
   "dependencies": {
     "configcat-js": "^9.4.0",
@@ -25,6 +30,12 @@
     "zustand": "^4.5.4"
   },
   "devDependencies": {
+    "@storybook/addon-a11y": "^8.2.4",
+    "@storybook/addon-essentials": "^8.2.4",
+    "@storybook/addon-interactions": "^8.2.4",
+    "@storybook/react": "^8.2.4",
+    "@storybook/react-vite": "^8.2.4",
+    "@storybook/test-runner": "^0.17.0",
     "@playwright/test": "^1.48.2",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.4.2",
@@ -36,7 +47,9 @@
     "@typescript-eslint/eslint-plugin": "^8.46.2",
     "@typescript-eslint/parser": "^8.46.2",
     "@vitejs/plugin-react": "^4.3.2",
+    "chromatic": "^11.12.5",
     "@vitest/coverage-v8": "^2.0.5",
+    "storybook": "^8.2.4",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-fsd-boundaries": "link:./scripts/eslint-plugin-fsd-boundaries",

@@ -1,12 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, within } from '@storybook/test';
 
-type TenantKey = 'tenant-default' | 'tenant-alfa' | 'tenant-beta';
+import { Button, BUTTON_SIZES, BUTTON_VARIANTS } from './Button';
+import type { ButtonProps } from './Button';
 
-type ButtonStoryProps = {
-  label: string;
-  tenant: TenantKey;
-};
+type TenantKey = 'tenant-default' | 'tenant-alfa' | 'tenant-beta';
 
 const THEMES: Record<TenantKey, { background: string; foreground: string }> = {
   'tenant-default': {
@@ -23,33 +21,46 @@ const THEMES: Record<TenantKey, { background: string; foreground: string }> = {
   },
 };
 
-const meta: Meta<ButtonStoryProps> = {
+const meta: Meta<ButtonProps & { tenant: TenantKey }> = {
   title: 'Shared/UI/Button',
+  component: Button,
   parameters: {
     layout: 'centered',
     chromatic: { disableSnapshot: false },
   },
   args: {
-    label: 'Continuar',
+    children: 'Continuar',
+    variant: 'primary',
+    size: 'md',
   },
-  render: ({ label }) => (
-    <button type="button" className="shared-button" data-variant="primary">
-      {label}
-    </button>
-  ),
+  render: ({ tenant: _tenant, ...props }) => <Button {...props} />,
+  argTypes: {
+    variant: {
+      control: 'inline-radio',
+      options: BUTTON_VARIANTS,
+    },
+    size: {
+      control: 'inline-radio',
+      options: BUTTON_SIZES,
+    },
+    tenant: {
+      control: false,
+    },
+  },
 };
 
 export default meta;
 
-type Story = StoryObj<ButtonStoryProps>;
+type Story = StoryObj<ButtonProps & { tenant: TenantKey }>;
 
 const playStoryForTenant =
   (tenant: TenantKey): Story['play'] =>
   async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    const button = await canvas.findByRole('button', { name: args.label });
+    const button = await canvas.findByRole('button', { name: args.children as string });
 
     expect(document.documentElement.dataset.tenant).toBe(tenant);
+    expect(button.dataset.variant).toBe(args.variant ?? 'primary');
 
     const computed = window.getComputedStyle(button);
     const expectedTheme = THEMES[tenant];
@@ -67,14 +78,14 @@ export const TenantDefault: Story = {
 
 export const TenantAlfa: Story = {
   name: 'Tenant Alfa',
-  args: { tenant: 'tenant-alfa', label: 'Continuar (Alfa)' },
+  args: { tenant: 'tenant-alfa', children: 'Continuar (Alfa)' },
   parameters: { tenant: 'tenant-alfa' },
   play: playStoryForTenant('tenant-alfa'),
 };
 
 export const TenantBeta: Story = {
   name: 'Tenant Beta',
-  args: { tenant: 'tenant-beta', label: 'Continuar (Beta)' },
+  args: { tenant: 'tenant-beta', children: 'Continuar (Beta)' },
   parameters: { tenant: 'tenant-beta' },
   play: playStoryForTenant('tenant-beta'),
 };

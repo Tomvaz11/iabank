@@ -106,11 +106,11 @@
 - [X] T046 [US2] Configuração de tenants (arquivo: `frontend/src/shared/config/theme/tenants.ts`)
 - [X] T047 [US2] CSS de tokens (arquivo: `frontend/src/shared/ui/tokens.css`)
 - [X] T048 [P] [US2] Storybook multi-tenant (arquivos: `frontend/.storybook/main.ts`, `frontend/.storybook/preview.ts` com `html[data-tenant]`)
-- [ ] T049 [P] [US2] Componente `Button` + API pública (arquivos: `frontend/src/shared/ui/button/index.ts`, `frontend/src/shared/ui/button/Button.tsx`)
-- [ ] T052 [P] [US2] Componentes base de estado de dados (Skeleton, Empty, Error) em `frontend/src/shared/ui/` + stories e testes alinhados a FR-005c
-- [ ] T050 [US2] Job Chromatic no CI (arquivo: `.github/workflows/ci/frontend-foundation.yml` – job `visual-accessibility` com cobertura >=95% — releases fail-closed; non-release fail-open)
-- [ ] T098 [US2] Criar `frontend/scripts/chromatic/check-coverage.ts` e integrar no job `visual-accessibility` para validar cobertura >=95% por tenant
-- [ ] T110 [FOUND] Popular job `visual-accessibility` no CI integrando Chromatic + axe (Storybook) com gates: cobertura >=95% por tenant e WCAG 2.2 AA (fail‑closed em release)
+- [X] T049 [P] [US2] Componente `Button` + API pública (arquivos: `frontend/src/shared/ui/button/index.ts`, `frontend/src/shared/ui/button/Button.tsx`)
+- [X] T052 [P] [US2] Componentes base de estado de dados (Skeleton, Empty, Error) em `frontend/src/shared/ui/` + stories e testes alinhados a FR-005c
+- [X] T050 [US2] Job Chromatic no CI (arquivo: `.github/workflows/ci/frontend-foundation.yml` – job `visual-accessibility` com cobertura >=95% — releases fail-closed; non-release fail-open)
+- [X] T098 [US2] Criar `frontend/scripts/chromatic/check-coverage.ts` e integrar no job `visual-accessibility` para validar cobertura >=95% por tenant
+- [X] T110 [FOUND] Popular job `visual-accessibility` no CI integrando Chromatic + axe (Storybook) com gates: cobertura >=95% por tenant e WCAG 2.2 AA (fail‑closed em release)
 
 ### Observabilidade e governança adicionais
 
