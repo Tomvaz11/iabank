@@ -33,7 +33,8 @@ pnpm foundation:scaffold feature loan-tracking \
 ```
 - Gera slices `app/pages/features/entities/shared`.
 - Atualiza roteador multi-tenant e registra `FeatureTemplateRegistration`.
-- Executa lint FSD (`pnpm lint:fsd`) e Vitest inicial (falha esperada até implementação).
+- Executa lint FSD (`pnpm lint:fsd`) com governança de API pública/cross-feature e regra de uso do Zustand (somente `src/app/store`/`src/shared/store` podem importar `zustand`); Vitest inicial (falha esperada até implementação).
+- Persiste `durationMs` e publica a métrica Prometheus `sc_001_scaffolding_minutes` (SC-001) com labels `tenant_slug`/`feature_slug`, alimentando o painel DORA.
 
 ## 5. Sincronizar Tokens Tailwind
 ```bash
@@ -63,6 +64,7 @@ pnpm foundation:otel verify --tenant tenant-alfa
    - `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`
    - `OTEL_SERVICE_NAME=frontend-foundation`
    - `OTEL_RESOURCE_ATTRIBUTES=deployment.environment=local,service.namespace=iabank,service.version=0.0.0`
+- Após o primeiro scaffolding, confirme via Prometheus (`sc_001_scaffolding_minutes_{bucket,sum,count}`) ou Grafana que o painel "SC-001 — Lead time p95 (h)" reflete a execução local.
 
 ## 8. Executar Pipelines Locais
 ```bash
@@ -73,6 +75,7 @@ pnpm lighthouse --config frontend/lighthouse.config.mjs
 pnpm k6 run tests/performance/frontend-smoke.js
 ```
 - Certifique-se de cobertura ≥85% e budgets Lighthouse (LCP ≤ 2.5s, TTI ≤ 3.0s).
+ - O comando `pnpm lint` inclui as regras de fronteira FSD (importar somente via `index.ts` público e sem cross-feature) e a detecção de uso indevido de Zustand.
  - Budgets e racional estão descritos em `docs/adr/adr-perf-front.md`.
 
 ## 9. Atualizar Contratos

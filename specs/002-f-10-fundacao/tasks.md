@@ -78,9 +78,9 @@
 - [X] T032 [US1] Migração `0002_frontend_foundation_backfill.py` (arquivo: `backend/apps/foundation/migrations/0002_frontend_foundation_backfill.py`)
 - [X] T033 [P] [US1] CLI `foundation:scaffold` (arquivo: `frontend/scripts/scaffolding/index.ts` + script em `frontend/package.json`)
 - [X] T034 [P] [US1] Registrar no roteador multi-tenant (arquivo: `frontend/src/app/providers/router.tsx` + atualização `frontend/src/app/index.tsx`)
-- [ ] T035 [US1] Lint FSD e governança de imports + regra de uso de Zustand (banir estado local/efêmero em store) (arquivos: `frontend/.eslintrc.cjs`, `frontend/scripts/eslint-plugin-fsd-boundaries/`)
-- [ ] T036 [US1] Atualizar `quickstart.md` com fluxo final (arquivo: `specs/002-f-10-fundacao/quickstart.md`)
-- [ ] T037 [US1] Instrumentar tempo de scaffolding (SC-001) (arquivo: `backend/apps/foundation/services/scaffold_registrar.py` + métrica em `observabilidade/dashboards/frontend-foundation.json`, alimentando painel DORA: lead time p95 < 30h úteis)
+- [X] T035 [US1] Lint FSD e governança de imports + regra de uso de Zustand (banir estado local/efêmero em store) (arquivos: `frontend/.eslintrc.cjs`, `frontend/scripts/eslint-plugin-fsd-boundaries/`)
+- [X] T036 [US1] Atualizar `quickstart.md` com fluxo final (arquivo: `specs/002-f-10-fundacao/quickstart.md`)
+- [X] T037 [US1] Instrumentar tempo de scaffolding (SC-001) (arquivo: `backend/apps/foundation/services/scaffold_registrar.py` + métrica em `observabilidade/dashboards/frontend-foundation.json`, alimentando painel DORA: lead time p95 < 30h úteis)
 
 ### Resiliência e controles adicionais
 

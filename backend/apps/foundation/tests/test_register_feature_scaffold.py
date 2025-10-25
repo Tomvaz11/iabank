@@ -106,3 +106,39 @@ class TestRegisterFeatureScaffoldAPI:
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         assert 'Idempotency-Key' in response.json()['errors']
+
+    def test_records_sc001_metric(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        payload = build_payload()
+        tenant_id = str(self.tenant.id)
+        idempotency_key = '00000000-0000-4000-8000-000000000123'
+
+        recorded: list[tuple[str, str, float]] = []
+
+        def fake_record(tenant_slug: str, feature_slug: str, duration_minutes: float) -> None:
+            recorded.append((tenant_slug, feature_slug, duration_minutes))
+
+        monkeypatch.setattr(
+            'backend.apps.foundation.services.scaffold_registrar.record_scaffolding_duration',
+            fake_record,
+        )
+
+        response = self.client.post(
+            reverse(API_PATH_NAME, kwargs={'tenant_id': tenant_id}),
+            data=payload,
+            format='json',
+            **{
+                'HTTP_X_TENANT_ID': tenant_id,
+                'HTTP_IDEMPOTENCY_KEY': idempotency_key,
+                'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+                'HTTP_TRACESTATE': f'tenant-id={tenant_id}',
+            },
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED
+        assert len(recorded) == 1
+
+        tenant_slug, feature_slug, duration_minutes = recorded[0]
+        assert tenant_slug == self.tenant.slug
+        assert feature_slug == payload['featureSlug']
+        expected_minutes = payload['durationMs'] / 60000
+        assert duration_minutes == pytest.approx(expected_minutes, rel=1e-3)

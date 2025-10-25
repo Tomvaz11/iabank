@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+coverage/
+playwright-report/
+test-results/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+pnpm-debug.log
+.pnp.cjs
+.pnp.loader.mjs
+.turbo/
+.vscode/
+.idea/

@@ -7,6 +7,7 @@ from typing import Any, Dict, Iterable, List, Tuple
 
 import structlog
 
+from backend.apps.foundation.metrics import record_scaffolding_duration
 from backend.apps.foundation.models import FeatureTemplateRegistration
 from backend.apps.tenancy.models import Tenant
 
@@ -50,6 +51,13 @@ class ScaffoldRegistrar:
     ) -> Tuple[FeatureTemplateRegistration, bool]:
         normalized_slices = _normalize_slices(payload['slices'])
         latest_slice = _resolve_latest_slice(normalized_slices)
+        duration_ms_raw = payload.get('durationMs')
+        duration_minutes: float | None = None
+        if duration_ms_raw is not None:
+            try:
+                duration_minutes = float(duration_ms_raw) / 60000.0
+            except (TypeError, ValueError):
+                duration_minutes = None
 
         metadata = copy.deepcopy(payload.get('metadata', {}))
         sc_refs = list(payload['scReferences'])
@@ -84,7 +92,7 @@ class ScaffoldRegistrar:
             'sc_references': sc_refs,
             'metadata': metadata,
             'created_by': created_by,
-            'duration_ms': payload.get('durationMs'),
+            'duration_ms': duration_ms_raw,
             'idempotency_key': idempotency_key,
         }
 
@@ -99,6 +107,15 @@ class ScaffoldRegistrar:
             tenant=str(self.tenant.id),
             feature_slug=registration.feature_slug,
             latest_slice=registration.slice,
+            duration_ms=duration_ms_raw,
+            duration_minutes=duration_minutes,
         )
+
+        if created and duration_minutes is not None:
+            record_scaffolding_duration(
+                tenant_slug=self.tenant.slug,
+                feature_slug=registration.feature_slug,
+                duration_minutes=duration_minutes,
+            )
 
         return registration, created
