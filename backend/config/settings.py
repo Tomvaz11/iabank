@@ -29,6 +29,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'backend.apps.foundation.middleware.security.ContentSecurityPolicyMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -149,3 +150,25 @@ structlog.configure(
 )
 
 DATABASE_ROUTERS = ['backend.config.dbrouter.PostgresOnlyRouter']
+
+
+def _parse_csp_list(value: str | None, default: list[str]) -> list[str]:
+    if not value:
+        return default
+    items = [item.strip() for item in value.split(',') if item.strip()]
+    return items or default
+
+
+FOUNDATION_CSP = {
+    'mode': os.environ.get('FOUNDATION_CSP_MODE', 'report-only'),
+    'nonce': os.environ.get('FOUNDATION_CSP_NONCE', 'nonce-dev-fallback'),
+    'trusted_types_policy': os.environ.get('FOUNDATION_TRUSTED_TYPES_POLICY', 'foundation-ui'),
+    'report_uri': os.environ.get('FOUNDATION_CSP_REPORT_URI', 'https://csp-report.iabank.com'),
+    'connect_src': _parse_csp_list(
+        os.environ.get('FOUNDATION_CSP_CONNECT_SRC'),
+        ["'self'", 'https://api.iabank.com', 'https://staging-api.iabank.com'],
+    ),
+    'style_src': _parse_csp_list(os.environ.get('FOUNDATION_CSP_STYLE_SRC'), ["'self'"]),
+    'img_src': _parse_csp_list(os.environ.get('FOUNDATION_CSP_IMG_SRC'), ["'self'", 'data:']),
+    'font_src': _parse_csp_list(os.environ.get('FOUNDATION_CSP_FONT_SRC'), ["'self'"]),
+}

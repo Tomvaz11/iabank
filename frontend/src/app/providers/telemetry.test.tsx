@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../shared/config/env', () => ({
   env: {
@@ -11,10 +11,18 @@ vi.mock('../../shared/config/env', () => ({
       'service.namespace': 'iabank',
       'service.version': '0.1.0',
     },
+    FOUNDATION_CSP_NONCE: 'nonce-dev',
+    FOUNDATION_TRUSTED_TYPES_POLICY: 'foundation-ui',
+    FOUNDATION_PGCRYPTO_KEY: 'dev-only',
   },
 }));
+
 describe('TelemetryProvider', () => {
-  it('inicializa o cliente OTEL ao montar e executa shutdown ao desmontar', async () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('inicializa o bootstrap configurado e executa shutdown ao desmontar', async () => {
     const shutdown = vi.fn();
     const telemetryModule = await import('./telemetry');
     const bootstrapSpy = vi.fn().mockReturnValue({ shutdown });
