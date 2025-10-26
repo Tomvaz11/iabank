@@ -126,10 +126,10 @@
 ## Fase 5: User Story 3 — Telemetria, Pactos e Controles de Privacidade (Prioridade P3)
 
 ### Testes (executar antes da implementação)
-- [ ] T051 [P] [US3] Verificação de OTEL no cliente (arquivo: `frontend/tests/otel/propagation.spec.ts` com spans e baggage `tenant_id`) e medição de cobertura de spans >90% das interações críticas (NFR-003)
-- [ ] T052 [P] [US3] Teste de mascaramento de PII (arquivo: `frontend/tests/otel/masking.spec.ts` cobrindo regex de CPF/email/telefone)
-- [ ] T053 [P] [US3] Scanner CSP/Trusted Types (arquivo: `frontend/tests/security/csp_trusted_types.spec.ts` validando report-only → enforce)
-- [ ] T054 [P] [US3] Pact consumer para `GET /api/v1/tenant-metrics/{tenantId}/sc` (arquivo: `contracts/pacts/frontend-consumer/list_sc_metrics.pact.ts`)
+ - [X] T051 [P] [US3] Verificação de OTEL no cliente (arquivo: `frontend/tests/otel/propagation.spec.ts` com spans e baggage `tenant_id`) e medição de cobertura de spans >90% das interações críticas (NFR-003)
+ - [X] T052 [P] [US3] Teste de mascaramento de PII (arquivo: `frontend/tests/otel/masking.spec.ts` cobrindo regex de CPF/email/telefone)
+ - [X] T053 [P] [US3] Scanner CSP/Trusted Types (arquivo: `frontend/tests/security/csp_trusted_types.spec.ts` validando report-only → enforce)
+ - [X] T054 [P] [US3] Pact consumer para `GET /api/v1/tenant-metrics/{tenantId}/sc` (arquivo: `contracts/pacts/frontend-consumer/list_sc_metrics.pact.ts`)
 
 ### Implementação
 - [ ] T055 [US3] Provedor OTEL Web (arquivo: `frontend/src/app/providers/telemetry.tsx` com `@opentelemetry/sdk-trace-web` e `BaggagePropagator`)
