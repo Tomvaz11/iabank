@@ -1,8 +1,12 @@
 import { useEffect, useRef } from 'react';
 
-import { trace, context, propagation, baggage } from '@opentelemetry/api';
+import { trace, context, propagation } from '@opentelemetry/api';
 import { ZoneContextManager } from '@opentelemetry/context-zone';
-import { CompositePropagator, W3CTraceContextPropagator, BaggagePropagator } from '@opentelemetry/core';
+import {
+  CompositePropagator,
+  W3CTraceContextPropagator,
+  W3CBaggagePropagator,
+} from '@opentelemetry/core';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { DocumentLoadInstrumentation } from '@opentelemetry/instrumentation-document-load';
@@ -55,7 +59,10 @@ export const bootstrapTelemetry = (
   const spanProcessor = new BatchSpanProcessor(exporter);
   provider.addSpanProcessor(spanProcessor);
 
-  const propagator = new CompositePropagator([new W3CTraceContextPropagator(), new BaggagePropagator()]);
+  const propagator = new CompositePropagator([
+    new W3CTraceContextPropagator(),
+    new W3CBaggagePropagator(),
+  ]);
 
   provider.register({
     contextManager: new ZoneContextManager(),
@@ -95,7 +102,7 @@ export const createInteractionTracer = ({
   ) => {
     const tracer = trace.getTracer(currentServiceName);
     const activeContext = context.active();
-    const baggageValue = baggage.createBaggage({
+    const baggageValue = propagation.createBaggage({
       'tenant.id': { value: tenantId },
       'feature.slug': { value: featureSlug },
       'interaction.name': { value: interactionName },

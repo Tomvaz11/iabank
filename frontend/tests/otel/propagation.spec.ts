@@ -226,7 +226,7 @@ class FakeCompositePropagator {
   }
 }
 
-class FakeBaggagePropagator {}
+class FakeW3CBaggagePropagator {}
 
 class FakeW3CTraceContextPropagator {}
 
@@ -245,8 +245,6 @@ vi.mock(
     },
     propagation: {
       setGlobalPropagator,
-    },
-    baggage: {
       createBaggage: createBaggageMock,
     },
     diag: {
@@ -261,7 +259,7 @@ vi.mock(
   '@opentelemetry/core',
   () => ({
     CompositePropagator: FakeCompositePropagator,
-    BaggagePropagator: FakeBaggagePropagator,
+    W3CBaggagePropagator: FakeW3CBaggagePropagator,
     W3CTraceContextPropagator: FakeW3CTraceContextPropagator,
   }),
   { virtual: true },
@@ -377,7 +375,7 @@ describe('OTEL client propagation', () => {
     expect(compositePropagatorInstance).toBeInstanceOf(FakeCompositePropagator);
     expect(
       (compositePropagatorInstance as FakeCompositePropagator).propagators.some(
-        (propagator) => propagator instanceof FakeBaggagePropagator,
+        (propagator) => propagator instanceof FakeW3CBaggagePropagator,
       ),
     ).toBe(true);
   });

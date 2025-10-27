@@ -2,7 +2,12 @@ from __future__ import annotations
 
 from django.urls import path
 
-from .views import DesignSystemStoryViewSet, RegisterFeatureScaffoldView, TenantThemeView
+from .views import (
+    DesignSystemStoryViewSet,
+    RegisterFeatureScaffoldView,
+    TenantSuccessMetricListView,
+    TenantThemeView,
+)
 
 app_name = 'foundation'
 
@@ -16,6 +21,11 @@ urlpatterns = [
         'tenants/<uuid:tenant_id>/themes/current',
         TenantThemeView.as_view(),
         name='get-tenant-theme',
+    ),
+    path(
+        'tenant-metrics/<uuid:tenant_id>/sc',
+        TenantSuccessMetricListView.as_view(),
+        name='list-tenant-success-metrics',
     ),
     path(
         'design-system/stories',

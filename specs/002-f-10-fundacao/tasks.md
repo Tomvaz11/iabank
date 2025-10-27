@@ -136,9 +136,9 @@
 - [X] T056 [US3] Provedor de segurança (arquivo: `frontend/src/app/providers/security.tsx` com Trusted Types policy `foundation-ui`)
 - [X] T057 [US3] Middleware Vite dev para CSP nonce (arquivo: `frontend/vite.csp.middleware.ts` injetando `nonce` em `index.html`)
 - [X] T058 [US3] Middleware/Settings Django para CSP (arquivos: `backend/apps/foundation/middleware/security.py`, `backend/settings.py` atualizando cabeçalhos)
-- [ ] T059 [US3] Endpoint `listTenantSuccessMetrics` (arquivo: `backend/apps/foundation/api/views.py` + paginação e headers de RateLimit)
-- [ ] T060 [US3] Utilitário `sanitizeTelemetryAttributes` (arquivo: `frontend/src/shared/lib/telemetry/masking.ts`)
-- [ ] T099 [US3] Implementar CLI `pnpm foundation:otel verify` (`frontend/scripts/otel/verify.ts`) disparando traces com baggage e validando mascaramento
+- [X] T059 [US3] Endpoint `listTenantSuccessMetrics` (arquivo: `backend/apps/foundation/api/views.py` + paginação e headers de RateLimit)
+- [X] T060 [US3] Utilitário `sanitizeTelemetryAttributes` (arquivo: `frontend/src/shared/lib/telemetry/masking.ts`)
+- [X] T099 [US3] Implementar CLI `pnpm foundation:otel verify` (`frontend/scripts/otel/verify.ts`) disparando traces com baggage e validando mascaramento
 
 ### Pós-ativação
 

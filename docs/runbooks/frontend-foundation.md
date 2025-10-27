@@ -59,6 +59,7 @@ CSP e Trusted Types
 - Enforcement: mover diretivas para `Content-Security-Policy` e garantir injeção de nonce pelo gateway (NJS) em todas as tags `<script>` do index.html.
 - Dev local: plugin Vite injeta nonce e mantém TT em report-only.
 - Auditar violações e abrir follow-ups.
+- Lembrete T079: na data de ativação do modo report-only, registrar no board/agenda um lembrete para D+30 e, ao vencer, executar T079 (tornar CSP enforce + revisar exceções) e anexar evidências aqui.
 
 Fallback de Vault (dev/local)
 - Caso o Vault esteja indisponível, copie `frontend/.env.example` para `frontend/.env.local` e ajuste os valores marcados como fallback (`VITE_FOUNDATION_CSP_NONCE`, `VITE_FOUNDATION_TRUSTED_TYPES_POLICY`, `VITE_FOUNDATION_PGCRYPTO_KEY`). Esses valores são determinísticos para desenvolvimento (`nonce-dev-fallback`, `foundation-ui-dev`, `dev-only-pgcrypto-key`) e não devem ser usados fora do ambiente local.

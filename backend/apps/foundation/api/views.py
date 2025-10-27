@@ -26,12 +26,13 @@ from backend.apps.foundation.serializers import (
     DesignSystemStorySerializer,
     FeatureScaffoldRequestSerializer,
     FeatureTemplateRegistrationSerializer,
+    SuccessMetricSerializer,
     TenantThemeSerializer,
 )
 from backend.apps.foundation.services.scaffold_registrar import ScaffoldRegistrar
 from backend.apps.tenancy.managers import use_tenant
 from backend.apps.tenancy.models import Tenant, TenantThemeToken
-from backend.apps.foundation.models import DesignSystemStory
+from backend.apps.foundation.models import DesignSystemStory, FeatureTemplateMetric
 from ratelimit.decorators import ratelimit
 
 
@@ -365,6 +366,101 @@ class TenantThemeView(APIView):
 
         response = Response(payload, status=status.HTTP_200_OK)
         response['ETag'] = etag_value
+
+        rate_headers = _update_rate_limit(
+            cache_key,
+            limit=rate_limit,
+            window=window_seconds,
+            increment=True,
+        )
+        for key, value in rate_headers.items():
+            response[key] = value
+
+        return response
+
+
+@method_decorator(
+    ratelimit(
+        key='header:x-tenant-id',
+        rate='60/m',
+        method='GET',
+        block=False,
+    ),
+    name='get',
+)
+class TenantSuccessMetricListView(APIView):
+    def get(self, request: HttpRequest, tenant_id: UUID, *args: Any, **kwargs: Any) -> Response:
+        rate_limit = 60
+        window_seconds = 60
+        tenant_uuid = str(tenant_id)
+        cache_key = f'foundation:tenant-metrics:ratelimit:{tenant_uuid}'
+
+        tenant_header = request.headers.get('X-Tenant-Id')
+        if tenant_header != tenant_uuid:
+            return Response(
+                {'errors': {'X-Tenant-Id': ['Cabeçalho X-Tenant-Id inválido ou ausente.']}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if getattr(request, 'limited', False):
+            headers = _update_rate_limit(
+                cache_key,
+                limit=rate_limit,
+                window=window_seconds,
+                increment=False,
+            )
+            response = Response(
+                {'errors': {'rateLimit': ['Limite de 60 requisições por minuto excedido.']}},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+            response['Retry-After'] = headers['RateLimit-Reset']
+            for key, value in headers.items():
+                response[key] = value
+            return response
+
+        try:
+            page = int(request.query_params.get('page', 1))
+            page_size = int(request.query_params.get('page_size', 25))
+        except ValueError:
+            return Response(
+                {'errors': {'pagination': ['Parâmetros de paginação inválidos.']}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if page < 1 or page_size < 1 or page_size > 100:
+            return Response(
+                {'errors': {'pagination': ['Parâmetros de paginação fora do intervalo permitido.']}},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        queryset = FeatureTemplateMetric.objects.filter(tenant_id=tenant_uuid).order_by('-collected_at')
+
+        paginator = Paginator(queryset, page_size)
+
+        if paginator.count == 0:
+            serialized: list[dict[str, Any]] = []
+            current_page = page
+            total_pages = 0
+        else:
+            try:
+                page_obj = paginator.page(page)
+            except EmptyPage:
+                page_obj = paginator.page(paginator.num_pages)
+            serialized = SuccessMetricSerializer(page_obj.object_list, many=True).data
+            current_page = page_obj.number
+            total_pages = paginator.num_pages
+
+        payload = {
+            'data': serialized,
+            'pagination': {
+                'page': current_page,
+                'perPage': page_size,
+                'totalItems': paginator.count,
+                'totalPages': total_pages,
+            },
+        }
+
+        response = Response(payload, status=status.HTTP_200_OK)
 
         rate_headers = _update_rate_limit(
             cache_key,

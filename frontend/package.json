@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "foundation:scaffold": "node --loader ./scripts/scaffolding/loader.mjs ./scripts/scaffolding/index.ts",
     "foundation:tokens": "node --loader ./scripts/scaffolding/loader.mjs ./scripts/tokens/index.ts",
+    "foundation:otel": "node --loader ./scripts/scaffolding/loader.mjs ./scripts/otel/verify.ts",
     "storybook": "storybook dev -p 6006 --no-open --disable-telemetry",
     "storybook:build": "storybook build --output-dir storybook-static --quiet --disable-telemetry",
     "storybook:test": "storybook test --watch=false --quiet",
