@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -159,11 +160,50 @@ def _parse_csp_list(value: str | None, default: list[str]) -> list[str]:
     return items or default
 
 
+def _parse_csp_exceptions(value: str | None) -> list[dict[str, str]]:
+    if not value:
+        return []
+
+    try:
+        raw = json.loads(value)
+    except json.JSONDecodeError:
+        return []
+
+    if not isinstance(raw, list):
+        return []
+
+    normalized: list[dict[str, str]] = []
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        directive = str(entry.get('directive', '')).strip()
+        exception_value = str(entry.get('value', '')).strip()
+        expires_at = str(entry.get('expires_at', '')).strip()
+        if not directive or not exception_value or not expires_at:
+            continue
+
+        normalized_entry: dict[str, str] = {
+            'directive': directive,
+            'value': exception_value,
+            'expires_at': expires_at,
+        }
+
+        note = entry.get('note')
+        if isinstance(note, str) and note.strip():
+            normalized_entry['note'] = note.strip()
+
+        normalized.append(normalized_entry)
+
+    return normalized
+
+
 FOUNDATION_CSP = {
-    'mode': os.environ.get('FOUNDATION_CSP_MODE', 'report-only'),
+    'mode': os.environ.get('FOUNDATION_CSP_MODE', 'auto'),
     'nonce': os.environ.get('FOUNDATION_CSP_NONCE', 'nonce-dev-fallback'),
     'trusted_types_policy': os.environ.get('FOUNDATION_TRUSTED_TYPES_POLICY', 'foundation-ui'),
     'report_uri': os.environ.get('FOUNDATION_CSP_REPORT_URI', 'https://csp-report.iabank.com'),
+    'report_only_started_at': os.environ.get('FOUNDATION_CSP_REPORT_ONLY_STARTED_AT'),
+    'report_only_ttl_days': os.environ.get('FOUNDATION_CSP_REPORT_ONLY_TTL_DAYS', '30'),
     'connect_src': _parse_csp_list(
         os.environ.get('FOUNDATION_CSP_CONNECT_SRC'),
         ["'self'", 'https://api.iabank.com', 'https://staging-api.iabank.com'],
@@ -171,4 +211,5 @@ FOUNDATION_CSP = {
     'style_src': _parse_csp_list(os.environ.get('FOUNDATION_CSP_STYLE_SRC'), ["'self'"]),
     'img_src': _parse_csp_list(os.environ.get('FOUNDATION_CSP_IMG_SRC'), ["'self'", 'data:']),
     'font_src': _parse_csp_list(os.environ.get('FOUNDATION_CSP_FONT_SRC'), ["'self'"]),
+    'exceptions': _parse_csp_exceptions(os.environ.get('FOUNDATION_CSP_EXCEPTIONS')),
 }

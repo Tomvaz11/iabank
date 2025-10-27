@@ -2,6 +2,7 @@ node_modules/
 dist/
 build/
 coverage/
+*.min.js
 pnpm-lock.yaml
 pnpm-debug.log
 playwright-report/

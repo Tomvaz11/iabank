@@ -142,7 +142,7 @@
 
 ### Pós-ativação
 
-- [ ] T079 [US3] Tornar CSP enforce após janela de report-only (30 dias) + testes de TTL de exceções
+- [X] T079 [US3] Tornar CSP enforce após janela de report-only (30 dias) + testes de TTL de exceções
 
 **Checkpoint**: US3 completa; telemetria correlaciona com backend, CSP/Trusted Types ok e políticas de PII ativas.
 
