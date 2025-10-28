@@ -14,6 +14,7 @@ Executa o **ADR-012** alinhado ao Artigo VII da Constituição.
 3. **Métricas (django-prometheus)**
    - Dashboard `SLO Core` deve exibir p95/p99 e throughput com dados recentes (<5 min).
    - Alertas de erro e saturação precisam estar verdes.
+   - Conferir notas de coleta em `observabilidade/scrape-notes/frontend-foundation-backend.md`.
 
 ## Revisões Mensais
 - Auditar dashboards de SLO para cada serviço crítico.

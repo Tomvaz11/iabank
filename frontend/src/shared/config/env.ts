@@ -10,6 +10,12 @@ const schema = z.object({
   VITE_FOUNDATION_CSP_NONCE: z.string().min(1),
   VITE_FOUNDATION_TRUSTED_TYPES_POLICY: z.string().min(1),
   VITE_FOUNDATION_PGCRYPTO_KEY: z.string().min(1),
+  VITE_SENTRY_DSN: z.union([z.string().url(), z.literal('')]).optional(),
+  VITE_SENTRY_ENVIRONMENT: z.string().min(1).default('local'),
+  VITE_SENTRY_RELEASE: z.string().optional(),
+  VITE_SENTRY_TRACES_SAMPLE_RATE: z.string().optional(),
+  VITE_SENTRY_REPLAYS_SESSION_SAMPLE_RATE: z.string().optional(),
+  VITE_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE: z.string().optional(),
 });
 
 type RawEnv = z.input<typeof schema>;
@@ -24,6 +30,12 @@ export type AppEnv = {
   FOUNDATION_CSP_NONCE: string;
   FOUNDATION_TRUSTED_TYPES_POLICY: string;
   FOUNDATION_PGCRYPTO_KEY: string;
+  SENTRY_DSN?: string;
+  SENTRY_ENVIRONMENT: string;
+  SENTRY_RELEASE?: string;
+  SENTRY_TRACES_SAMPLE_RATE: number;
+  SENTRY_REPLAYS_SESSION_SAMPLE_RATE: number;
+  SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE: number;
 };
 
 const parseResourceAttributes = (value: string): Record<string, string> =>
@@ -44,6 +56,35 @@ const normalizeBaseUrl = (value: string): string => value.replace(/\/+$/, '');
 const formatIssues = (issues: z.ZodIssue[]): string =>
   issues.map((issue) => issue.path.join('.') || issue.message).join(', ');
 
+const clampRate = (value: number, fallback: number): number => {
+  if (Number.isNaN(value)) {
+    return fallback;
+  }
+  if (value < 0) {
+    return 0;
+  }
+  if (value > 1) {
+    return 1;
+  }
+  return value;
+};
+
+const parseSampleRate = (raw: string | undefined, fallback: number): number => {
+  if (!raw) {
+    return fallback;
+  }
+  const parsed = Number(raw);
+  return clampRate(parsed, fallback);
+};
+
+const sanitizeOptional = (value: string | undefined): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+};
+
 export const createEnv = (raw: Partial<Record<keyof RawEnv, unknown>>): AppEnv => {
   const result = schema.safeParse(raw);
 
@@ -61,6 +102,18 @@ export const createEnv = (raw: Partial<Record<keyof RawEnv, unknown>>): AppEnv =
     FOUNDATION_CSP_NONCE: result.data.VITE_FOUNDATION_CSP_NONCE.trim(),
     FOUNDATION_TRUSTED_TYPES_POLICY: result.data.VITE_FOUNDATION_TRUSTED_TYPES_POLICY.trim(),
     FOUNDATION_PGCRYPTO_KEY: result.data.VITE_FOUNDATION_PGCRYPTO_KEY.trim(),
+    SENTRY_DSN: sanitizeOptional(result.data.VITE_SENTRY_DSN),
+    SENTRY_ENVIRONMENT: result.data.VITE_SENTRY_ENVIRONMENT,
+    SENTRY_RELEASE: sanitizeOptional(result.data.VITE_SENTRY_RELEASE),
+    SENTRY_TRACES_SAMPLE_RATE: parseSampleRate(result.data.VITE_SENTRY_TRACES_SAMPLE_RATE, 0.2),
+    SENTRY_REPLAYS_SESSION_SAMPLE_RATE: parseSampleRate(
+      result.data.VITE_SENTRY_REPLAYS_SESSION_SAMPLE_RATE,
+      0,
+    ),
+    SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE: parseSampleRate(
+      result.data.VITE_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE,
+      1,
+    ),
   };
 };
 

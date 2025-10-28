@@ -16,7 +16,13 @@ export default defineConfig({
     coverage: {
       reporter: ['text', 'lcov'],
       provider: 'v8',
-      reportsDirectory: './coverage'
+      reportsDirectory: './coverage',
+      thresholds: {
+        statements: 0.85,
+        branches: 0.85,
+        functions: 0.85,
+        lines: 0.85,
+      },
     },
     alias: {
       '@app': path.resolve(__dirname, './src/app'),

@@ -161,12 +161,12 @@
 
 ### Segurança e conformidade
 
-- [ ] T080 [P] [FOUND] Configurar Sentry no backend (DSN, sampling, PII scrubbing)
-- [ ] T081 [P] [FOUND] Configurar Sentry no frontend (SDK init em `app/providers/telemetry.tsx`)
-- [ ] T082 [P] [FOUND] Habilitar `django-prometheus` (middleware, endpoint `/metrics`, scrape notes)
-- [ ] T083 [P] [FOUND] Configurar `structlog` JSON com redatores de PII
-- [ ] T084 [P] [FOUND] Gate de cobertura: Vitest + Python coverage ≥ 85% (releases fail-closed)
-- [ ] T085 [P] [FOUND] Gate de complexidade: ESLint `complexity <= 10` + `radon cc <= 10`
+- [X] T080 [P] [FOUND] Configurar Sentry no backend (DSN, sampling, PII scrubbing)
+- [X] T081 [P] [FOUND] Configurar Sentry no frontend (SDK init em `app/providers/telemetry.tsx`)
+- [X] T082 [P] [FOUND] Habilitar `django-prometheus` (middleware, endpoint `/metrics`, scrape notes)
+- [X] T083 [P] [FOUND] Configurar `structlog` JSON com redatores de PII
+- [X] T084 [P] [FOUND] Gate de cobertura: Vitest + Python coverage ≥ 85% (releases fail-closed)
+- [X] T085 [P] [FOUND] Gate de complexidade: ESLint `complexity <= 10` + `radon cc <= 10`
 - [ ] T086 [P] [FOUND] SAST (Semgrep) com política de severidade (releases fail-closed)
 - [ ] T087 [P] [FOUND] DAST (OWASP ZAP baseline) contra stack local (releases fail-closed)
 - [ ] T088 [P] [FOUND] SCA: pnpm audit + Poetry safety/pip-audit + SBOM validate (fail para High/Critical)

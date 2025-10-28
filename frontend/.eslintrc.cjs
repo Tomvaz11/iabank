@@ -47,6 +47,12 @@ module.exports = {
         varsIgnorePattern: '^_'
       }
     ],
+    complexity: [
+      'error',
+      {
+        max: 10
+      }
+    ],
     'fsd-boundaries/enforce-layer-boundaries': 'error',
     'fsd-boundaries/no-zustand-outside-store': 'error'
   },
@@ -54,6 +60,7 @@ module.exports = {
     {
       files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
       rules: {
+        complexity: 'off',
         'fsd-boundaries/enforce-layer-boundaries': 'off',
         'fsd-boundaries/no-zustand-outside-store': 'off'
       }

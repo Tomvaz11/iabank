@@ -1,0 +1,78 @@
+[
+  {
+    "path": "backend/apps/foundation/api/views.py",
+    "name": "RegisterFeatureScaffoldView",
+    "max_complexity": 16
+  },
+  {
+    "path": "backend/apps/foundation/api/views.py",
+    "classname": "RegisterFeatureScaffoldView",
+    "name": "post",
+    "max_complexity": 15
+  },
+  {
+    "path": "backend/apps/foundation/api/views.py",
+    "name": "DesignSystemStoryViewSet",
+    "max_complexity": 19
+  },
+  {
+    "path": "backend/apps/foundation/api/views.py",
+    "classname": "DesignSystemStoryViewSet",
+    "name": "list",
+    "max_complexity": 18
+  },
+  {
+    "path": "backend/apps/foundation/api/views.py",
+    "name": "TenantThemeView",
+    "max_complexity": 14
+  },
+  {
+    "path": "backend/apps/foundation/api/views.py",
+    "classname": "TenantThemeView",
+    "name": "get",
+    "max_complexity": 13
+  },
+  {
+    "path": "backend/apps/foundation/api/views.py",
+    "name": "TenantSuccessMetricListView",
+    "max_complexity": 12
+  },
+  {
+    "path": "backend/apps/foundation/api/views.py",
+    "classname": "TenantSuccessMetricListView",
+    "name": "get",
+    "max_complexity": 11
+  },
+  {
+    "path": "backend/apps/foundation/middleware/security.py",
+    "name": "_apply_exceptions",
+    "max_complexity": 11
+  },
+  {
+    "path": "backend/apps/foundation/serializers/theme.py",
+    "name": "_validate_categories",
+    "max_complexity": 12
+  },
+  {
+    "path": "backend/apps/foundation/serializers/theme.py",
+    "name": "TenantThemeSerializer",
+    "max_complexity": 12
+  },
+  {
+    "path": "backend/apps/foundation/serializers/theme.py",
+    "classname": "TenantThemeSerializer",
+    "name": "to_representation",
+    "max_complexity": 11
+  },
+  {
+    "path": "backend/apps/tenancy/models/tenant_theme_token.py",
+    "classname": "TenantThemeToken",
+    "name": "clean",
+    "max_complexity": 17
+  },
+  {
+    "path": "backend/config/settings.py",
+    "name": "_parse_csp_exceptions",
+    "max_complexity": 11
+  }
+]

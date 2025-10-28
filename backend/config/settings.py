@@ -6,6 +6,9 @@ from pathlib import Path
 
 import structlog
 
+from backend.config.logging_utils import structlog_pii_sanitizer
+from backend.config.sentry import init_sentry
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-front-foundation'
@@ -113,6 +116,7 @@ LOGGING = {
                 structlog.processors.TimeStamper(fmt='iso'),
                 structlog.stdlib.add_logger_name,
                 structlog.stdlib.add_log_level,
+                structlog_pii_sanitizer,
             ],
         },
     },
@@ -140,6 +144,7 @@ structlog.configure(
         structlog.processors.TimeStamper(fmt='iso'),
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
+        structlog_pii_sanitizer,
         structlog.processors.StackInfoRenderer(),
         structlog.processors.format_exc_info,
         structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
@@ -213,3 +218,5 @@ FOUNDATION_CSP = {
     'font_src': _parse_csp_list(os.environ.get('FOUNDATION_CSP_FONT_SRC'), ["'self'"]),
     'exceptions': _parse_csp_exceptions(os.environ.get('FOUNDATION_CSP_EXCEPTIONS')),
 }
+
+SENTRY_ENABLED = init_sentry()

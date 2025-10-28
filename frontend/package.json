@@ -40,7 +40,8 @@
     "@opentelemetry/instrumentation": "0.52.0",
     "@opentelemetry/instrumentation-fetch": "0.52.0",
     "@opentelemetry/instrumentation-document-load": "0.52.0",
-    "@opentelemetry/instrumentation-user-interaction": "0.52.0"
+    "@opentelemetry/instrumentation-user-interaction": "0.52.0",
+    "@sentry/react": "^8.34.0"
   },
   "devDependencies": {
     "@storybook/addon-a11y": "^8.2.4",

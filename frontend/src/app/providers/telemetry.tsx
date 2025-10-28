@@ -19,6 +19,7 @@ import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
 
 import { env } from '../../shared/config/env';
+import { initializeSentry } from './sentry';
 
 export type TelemetryBootstrapConfig = {
   endpoint: string;
@@ -147,6 +148,15 @@ export const TelemetryProvider = ({ children }: Props) => {
   const clientRef = useRef<TelemetryClient | null>(null);
 
   useEffect(() => {
+    initializeSentry({
+      dsn: env.SENTRY_DSN,
+      environment: env.SENTRY_ENVIRONMENT,
+      release: env.SENTRY_RELEASE,
+      tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE,
+      replaysSessionSampleRate: env.SENTRY_REPLAYS_SESSION_SAMPLE_RATE,
+      replaysOnErrorSampleRate: env.SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE,
+    });
+
     clientRef.current = activeBootstrap({
       endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
       serviceName: env.OTEL_SERVICE_NAME,
