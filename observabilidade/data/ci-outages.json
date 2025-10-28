@@ -1,0 +1,20 @@
+[
+  {
+    "generatedAt": "2025-10-28T14:32:12.524Z",
+    "branch": "",
+    "runId": 0,
+    "commit": "",
+    "eventName": "workflow",
+    "outages": [
+      {
+        "tool": "chromatic",
+        "job": "visual-accessibility",
+        "status": "failure",
+        "outage": true,
+        "reason": "Padrões de indisponibilidade detectados nos logs.",
+        "evidence": "/tmp/chromatic.log"
+      }
+    ],
+    "failOpen": true
+  }
+]
