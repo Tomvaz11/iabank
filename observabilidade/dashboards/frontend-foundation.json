@@ -12,6 +12,75 @@
       ]
     },
     {
+      "type": "timeseries",
+      "title": "Saturação CPU Frontend (%)",
+      "targets": [
+        {
+          "expr": "max(foundation_frontend_cpu_percent)",
+          "legendFormat": "CPU"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "red", "value": 70 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Saturação Memória Frontend (%)",
+      "targets": [
+        {
+          "expr": "max(foundation_frontend_memory_percent)",
+          "legendFormat": "Memória"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 85 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Throughput API Foundation (req/s)",
+      "targets": [
+        {
+          "expr": "foundation_api_throughput",
+          "legendFormat": "Throughput"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "req/s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 40 },
+              { "color": "green", "value": 45 }
+            ]
+          }
+        }
+      }
+    },
+    {
       "type": "stat",
       "title": "SC-001 — média 7d (min)",
       "targets": [

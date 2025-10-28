@@ -1,0 +1,52 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: frontend-foundation-saturation
+  namespace: foundation
+  labels:
+    app: frontend-foundation
+    release: prometheus-operator
+spec:
+  groups:
+    - name: frontend-foundation.saturation
+      rules:
+        - record: foundation_frontend_cpu_percent
+          expr: |
+            100 *
+            sum(
+              rate(container_cpu_usage_seconds_total{namespace="foundation", pod=~"frontend-foundation-.*", container="frontend"}[5m])
+            )
+            /
+            sum(
+              kube_pod_container_resource_limits_cpu_cores{namespace="foundation", pod=~"frontend-foundation-.*", container="frontend"}
+            )
+        - record: foundation_frontend_memory_percent
+          expr: |
+            100 *
+            sum(
+              container_memory_usage_bytes{namespace="foundation", pod=~"frontend-foundation-.*", container="frontend"}
+            )
+            /
+            sum(
+              kube_pod_container_resource_limits_memory_bytes{namespace="foundation", pod=~"frontend-foundation-.*", container="frontend"}
+            )
+        - alert: FoundationFrontendSaturationWarning
+          expr: foundation_frontend_cpu_percent > 60
+          for: 10m
+          labels:
+            severity: warning
+            service: frontend-foundation
+          annotations:
+            summary: "CPU do frontend (%) acima do alvo (warning)"
+            description: "foundation_frontend_cpu_percent ultrapassou 60% por 10 minutos; monitore autoscaling."
+            runbook: "@SC-001 acionar fluxo de autoscaling (warning)."
+        - alert: FoundationFrontendSaturationCritical
+          expr: foundation_frontend_cpu_percent > 70
+          for: 5m
+          labels:
+            severity: critical
+            service: frontend-foundation
+          annotations:
+            summary: "CPU do frontend (%) acima do limite crítico"
+            description: "foundation_frontend_cpu_percent acima de 70% por 5 minutos — HPA deve ser acionado."
+            runbook: "@SC-001 acionar autoscaling imediato (critical)."

@@ -15,8 +15,13 @@ artifacts/
 .vscode/
 .DS_Store
 *.log
+.coverage
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
 .env
 .env.*
 .venv/
+venv/
+*.egg-info/
