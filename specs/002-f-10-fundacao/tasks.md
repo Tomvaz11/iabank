@@ -170,10 +170,10 @@
 - [X] T086 [P] [FOUND] SAST (Semgrep) com política de severidade (releases fail-closed)
 - [X] T087 [P] [FOUND] DAST (OWASP ZAP baseline) contra stack local (releases fail-closed)
 - [X] T088 [P] [FOUND] SCA: pnpm audit + Poetry safety/pip-audit + SBOM validate (fail para High/Critical)
-- [ ] T112 [FOUND] Popular job `security` no CI agregando SAST (Semgrep), DAST (ZAP), SCA (pnpm audit + safety/pip-audit) e SBOM CycloneDX (fail‑closed em release)
-- [ ] T102 [P] [FOUND] Adicionar `docs/security/threat-model-template.md` com estrutura STRIDE/LINDDUN oficial
-- [ ] T103 [FOUND] Versionar primeiro artefato `docs/security/threat-models/frontend-foundation/v1.0.md` preenchendo sessão inicial
-- [ ] T104 [FOUND] Incluir job `ci/threat-model-lint` em `.github/workflows/ci/frontend-foundation.yml` validando presença/atualização do threat model
+- [X] T112 [FOUND] Popular job `security` no CI agregando SAST (Semgrep), DAST (ZAP), SCA (pnpm audit + safety/pip-audit) e SBOM CycloneDX (fail‑closed em release)
+- [X] T102 [P] [FOUND] Adicionar `docs/security/threat-model-template.md` com estrutura STRIDE/LINDDUN oficial
+- [X] T103 [FOUND] Versionar primeiro artefato `docs/security/threat-models/frontend-foundation/v1.0.md` preenchendo sessão inicial
+- [X] T104 [FOUND] Incluir job `ci/threat-model-lint` em `.github/workflows/ci/frontend-foundation.yml` validando presença/atualização do threat model
 
 ### Observabilidade e métricas avançadas
 

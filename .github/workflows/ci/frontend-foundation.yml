@@ -231,6 +231,7 @@ jobs:
     if: always()
     env:
       CI_ENFORCE_FULL_SECURITY: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/') }}
+      CI_FAIL_OPEN: ${{ github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -268,38 +269,135 @@ jobs:
           poetry run python -m pip install --quiet semgrep==1.94.0 pip-audit==2.7.3 safety==3.3.4
 
       - name: SAST (Semgrep)
+        id: security_sast
+        continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' }}
         run: poetry run bash scripts/security/run_sast.sh
 
       - name: DAST (OWASP ZAP baseline)
+        id: security_dast
+        continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' }}
         env:
           ZAP_BASELINE_TARGET: http://127.0.0.1:8000/health
         run: poetry run bash scripts/security/run_dast.sh
 
       - name: Validação pgcrypto
+        id: security_pgcrypto
+        continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' }}
         run: poetry run python scripts/security/check_pgcrypto.py
 
       - name: pip-audit (Python SCA)
+        id: security_pip_audit
+        continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' }}
         run: poetry run bash scripts/security/run_python_sca.sh pip-audit
 
       - name: Safety (Python SCA)
+        id: security_safety
+        continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' }}
         run: poetry run bash scripts/security/run_python_sca.sh safety
 
       - name: pnpm audit (SCA)
+        id: security_pnpm_audit
+        continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' }}
         run: pnpm audit:frontend
 
       - name: Gerar SBOM CycloneDX
+        id: security_sbom_generate
+        continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' }}
         run: |
           mkdir -p sbom
           pnpm sbom:frontend
 
       - name: Validar SBOM
+        id: security_sbom_validate
+        continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' }}
         run: poetry run python scripts/security/validate_sbom.py sbom/frontend-foundation.json
 
       - name: Upload SBOM
         uses: actions/upload-artifact@v4
+        if: ${{ steps.security_sbom_generate.outcome == 'success' && steps.security_sbom_validate.outcome == 'success' }}
         with:
           name: sbom-frontend-foundation
           path: sbom/frontend-foundation.json
+
+      - name: Consolidar resultados de segurança
+        id: security_summary
+        if: always()
+        env:
+          CI_FAIL_OPEN: ${{ env.CI_FAIL_OPEN }}
+          CI_ENFORCE_FULL_SECURITY: ${{ env.CI_ENFORCE_FULL_SECURITY }}
+          SAST: ${{ steps.security_sast.outcome }}
+          DAST: ${{ steps.security_dast.outcome }}
+          PGCRYPTO: ${{ steps.security_pgcrypto.outcome }}
+          PIP_AUDIT: ${{ steps.security_pip_audit.outcome }}
+          SAFETY: ${{ steps.security_safety.outcome }}
+          PNPM_AUDIT: ${{ steps.security_pnpm_audit.outcome }}
+          SBOM_GENERATE: ${{ steps.security_sbom_generate.outcome }}
+          SBOM_VALIDATE: ${{ steps.security_sbom_validate.outcome }}
+        run: |
+          python <<'PY'
+import os
+summary = [
+    ("Semgrep (SAST)", os.environ.get("SAST", "skipped")),
+    ("OWASP ZAP (DAST)", os.environ.get("DAST", "skipped")),
+    ("pgcrypto validation", os.environ.get("PGCRYPTO", "skipped")),
+    ("pip-audit", os.environ.get("PIP_AUDIT", "skipped")),
+    ("Safety", os.environ.get("SAFETY", "skipped")),
+    ("pnpm audit", os.environ.get("PNPM_AUDIT", "skipped")),
+    ("SBOM generate", os.environ.get("SBOM_GENERATE", "skipped")),
+    ("SBOM validate", os.environ.get("SBOM_VALIDATE", "skipped")),
+]
+
+def icon(status: str) -> str:
+    status = status.lower()
+    if status == "success":
+        return "✅"
+    if status == "skipped":
+        return "⚪"
+    if status == "cancelled":
+        return "⏹️"
+    return "❌"
+
+lines = ["| Check | Status |", "|-------|--------|"]
+failures = []
+for name, status in summary:
+    icon_ = icon(status)
+    lines.append(f"| {name} | {icon_} {status} |")
+    if status not in {"success", "skipped"}:
+        failures.append(name)
+
+with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handler:
+    handler.write("### Resumo dos checks de segurança\\n")
+    handler.write("\\n".join(lines))
+    handler.write("\\n")
+    if failures:
+        handler.write("\\nChecks com falha: " + ", ".join(failures) + "\\n")
+
+require_fail_closed = os.environ.get("CI_ENFORCE_FULL_SECURITY", "").lower() == "true"
+if require_fail_closed and failures:
+    print("Falhas de segurança detectadas em modo fail-closed:", ", ".join(failures))
+    raise SystemExit(1)
+
+if failures:
+    print("Falhas de segurança detectadas (modo fail-open). Consulte o resumo para detalhes.")
+PY
+
+  threat-model-lint:
+    name: Threat Model Lint
+    runs-on: ubuntu-latest
+    needs: security
+    env:
+      THREAT_MODEL_RELEASE: v1.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Validar threat model
+        run: python scripts/security/threat_model_lint.py --release "${THREAT_MODEL_RELEASE}"
 
   ci-outage-guard:
     name: CI Outage Guard
