@@ -1,0 +1,7 @@
+# Diretórios gerados ou externos que não devem ser escaneados.
+node_modules/
+frontend/storybook-static/
+scripts/dist/
+documentacao_oficial_spec-kit/
+.venv/
+__pycache__/

@@ -29,7 +29,7 @@
     "pact:verify": "pnpm exec vitest run tests/state/query-cache.pact.ts --root frontend",
     "contracts:verify": "pnpm openapi && pnpm pact:verify",
     "sbom:frontend": "pnpm --filter @iabank/frontend-foundation exec cyclonedx-npm --output-file sbom/frontend-foundation.json --output-format json --append-dir",
-    "audit:frontend": "pnpm --filter @iabank/frontend-foundation audit --prod --json",
+    "audit:frontend": "pnpm --filter @iabank/frontend-foundation audit --prod --audit-level=high --json",
     "perf:smoke": "pnpm k6 run tests/performance/frontend-smoke.js",
     "perf:smoke:ci": "pnpm k6 run --summary-export=artifacts/k6-smoke.json tests/performance/frontend-smoke.js",
     "finops:report": "pnpm exec tsc -p tsconfig.scripts.json && node scripts/dist/finops/foundation-costs.js",

@@ -1,0 +1,10 @@
+config:
+  # Políticas oficiais do Semgrep alinhadas com OWASP e OWASP Top 10.
+  - p/owasp-top-ten
+  # Auditar boas práticas de segurança em múltiplas linguagens (TS/Python).
+  - p/security-audit
+  # Detecção de segredos acidentais no código.
+  - p/secrets
+  # Regras baseadas em frameworks front/back suportados no monorepo.
+  - p/python
+  - p/react

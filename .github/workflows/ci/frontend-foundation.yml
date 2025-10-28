@@ -229,6 +229,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: contracts
     if: always()
+    env:
+      CI_ENFORCE_FULL_SECURITY: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -253,17 +255,34 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Instalar dependências Python de segurança
-        run: pip install --upgrade pip && pip install -r requirements-dev.txt bandit
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install poetry==2.2.1
 
-      - name: SAST (Bandit)
-        run: scripts/security/run_sast.sh
+      - name: Install Python dependencies
+        run: poetry install --with dev
 
-      - name: DAST/Segurança dinâmica
-        run: scripts/security/run_dast.sh
+      - name: Instalar ferramentas de segurança
+        run: |
+          poetry run python -m pip install --quiet semgrep==1.94.0 pip-audit==2.7.3 safety==3.3.4
+
+      - name: SAST (Semgrep)
+        run: poetry run bash scripts/security/run_sast.sh
+
+      - name: DAST (OWASP ZAP baseline)
+        env:
+          ZAP_BASELINE_TARGET: http://127.0.0.1:8000/health
+        run: poetry run bash scripts/security/run_dast.sh
 
       - name: Validação pgcrypto
-        run: python scripts/security/check_pgcrypto.py
+        run: poetry run python scripts/security/check_pgcrypto.py
+
+      - name: pip-audit (Python SCA)
+        run: poetry run bash scripts/security/run_python_sca.sh pip-audit
+
+      - name: Safety (Python SCA)
+        run: poetry run bash scripts/security/run_python_sca.sh safety
 
       - name: pnpm audit (SCA)
         run: pnpm audit:frontend
@@ -272,6 +291,9 @@ jobs:
         run: |
           mkdir -p sbom
           pnpm sbom:frontend
+
+      - name: Validar SBOM
+        run: poetry run python scripts/security/validate_sbom.py sbom/frontend-foundation.json
 
       - name: Upload SBOM
         uses: actions/upload-artifact@v4

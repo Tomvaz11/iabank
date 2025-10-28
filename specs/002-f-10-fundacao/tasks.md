@@ -167,9 +167,9 @@
 - [X] T083 [P] [FOUND] Configurar `structlog` JSON com redatores de PII
 - [X] T084 [P] [FOUND] Gate de cobertura: Vitest + Python coverage ≥ 85% (releases fail-closed)
 - [X] T085 [P] [FOUND] Gate de complexidade: ESLint `complexity <= 10` + `radon cc <= 10`
-- [ ] T086 [P] [FOUND] SAST (Semgrep) com política de severidade (releases fail-closed)
-- [ ] T087 [P] [FOUND] DAST (OWASP ZAP baseline) contra stack local (releases fail-closed)
-- [ ] T088 [P] [FOUND] SCA: pnpm audit + Poetry safety/pip-audit + SBOM validate (fail para High/Critical)
+- [X] T086 [P] [FOUND] SAST (Semgrep) com política de severidade (releases fail-closed)
+- [X] T087 [P] [FOUND] DAST (OWASP ZAP baseline) contra stack local (releases fail-closed)
+- [X] T088 [P] [FOUND] SCA: pnpm audit + Poetry safety/pip-audit + SBOM validate (fail para High/Critical)
 - [ ] T112 [FOUND] Popular job `security` no CI agregando SAST (Semgrep), DAST (ZAP), SCA (pnpm audit + safety/pip-audit) e SBOM CycloneDX (fail‑closed em release)
 - [ ] T102 [P] [FOUND] Adicionar `docs/security/threat-model-template.md` com estrutura STRIDE/LINDDUN oficial
 - [ ] T103 [FOUND] Versionar primeiro artefato `docs/security/threat-models/frontend-foundation/v1.0.md` preenchendo sessão inicial
