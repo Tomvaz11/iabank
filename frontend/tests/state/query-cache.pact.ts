@@ -12,7 +12,7 @@ import { env } from '../../src/shared/config/env';
 const TENANT_ID = 'tenant-alfa';
 const PACT_DIR = path.resolve(__dirname, '../../pacts');
 
-describe('TanStack Query cache governance', () => {
+describe('@SC-001 @SC-003 TanStack Query cache governance', () => {
   const provider = new PactV3({
     consumer: 'FrontendFoundationQueryCache',
     provider: 'IABankFoundationAPI',

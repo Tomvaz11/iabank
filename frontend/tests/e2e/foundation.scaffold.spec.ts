@@ -8,7 +8,7 @@ const PII_PATTERNS = [
 
 const MAX_DURATION_MS = 5 * 60 * 1000;
 
-test.describe('Fluxo E2E de scaffolding multi-tenant', () => {
+test.describe('@SC-001 @SC-005 Fluxo E2E de scaffolding multi-tenant', () => {
   test('encaminha roteamento multi-tenant sem expor PII', async ({ page }) => {
     const requestedUrls: string[] = [];
     page.on('request', (request) => {

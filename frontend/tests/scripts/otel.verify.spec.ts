@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { verifyTelemetry } from '../../scripts/otel/verify';
 
-describe('foundation:otel verify CLI', () => {
+describe('@SC-005 foundation:otel verify CLI', () => {
   it('gera trace com baggage e aplica mascaramento de PII', async () => {
     const report = await verifyTelemetry({
       tenantId: 'tenant-alfa',

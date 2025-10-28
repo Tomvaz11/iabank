@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { applyNonceToHtml, buildDevCspHeader } from '../vite.csp.middleware';
 
-describe('applyNonceToHtml', () => {
+describe('@SC-005 applyNonceToHtml', () => {
   it('injeta o atributo nonce nas tags de script sem duplicar', () => {
     const html = `<html><body><script type="module" src="/src/main.tsx"></script></body></html>`;
     const transformed = applyNonceToHtml(html, 'nonce-123');
@@ -19,7 +19,7 @@ describe('applyNonceToHtml', () => {
   });
 });
 
-describe('buildDevCspHeader', () => {
+describe('@SC-005 buildDevCspHeader', () => {
   it('produz diretivas esperadas com nonce e Trusted Types', () => {
     const header = buildDevCspHeader({
       nonce: 'nonce-123',

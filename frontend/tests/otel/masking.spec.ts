@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-describe('sanitizeTelemetryAttributes', () => {
+describe('@SC-005 sanitizeTelemetryAttributes', () => {
   it('mascara PII mantendo atributos em allowlist', async () => {
     const module = (await import('../../src/shared/lib/telemetry/masking')) as Record<
       string,
@@ -58,4 +58,3 @@ describe('sanitizeTelemetryAttributes', () => {
     expect(sanitized.suspicious).toBe('[PII]');
   });
 });
-

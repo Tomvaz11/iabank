@@ -63,7 +63,114 @@
       "targets": [
         { "expr": "chromatic_coverage_percent{critical=\"true\"}", "legendFormat": "critical" }
       ],
-      "fieldConfig": { "defaults": { "min": 0, "max": 100 } }
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 90 },
+              { "color": "green", "value": 95 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SC-003 — Contratos aprovados (%)",
+      "targets": [
+        {
+          "expr": "foundation_success_metric_ratio{metric_code=\"SC-003\",window=\"30d\"} * 100",
+          "legendFormat": "30d"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 95 },
+              { "color": "green", "value": 100 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SC-004 — Conformidade WCAG AA (%)",
+      "targets": [
+        {
+          "expr": "foundation_wcag_compliance_ratio{window=\"30d\"} * 100",
+          "legendFormat": "30d"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 97 },
+              { "color": "green", "value": 98 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SC-005 — Incidentes PII (30d)",
+      "targets": [
+        {
+          "expr": "increase(foundation_pii_violation_incidents_total[30d])",
+          "legendFormat": "30d"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "gauge",
+      "title": "Error Budget Consumido (%)",
+      "description": "Budget mensal de 5% para regressões; pausar deploys ao atingir 80%.",
+      "targets": [
+        {
+          "expr": "foundation_error_budget_consumed_percent{window=\"30d\"}",
+          "legendFormat": "30d"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        }
+      }
     },
     {
       "type": "table",

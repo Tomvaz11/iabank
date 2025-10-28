@@ -20,6 +20,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validar tags @SC-00x no PR
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          PR_TITLE=$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")
+          PR_BODY=$(jq -r '.pull_request.body // \"\"' "$GITHUB_EVENT_PATH")
+          if ! printf '%s\n%s\n' "$PR_TITLE" "$PR_BODY" | grep -Eq '@SC-00[1-5]'; then
+            echo 'PR precisa mencionar pelo menos uma tag @SC-00x (SC-001..SC-005).'
+            exit 1
+          fi
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v2
         with:

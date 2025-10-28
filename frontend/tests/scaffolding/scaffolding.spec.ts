@@ -35,7 +35,7 @@ const createTempWorkspace = async () => {
   return tempDir;
 };
 
-describe('CLI foundation:scaffold', () => {
+describe('@SC-001 @SC-003 CLI foundation:scaffold', () => {
   let workspaceRoot: string;
 
   beforeEach(async () => {

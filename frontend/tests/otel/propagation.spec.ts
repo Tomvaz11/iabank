@@ -297,7 +297,7 @@ vi.mock('../../src/shared/config/env', () => ({
   },
 }));
 
-describe('OTEL client propagation', () => {
+describe('@SC-005 OTEL client propagation', () => {
   beforeEach(() => {
     vi.resetModules();
     registerInstrumentationsMock.mockClear();

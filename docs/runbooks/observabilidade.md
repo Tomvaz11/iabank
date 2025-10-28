@@ -2,6 +2,8 @@
 
 Executa o **ADR-012** alinhado ao Artigo VII da Constituição.
 
+> Diretórios em português (`observabilidade/`) armazenam dashboards versionados; scripts de utilidade continuam em `scripts/observability/` (nome legado em inglês).
+
 ## Verificações Diárias
 1. **Logs estruturados**
    - Inspecione amostras no stack ELK/Sentry para confirmar formato JSON e ausência de PII.

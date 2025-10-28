@@ -35,7 +35,7 @@ const createViolation = (
     disposition: overrides.disposition ?? 'report',
   }) as SecurityPolicyViolationEvent;
 
-describe('CSP e Trusted Types', () => {
+describe('@SC-005 CSP e Trusted Types', () => {
   beforeEach(() => {
     vi.resetModules();
     delete (globalThis as unknown as { trustedTypes?: unknown }).trustedTypes;
@@ -143,4 +143,3 @@ describe('CSP e Trusted Types', () => {
     expect(enforcedViolations[0]?.violatedDirective).toBe('trusted-types');
   });
 });
-

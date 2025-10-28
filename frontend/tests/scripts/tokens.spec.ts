@@ -28,7 +28,7 @@ const SAMPLE_RESPONSE: TenantThemeResponse = {
   },
 };
 
-describe('foundation:tokens script', () => {
+describe('@SC-002 foundation:tokens script', () => {
   let tempDir: string;
 
   beforeEach(() => {

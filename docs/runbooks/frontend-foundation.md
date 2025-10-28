@@ -21,6 +21,15 @@ Pré-requisitos
 - Acesso a observabilidade e Sentry.
 - Permissões de deploy via Argo CD.
 
+Evidências de Rollout & Gates
+- Cada release deve criar `docs/runbooks/evidences/frontend-foundation/<release>/README.md` com data, responsáveis e link para o PR. Armazene no mesmo diretório os artefatos exportados (CSV/JSON/HTML) mencionados abaixo.
+- `SC-001`: exporte mensalmente o CSV do painel “SC-001 — Lead time p95 (h)” em `observabilidade/dashboards/frontend-foundation.json` (menu Share → Export → CSV) e anexe o artefato `scaffold-manifest.json` gerado pelo job de scaffolding (contém tempo total e slices processados).
+- `SC-002`: faça upload do resumo `chromatic-output.json` (disponível em `.chromatic/report.json`) e de uma captura do painel “SC-002 — Cobertura visual Chromatic (%)`. A evidência deve mostrar cobertura ≥ 95% para os tenants críticos.
+- `SC-003`: salve o artefato `contracts/diff-report.json` gerado pelo job `contracts` e um print do painel “SC-003 — Contratos aprovados (%)”. Caso haja exceções aprovadas (`@sc-maintenance`), documente a justificativa no README.
+- `SC-004`: exporte o relatório HTML do Lighthouse (job `performance`) e o CSV do painel “SC-004 — Conformidade WCAG AA (%)”. Inclua logs do `pnpm storybook:test --with-axe` quando houver correções de acessibilidade.
+- `SC-005`: arquive o resultado do comando `python scripts/observability/check_structlog.py <log>` (aplicado nos logs do deploy) e registre captura do painel “SC-005 — Incidentes PII (30d)”. Confirme também a ausência de sinais no painel “Error Budget Consumido (%)”.
+- Error budget: se o painel atingir ≥ 80%, abra incidente no template `docs/runbooks/incident-response.md`, pause deploys e anexe no README as ações de mitigação planejadas.
+
 Ativação de Flags por Tenant
 1) Validar pipelines verdes para a PR (lint, test, contracts, visual-accessibility, performance, security, SBOM).
 2) Habilitar `foundation.fsd` para um tenant piloto (canary) em 5–10% dos usuários.

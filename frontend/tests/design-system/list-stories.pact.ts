@@ -8,7 +8,7 @@ import { env } from '../../src/shared/config/env';
 const TENANT_ID = 'tenant-alfa';
 const PACT_DIR = path.resolve(__dirname, '../../pacts');
 
-describe('Design system stories API contract', () => {
+describe('@SC-002 @SC-004 Design system stories API contract', () => {
   const provider = new PactV3({
     consumer: 'FrontendFoundationDesignSystem',
     provider: 'IABankFoundationAPI',

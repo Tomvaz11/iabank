@@ -13,7 +13,8 @@ Decisão
 
 Consequências
 - O repositório terá `frontend/lighthouse.config.mjs` com budgets e `tests/performance/frontend-smoke.js` para k6.
-- Devemos manter dashboards com distribuição de LCP/TTI/CLS e histórico por tenant (ver observabilidade/dashboards/frontend-foundation.json).
+- Devemos manter dashboards com distribuição de LCP/TTI/CLS, métricas SC-001..SC-005 e acompanhamento do error budget mensal no arquivo `observabilidade/dashboards/frontend-foundation.json`.
+- Scripts auxiliares para inspeção de logs e mascaramento permanecem em `scripts/observability/` (nomenclatura legada em inglês, sem renomear diretórios).
 - Mudanças de budgets exigem atualização deste ADR e consenso do Frontend Guild + SRE.
 
 Referências

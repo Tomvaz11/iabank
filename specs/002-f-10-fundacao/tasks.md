@@ -150,10 +150,10 @@
 
 ### Runbooks e operações
 
-- [ ] T061 [FOUND] Dashboard SC-001..SC-005 (arquivo: `observabilidade/dashboards/frontend-foundation.json`), incluindo painel de Error Budget (5% mensal; alerta/pausa ao atingir 80%)
-- [ ] T062 [FOUND] Atualizar runbook com evidências de rollout/gates (arquivo: `docs/runbooks/frontend-foundation.md`)
-- [ ] T113 [FOUND] Harmonizar referências “observability/” vs “observabilidade/” em documentos legados (ex.: `docs/adr/adr-perf-front.md:16`, instruções que citam `scripts/observability/check_structlog.py`) sem renomear diretórios/arquivos existentes
-- [ ] T063 [FOUND] Garantir tags `@SC-00x` em testes e PRs (arquivos: `frontend/tests/**/*`, `.github/workflows/ci/frontend-foundation.yml`)
+- [X] T061 [FOUND] Dashboard SC-001..SC-005 (arquivo: `observabilidade/dashboards/frontend-foundation.json`), incluindo painel de Error Budget (5% mensal; alerta/pausa ao atingir 80%)
+- [X] T062 [FOUND] Atualizar runbook com evidências de rollout/gates (arquivo: `docs/runbooks/frontend-foundation.md`)
+- [X] T113 [FOUND] Harmonizar referências “observability/” vs “observabilidade/” em documentos legados (ex.: `docs/adr/adr-perf-front.md:16`, instruções que citam `scripts/observability/check_structlog.py`) sem renomear diretórios/arquivos existentes
+- [X] T063 [FOUND] Garantir tags `@SC-00x` em testes e PRs (arquivos: `frontend/tests/**/*`, `.github/workflows/ci/frontend-foundation.yml`)
 - [ ] T100 [FOUND] Criar `scripts/finops/foundation-costs.ts` coletando uso Chromatic/Lighthouse/pipelines e integrando com `observabilidade/dashboards/frontend-foundation.json` + runbook
 - [ ] T101 [FOUND] Implementar `scripts/ci/handle-outage.ts` e integrar job `ci-outage-guard` para aplicar label `ci-outage`, registrar justificativa e emitir evento OTEL
 - [ ] T105 [P] [FOUND] Registrar ADR `docs/adr/adr-perf-front.md` formalizando uso conjunto de Lighthouse+k6
