@@ -59,9 +59,11 @@ Throughput & Saturação (NFR-007)
 - Validar semanalmente relatórios do k6 smoke; arquivar evidências no repositório de observabilidade.
 
 FinOps / Custos (NFR-005)
-- Executar diariamente `pnpm ts-node scripts/finops/foundation-costs.ts` (ou job CI programado) para coletar custos de Chromatic, Lighthouse e pipelines, com tagging `tenant`/`feature`.
-- Alertas automáticos em 80% e 100% do orçamento mensal notificam Frontend Foundation Guild e FinOps chapter; registrar ações corretivas no runbook.
-- Avaliar trims de snapshots, paralelização e caching quando o consumo exceder 80%; documentar decisões em "Notas FinOps".
+- Executar diariamente `pnpm finops:report` (ou job CI programado) para gerar `observabilidade/data/foundation-costs.json` e `observabilidade/data/foundation-costs.prom` com os custos de Chromatic, Lighthouse e pipelines, agrupados por tenant/feature.
+- Monitorar o painel “FinOps — Consumo mensal (%)” em `observabilidade/dashboards/frontend-foundation.json`; ao alcançar 80% do orçamento, abrir follow-up no capítulo de FinOps e documentar ações.
+- Quando o script acusar alerta `Custo ... consumiu >= 80%`, registrar justificativa no PR em andamento ou no runbook (secção "Notas FinOps") e ajustar estratégia (reduzir snapshots, reprogramar execuções, cachear assets).
+- Orçamento estourado (≥100%) deve disparar incidente: congelar deploys, abrir ticket `@SC-001` e envolver FinOps chapter para revisão do budget.
+- O script aceita fontes reais via variáveis `FOUNDATION_FINOPS_*_SOURCE`; na ausência, utiliza fixtures de exemplo em `scripts/finops/fixtures/`.
 
 CSP e Trusted Types
 - Report‑Only por 30 dias: cabeçalho `Content-Security-Policy-Report-Only` com `script-src 'strict-dynamic' 'nonce-{RANDOM}'`; `require-trusted-types-for 'script'; trusted-types foundation-ui`.

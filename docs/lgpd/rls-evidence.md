@@ -1,26 +1,74 @@
 # Evidências LGPD — RLS e PII (Frontend Foundation)
 
-Objetivo
-- Registrar evidências de isolamento multi-tenant (RLS) e proteção de PII conforme Art. XIII e ADR-010.
+Este playbook garante conformidade com Art. XIII (LGPD) e ADR-010, mantendo evidências rastreáveis de isolamento multi-tenant (RLS) e proteção de dados pessoais.
 
-Checklist de Verificação
-- [ ] Políticas RLS ativas nas tabelas/view expostas ao frontend (CREATE POLICY + ENABLE RLS). 
-- [ ] Managers aplicam `tenant_id` automaticamente em consultas.
-- [ ] Testes automatizados de isolamento (ex.: `backend/apps/tenancy/tests/test_rls_enforcement.py`) passam.
-- [ ] Campos sensíveis usam `pgcrypto` e não são retornados ao frontend (somente versões mascaradas).
-- [ ] Telemetria/Logs não contêm PII (mascaramento aplicado no collector OTEL).
- - [ ] Baseline de PII validada: CPF, CNPJ, email, telefone, endereço, nome completo, data de nascimento, documento (RG/Passaporte), geolocalização precisa, quaisquer IDs de cliente.
+## Checklist Obrigatória (release)
 
-Scripts/Procedimentos
-- Executar suite de testes de RLS: `pytest backend/apps/tenancy/tests/test_rls_enforcement.py -q`.
-- Validar criptografia `pgcrypto` via migrações e queries de inspeção.
-- Verificar masking no collector OTEL: checar atributos de spans/logs para ausência de PII.
- - Executar scanner de PII (regex mínimas: CPF, email, telefone) sobre logs de desenvolvimento e payloads de telemetria exportados.
+- [ ] Políticas RLS habilitadas (`ENABLE ROW LEVEL SECURITY`) e `CREATE POLICY` revisados para todas as tabelas/views expostas ao frontend (`backend/apps/tenancy/sql/rls_policies.sql`).
+- [ ] Managers/QuerySets injetam `tenant_id` automaticamente (ex.: `backend/apps/tenancy/managers.py`) e bloqueiam uso fora do contexto.
+- [ ] Suite `pytest backend/apps/tenancy/tests/test_rls_enforcement.py -q` executada com sucesso.
+- [ ] `TenantThemeToken` e demais colunas sensíveis protegidas por `pgcrypto` (`pgp_sym_encrypt/pgp_sym_decrypt`) e auditadas no migration diff.
+- [ ] Telemetria/Logs mascaram PII (verifique `scripts/observability/check_structlog.py` e spans OTEL).
+- [ ] Baseline PII verificada (CPF, CNPJ, email, telefone, endereço, nome completo, data de nascimento, documento oficial, geolocalização precisa, IDs de cliente).
+- [ ] `docs/runbooks/frontend-foundation.md` atualizado com evidências anexadas no release corrente.
 
-Evidências a Anexar
-- Capturas de tela dos dashboards de alertas de RLS/OTEL.
-- Logs de execução dos testes de RLS.
-- Excertos de schema/migrações com `CREATE POLICY`.
+## Fluxo de Execução
 
-Observações
-- Atualizar este documento a cada mudança relevante de schema/fluxo de dados.
+1. **Preparar ambiente**
+   ```bash
+   poetry install --with dev
+   pnpm install
+   ```
+
+2. **Validar RLS programaticamente**
+   ```bash
+   pytest backend/apps/tenancy/tests/test_rls_enforcement.py -q
+   ```
+   - Persistir o log de execução em `docs/runbooks/evidences/frontend-foundation/<release>/rls-tests.txt`.
+
+3. **Inspecionar políticas diretamente**
+   ```bash
+   psql $DATABASE_URL -f backend/apps/tenancy/sql/rls_policies.sql --set=ON_ERROR_STOP=1
+   ```
+   - Execute `\dRp+ <table>` para confirmar `policyname`, `using`, `with check`.
+
+4. **Auditar criptografia pgcrypto**
+   ```bash
+   psql $DATABASE_URL -c "select column_name, data_type from information_schema.columns where table_name = 'tenant_theme_token';"
+   psql $DATABASE_URL -c "select encryption_type from audit.pgcrypto_catalog where table='tenant_theme_token';"
+   ```
+
+5. **Scanner de PII**
+   ```bash
+   python scripts/observability/check_structlog.py logs/frontend-foundation.log \
+     --patterns cpf,email,phone,document --fail-on-match
+   ```
+   - Combine com export OTEL (`curl -X GET $OTEL_EXPORT_URL`) para verificar ausência de atributos proibidos.
+
+6. **Capturar evidências**
+   - Exportar painel “RLS Alerts” (`observabilidade/dashboards/frontend-foundation.json`) em CSV.
+   - Adicionar print do painel “SC-005 — Incidentes PII (30d)”.
+   - Guardar os comandos SQL/pytest acima (arquivo `.md` ou `.txt` no diretório de evidências).
+
+## Scripts Auxiliares
+
+| Script | Objetivo | Observações |
+|--------|----------|-------------|
+| `pytest backend/apps/tenancy/tests/test_rls_enforcement.py` | Valida isolamento de leitura/escrita e cabeçalho obrigatório `X-Tenant-Id`. | Falhas bloqueiam release. |
+| `scripts/observability/check_structlog.py` | Escaneia logs/JSON por padrões de PII. | Inclui regex pré-configuradas para CPF/CNPJ/email/phone. |
+| `pnpm finops:report` | (FinOps) Mantém métricas de uso de pipelines, útil para correlacionar custo vs. auditorias LGPD. | Gera `observabilidade/data/foundation-costs.json`. |
+
+## Evidências a versionar
+
+- Arquivo `docs/runbooks/evidences/frontend-foundation/<release>/README.md` com:
+  - Data/hora da verificação.
+  - Responsáveis e ambiente (staging/prod).
+  - Links para dashboards exportados (SC-005, RLS Alerts).
+  - Resultados dos comandos acima.
+- Artigos/prints adicionais (SQL, logs mascarados, OTEL trace sem PII).
+
+## Observações e Follow-up
+
+- Sempre que surgir novo campo com PII, ampliar o checklist e atualizar `scripts/observability/check_structlog.py`.
+- Qualquer exceção ao RLS deve ser registrada em ADR dedicado (linkar Art. XIII).
+- Este arquivo deve ser revisado a cada iteração relevante (migração de schema, novo tenant, alteração de contrato).

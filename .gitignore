@@ -9,6 +9,7 @@ playwright-report/
 test-results/
 .turbo/
 .vite/
+scripts/dist/
 .idea/
 .vscode/
 .DS_Store

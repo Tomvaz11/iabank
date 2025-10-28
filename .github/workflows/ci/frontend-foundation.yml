@@ -209,6 +209,7 @@ jobs:
     name: Security Checks
     runs-on: ubuntu-latest
     needs: contracts
+    if: always()
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -258,3 +259,47 @@ jobs:
         with:
           name: sbom-frontend-foundation
           path: sbom/frontend-foundation.json
+
+  ci-outage-guard:
+    name: CI Outage Guard
+    runs-on: ubuntu-latest
+    needs:
+      - visual-accessibility
+      - performance
+      - security
+    if: always()
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Compilar scripts TypeScript
+        run: pnpm exec tsc -p tsconfig.scripts.json
+
+      - name: Executar política de outage
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CI_OUTAGE_CHROMATIC_JOB_STATUS: ${{ needs.visual-accessibility.result }}
+          CI_OUTAGE_CHROMATIC_JOB_NAME: visual-accessibility
+          CI_OUTAGE_LIGHTHOUSE_JOB_STATUS: ${{ needs.performance.result }}
+          CI_OUTAGE_LIGHTHOUSE_JOB_NAME: performance
+          CI_OUTAGE_AXE_JOB_STATUS: ${{ needs.visual-accessibility.result }}
+          CI_OUTAGE_AXE_JOB_NAME: visual-accessibility
+          FOUNDATION_OTEL_OUTAGE_ENDPOINT: ${{ secrets.FOUNDATION_OTEL_OUTAGE_ENDPOINT }}
+          FOUNDATION_DEFAULT_TENANT: tenant-alfa
+        run: node scripts/dist/ci/handle-outage.js

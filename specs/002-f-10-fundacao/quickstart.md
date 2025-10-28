@@ -95,7 +95,8 @@ pnpm pact:publish
 - [ ] CSP e Trusted Types sem violações (modo report-only acompanhe logs).
 - [ ] `specs/002-f-10-fundacao/contracts/frontend-foundation.yaml` validado e consistente com `contracts/api.yaml` (quando aplicável).
 - [ ] `docs/runbooks/frontend-foundation.md` atualizado com resultados.
-- [ ] `pnpm ts-node scripts/finops/foundation-costs.ts` executado localmente para validar coleta de custos (Chromatic/Lighthouse/pipelines) e publicação no dashboard.
+- [ ] `pnpm finops:report` executado localmente para validar coleta de custos (Chromatic/Lighthouse/pipelines), geração de `observabilidade/data/foundation-costs.json` e atualização do painel FinOps.
+  - Sem integrações externas, utilize os fixtures em `scripts/finops/fixtures/` ou defina as variáveis `FOUNDATION_FINOPS_*_SOURCE`.
 - [ ] Métricas de throughput/saturação (k6 + dashboards) revisadas; se p95 ≥ 60%, alinhar com SRE antes do merge.
 - [ ] Threat modeling para o release atual revisado ou agendado, com artefato em `docs/security/threat-models/frontend-foundation/<release>.md`.
 

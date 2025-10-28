@@ -178,6 +178,49 @@
       "targets": [
         { "expr": "sum by (tenant) (increase(rls_policy_violations_total[24h]))", "legendFormat": "{{tenant}}" }
       ]
+    },
+    {
+      "type": "gauge",
+      "title": "FinOps — Consumo mensal (%)",
+      "targets": [
+        { "expr": "max(foundation_finops_budget_consumed_percent{tool=\"total\"})", "legendFormat": "total" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "FinOps — Custo por ferramenta",
+      "targets": [
+        {
+          "expr": "foundation_finops_cost_total{tool!=\"total\"}",
+          "legendFormat": "{{tool}}"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        }
+      }
     }
   ],
   "refresh": "30s",

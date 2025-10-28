@@ -1,0 +1,18 @@
+[
+  {
+    "tenant": "shared",
+    "feature": "ci-contracts",
+    "runs": 24,
+    "cost": 62.5,
+    "currency": "USD",
+    "timestamp": "2025-10-18T11:45:00Z"
+  },
+  {
+    "tenant": "shared",
+    "feature": "ci-visual-accessibility",
+    "runs": 12,
+    "cost": 41.75,
+    "currency": "USD",
+    "timestamp": "2025-10-18T11:45:00Z"
+  }
+]
