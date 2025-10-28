@@ -207,8 +207,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Instalar navegadores Playwright
+        run: pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps
+
       - name: Preparar artefatos de performance
-        run: mkdir -p artifacts
+        run: |
+          mkdir -p artifacts
+          mkdir -p artifacts/lighthouse
 
       - name: Executar k6 smoke
         run: pnpm perf:smoke:ci
@@ -218,11 +223,72 @@ jobs:
           FOUNDATION_PERF_VUS: 1
           FOUNDATION_PERF_DURATION: 10s
 
+      - name: Executar Playwright + Lighthouse budgets
+        env:
+          LIGHTHOUSE_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/lighthouse
+        run: pnpm perf:lighthouse
+
       - name: Publicar resultados k6
         uses: actions/upload-artifact@v4
         with:
           name: performance-k6-smoke
           path: artifacts/k6-smoke.json
+
+      - name: Publicar relatórios Lighthouse
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-lighthouse-budgets
+          path: |
+            artifacts/lighthouse
+            observabilidade/data/lighthouse-latest.json
+
+      - name: Resumo dos budgets Lighthouse
+        if: always()
+        run: |
+          node <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+
+const summaryPath = path.join(process.cwd(), 'artifacts', 'lighthouse', 'home.summary.json');
+if (!fs.existsSync(summaryPath)) {
+  console.log('Resumo Lighthouse não encontrado, nada a reportar.');
+  process.exit(0);
+}
+const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8'));
+
+const lines = [
+  '| Métrica | Valor | Limite | Status |',
+  '|---------|-------|--------|--------|',
+];
+
+const thresholds = summary.budgets;
+const metrics = summary.metrics;
+const checks = [
+  ['LCP (ms)', metrics.lcp, thresholds.lcp],
+  ['TTI (ms)', metrics.tti, thresholds.tti],
+  ['TBT (ms)', metrics.tbt, thresholds.tbt],
+  ['CLS', metrics.cls, thresholds.cls],
+];
+
+const statusIcon = (value, limit) => (value <= limit ? '✅' : '❌');
+
+checks.forEach(([label, value, limit]) => {
+  lines.push(`| ${label} | ${value.toFixed(2)} | ${limit} | ${statusIcon(value, limit)} |`);
+});
+
+const summaryContent = [
+  '### Lighthouse Budgets',
+  '',
+  `URL: ${summary.url}`,
+  '',
+  ...lines,
+  '',
+  `Relatório HTML: ${summary.reports.html}`,
+  `Relatório JSON: ${summary.reports.json}`,
+].join('\n');
+
+fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
+NODE
 
   security:
     name: Security Checks

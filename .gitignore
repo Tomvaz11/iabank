@@ -10,6 +10,7 @@ test-results/
 .turbo/
 .vite/
 scripts/dist/
+artifacts/
 .idea/
 .vscode/
 .DS_Store

@@ -32,6 +32,7 @@
     "audit:frontend": "pnpm --filter @iabank/frontend-foundation audit --prod --audit-level=high --json",
     "perf:smoke": "pnpm k6 run tests/performance/frontend-smoke.js",
     "perf:smoke:ci": "pnpm k6 run --summary-export=artifacts/k6-smoke.json tests/performance/frontend-smoke.js",
+    "perf:lighthouse": "pnpm --filter @iabank/frontend-foundation test:lighthouse",
     "finops:report": "pnpm exec tsc -p tsconfig.scripts.json && node scripts/dist/finops/foundation-costs.js",
     "ci:outage": "pnpm exec tsc -p tsconfig.scripts.json && node scripts/dist/ci/handle-outage.js"
   },

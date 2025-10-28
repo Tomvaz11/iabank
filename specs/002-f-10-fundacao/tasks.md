@@ -177,8 +177,8 @@
 
 ### Observabilidade e métricas avançadas
 
-- [ ] T089 [P] [FOUND] Playwright-Lighthouse com budgets (LCP ≤ 2.5s, TTI ≤ 3.0s) e gates no CI
-- [ ] T111 [FOUND] Popular job `performance` no CI integrando Playwright-Lighthouse com budgets (LCP ≤ 2.5s, TTI ≤ 3.0s) e publicar evidências no dashboard
+- [X] T089 [P] [FOUND] Playwright-Lighthouse com budgets (LCP ≤ 2.5s, TTI ≤ 3.0s) e gates no CI
+- [X] T111 [FOUND] Popular job `performance` no CI integrando Playwright-Lighthouse com budgets (LCP ≤ 2.5s, TTI ≤ 3.0s) e publicar evidências no dashboard
 - [ ] T107 [FOUND] Instrumentar métricas `foundation_frontend_cpu_percent`/`foundation_frontend_memory_percent` via sidecar Prometheus (`infra/argocd/frontend-foundation/`) e alerts HPA
 - [ ] T108 [FOUND] Publicar métrica `foundation_api_throughput` (k6 → OTEL) e automatizar alerta/ticket `@SC-001` (`tests/performance/frontend-smoke.js`, `scripts/observabilidade/alert-handler.ts`, dashboards)
 
