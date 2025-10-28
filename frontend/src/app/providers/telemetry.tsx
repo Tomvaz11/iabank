@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 import { trace, context, propagation } from '@opentelemetry/api';
+import type { Span } from '@opentelemetry/api';
 import { ZoneContextManager } from '@opentelemetry/context-zone';
 import {
   CompositePropagator,
@@ -36,7 +37,7 @@ const createInstrumentations = () => [
   new DocumentLoadInstrumentation(),
   new UserInteractionInstrumentation({
     eventNames: ['click', 'submit', 'keydown'],
-    shouldPreventSpanCreation: false,
+    shouldPreventSpanCreation: () => false,
   }),
 ];
 
@@ -59,10 +60,9 @@ export const bootstrapTelemetry = (
   const spanProcessor = new BatchSpanProcessor(exporter);
   provider.addSpanProcessor(spanProcessor);
 
-  const propagator = new CompositePropagator([
-    new W3CTraceContextPropagator(),
-    new W3CBaggagePropagator(),
-  ]);
+  const propagator = new CompositePropagator({
+    propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
+  });
 
   provider.register({
     contextManager: new ZoneContextManager(),
@@ -91,15 +91,7 @@ export const createInteractionTracer = ({
   featureSlug: string;
   interactionName: string;
 }) => {
-  return async (
-    operation: (
-      span: {
-        setAttributes: (attributes: Record<string, unknown>) => void;
-        addEvent: (name: string, attributes?: Record<string, unknown>) => void;
-        end: () => void;
-      },
-    ) => Promise<void> | void,
-  ) => {
+  return async (operation: (span: Span) => Promise<void> | void) => {
     const tracer = trace.getTracer(currentServiceName);
     const activeContext = context.active();
     const baggageValue = propagation.createBaggage({
@@ -107,7 +99,7 @@ export const createInteractionTracer = ({
       'feature.slug': { value: featureSlug },
       'interaction.name': { value: interactionName },
     });
-    const contextWithBaggage = context.setBaggage(activeContext, baggageValue);
+    const contextWithBaggage = propagation.setBaggage(activeContext, baggageValue);
 
     return context.with(contextWithBaggage, async () =>
       tracer.startActiveSpan(
@@ -120,7 +112,7 @@ export const createInteractionTracer = ({
           },
         },
         contextWithBaggage,
-        async (span) => {
+        async (span: Span) => {
           try {
             span.setAttributes({
               'app.tenant_id': tenantId,

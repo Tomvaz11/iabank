@@ -1,5 +1,27 @@
 import { env } from '../../shared/config/env';
 
+type TrustedTypesPolicy = {
+  name: string;
+  createHTML: (input: unknown) => string;
+  createScript: (input: unknown) => string;
+  createScriptURL: (input: unknown) => string;
+};
+
+type TrustedTypesPolicyOptions = {
+  createHTML?: (input: unknown) => string;
+  createScript?: (input: unknown) => string;
+  createScriptURL?: (input: unknown) => string;
+};
+
+type TrustedTypesApi = {
+  getPolicy?: (name: string) => TrustedTypesPolicy | null;
+  createPolicy?: (name: string, options: TrustedTypesPolicyOptions) => TrustedTypesPolicy;
+};
+
+type TrustedTypesAwareWindow = Window & {
+  trustedTypes?: TrustedTypesApi;
+};
+
 type Props = {
   children: React.ReactNode;
 };
@@ -9,9 +31,9 @@ type TrustedTypesDisposition = 'report-only' | 'enforce';
 const REPORT_ONLY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const TRUSTED_TYPES_DIRECTIVE = 'trusted-types';
 
-let cachedPolicy: TrustedTypePolicy | null = null;
+let cachedPolicy: TrustedTypesPolicy | null = null;
 
-const createPolicy = (): TrustedTypePolicy | null => {
+const createPolicy = (): TrustedTypesPolicy | null => {
   if (cachedPolicy) {
     return cachedPolicy;
   }
@@ -20,7 +42,7 @@ const createPolicy = (): TrustedTypePolicy | null => {
     return null;
   }
 
-  const trustedTypesApi = window.trustedTypes;
+  const trustedTypesApi = (window as TrustedTypesAwareWindow).trustedTypes;
   if (!trustedTypesApi) {
     return null;
   }
@@ -39,6 +61,10 @@ const createPolicy = (): TrustedTypePolicy | null => {
     return null;
   }
 
+  if (typeof trustedTypesApi.createPolicy !== 'function') {
+    return null;
+  }
+
   cachedPolicy = trustedTypesApi.createPolicy(policyName, {
     createHTML: (input) => String(input),
     createScript: (input) => String(input),
@@ -48,7 +74,7 @@ const createPolicy = (): TrustedTypePolicy | null => {
   return cachedPolicy;
 };
 
-export const ensureTrustedTypesPolicy = (): TrustedTypePolicy | null => {
+export const ensureTrustedTypesPolicy = (): TrustedTypesPolicy | null => {
   if (cachedPolicy) {
     return cachedPolicy;
   }

@@ -221,8 +221,22 @@ const setGlobalPropagator = vi.fn();
 class FakeCompositePropagator {
   propagators: unknown[];
 
-  constructor(propagators: unknown[]) {
-    this.propagators = propagators;
+  constructor(config: unknown) {
+    if (Array.isArray(config)) {
+      this.propagators = config;
+      return;
+    }
+
+    if (
+      config &&
+      typeof config === 'object' &&
+      Array.isArray((config as { propagators?: unknown[] }).propagators)
+    ) {
+      this.propagators = (config as { propagators: unknown[] }).propagators;
+      return;
+    }
+
+    this.propagators = [];
   }
 }
 
@@ -246,6 +260,7 @@ vi.mock(
     propagation: {
       setGlobalPropagator,
       createBaggage: createBaggageMock,
+      setBaggage: setBaggageMock,
     },
     diag: {
       setLogger: vi.fn(),
@@ -367,8 +382,8 @@ describe('OTEL client propagation', () => {
     const userInteractionConfig = createdUserInteractionInstrumentations[0]?.config ?? {};
     expect(userInteractionConfig).toMatchObject({
       eventNames: expect.arrayContaining(['click', 'submit', 'keydown']),
-      shouldPreventSpanCreation: false,
     });
+    expect(userInteractionConfig?.shouldPreventSpanCreation).toBeTypeOf('function');
 
     expect(setGlobalPropagator).toHaveBeenCalledTimes(1);
     const compositePropagatorInstance = setGlobalPropagator.mock.calls[0][0];

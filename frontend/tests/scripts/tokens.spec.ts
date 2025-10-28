@@ -47,7 +47,7 @@ describe('foundation:tokens script', () => {
       }),
     );
 
-    const result = await pullTenantTokens({
+    await pullTenantTokens({
       tenantId: SAMPLE_RESPONSE.tenantId,
       tenantAlias: 'tenant-alfa',
       endpoint: 'https://api.iabank.test',
@@ -108,7 +108,7 @@ describe('foundation:tokens script', () => {
     expect(tsContent).toContain("'button.primary.bg': '#1E3A8A'");
 
     const cssContent = readFileSync(cssPath, 'utf-8');
-    expect(cssContent).toContain('html[data-tenant=\"tenant-alfa\"]');
+    expect(cssContent).toContain('html[data-tenant="tenant-alfa"]');
     expect(cssContent).toContain('--color-brand-primary: #1E3A8A;');
     expect(cssContent).toContain('--button-primary-bg: #1E3A8A;');
   });

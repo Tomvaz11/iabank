@@ -17,7 +17,7 @@ describe('@SC-002 componente shared/ui/Button', () => {
 
     expect(button).toHaveAttribute('type', 'button');
     expect(button).toHaveAttribute('data-variant', 'primary');
-    expect(button.className).toContain('bg-component-button-primary');
+    expect(button).toHaveClass('bg-component-button-primary');
     expect(focusSpy).toHaveBeenCalledWith(button);
   });
 
@@ -30,9 +30,9 @@ describe('@SC-002 componente shared/ui/Button', () => {
 
     const button = screen.getByTestId('secondary');
     expect(button.dataset.variant).toBe('secondary');
-    expect(button.className).toContain('px-5');
-    expect(button.className).toContain('w-full');
-    expect(button.className).toContain('hover:text-brand-primary-foreground');
+    expect(button).toHaveClass('px-5');
+    expect(button).toHaveClass('w-full');
+    expect(button).toHaveClass('hover:text-brand-primary-foreground');
   });
 
   it('exibe spinner acessível e bloqueia interações durante carregamento', () => {

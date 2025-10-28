@@ -23,7 +23,11 @@ declare module '@storybook/react' {
 }
 
 declare module '@storybook/test' {
-  export const expect: any;
-  export const within: any;
-  export const userEvent: any;
+  import type { expect as vitestExpect } from 'vitest';
+  import type { within as testingLibraryWithin } from '@testing-library/react';
+  import type { userEvent as testingLibraryUserEvent } from '@testing-library/user-event';
+
+  export const expect: typeof vitestExpect;
+  export const within: typeof testingLibraryWithin;
+  export const userEvent: typeof testingLibraryUserEvent;
 }

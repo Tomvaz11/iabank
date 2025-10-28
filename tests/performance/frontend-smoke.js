@@ -51,6 +51,20 @@ const baseTags = Object.entries(featureRollout).reduce(
   },
 );
 
+const getHeaderValue = (headers, headerName) => {
+  const target = headerName.toLowerCase();
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() !== target) {
+      continue;
+    }
+    if (Array.isArray(value)) {
+      return value.join(',');
+    }
+    return value;
+  }
+  return undefined;
+};
+
 export const options = {
   scenarios: {
     smoke: {
@@ -89,11 +103,10 @@ export default function foundationSmoke() {
   check(response, {
     'status is 200': (res) => res.status === 200,
     'trace headers present': (res) =>
-      res.request.headers.traceparent !== undefined &&
-      res.request.headers.tracestate !== undefined,
+      getHeaderValue(res.request.headers, 'traceparent') !== undefined &&
+      getHeaderValue(res.request.headers, 'tracestate') !== undefined,
     'feature flags header propagated': (res) =>
-      (res.request.headers['X-Feature-Flags'] || res.request.headers['x-feature-flags']) ===
-      featureHeaders,
+      getHeaderValue(res.request.headers, 'X-Feature-Flags') === featureHeaders,
   });
 
   sleep(1);
