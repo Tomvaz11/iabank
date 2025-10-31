@@ -61,10 +61,6 @@ const createPolicy = (): TrustedTypesPolicy | null => {
     return null;
   }
 
-  if (typeof trustedTypesApi.createPolicy !== 'function') {
-    return null;
-  }
-
   cachedPolicy = trustedTypesApi.createPolicy(policyName, {
     createHTML: (input) => String(input),
     createScript: (input) => String(input),
@@ -81,7 +77,6 @@ export const ensureTrustedTypesPolicy = (): TrustedTypesPolicy | null => {
 
   return createPolicy();
 };
-
 
 if (typeof window !== 'undefined') {
   ensureTrustedTypesPolicy();

@@ -19,7 +19,7 @@ type SessionSlice = {
   user: {
     id: string;
     name: string;
-    roles: string[];
+    roles: ReadonlyArray<string>;
     email?: string;
   } | null;
   featureFlags: Record<string, boolean>;

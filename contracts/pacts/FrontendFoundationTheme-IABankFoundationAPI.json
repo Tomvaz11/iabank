@@ -7,9 +7,9 @@
       "description": "uma requisição para recuperar o tema corrente do tenant",
       "request": {
         "headers": {
-          "X-Tenant-Id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+          "X-Tenant-Id": "00000000-0000-0000-0000-000000000001",
           "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01",
-          "tracestate": "tenant-id=a1b2c3d4-e5f6-7890-1234-567890abcdef"
+          "tracestate": "tenant-id=00000000-0000-0000-0000-000000000001"
         },
         "matchingRules": {
           "$.header.traceparent": {
@@ -20,7 +20,7 @@
           }
         },
         "method": "GET",
-        "path": "/api/v1/tenants/a1b2c3d4-e5f6-7890-1234-567890abcdef/themes/current"
+        "path": "/api/v1/tenants/00000000-0000-0000-0000-000000000001/themes/current"
       },
       "response": {
         "body": {
@@ -34,7 +34,7 @@
             }
           },
           "generatedAt": "2025-01-01T12:00:00Z",
-          "tenantId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+          "tenantId": "00000000-0000-0000-0000-000000000001",
           "version": "1.2.3",
           "wcagReport": {
             "contrastRatio": 4.5,

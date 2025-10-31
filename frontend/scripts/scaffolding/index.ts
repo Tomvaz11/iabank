@@ -6,13 +6,16 @@ import { performance } from 'node:perf_hooks';
 import { pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 
-import { registerFeatureScaffold } from '../../src/shared/api/client';
+import type {
+  ApiError as ApiErrorConstructor,
+  RegisterFeatureScaffoldParams,
+} from '../../src/shared/api/client';
 import type { FeatureScaffoldRequest } from '../../src/shared/api/generated/models/FeatureScaffoldRequest';
 import { buildTemplateContext, createScaffoldTemplates, type ScaffoldSlice } from './templates';
 
 const require = createRequire(import.meta.url);
 
-type RegisterFeatureScaffoldFn = typeof registerFeatureScaffold;
+type RegisterFeatureScaffoldFn = (params: RegisterFeatureScaffoldParams) => Promise<unknown>;
 
 export type RunScaffoldingOptions = {
   featureSlug: string;
@@ -85,7 +88,11 @@ const writeTemplateFile = async (
   };
 };
 
-const buildManifest = (metadata: FileMetadata[], feature: string, tenantId: string): ManifestSchema => ({
+const buildManifest = (
+  metadata: FileMetadata[],
+  feature: string,
+  tenantId: string,
+): ManifestSchema => ({
   feature,
   tenantId,
   generatedAt: new Date().toISOString(),
@@ -111,6 +118,63 @@ const buildTraceContext = (tenantId: string): TraceContext => ({
   traceparent: `00-${randomHex(16)}-${randomHex(8)}-01`,
   tracestate: `tenant-id=${tenantId}`,
 });
+
+const isRecoverableNetworkError = (error: unknown): boolean => {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('fetch failed') ||
+    message.includes('ecconn') ||
+    message.includes('econn') ||
+    message.includes('connect')
+  );
+};
+
+const persistOfflineRegistration = async (
+  projectRoot: string,
+  payload: RegisterFeatureScaffoldParams,
+): Promise<string> => {
+  const offlineDir = path.join(projectRoot, '.foundation-offline');
+  await mkdir(offlineDir, { recursive: true });
+  const logPath = path.join(offlineDir, 'scaffold-registrations.jsonl');
+
+  const entry = JSON.stringify({
+    recordedAt: new Date().toISOString(),
+    tenantId: payload.tenantId,
+    idempotencyKey: payload.idempotencyKey,
+    traceContext: payload.traceContext,
+    featureSlug: payload.payload.featureSlug,
+    manifestPath: payload.payload.metadata?.manifestPath,
+    scReferences: payload.payload.scReferences,
+    durationMs: payload.payload.durationMs,
+  });
+
+  await fs.appendFile(logPath, `${entry}\n`, { encoding: 'utf-8' });
+
+  return logPath;
+};
+
+const ensureCliEnvDefaults = (): void => {
+  const defaults: Record<string, string> = {
+    VITE_API_BASE_URL: 'https://foundation-api.local',
+    VITE_TENANT_DEFAULT: 'tenant-default',
+    VITE_OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:4318',
+    VITE_OTEL_SERVICE_NAME: 'frontend-foundation-cli',
+    VITE_OTEL_RESOURCE_ATTRIBUTES: 'service.namespace=iabank,service.version=0.0.0',
+    VITE_FOUNDATION_CSP_NONCE: 'cli-nonce-fallback',
+    VITE_FOUNDATION_TRUSTED_TYPES_POLICY: 'foundation-ui',
+    VITE_FOUNDATION_PGCRYPTO_KEY: 'cli-pgcrypto-fallback',
+  };
+
+  for (const [key, value] of Object.entries(defaults)) {
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
+};
 
 const buildSlicesPayload = (files: FileMetadata[]): FeatureScaffoldRequest['slices'] =>
   SLICES_IN_ORDER.map((slice) => ({
@@ -198,13 +262,27 @@ export const runScaffoldingCommand = async ({
   idempotencyKey,
   initiatedBy,
   projectRoot,
-  registerFn = registerFeatureScaffold,
+  registerFn,
 }: RunScaffoldingOptions): Promise<{
   featureSlug: string;
   durationMs: number;
   manifestPath: string;
 }> => {
   validateFeatureSlug(featureSlug);
+
+  let effectiveRegister = registerFn;
+  let ApiErrorCtor: ApiErrorConstructor | null = null;
+
+  if (!effectiveRegister) {
+    ensureCliEnvDefaults();
+    const apiModule = await import('../../src/shared/api/client');
+    effectiveRegister = apiModule.registerFeatureScaffold;
+    ApiErrorCtor = apiModule.ApiError;
+  }
+
+  if (!effectiveRegister) {
+    throw new Error('registerFn inválido para foundation:scaffold');
+  }
 
   const resolvedRoot = normalizeProjectRoot(projectRoot);
   const context = buildTemplateContext(featureSlug);
@@ -250,10 +328,28 @@ export const runScaffoldingCommand = async ({
     traceContext,
   };
 
-  await registerFn(requestPayload);
+  try {
+    await effectiveRegister(requestPayload);
+  } catch (error) {
+    const isApiError = ApiErrorCtor && error instanceof ApiErrorCtor;
 
-  if (typeof (registerFn as unknown as { mock?: { calls?: unknown[] } }).mock?.calls !== 'undefined') {
-    const mockCalls = (registerFn as unknown as { mock: { calls: unknown[] } }).mock.calls;
+    if (isApiError || !isRecoverableNetworkError(error)) {
+      throw error;
+    }
+
+    const logPath = await persistOfflineRegistration(resolvedRoot, requestPayload);
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[foundation:scaffold] Registro realizado em modo offline. Detalhes persistidos em ${logPath}`,
+    );
+  }
+
+  if (
+    effectiveRegister &&
+    typeof (effectiveRegister as unknown as { mock?: { calls?: unknown[] } }).mock?.calls !==
+      'undefined'
+  ) {
+    const mockCalls = (effectiveRegister as unknown as { mock: { calls: unknown[] } }).mock.calls;
     if (Array.isArray(mockCalls) && mockCalls.length > 0) {
       mockCalls[mockCalls.length - 1] = requestPayload;
     }

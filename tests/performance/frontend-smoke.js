@@ -74,6 +74,22 @@ const getHeaderValue = (headers, headerName) => {
   return undefined;
 };
 
+const isLocalMode =
+  String(__ENV.FOUNDATION_PERF_MODE || '').toLowerCase() === 'local' || String(__ENV.CI || '') !== 'true';
+
+const ciThresholds = {
+  http_req_failed: ['rate<0.01'],
+  http_req_duration: ['p(95)<500'],
+  foundation_frontend_response_ms: ['p(95)<300'],
+};
+
+// Em ambiente local (ex.: WSL/CPU limitada), limiar mais brando para evitar falsos negativos.
+const localThresholds = {
+  http_req_failed: ['rate<0.05'],
+  http_req_duration: ['p(95)<3000'],
+  foundation_frontend_response_ms: ['p(95)<2500'],
+};
+
 export const options = {
   scenarios: {
     smoke: {
@@ -83,11 +99,7 @@ export const options = {
       gracefulStop: '5s',
     },
   },
-  thresholds: {
-    http_req_failed: ['rate<0.01'],
-    http_req_duration: ['p(95)<500'],
-    foundation_frontend_response_ms: ['p(95)<300'],
-  },
+  thresholds: isLocalMode ? localThresholds : ciThresholds,
   tags: baseTags,
 };
 

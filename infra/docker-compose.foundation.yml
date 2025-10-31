@@ -1,0 +1,81 @@
+services:
+  postgres:
+    image: postgres:15.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${FOUNDATION_DB_NAME:-foundation}
+      POSTGRES_USER: ${FOUNDATION_DB_USER:-foundation}
+      POSTGRES_PASSWORD: ${FOUNDATION_DB_PASSWORD:-foundation}
+      POSTGRES_INITDB_ARGS: "--auth-host=md5 --auth-local=trust"
+    ports:
+      - "${FOUNDATION_STACK_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - foundation_postgres_data:/var/lib/postgresql/data
+      - ./../backend/apps/tenancy/sql/rls_policies.sql:/docker-entrypoint-initdb.d/10-rls_policies.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${FOUNDATION_DB_USER:-foundation} -d ${FOUNDATION_DB_NAME:-foundation}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    restart: unless-stopped
+    ports:
+      - "${FOUNDATION_STACK_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  backend:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    environment:
+      DJANGO_SETTINGS_MODULE: backend.config.settings
+      PYTHONPATH: /app
+      FOUNDATION_DB_VENDOR: postgresql
+      FOUNDATION_DB_HOST: postgres
+      FOUNDATION_DB_PORT: 5432
+      FOUNDATION_DB_NAME: ${FOUNDATION_DB_NAME:-foundation}
+      FOUNDATION_DB_USER: ${FOUNDATION_DB_USER:-foundation}
+      FOUNDATION_DB_PASSWORD: ${FOUNDATION_DB_PASSWORD:-foundation}
+      FOUNDATION_PGCRYPTO_KEY: ${FOUNDATION_PGCRYPTO_KEY:-dev-only-pgcrypto-key}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_SERVICE_NAME: foundation-backend
+      OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.namespace=iabank
+    ports:
+      - "${FOUNDATION_STACK_BACKEND_PORT:-8000}:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./../backend:/app/backend
+      - ./../contracts:/app/contracts
+      - ./../docs:/app/docs
+      - ./../observabilidade:/app/observabilidade
+      - ./../pytest.ini:/app/pytest.ini:ro
+      - ./../frontend/scripts/tokens/cache:/app/frontend/scripts/tokens/cache:ro
+    command: >
+      bash -c "
+        poetry run python backend/manage.py migrate &&
+        poetry run python backend/manage.py seed_foundation_tenants &&
+        poetry run python backend/manage.py runserver 0.0.0.0:8000
+      "
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.102.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    ports:
+      - "${FOUNDATION_STACK_OTEL_HTTP_PORT:-4318}:4318"
+      - "${FOUNDATION_STACK_OTEL_GRPC_PORT:-4317}:4317"
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+
+volumes:
+  foundation_postgres_data:

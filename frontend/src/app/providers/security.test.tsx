@@ -80,12 +80,37 @@ describe('SecurityProvider', () => {
       ),
     ).not.toThrow();
   });
+
+  it('permite reinicializar a policy após reset', async () => {
+    const createPolicy = vi.fn().mockReturnValue({ name: 'foundation-ui' });
+    const getPolicy = vi.fn().mockReturnValue(undefined);
+    vi.stubGlobal('trustedTypes', { createPolicy, getPolicy });
+
+    const securityModule = await import('./security');
+    const first = securityModule.ensureTrustedTypesPolicy();
+    expect(first?.name).toBe('foundation-ui');
+
+    securityModule.resetTrustedTypesPolicy();
+    const second = securityModule.ensureTrustedTypesPolicy();
+
+    expect(createPolicy).toHaveBeenCalledTimes(2);
+    expect(second?.name).toBe('foundation-ui');
+  });
+
+  it('retorna null quando API não suporta criação de policy', async () => {
+    const getPolicy = vi.fn().mockReturnValue(null);
+    vi.stubGlobal('trustedTypes', { getPolicy });
+
+    const securityModule = await import('./security');
+    expect(securityModule.ensureTrustedTypesPolicy()).toBeNull();
+  });
 });
 
 describe('resolveTrustedTypesDisposition', () => {
   it('retorna report-only enquanto janela de rollout não expira', async () => {
     const securityModule = await import('./security');
-    const resolve = securityModule.resolveTrustedTypesDisposition as typeof import('./security')['resolveTrustedTypesDisposition'];
+    const resolve =
+      securityModule.resolveTrustedTypesDisposition as (typeof import('./security'))['resolveTrustedTypesDisposition'];
 
     const result = resolve({
       startedAt: '2025-09-01T00:00:00Z',
@@ -98,7 +123,8 @@ describe('resolveTrustedTypesDisposition', () => {
 
   it('retorna enforce após expiração da janela', async () => {
     const securityModule = await import('./security');
-    const resolve = securityModule.resolveTrustedTypesDisposition as typeof import('./security')['resolveTrustedTypesDisposition'];
+    const resolve =
+      securityModule.resolveTrustedTypesDisposition as (typeof import('./security'))['resolveTrustedTypesDisposition'];
 
     const result = resolve({
       startedAt: '2025-09-01T00:00:00Z',
@@ -112,7 +138,8 @@ describe('resolveTrustedTypesDisposition', () => {
 describe('createSecurityViolationReporter', () => {
   it('encaminha violações trusted-types conforme o modo', async () => {
     const securityModule = await import('./security');
-    const createReporter = securityModule.createSecurityViolationReporter as typeof import('./security')['createSecurityViolationReporter'];
+    const createReporter =
+      securityModule.createSecurityViolationReporter as (typeof import('./security'))['createSecurityViolationReporter'];
 
     const reportOnlyViolations: SecurityPolicyViolationEvent[] = [];
     const enforcedViolations: SecurityPolicyViolationEvent[] = [];
@@ -149,5 +176,29 @@ describe('createSecurityViolationReporter', () => {
     } as SecurityPolicyViolationEvent);
 
     expect(enforcedViolations).toHaveLength(2);
+  });
+
+  it('ignora eventos que não são de trusted types', async () => {
+    const securityModule = await import('./security');
+    const createReporter =
+      securityModule.createSecurityViolationReporter as (typeof import('./security'))['createSecurityViolationReporter'];
+
+    const onReportOnlyViolation = vi.fn();
+    const onEnforcedViolation = vi.fn();
+
+    const reportOnlyHandler = createReporter({
+      mode: 'report-only',
+      reportOnlyThreshold: 1,
+      onReportOnlyViolation,
+      onEnforcedViolation,
+    });
+
+    reportOnlyHandler({
+      violatedDirective: 'img-src',
+      disposition: 'report',
+    } as SecurityPolicyViolationEvent);
+
+    expect(onReportOnlyViolation).not.toHaveBeenCalled();
+    expect(onEnforcedViolation).not.toHaveBeenCalled();
   });
 });

@@ -28,20 +28,17 @@ export const TokenSchema = z
 
 export const WcagReportSchema = z
   .record(z.string(), z.record(z.string(), z.unknown()))
-  .optional();
+  .optional()
+  .nullable();
 
 const semverPattern = /^\d+\.\d+\.\d+$/;
 
 export const TenantThemeResponseSchema = z.object({
   tenantId: z.string().uuid('tenantId deve ser um UUID válido.'),
-  version: z
-    .string()
-    .regex(semverPattern, 'version deve seguir o padrão SemVer (ex.: 1.2.3).'),
-  generatedAt: z
-    .string()
-    .datetime({
-      message: 'generatedAt deve estar em formato ISO 8601.',
-    }),
+  version: z.string().regex(semverPattern, 'version deve seguir o padrão SemVer (ex.: 1.2.3).'),
+  generatedAt: z.string().datetime({
+    message: 'generatedAt deve estar em formato ISO 8601.',
+  }),
   categories: TokenSchema,
   wcagReport: WcagReportSchema,
 });

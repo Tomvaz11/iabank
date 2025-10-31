@@ -15,6 +15,53 @@ SECRET_KEY = 'django-insecure-front-foundation'
 DEBUG = True
 ALLOWED_HOSTS: list[str] = ['*']
 
+
+def _build_database_settings() -> dict[str, dict[str, object]]:
+    vendor_env = os.environ.get('FOUNDATION_DB_VENDOR', '').strip().lower()
+    vendor = vendor_env or 'postgresql'
+
+    try:
+        conn_max_age = int(os.environ.get('FOUNDATION_DB_CONN_MAX_AGE', '0'))
+    except ValueError:
+        conn_max_age = 0
+
+    if vendor not in {'postgres', 'postgresql', 'psql'}:
+        raise RuntimeError(
+            'Configuração inválida: a fundação suporta apenas PostgreSQL. '
+            'Defina FOUNDATION_DB_VENDOR=postgresql ou ajuste as variáveis FOUNDATION_DB_*.',
+        )
+
+    name = os.environ.get('FOUNDATION_DB_NAME', 'foundation')
+    user = os.environ.get('FOUNDATION_DB_USER', 'foundation')
+    password = os.environ.get('FOUNDATION_DB_PASSWORD', 'foundation')
+    host = os.environ.get('FOUNDATION_DB_HOST', 'localhost')
+    port = os.environ.get('FOUNDATION_DB_PORT', '5432')
+    options = os.environ.get('FOUNDATION_DB_OPTIONS')
+    test_db = os.environ.get('FOUNDATION_DB_TEST_NAME', f'{name}_test')
+
+    base_config: dict[str, object] = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': name,
+        'USER': user,
+        'PASSWORD': password,
+        'HOST': host,
+        'PORT': port,
+        'CONN_MAX_AGE': conn_max_age,
+        'TEST': {
+            'NAME': test_db,
+        },
+    }
+
+    if options:
+        base_config['OPTIONS'] = {'options': options}
+    else:
+        base_config['OPTIONS'] = {'options': '-c search_path=public,iabank'}
+
+    return {
+        'default': base_config,
+        'postgresql': dict(base_config),
+    }
+
 INSTALLED_APPS = [
     'django_prometheus',
     'django.contrib.admin',
@@ -63,12 +110,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'backend.config.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+DATABASES = _build_database_settings()
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -155,7 +197,13 @@ structlog.configure(
     cache_logger_on_first_use=True,
 )
 
-DATABASE_ROUTERS = ['backend.config.dbrouter.PostgresOnlyRouter']
+if (
+    DATABASES.get('postgresql')
+    and DATABASES['postgresql'].get('ENGINE') == 'django.db.backends.postgresql'
+):
+    DATABASE_ROUTERS = ['backend.config.dbrouter.PostgresOnlyRouter']
+else:
+    DATABASE_ROUTERS: list[str] = []
 
 
 def _parse_csp_list(value: str | None, default: list[str]) -> list[str]:

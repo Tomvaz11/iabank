@@ -59,7 +59,14 @@ export const bootstrapTelemetry = (
   const provider = new WebTracerProvider({ resource });
   const exporter = new OTLPTraceExporter({ url: config.endpoint });
   const spanProcessor = new BatchSpanProcessor(exporter);
-  provider.addSpanProcessor(spanProcessor);
+  if (typeof provider.addSpanProcessor === 'function') {
+    provider.addSpanProcessor(spanProcessor);
+  } else {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[telemetry] Provider não suporta addSpanProcessor; inicialização seguirá sem exportador.',
+    );
+  }
 
   const propagator = new CompositePropagator({
     propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
@@ -157,11 +164,20 @@ export const TelemetryProvider = ({ children }: Props) => {
       replaysOnErrorSampleRate: env.SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE,
     });
 
-    clientRef.current = activeBootstrap({
-      endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
-      serviceName: env.OTEL_SERVICE_NAME,
-      resourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES,
-    });
+    try {
+      clientRef.current = activeBootstrap({
+        endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+        serviceName: env.OTEL_SERVICE_NAME,
+        resourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES,
+      });
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        '[telemetry] Falha ao iniciar coleta OTEL; execução seguirá sem telemetria.',
+        error,
+      );
+      clientRef.current = null;
+    }
 
     return () => {
       const client = clientRef.current;

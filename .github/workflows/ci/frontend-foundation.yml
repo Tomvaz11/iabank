@@ -244,51 +244,7 @@ jobs:
 
       - name: Resumo dos budgets Lighthouse
         if: always()
-        run: |
-          node <<'NODE'
-const fs = require('node:fs');
-const path = require('node:path');
-
-const summaryPath = path.join(process.cwd(), 'artifacts', 'lighthouse', 'home.summary.json');
-if (!fs.existsSync(summaryPath)) {
-  console.log('Resumo Lighthouse não encontrado, nada a reportar.');
-  process.exit(0);
-}
-const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf-8'));
-
-const lines = [
-  '| Métrica | Valor | Limite | Status |',
-  '|---------|-------|--------|--------|',
-];
-
-const thresholds = summary.budgets;
-const metrics = summary.metrics;
-const checks = [
-  ['LCP (ms)', metrics.lcp, thresholds.lcp],
-  ['TTI (ms)', metrics.tti, thresholds.tti],
-  ['TBT (ms)', metrics.tbt, thresholds.tbt],
-  ['CLS', metrics.cls, thresholds.cls],
-];
-
-const statusIcon = (value, limit) => (value <= limit ? '✅' : '❌');
-
-checks.forEach(([label, value, limit]) => {
-  lines.push(`| ${label} | ${value.toFixed(2)} | ${limit} | ${statusIcon(value, limit)} |`);
-});
-
-const summaryContent = [
-  '### Lighthouse Budgets',
-  '',
-  `URL: ${summary.url}`,
-  '',
-  ...lines,
-  '',
-  `Relatório HTML: ${summary.reports.html}`,
-  `Relatório JSON: ${summary.reports.json}`,
-].join('\n');
-
-fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, summaryContent);
-NODE
+        run: node scripts/ci/lighthouse-summary.js
 
   security:
     name: Security Checks
@@ -399,53 +355,7 @@ NODE
           PNPM_AUDIT: ${{ steps.security_pnpm_audit.outcome }}
           SBOM_GENERATE: ${{ steps.security_sbom_generate.outcome }}
           SBOM_VALIDATE: ${{ steps.security_sbom_validate.outcome }}
-        run: |
-          python <<'PY'
-import os
-summary = [
-    ("Semgrep (SAST)", os.environ.get("SAST", "skipped")),
-    ("OWASP ZAP (DAST)", os.environ.get("DAST", "skipped")),
-    ("pgcrypto validation", os.environ.get("PGCRYPTO", "skipped")),
-    ("pip-audit", os.environ.get("PIP_AUDIT", "skipped")),
-    ("Safety", os.environ.get("SAFETY", "skipped")),
-    ("pnpm audit", os.environ.get("PNPM_AUDIT", "skipped")),
-    ("SBOM generate", os.environ.get("SBOM_GENERATE", "skipped")),
-    ("SBOM validate", os.environ.get("SBOM_VALIDATE", "skipped")),
-]
-
-def icon(status: str) -> str:
-    status = status.lower()
-    if status == "success":
-        return "✅"
-    if status == "skipped":
-        return "⚪"
-    if status == "cancelled":
-        return "⏹️"
-    return "❌"
-
-lines = ["| Check | Status |", "|-------|--------|"]
-failures = []
-for name, status in summary:
-    icon_ = icon(status)
-    lines.append(f"| {name} | {icon_} {status} |")
-    if status not in {"success", "skipped"}:
-        failures.append(name)
-
-with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handler:
-    handler.write("### Resumo dos checks de segurança\\n")
-    handler.write("\\n".join(lines))
-    handler.write("\\n")
-    if failures:
-        handler.write("\\nChecks com falha: " + ", ".join(failures) + "\\n")
-
-require_fail_closed = os.environ.get("CI_ENFORCE_FULL_SECURITY", "").lower() == "true"
-if require_fail_closed and failures:
-    print("Falhas de segurança detectadas em modo fail-closed:", ", ".join(failures))
-    raise SystemExit(1)
-
-if failures:
-    print("Falhas de segurança detectadas (modo fail-open). Consulte o resumo para detalhes.")
-PY
+        run: poetry run python scripts/ci/security_summary.py
 
   threat-model-lint:
     name: Threat Model Lint

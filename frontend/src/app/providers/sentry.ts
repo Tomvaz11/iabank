@@ -72,12 +72,12 @@ const scrubUnknown = (value: unknown): unknown => {
   return value;
 };
 
-const scrubEvent = (event: Record<string, unknown> | undefined | null) => {
-  if (!event) {
-    return event ?? null;
+const scrubEvent = <T>(event: T): T => {
+  if (!event || typeof event !== 'object') {
+    return event;
   }
 
-  const target = event as Record<string, unknown>;
+  const target = event as unknown as Record<string, unknown>;
   Object.entries(target).forEach(([key, value]) => {
     if (shouldFilter(key)) {
       target[key] = FILTERED_VALUE;
@@ -85,15 +85,15 @@ const scrubEvent = (event: Record<string, unknown> | undefined | null) => {
       target[key] = scrubUnknown(value);
     }
   });
-  return target;
+  return event;
 };
 
-const scrubBreadcrumb = (breadcrumb: Record<string, unknown> | undefined | null) => {
-  if (!breadcrumb) {
-    return breadcrumb ?? null;
+const scrubBreadcrumb = <T>(breadcrumb: T): T => {
+  if (!breadcrumb || typeof breadcrumb !== 'object') {
+    return breadcrumb;
   }
 
-  const target = breadcrumb as Record<string, unknown>;
+  const target = breadcrumb as unknown as Record<string, unknown>;
   Object.entries(target).forEach(([key, value]) => {
     if (shouldFilter(key)) {
       target[key] = FILTERED_VALUE;
@@ -101,7 +101,7 @@ const scrubBreadcrumb = (breadcrumb: Record<string, unknown> | undefined | null)
       target[key] = scrubUnknown(value);
     }
   });
-  return target;
+  return breadcrumb;
 };
 
 export const initializeSentry = (config: SentryConfig) => {
@@ -123,7 +123,7 @@ export const initializeSentry = (config: SentryConfig) => {
         blockAllMedia: true,
       }),
     ],
-    beforeSend: (event) => scrubEvent(event),
+    beforeSend: (event, _hint) => scrubEvent(event),
     beforeBreadcrumb: (breadcrumb) => scrubBreadcrumb(breadcrumb),
   });
 };
