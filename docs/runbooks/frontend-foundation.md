@@ -17,6 +17,11 @@ Pré-requisitos
   - Migração `backend/apps/tenancy/migrations/0025_enable_rls_frontend.py` habilita `pgcrypto` e aciona `SELECT iabank.apply_tenant_rls_policies()` definido em `backend/apps/tenancy/sql/rls_policies.sql`.
   - Use `backend.apps.tenancy.managers.use_tenant()` para escopar operações ORM. Managers injetam `tenant_id` automaticamente e levantam `TenantContextError` se usados sem contexto.
 
+Stack local sem Docker
+- `./scripts/dev/foundation-stack.sh up` detecta automaticamente a disponibilidade do binário `docker`.
+- Em ambientes sem Docker (ex.: CI local minimal), use `FOUNDATION_STACK_MODE=native ./scripts/dev/foundation-stack.sh up` para subir backend com SQLite, aplicar migrações e expor a API em `http://127.0.0.1:8000`. O seed de tokens pode ser feito com `foundation:tokens pull/build` utilizando os fixtures offline.
+- Para encerrar o backend nativo execute `FOUNDATION_STACK_MODE=native ./scripts/dev/foundation-stack.sh down`. Logs ficam em `artifacts/foundation-stack/backend.log`.
+
 - Acesso a ConfigCat (ou feature flag provider) nos ambientes.
 - Acesso a observabilidade e Sentry.
 - Permissões de deploy via Argo CD.

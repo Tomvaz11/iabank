@@ -1,5 +1,7 @@
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import autoprefixer from 'autoprefixer';
+import tailwindcss from 'tailwindcss';
 import { defineConfig } from 'vite';
 
 import { createFoundationCspPlugin } from './vite.csp.middleware';
@@ -8,6 +10,8 @@ const trustedTypesPolicy = process.env.VITE_FOUNDATION_TRUSTED_TYPES_POLICY ?? '
 const nonce = process.env.VITE_FOUNDATION_CSP_NONCE ?? 'nonce-dev-fallback';
 const reportUri = process.env.VITE_FOUNDATION_CSP_REPORT_URI ?? 'https://csp-report.iabank.com';
 const apiBaseUrl = process.env.VITE_API_BASE_URL ?? 'https://api.iabank.test';
+const previewHost = process.env.FOUNDATION_PERF_HOST ?? '127.0.0.1';
+const previewPort = Number(process.env.FOUNDATION_PERF_PORT ?? '4173');
 
 export default defineConfig({
   plugins: [
@@ -26,14 +30,24 @@ export default defineConfig({
       '@features': path.resolve(__dirname, './src/features'),
       '@entities': path.resolve(__dirname, './src/entities'),
       '@shared': path.resolve(__dirname, './src/shared'),
-      '@tests': path.resolve(__dirname, './src/tests')
-    }
+      '@tests': path.resolve(__dirname, './src/tests'),
+    },
   },
   server: {
     port: 5173,
-    open: false
+    open: false,
   },
   preview: {
-    port: 4173
-  }
+    host: previewHost,
+    port: Number.isNaN(previewPort) ? 4173 : previewPort,
+    strictPort: true,
+  },
+  build: {
+    chunkSizeWarningLimit: 1024,
+  },
+  css: {
+    postcss: {
+      plugins: [tailwindcss(), autoprefixer()],
+    },
+  },
 });

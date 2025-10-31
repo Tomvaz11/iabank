@@ -76,6 +76,53 @@ describe('@SC-002 foundation:tokens script', () => {
     expect(stored.payload.version).toBe('1.0.0');
   });
 
+  it('aceita alias conhecido como identificador principal', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify(SAMPLE_RESPONSE), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    await pullTenantTokens({
+      tenantId: 'tenant-alfa',
+      cacheDir: tempDir,
+      fetchImpl: fetchMock,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/api/v1/tenants/00000000-0000-0000-0000-000000000001/themes/current'),
+      expect.any(Object),
+    );
+
+    const cacheFile = path.join(tempDir, '00000000-0000-0000-0000-000000000001.json');
+    const stored = JSON.parse(readFileSync(cacheFile, 'utf-8')) as Awaited<
+      ReturnType<typeof pullTenantTokens>
+    >;
+
+    expect(stored.alias).toBe('tenant-alfa');
+    expect(stored.tenantId).toBe('00000000-0000-0000-0000-000000000001');
+  });
+
+  it('aplica fixture offline quando fetch falha', async () => {
+    const offlineTenantId = '00000000-0000-0000-0000-000000000001';
+    const fetchMock = vi.fn().mockRejectedValue(new Error('fetch failed'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const result = await pullTenantTokens({
+      tenantId: offlineTenantId,
+      tenantAlias: 'tenant-alfa',
+      cacheDir: tempDir,
+      fetchImpl: fetchMock,
+    });
+
+    expect(result.alias).toBe('tenant-alfa');
+    expect(result.tenantId).toBe(offlineTenantId);
+    expect(result.payload.categories.foundation['color.brand.primary']).toBeDefined();
+    expect(result.etag).toMatch(/offline-tenant-alfa/);
+    warnSpy.mockRestore();
+  });
+
   it('buildTenantArtifacts gera arquivos TypeScript e CSS', async () => {
     const cacheFile = path.join(tempDir, `${SAMPLE_RESPONSE.tenantId}.json`);
     writeFileSync(

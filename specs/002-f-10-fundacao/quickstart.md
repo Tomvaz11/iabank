@@ -19,10 +19,12 @@ poetry install --with dev
 
 ## 3. Provisionar Infra Local
 ```bash
-docker compose -f infra/docker-compose.foundation.yml up -d
+./scripts/dev/foundation-stack.sh up
 ```
-- Serviços: `backend`, `frontend`, `postgres`, `redis`, `otel-collector`.
-- Roda migrações iniciais, habilita RLS e carrega tenants demo (`tenant-alfa`, `tenant-beta`).
+- O script verifica a presença do Docker e sugere instalação caso necessário.
+- Serviços: `backend`, `postgres`, `redis`, `otel-collector`. O backend aplica migrações, habilita RLS e popula tenants demo (`tenant-default`, `tenant-alfa`, `tenant-beta`).
+- Alternativa manual: `docker compose -f infra/docker-compose.foundation.yml up -d`.
+- Para comandos executados no host, exporte as variáveis com `source scripts/dev/foundation-env.sh`.
 
 ## 4. Executar Scaffolding de Feature
 ```bash

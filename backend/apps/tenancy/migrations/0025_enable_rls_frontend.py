@@ -22,16 +22,16 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql='CREATE EXTENSION IF NOT EXISTS pgcrypto;',
             reverse_sql='DROP EXTENSION IF EXISTS pgcrypto;',
-            hints={'target_db': 'postgresql'},
         ),
         migrations.RunSQL(
             sql=RLS_SQL,
-            reverse_sql='SELECT iabank.revert_tenant_rls_policies();',
-            hints={'target_db': 'postgresql'},
+            reverse_sql="""
+                DROP FUNCTION IF EXISTS iabank.apply_tenant_rls_policies();
+                DROP FUNCTION IF EXISTS iabank.revert_tenant_rls_policies();
+            """,
         ),
         migrations.RunSQL(
             sql='SELECT iabank.apply_tenant_rls_policies();',
             reverse_sql='SELECT iabank.revert_tenant_rls_policies();',
-            hints={'target_db': 'postgresql'},
         ),
     ]

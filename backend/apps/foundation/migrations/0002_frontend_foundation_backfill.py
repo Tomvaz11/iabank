@@ -11,6 +11,24 @@ LEGACY_TABLE_CANDIDATES: Tuple[str, ...] = (
     'feature_template_registrations_legacy',
 )
 
+QUERY_BY_TABLE: dict[str, str] = {
+    'foundation_feature_template_registrations_legacy': (
+        'SELECT tenant_id, feature_slug, slice, scaffold_manifest, lint_commit_hash, '
+        'sc_references, metadata, created_by, duration_ms, idempotency_key, status '
+        'FROM foundation_feature_template_registrations_legacy'
+    ),
+    'foundation_feature_template_registration': (
+        'SELECT tenant_id, feature_slug, slice, scaffold_manifest, lint_commit_hash, '
+        'sc_references, metadata, created_by, duration_ms, idempotency_key, status '
+        'FROM foundation_feature_template_registration'
+    ),
+    'feature_template_registrations_legacy': (
+        'SELECT tenant_id, feature_slug, slice, scaffold_manifest, lint_commit_hash, '
+        'sc_references, metadata, created_by, duration_ms, idempotency_key, status '
+        'FROM feature_template_registrations_legacy'
+    ),
+}
+
 
 def _table_exists(schema_editor, table_name: str) -> bool:
     return table_name in schema_editor.connection.introspection.table_names()
@@ -24,23 +42,8 @@ def _resolve_source_table(schema_editor) -> str | None:
 
 
 def _fetch_legacy_rows(schema_editor, table_name: str) -> List[Tuple[Any, ...]]:
-    columns = (
-        'tenant_id',
-        'feature_slug',
-        'slice',
-        'scaffold_manifest',
-        'lint_commit_hash',
-        'sc_references',
-        'metadata',
-        'created_by',
-        'duration_ms',
-        'idempotency_key',
-        'status',
-    )
-    selected_columns = ', '.join(columns)
-
     with schema_editor.connection.cursor() as cursor:
-        cursor.execute(f'SELECT {selected_columns} FROM {table_name}')
+        cursor.execute(QUERY_BY_TABLE[table_name])
         return cursor.fetchall()
 
 

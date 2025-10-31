@@ -8,7 +8,7 @@ import { registerFeatureScaffold } from '../../../frontend/src/shared/api/client
 import { env } from '../../../frontend/src/shared/config/env';
 
 const PACT_OUTPUT_DIR = path.resolve(__dirname, '..');
-const TENANT_ID = 'a1b2c3d4-e5f6-7890-1234-567890abcdef';
+const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 const IDEMPOTENCY_KEY = '00000000-0000-4000-8000-000000000123';
 
 const buildRequestPayload = (): FeatureScaffoldRequest => ({

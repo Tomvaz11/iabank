@@ -95,25 +95,29 @@ def _apply_exceptions(
     raw_exceptions: object,
     reference: datetime,
 ) -> None:
+    def _extract(entry: object) -> tuple[str, str] | None:
+        if not isinstance(entry, dict):
+            return None
+        directive = str(entry.get('directive', '')).strip()
+        value = str(entry.get('value', '')).strip()
+        if not directive or not value:
+            return None
+        expires_at = _parse_datetime(entry.get('expires_at'))
+        if expires_at is None or expires_at <= reference:
+            return None
+        if directive not in directives:
+            return None
+        return directive, value
+
     if not isinstance(raw_exceptions, Iterable) or isinstance(raw_exceptions, (str, bytes)):
         return
 
     for entry in raw_exceptions:
-        if not isinstance(entry, dict):
+        parsed = _extract(entry)
+        if not parsed:
             continue
-        directive = str(entry.get('directive', '')).strip()
-        value = str(entry.get('value', '')).strip()
-        if not directive or not value:
-            continue
-
-        expires_at = _parse_datetime(entry.get('expires_at'))
-        if expires_at is None or expires_at <= reference:
-            continue
-
-        bucket = directives.get(directive)
-        if bucket is None:
-            continue
-
+        directive, value = parsed
+        bucket = directives[directive]
         if value not in bucket:
             bucket.append(value)
 

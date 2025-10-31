@@ -1,6 +1,7 @@
 import { forwardRef } from 'react';
 import type {
   ButtonHTMLAttributes,
+  CSSProperties,
   PropsWithChildren,
   ReactNode,
 } from 'react';
@@ -114,12 +115,21 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       children,
       disabled,
       type,
+      style: inlineStyle,
       ...rest
     },
     ref,
   ) => {
     const isDisabled = disabled ?? false;
     const computedType = type ?? 'button';
+    const styleOverrides: CSSProperties = {};
+
+    if (variant === 'primary') {
+      styleOverrides.backgroundColor = 'var(--button-primary-bg, #1E3A8A)';
+      styleOverrides.color = 'var(--button-primary-text, #F8FAFC)';
+      styleOverrides.borderColor = 'var(--button-primary-border, #1E3A8A)';
+      styleOverrides.boxShadow = 'var(--button-primary-shadow, 0 1px 2px rgba(15, 23, 42, 0.08))';
+    }
 
     return (
       <button
@@ -137,6 +147,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         data-variant={variant}
         disabled={isDisabled || isLoading}
         aria-busy={isLoading || undefined}
+        style={{
+          ...styleOverrides,
+          ...inlineStyle,
+        }}
       >
         <ButtonInner
           isLoading={isLoading}

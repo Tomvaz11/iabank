@@ -1,0 +1,88 @@
+{
+  "generatedAt": "2025-10-31T16:48:50.835Z",
+  "totals": [
+    {
+      "tool": "chromatic",
+      "totalCost": 66.6,
+      "currency": "USD",
+      "runs": 21,
+      "tenants": {
+        "tenant-alfa": {
+          "cost": 38.4,
+          "runs": 12,
+          "features": {
+            "foundation-shell": {
+              "cost": 38.4,
+              "runs": 12
+            }
+          }
+        },
+        "tenant-beta": {
+          "cost": 28.2,
+          "runs": 9,
+          "features": {
+            "foundation-shell": {
+              "cost": 28.2,
+              "runs": 9
+            }
+          }
+        }
+      },
+      "warnPercent": 0.8
+    },
+    {
+      "tool": "lighthouse",
+      "totalCost": 30,
+      "currency": "USD",
+      "runs": 12,
+      "tenants": {
+        "tenant-alfa": {
+          "cost": 15,
+          "runs": 6,
+          "features": {
+            "dashboard": {
+              "cost": 15,
+              "runs": 6
+            }
+          }
+        },
+        "tenant-beta": {
+          "cost": 15,
+          "runs": 6,
+          "features": {
+            "dashboard": {
+              "cost": 15,
+              "runs": 6
+            }
+          }
+        }
+      },
+      "warnPercent": 0.8
+    },
+    {
+      "tool": "pipelines",
+      "totalCost": 104.25,
+      "currency": "USD",
+      "runs": 36,
+      "tenants": {
+        "shared": {
+          "cost": 104.25,
+          "runs": 36,
+          "features": {
+            "ci-contracts": {
+              "cost": 62.5,
+              "runs": 24
+            },
+            "ci-visual-accessibility": {
+              "cost": 41.75,
+              "runs": 12
+            }
+          }
+        }
+      },
+      "warnPercent": 0.8
+    }
+  ],
+  "totalCost": 200.85,
+  "alerts": []
+}

@@ -33,9 +33,9 @@
         "headers": {
           "Content-Type": "application/json",
           "Idempotency-Key": "00000000-0000-4000-8000-000000000123",
-          "X-Tenant-Id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+          "X-Tenant-Id": "00000000-0000-0000-0000-000000000001",
           "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-00",
-          "tracestate": "tenant-id=a1b2c3d4-e5f6-7890-1234-567890abcdef"
+          "tracestate": "tenant-id=00000000-0000-0000-0000-000000000001"
         },
         "matchingRules": {
           "$.header.traceparent": {
@@ -46,7 +46,7 @@
           }
         },
         "method": "POST",
-        "path": "/api/v1/tenants/a1b2c3d4-e5f6-7890-1234-567890abcdef/features/scaffold"
+        "path": "/api/v1/tenants/00000000-0000-0000-0000-000000000001/features/scaffold"
       },
       "response": {
         "body": {
@@ -61,12 +61,12 @@
           "recordedAt": "2025-01-01T12:00:00Z",
           "scaffoldId": "20000000-0000-4000-8000-000000000000",
           "status": "initiated",
-          "tenantId": "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+          "tenantId": "00000000-0000-0000-0000-000000000001"
         },
         "headers": {
           "Content-Type": "application/json; charset=utf-8",
           "Idempotency-Key": "00000000-0000-4000-8000-000000000123",
-          "Location": "/api/v1/tenants/a1b2c3d4-e5f6-7890-1234-567890abcdef/features/scaffold/loan-tracking"
+          "Location": "/api/v1/tenants/00000000-0000-0000-0000-000000000001/features/scaffold/loan-tracking"
         },
         "matchingRules": {
           "$.body.metrics": {
