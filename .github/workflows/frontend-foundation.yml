@@ -277,7 +277,7 @@ jobs:
 
       - name: Executar k6 smoke
         run: pnpm perf:smoke:ci
-        continue-on-error: true
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         env:
           FOUNDATION_PERF_BASE_URL: https://example.com
           FOUNDATION_PERF_TENANT: tenant-alfa
@@ -288,7 +288,7 @@ jobs:
         env:
           LIGHTHOUSE_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/lighthouse
         run: pnpm perf:lighthouse
-        continue-on-error: true
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
 
       - name: Publicar resultados k6
         uses: actions/upload-artifact@v4
