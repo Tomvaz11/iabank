@@ -23,8 +23,11 @@ Itens objetivos:
   - Evidências: `push_run.log`/`run.log` (Contracts/Vitest) com interações Pact e testes passando (ex.: `tests/design-system/list-stories.pact.ts`).
 - [x] Último run VERDE de PR para o job "Contracts (Spectral, OpenAPI Diff, Pact)"
   - Evidências (PR #12): job verde — https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406986661
-- [ ] Runbook atualizado com resultados de contratos
-  - O que falta: atualização de `docs/runbooks/frontend-foundation.md` com conclusões dos contratos (links dos runs, diffs, pact logs) e referência aos PRs #10/#11.
+- [x] Runbook atualizado com resultados de contratos
+  - Evidências: seção de evidências da F‑10 em `docs/runbooks/frontend-foundation.md` com links dos jobs do PR #12.
+
+Atualizações recentes:
+- PR #12 (evidências) mergeado; job de contratos verde — https://github.com/Tomvaz11/iabank/actions/runs/19050934281
 
 Observações:
 - Workflow de referência: `.github/workflows/frontend-foundation.yml` (job `contracts`).

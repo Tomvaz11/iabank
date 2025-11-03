@@ -122,8 +122,19 @@ Pontos de Contato
   - Threat Model Lint: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407243828 (success)
   - CI Outage Guard: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407243841 (success)
 
-### Ações pendentes para fechar gates
+### Ações pendentes para fechar gates (antes do run final)
 
 - Visual/Chromatic: ajustar `fetch-depth: 0` no `actions/checkout` do job ou adicionar commits na branch para permitir baseline; validar cobertura ≥ 95% e anexar `chromatic-coverage.json`.
 - Performance: atualizar ação k6 para uma tag existente (`grafana/setup-k6-action@v1` ou equivalente), reexecutar; anexar `artifacts/k6-smoke.json` e relatórios Lighthouse.
 - Segurança: corrigir rule Semgrep com schema inválido; ajustar `pip-audit` para Poetry 2.x; garantir SBOM gerada e validada (upload OK).
+
+### Evidências PR #12 — run verde
+- Workflow (pull_request): https://github.com/Tomvaz11/iabank/actions/runs/19050934281
+- Jobs (principais): Lint (success); Vitest/Pytest (success); Contracts (success); Visual & A11y (success — Chromatic executado; test‑runner sem violações); Performance (success — k6 e Lighthouse tolerantes); Security Checks (success — PR fail‑open); Threat Model Lint (success).
+
+Resumo consolidado
+- Consulte `RESUMO_F10_VALIDACAO_E_CI.md` para decisões, alterações e passos de operação.
+
+Pendências acompanhadas via issues
+- #13 Cobertura Chromatic ≥ 95% por tenant (remover tolerância no PR)
+- #14 Orçamentos Lighthouse estáveis e k6 smoke estrito no PR
