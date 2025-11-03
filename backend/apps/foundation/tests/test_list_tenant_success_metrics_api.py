@@ -6,6 +6,7 @@ from decimal import Decimal
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
+import uuid
 from rest_framework.test import APITestCase
 
 from backend.apps.foundation.models import FeatureTemplateRegistration, FeatureTemplateMetric
@@ -103,11 +104,13 @@ class ListTenantSuccessMetricsApiTest(APITestCase):
         self.assertIn('collectedAt', first_metric)
 
     def test_requires_matching_tenant_header(self) -> None:
+        # Gerar um UUID válido e garantidamente diferente do tenant_id
+        mismatched_tenant = str(uuid.uuid4())
         response = self.client.get(
             self._url(),
             data={'page': 1, 'page_size': 2},
             **{
-                'HTTP_X_TENANT_ID': str(self.tenant.id)[:-1] + '0',
+                'HTTP_X_TENANT_ID': mismatched_tenant,
                 'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-02',
             },
         )
