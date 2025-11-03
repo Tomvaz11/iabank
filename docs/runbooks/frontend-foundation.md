@@ -102,3 +102,4 @@ Pontos de Contato
 - SRE — SLO, throughput/saturação, incidentes de performance.
 - DS Guild — tokens multi-tenant e acessibilidade.
 - Segurança/Privacy — threat modeling, CI outage e LGPD.
+\n\n## docs: evidências F-10 (2025-11-03T21:22:51Z)\n\n- PR run para capturar Chromatic/DAST/Performance e consolidar checklists.\n
