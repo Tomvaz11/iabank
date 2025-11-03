@@ -9,6 +9,7 @@ Descrever o fluxo padrão de resposta quando métricas DORA/SLO ultrapassarem li
    - Registrar horário de detecção e responsável.
 2. **Triagem**
    - Verificar dashboards prioritários (latência, taxa de erro, saturação).
+   - Os painéis versionados estão em `observabilidade/dashboards/frontend-foundation.json`; não alterar o nome do diretório.
    - Validar se o alerta é real ou falso positivo.
 3. **Mitigação Inicial**
    - Aplicar ações imediatas (rollback, feature flag, scale-out).

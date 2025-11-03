@@ -1,0 +1,111 @@
+{
+  "consumer": {
+    "name": "FrontendFoundationMetrics"
+  },
+  "interactions": [
+    {
+      "description": "uma requisição para listar métricas SC do tenant",
+      "providerState": "tenant possui métricas SC agregadas para dashboards",
+      "request": {
+        "headers": {
+          "X-Tenant-Id": "tenant-alfa",
+          "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01",
+          "tracestate": "tenant-id=tenant-alfa"
+        },
+        "matchingRules": {
+          "$.header.traceparent": {
+            "match": "type"
+          },
+          "$.header.tracestate": {
+            "match": "type"
+          }
+        },
+        "method": "GET",
+        "path": "/api/v1/tenant-metrics/tenant-alfa/sc",
+        "query": "page=1&page_size=25"
+      },
+      "response": {
+        "body": {
+          "data": [
+            {
+              "code": "SC-001",
+              "collectedAt": "2025-01-10T12:00:00Z",
+              "source": "ci",
+              "value": 0.92
+            }
+          ],
+          "pagination": {
+            "page": 1,
+            "perPage": 25,
+            "totalItems": 1,
+            "totalPages": 1
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8",
+          "RateLimit-Limit": "60",
+          "RateLimit-Remaining": "59",
+          "RateLimit-Reset": "30"
+        },
+        "matchingRules": {
+          "$.body.data": {
+            "match": "type",
+            "min": 1
+          },
+          "$.body.data[*].code": {
+            "match": "regex",
+            "regex": "^SC-00[1-5]$"
+          },
+          "$.body.data[*].collectedAt": {
+            "format": "iso8601",
+            "match": "datetime"
+          },
+          "$.body.data[*].source": {
+            "match": "regex",
+            "regex": "^(ci|chromatic|lighthouse|manual)$"
+          },
+          "$.body.data[*].value": {
+            "match": "type"
+          },
+          "$.body.pagination.page": {
+            "match": "type"
+          },
+          "$.body.pagination.perPage": {
+            "match": "type"
+          },
+          "$.body.pagination.totalItems": {
+            "match": "type"
+          },
+          "$.body.pagination.totalPages": {
+            "match": "type"
+          },
+          "$.header['RateLimit-Limit']": {
+            "match": "type"
+          },
+          "$.header['RateLimit-Remaining']": {
+            "match": "type"
+          },
+          "$.header['RateLimit-Reset']": {
+            "match": "type"
+          }
+        },
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "13.2.0"
+    },
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  },
+  "provider": {
+    "name": "IABankFoundationAPI"
+  }
+}

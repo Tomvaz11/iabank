@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+coverage/
+*.min.js
+pnpm-lock.yaml
+pnpm-debug.log
+playwright-report/
+test-results/
+.pnp.cjs
+.pnp.loader.mjs
+.vitest/
+.vscode/
+.idea/
+frontend/storybook-static/

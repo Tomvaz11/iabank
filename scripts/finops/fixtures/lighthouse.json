@@ -1,0 +1,18 @@
+[
+  {
+    "tenant": "tenant-alfa",
+    "feature": "dashboard",
+    "runs": 6,
+    "cost": 15,
+    "currency": "USD",
+    "timestamp": "2025-10-18T08:05:00Z"
+  },
+  {
+    "tenant": "tenant-beta",
+    "feature": "dashboard",
+    "runs": 6,
+    "cost": 15,
+    "currency": "USD",
+    "timestamp": "2025-10-18T08:05:00Z"
+  }
+]

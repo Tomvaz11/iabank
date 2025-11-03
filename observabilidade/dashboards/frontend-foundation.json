@@ -1,0 +1,297 @@
+{
+  "$schema": "https://grafana.com/schemas/dashboard/v1.json",
+  "title": "Frontend Foundation — SC & UX",
+  "tags": ["foundation", "frontend", "sc", "ux"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "LCP p95",
+      "targets": [
+        { "expr": "lighthouse_lcp_p95{tenant=~\".*\"}", "legendFormat": "{{tenant}}" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Saturação CPU Frontend (%)",
+      "targets": [
+        {
+          "expr": "max(foundation_frontend_cpu_percent)",
+          "legendFormat": "CPU"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "red", "value": 70 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Saturação Memória Frontend (%)",
+      "targets": [
+        {
+          "expr": "max(foundation_frontend_memory_percent)",
+          "legendFormat": "Memória"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red", "value": 85 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Throughput API Foundation (req/s)",
+      "targets": [
+        {
+          "expr": "foundation_api_throughput",
+          "legendFormat": "Throughput"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "req/s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 40 },
+              { "color": "green", "value": 45 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SC-001 — média 7d (min)",
+      "targets": [
+        {
+          "expr": "increase(sc_001_scaffolding_minutes_sum[7d]) / increase(sc_001_scaffolding_minutes_count[7d])",
+          "legendFormat": "avg 7d"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "red", "value": 180 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SC-001 — Lead time p95 (h)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (increase(sc_001_scaffolding_minutes_bucket[30d]))) / 60",
+          "legendFormat": "p95 30d"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 24 },
+              { "color": "red", "value": 30 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "gauge",
+      "title": "SC-002 — Cobertura visual Chromatic (%)",
+      "targets": [
+        { "expr": "chromatic_coverage_percent{critical=\"true\"}", "legendFormat": "critical" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 90 },
+              { "color": "green", "value": 95 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SC-003 — Contratos aprovados (%)",
+      "targets": [
+        {
+          "expr": "foundation_success_metric_ratio{metric_code=\"SC-003\",window=\"30d\"} * 100",
+          "legendFormat": "30d"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 95 },
+              { "color": "green", "value": 100 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SC-004 — Conformidade WCAG AA (%)",
+      "targets": [
+        {
+          "expr": "foundation_wcag_compliance_ratio{window=\"30d\"} * 100",
+          "legendFormat": "30d"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 97 },
+              { "color": "green", "value": 98 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "stat",
+      "title": "SC-005 — Incidentes PII (30d)",
+      "targets": [
+        {
+          "expr": "increase(foundation_pii_violation_incidents_total[30d])",
+          "legendFormat": "30d"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "gauge",
+      "title": "Error Budget Consumido (%)",
+      "description": "Budget mensal de 5% para regressões; pausar deploys ao atingir 80%.",
+      "targets": [
+        {
+          "expr": "foundation_error_budget_consumed_percent{window=\"30d\"}",
+          "legendFormat": "30d"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "RLS Alerts",
+      "targets": [
+        { "expr": "sum by (tenant) (increase(rls_policy_violations_total[24h]))", "legendFormat": "{{tenant}}" }
+      ]
+    },
+    {
+      "type": "gauge",
+      "title": "FinOps — Consumo mensal (%)",
+      "targets": [
+        { "expr": "max(foundation_finops_budget_consumed_percent{tool=\"total\"})", "legendFormat": "total" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "table",
+      "title": "FinOps — Custo por ferramenta",
+      "targets": [
+        {
+          "expr": "foundation_finops_cost_total{tool!=\"total\"}",
+          "legendFormat": "{{tool}}"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "labelsToFields",
+          "options": {}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD"
+        }
+      }
+    }
+  ],
+  "refresh": "30s",
+  "time": { "from": "now-7d", "to": "now" }
+}

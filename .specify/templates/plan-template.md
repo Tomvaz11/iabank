@@ -3,7 +3,7 @@
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: Este template e preenchido pelo comando `/speckit.plan`. Consulte `documentacao_oficial_spec-kit/templates/commands/plan.md` para o fluxo completo sobre o que informar nessa fase.
+**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
@@ -11,19 +11,30 @@ Sintetize o requisito central em 2-3 frases, citando `spec.md`, `clarify.md` (se
 
 ## Technical Context
 
-Preencha cada item com o plano concreto para a feature. Para qualquer incerteza use `[NEEDS CLARIFICATION]` e registre no `/clarify`. Sempre referencie os artigos da constituicao e ADRs que sustentam a decisao.
+Preencha cada item com o plano concreto para a feature. Use `[NEEDS CLARIFICATION]` quando houver incerteza e registre no `/clarify`. Referencie os artigos da constituição e ADRs que sustentam cada decisão.
 
-**Backend**: [Stack/versoes planejadas; cite Art. I e ADRs relevantes]  
-**Frontend**: [Stack/versoes planejadas; Art. I]  
-**Async/Infra**: [Filas, caches, integracoes; Art. I, XIV]  
-**Persistencia/Dados**: [Bancos, esquemas, politicas; Art. I, X, XIII]  
-**Testing**: [Ferramentas de TDD, contrato, performance; Art. III, IX]  
-**Observabilidade**: [Instrumentacao obrigatoria; Art. VII, ADR-012]  
-**Seguranca/Compliance**: [Controles OWASP/LGPD/FinOps; Art. XII, XIII, XVI]  
-**Project Type**: [Monorepo? micro repos? Como se encaixa no blueprint atual]  
-**Performance Targets**: [Metas de SLO/DORA; Art. VI, VIII, IX]  
-**Restricoes**: [Limites impostos pelos artigos/ADRs; e.g. TDD, expand/contract, RLS]  
-**Escopo/Impacto**: [Modulos, tenants, integracoes atingidas; pendencias marcadas com `[NEEDS CLARIFICATION]`]
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]  
+**Project Type**: [single/web/mobile - determines source structure]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+
+### Contexto Expandido
+
+**Backend**: [Stack/versões planejadas; cite Art. I e ADRs relevantes]  
+**Frontend**: [Stack/versões planejadas; Art. I]  
+**Async/Infra**: [Filas, caches, integrações; Art. I, XIV]  
+**Persistência/Dados**: [Bancos, esquemas, políticas; Art. I, X, XIII]  
+**Testing Detalhado**: [Ferramentas de TDD, contrato, performance; Art. III, IX]  
+**Observabilidade**: [Instrumentação obrigatória; Art. VII, ADR-012]  
+**Segurança/Compliance**: [Controles OWASP/LGPD/FinOps; Art. XII, XIII, XVI]  
+**Performance Targets**: [Metas adicionais ou métricas derivadas, quando aplicável]  
+**Restrições Operacionais**: [Limites impostos pelos artigos/ADRs; ex.: TDD, expand/contract, RLS]  
+**Escopo/Impacto**: [Módulos, tenants, integrações atingidas; pendências marcadas com `[NEEDS CLARIFICATION]`]
 
 ## Constitution Check
 

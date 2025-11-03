@@ -1,0 +1,39 @@
+name: Renovate Config Validation
+
+on:
+  pull_request:
+    paths:
+      - renovate.json
+      - .github/workflows/renovate-validation.yml
+  push:
+    branches:
+      - main
+    paths:
+      - renovate.json
+
+jobs:
+  validate:
+    name: Validate Renovate configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate schema
+        uses: renovatebot/github-action@v40.0.0
+        with:
+          action: 'validate'
+          configFile: 'renovate.json'
+
+      - name: Ensure assignees configurados
+        run: |
+          node - <<'NODE'
+          const fs = require('fs');
+          const config = JSON.parse(fs.readFileSync('renovate.json', 'utf8'));
+          if (!Array.isArray(config.assignees) || config.assignees.length === 0) {
+            throw new Error('renovate.json precisa definir assignees.');
+          }
+          if (config.assignees.some((assignee) => typeof assignee !== 'string' || !assignee.trim())) {
+            throw new Error('Assignees inválidos detectados no renovate.json.');
+          }
+          NODE

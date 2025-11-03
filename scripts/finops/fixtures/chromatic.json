@@ -1,0 +1,18 @@
+[
+  {
+    "tenant": "tenant-alfa",
+    "feature": "foundation-shell",
+    "runs": 12,
+    "cost": 38.4,
+    "currency": "USD",
+    "timestamp": "2025-10-18T10:12:00Z"
+  },
+  {
+    "tenant": "tenant-beta",
+    "feature": "foundation-shell",
+    "runs": 9,
+    "cost": 28.2,
+    "currency": "USD",
+    "timestamp": "2025-10-18T10:12:00Z"
+  }
+]

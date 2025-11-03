@@ -2,18 +2,54 @@
   "name": "iabank",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@9.12.2",
+  "engines": {
+    "node": ">=20.0.0 <21",
+    "pnpm": ">=9.0.0 <10"
+  },
   "scripts": {
-    "lint:openapi": "spectral lint contracts/**/*.yaml",
-    "diff:openapi": "node scripts/openapi/diff-openapi.js contracts/api.previous.yaml contracts/api.yaml",
-    "test:pact": "node scripts/pact/run-pact-stub.js"
+    "k6": "k6",
+    "dev": "pnpm --filter @iabank/frontend-foundation dev",
+    "build:frontend": "pnpm --filter @iabank/frontend-foundation build",
+    "lint": "pnpm --filter @iabank/frontend-foundation lint",
+    "test": "pnpm --filter @iabank/frontend-foundation test",
+    "test:watch": "pnpm --filter @iabank/frontend-foundation test:watch",
+    "test:coverage": "pnpm --filter @iabank/frontend-foundation test:coverage",
+    "test:e2e": "pnpm --filter @iabank/frontend-foundation test:e2e",
+    "typecheck": "pnpm --filter @iabank/frontend-foundation typecheck",
+    "format": "pnpm exec prettier --check \"frontend/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css}\" \"scripts/**/*.{js,ts}\"",
+    "format:write": "pnpm exec prettier --write \"frontend/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css}\" \"scripts/**/*.{js,ts}\"",
+    "storybook:test": "pnpm --filter @iabank/frontend-foundation storybook:test",
+    "openapi:lint": "pnpm exec spectral lint --ruleset=contracts/.spectral.yaml contracts/api.yaml contracts/api.previous.yaml specs/002-f-10-fundacao/contracts/**/*.yaml",
+    "openapi:diff": "contracts/scripts/openapi-diff.sh",
+    "openapi:generate": "pnpm exec openapi --input contracts/api.yaml --output frontend/src/shared/api/generated --client fetch --useOptions --exportCore true --exportServices true --exportModels true",
+    "openapi": "pnpm openapi:lint && pnpm openapi:diff && pnpm openapi:generate",
+    "pact:verify": "pnpm exec vitest run tests/state/query-cache.pact.ts --root frontend",
+    "contracts:verify": "pnpm openapi && pnpm pact:verify",
+    "sbom:frontend": "node scripts/sbom/generate-frontend.js",
+    "audit:frontend": "pnpm --dir frontend audit --prod --audit-level=high --json",
+    "perf:smoke": "node scripts/perf/run-smoke.js",
+    "perf:smoke:ci": "node scripts/perf/run-smoke.js --summary-export=artifacts/k6-smoke.json",
+    "perf:lighthouse": "pnpm --filter @iabank/frontend-foundation test:lighthouse",
+    "perf:smoke:local": "FOUNDATION_PERF_MODE=local FOUNDATION_PERF_SKIP_BUILD=true FOUNDATION_PERF_VUS=1 pnpm perf:smoke:ci",
+    "finops:report": "pnpm exec tsc -p tsconfig.scripts.json && node scripts/dist/finops/foundation-costs.js",
+    "ci:outage": "pnpm exec tsc -p tsconfig.scripts.json && node scripts/dist/ci/handle-outage.js"
+  },
+  "pnpm": {
+    "overrides": {
+      "jsdom": "24.1.3"
+    }
   },
   "devDependencies": {
+    "@cyclonedx/cyclonedx-npm": "^1.9.0",
     "@pact-foundation/pact": "^13.1.0",
     "@pact-foundation/pact-cli": "^16.1.4",
     "@stoplight/spectral-cli": "^6.11.0",
     "diff": "^5.2.0",
     "openapi-diff": "^0.24.1",
-    "typescript": "^5.6.3",
-    "yaml": "^2.6.0"
+    "typescript": "^5.9.3",
+    "vitest": "^2.0.5",
+    "yaml": "^2.6.0",
+    "openapi-typescript-codegen": "^0.29.0"
   }
 }

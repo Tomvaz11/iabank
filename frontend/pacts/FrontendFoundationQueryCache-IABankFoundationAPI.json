@@ -1,0 +1,122 @@
+{
+  "consumer": {
+    "name": "FrontendFoundationQueryCache"
+  },
+  "interactions": [
+    {
+      "description": "uma requisição para carregar o tema atual do tenant",
+      "request": {
+        "headers": {
+          "X-Tenant-Id": "tenant-alfa",
+          "traceparent": "00-1234567890abcdef1234567890abcdef-1234567890abcdef-00",
+          "tracestate": "tenant-id=tenant-alfa"
+        },
+        "method": "GET",
+        "path": "/api/v1/tenants/tenant-alfa/themes/current"
+      },
+      "response": {
+        "body": {
+          "data": {
+            "id": "tenant-alfa-theme",
+            "tokens": [],
+            "version": "1.0.0"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8",
+          "ETag": "W/\"tenant-alfa-theme-v1.0.0\""
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "uma requisição para listar métricas SC por tenant",
+      "request": {
+        "headers": {
+          "X-Tenant-Id": "tenant-alfa",
+          "traceparent": "00-cccccccccccccccccccccccccccccccc-dddddddddddddddd-00",
+          "tracestate": "tenant-id=tenant-alfa"
+        },
+        "method": "GET",
+        "path": "/api/v1/tenant-metrics/tenant-alfa/sc",
+        "query": "page=1&page_size=25"
+      },
+      "response": {
+        "body": {
+          "data": [
+            {
+              "metricId": "SC-001",
+              "tenantId": "tenant-alfa",
+              "value": 0.92
+            }
+          ],
+          "meta": {
+            "page": 1,
+            "pageSize": 25,
+            "total": 1
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json; charset=utf-8",
+          "RateLimit-Limit": "60",
+          "RateLimit-Remaining": "59",
+          "RateLimit-Reset": "30"
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "uma requisição para registrar scaffolding de feature",
+      "request": {
+        "body": {
+          "featureSlug": "loan-tracking",
+          "scaffoldManifest": {},
+          "slice": "features",
+          "tags": [
+            "@SC-001",
+            "@SC-003"
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json",
+          "Idempotency-Key": "00000000-0000-0000-0000-000000000001",
+          "X-Tenant-Id": "tenant-alfa",
+          "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-00",
+          "tracestate": "tenant-id=tenant-alfa"
+        },
+        "method": "POST",
+        "path": "/api/v1/tenants/tenant-alfa/features/scaffold"
+      },
+      "response": {
+        "body": {
+          "data": {
+            "featureSlug": "loan-tracking",
+            "status": "initiated",
+            "tenantId": "tenant-alfa"
+          }
+        },
+        "headers": {
+          "Content-Type": "application/json",
+          "Idempotency-Key": "00000000-0000-0000-0000-000000000001",
+          "Location": "/features/scaffold/loan-tracking"
+        },
+        "status": 201
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "13.2.0"
+    },
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  },
+  "provider": {
+    "name": "IABankFoundationAPI"
+  }
+}

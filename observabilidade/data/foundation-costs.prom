@@ -1,0 +1,17 @@
+# HELP foundation_finops_cost_total Custo acumulado por ferramenta
+# TYPE foundation_finops_cost_total gauge
+foundation_finops_cost_total{tool="chromatic",currency="USD"} 66.60
+foundation_finops_cost_by_tenant{tool="chromatic",tenant="tenant-alfa"} 38.40
+foundation_finops_cost_by_tenant{tool="chromatic",tenant="tenant-beta"} 28.20
+foundation_finops_cost_total{tool="lighthouse",currency="USD"} 30.00
+foundation_finops_cost_by_tenant{tool="lighthouse",tenant="tenant-alfa"} 15.00
+foundation_finops_cost_by_tenant{tool="lighthouse",tenant="tenant-beta"} 15.00
+foundation_finops_cost_total{tool="pipelines",currency="USD"} 104.25
+foundation_finops_cost_by_tenant{tool="pipelines",tenant="shared"} 104.25
+# HELP foundation_finops_runs_total Execuções por ferramenta
+# TYPE foundation_finops_runs_total counter
+foundation_finops_runs_total{tool="chromatic"} 21
+foundation_finops_runs_total{tool="lighthouse"} 12
+foundation_finops_runs_total{tool="pipelines"} 36
+# HELP foundation_finops_budget_consumed_percent Percentual consumido do orçamento
+# TYPE foundation_finops_budget_consumed_percent gauge
