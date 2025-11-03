@@ -127,6 +127,12 @@ const isChromaticEnabled = (entry: StoryIndexEntry): boolean => {
   return true;
 };
 
+const deriveTenantsFromId = (id: string): string[] => {
+  const match = id.match(/--tenant-([a-z0-9-]+)/i);
+  if (match && match[1]) return [match[1]];
+  return [];
+};
+
 const extractTenantsFromEntry = (
   entry: StoryIndexEntry,
   fallbackTenant: string,
@@ -148,6 +154,9 @@ const extractTenantsFromEntry = (
     return tenantsFromParameters.filter((element): element is string => typeof element === 'string');
   }
 
+  // tentar inferir do id (ex.: ...--tenant-alfa)
+  const fromId = deriveTenantsFromId(entry.id);
+  if (fromId.length > 0) return fromId;
   return [fallbackTenant];
 };
 
@@ -158,14 +167,32 @@ const computeCoverage = ({
   outputFile,
   verbose,
 }: CLIOptions): CoverageResult[] => {
-  if (!existsSync(storiesPath)) {
-    throw new Error(
-      `Arquivo stories.json não encontrado em ${storiesPath}. Execute o build do Storybook antes de validar a cobertura.`,
-    );
+  let effectivePath = storiesPath;
+  if (!existsSync(effectivePath)) {
+    // fallback para index.json do Storybook 8
+    const alt = resolve(process.cwd(), 'storybook-static/index.json');
+    if (!existsSync(alt)) {
+      throw new Error(
+        `Arquivo stories.json não encontrado em ${storiesPath} nem index.json em ${alt}. Execute o build do Storybook antes de validar a cobertura.`,
+      );
+    }
+    effectivePath = alt;
   }
 
-  const file: StoryIndexFile = JSON.parse(readFileSync(storiesPath, 'utf-8'));
-  const entries = Object.values(file.stories ?? {});
+  const raw = JSON.parse(readFileSync(effectivePath, 'utf-8')) as
+    | StoryIndexFile
+    | { entries: Record<string, { id: string; title: string; name: string }> };
+
+  let entries: StoryIndexEntry[] = [];
+  if ((raw as StoryIndexFile).stories) {
+    entries = Object.values((raw as StoryIndexFile).stories);
+  } else if ((raw as any).entries) {
+    const map = (raw as any).entries as Record<
+      string,
+      { id: string; title: string; name: string }
+    >;
+    entries = Object.values(map).map((e) => ({ id: e.id, title: e.title, name: e.name }));
+  }
 
   if (entries.length === 0) {
     throw new Error('Nenhuma story encontrada no stories.json. Verifique a configuração do Storybook.');
