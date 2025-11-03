@@ -14,8 +14,23 @@ cleanup() {
 trap cleanup EXIT
 
 if command -v "${POETRY_BIN}" >/dev/null 2>&1; then
-  "${POETRY_BIN}" export --with dev --format requirements.txt --output "${REQ_FILE}"
-  "${POETRY_BIN}" run python -m pip install --quiet --upgrade pip
+  # Poetry 2.x requer plugin de export; se falhar, faz fallback para freeze do env
+  if ! "${POETRY_BIN}" export --with dev --format requirements.txt --output "${REQ_FILE}" >/dev/null 2>&1; then
+    echo "Poetry export indisponível; usando freeze do ambiente virtual gerenciado pelo Poetry." >&2
+    # Garante pip atualizado dentro do env
+    "${POETRY_BIN}" run python -m pip install --quiet --upgrade pip
+    "${POETRY_BIN}" run python - <<'PY'
+import pkgutil, subprocess, sys
+try:
+    import pip
+except Exception:
+    pass
+subprocess.check_call([sys.executable, '-m', 'pip', 'freeze'], stdout=open(sys.argv[1], 'w'))
+PY
+    "${REQ_FILE}"
+  else
+    "${POETRY_BIN}" run python -m pip install --quiet --upgrade pip
+  fi
   "${POETRY_BIN}" run python -m pip install --quiet "pip-audit==2.7.3" "safety==3.3.4"
   PIP_AUDIT_CMD=("${POETRY_BIN}" "run" "pip-audit")
   SAFETY_CMD=("${POETRY_BIN}" "run" "safety")

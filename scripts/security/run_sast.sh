@@ -3,11 +3,14 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SEMGREP_CONFIG="${ROOT_DIR}/scripts/security/semgrep.yml"
-
-if [[ ! -f "${SEMGREP_CONFIG}" ]]; then
-  echo "Configuração do Semgrep não encontrada em ${SEMGREP_CONFIG}." >&2
-  exit 1
-fi
+# Pacotes oficiais do registro (evita erro de schema ao usar YAML como lista de packs)
+SEMGREP_PACKS=(
+  "p/owasp-top-ten"
+  "p/security-audit"
+  "p/secrets"
+  "p/python"
+  "p/react"
+)
 
 if command -v poetry >/dev/null 2>&1; then
   SEMGREP_CMD=("poetry" "run" "semgrep")
@@ -37,7 +40,7 @@ TARGETS=(
 export SEMGREP_ENABLE_VERSION_CHECK=0
 
 "${SEMGREP_CMD[@]}" scan \
-  --config "${SEMGREP_CONFIG}" \
+  $(for pack in "${SEMGREP_PACKS[@]}"; do printf -- " --config %q" "$pack"; done) \
   --severity "${MIN_SEVERITY}" \
   --error \
   --metrics=off \
