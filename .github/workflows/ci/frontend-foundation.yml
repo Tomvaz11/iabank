@@ -419,3 +419,5 @@ jobs:
           FOUNDATION_OTEL_OUTAGE_ENDPOINT: ${{ secrets.FOUNDATION_OTEL_OUTAGE_ENDPOINT }}
           FOUNDATION_DEFAULT_TENANT: tenant-alfa
         run: node scripts/dist/ci/handle-outage.js
+
+# no-op bump to trigger indexing
