@@ -20,6 +20,20 @@ env:
   NODE_VERSION: 20.17.0
 
 jobs:
+  diag:
+    name: CI Diagnostics
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print GitHub context
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "ref=${{ github.ref }}"
+          echo "head_ref=${{ github.head_ref }}"
+          echo "sha=${{ github.sha }}"
+          echo "workflow_ref=${{ github.workflow_ref }}"
+          echo "actor=${{ github.actor }}"
+          echo "repository=${{ github.repository }}"
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
