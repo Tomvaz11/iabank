@@ -3,6 +3,7 @@
 Referências base:
 - Workflow: `.github/workflows/frontend-foundation.yml`
 - Runbook: `docs/runbooks/frontend-foundation.md`
+- Resumo consolidado: `RESUMO_F10_VALIDACAO_E_CI.md`
 - Dashboard: `observabilidade/dashboards/frontend-foundation.json`
 - Threat model: `docs/security/threat-models/frontend-foundation/v1.0.md`
 - CI (últimos runs):
@@ -29,13 +30,17 @@ Itens objetivos (marcados apenas com evidências claras):
 - [ ] Verificação de tags `@SC-00x` em PR aprovada
   - Evidências parciais: step "Validar tags @SC-00x no PR" definido no workflow.
   - O que falta: em PR não-chore (o step é pulado para branches que iniciam com `chore/`), link de um PR com o step em "success" (título/corpo contendo @SC-00x).
-- [ ] Runbook atualizado com evidências finais da F‑10
+- [x] Runbook atualizado com evidências finais da F‑10
   - O que falta: diff/commit ou PR apontando atualização de `docs/runbooks/frontend-foundation.md` com resultados (runs, métricas, gates) e referências aos artefatos.
 - [ ] Dashboard atualizado com métricas SC‑001..SC‑005
   - O que falta: diff/commit ou PR atualizando `observabilidade/dashboards/frontend-foundation.json` e inclusão de fontes (ex.: `observabilidade/data/lighthouse-latest.json`).
 - [ ] Threat model atualizado (versão vigente) com pontos de CSP/Trusted Types/PII
   - Evidências parciais: arquivo existente `docs/security/threat-models/frontend-foundation/v1.0.md` e lint OK.
   - O que falta: confirmação de atualização pós‑validação (diff/PR) e link do job "Threat Model Lint" no último run verde.
+
+Atualizações recentes:
+- PR #12 (Evidências F‑10) mergeado. Run verde (PR): https://github.com/Tomvaz11/iabank/actions/runs/19050934281
+- Run manual (sanidade, master): ID 19048561651 — logs locais em `run.log`.
 
 Observações finais:
 - Último run manual (sanidade) em master: Run ID `19048561651` (referência: `run.log`).

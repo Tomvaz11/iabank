@@ -16,16 +16,19 @@ Especificidades obrigatórias: Storybook + test-runner (axe/WCAG) e Chromatic (c
 Itens objetivos:
 - [x] Storybook build gerado (estático)
   - Evidências: `push_run.log` (job "Visual & Accessibility Gates" → "Build Storybook estático"), artefatos em `frontend/storybook-static`.
-- [ ] Test‑runner do Storybook (axe/WCAG) sem violações (PR)
-  - Evidências parciais: em push, `push_run.log` mostra "No accessibility violations detected!" e "Test Suites: 4 passed".
-  - O que falta: no PR #12, o job falhou antes (Chromatic), impedindo o test‑runner; necessário um run de PR com o job verde.
+- [x] Test‑runner do Storybook (axe/WCAG) sem violações (PR)
+  - Evidências (PR #12): job Visual verde (test‑runner executado sem violações) — https://github.com/Tomvaz11/iabank/actions/runs/19050934281
 - [x] Chromatic executado em PR (condicional)
   - Evidências: PR #12 — build publicado e cobertura validada (job Visual verde após ajustes). Run: https://github.com/Tomvaz11/iabank/actions/runs/19050934281
   - Observação: cobertura por tenant (≥95%) ficará para follow‑up (issue #13). No PR atual, o step de cobertura roda e publica artefatos, porém sem bloquear.
-- [ ] Último run VERDE de PR para o job "Visual & Accessibility Gates"
-  - Evidências: PR #12 — job verde: https://github.com/Tomvaz11/iabank/actions/runs/19050934281
-- [ ] Runbook atualizado com resultados visuais/A11y
-  - O que falta: atualização de `docs/runbooks/frontend-foundation.md` com links para Chromatic/artefatos e resumo das violações axe (idealmente 0) e cobertura.
+- [x] Último run VERDE de PR para o job "Visual & Accessibility Gates"
+  - Evidências: PR #12 — job verde — https://github.com/Tomvaz11/iabank/actions/runs/19050934281
+- [x] Runbook atualizado com resultados visuais/A11y
+  - Evidências: seção "Evidências F‑10"/"Evidências PR #12 — run verde" em `docs/runbooks/frontend-foundation.md`.
+
+Atualizações recentes:
+- PR #12 mergeado; run verde do job Visual: https://github.com/Tomvaz11/iabank/actions/runs/19050934281
+- Cobertura por tenant ≥ 95% ficará para o follow‑up (issue #13); no PR atual, o step de cobertura está tolerante e publica artefatos.
 
 Notas:
 - Em `workflow_dispatch` (sanidade) os steps de Chromatic podem ser pulados — condicional de PR.

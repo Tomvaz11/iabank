@@ -38,3 +38,6 @@ Itens objetivos:
 
 Notas:
 - `CI_ENFORCE_FULL_SECURITY` é aplicado a `master/main/releases/tags` (fail‑closed). Em outros casos/dispatch, passos podem ser fail‑open — documentar no runbook a política vigente.
+
+Atualizações recentes:
+- PR #12 mergeado; job Security Checks verde (fail‑open no PR) — https://github.com/Tomvaz11/iabank/actions/runs/19050934281
