@@ -204,7 +204,7 @@ jobs:
       - name: Executar Chromatic
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
-        if: ${{ github.event_name != 'workflow_dispatch' && env.CHROMATIC_PROJECT_TOKEN != '' }}
+        if: ${{ github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
         run: |
           pnpm chromatic:ci
         working-directory: frontend
@@ -213,7 +213,7 @@ jobs:
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           CHROMATIC_MIN_COVERAGE: '95'
-        if: ${{ github.event_name != 'workflow_dispatch' && env.CHROMATIC_PROJECT_TOKEN != '' }}
+        if: ${{ github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
         run: |
           pnpm chromatic:check -- --output chromatic-coverage.json
         working-directory: frontend
