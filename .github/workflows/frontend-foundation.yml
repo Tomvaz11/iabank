@@ -216,13 +216,12 @@ jobs:
           pnpm chromatic:ci
         working-directory: frontend
 
-      - name: Validar cobertura visual por tenant
+      - name: Validar cobertura visual por tenant (estrito ≥95%)
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           CHROMATIC_MIN_COVERAGE: '95'
           CHROMATIC_TENANTS: 'tenant-alfa'
         if: ${{ github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
-        continue-on-error: true
         run: |
           pnpm chromatic:check -- --output chromatic-coverage.json
         working-directory: frontend
@@ -275,20 +274,18 @@ jobs:
           mkdir -p artifacts
           mkdir -p artifacts/lighthouse
 
-      - name: Executar k6 smoke
+      - name: Executar k6 smoke (estrito)
         run: pnpm perf:smoke:ci
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
         env:
           FOUNDATION_PERF_BASE_URL: https://example.com
           FOUNDATION_PERF_TENANT: tenant-alfa
           FOUNDATION_PERF_VUS: 1
           FOUNDATION_PERF_DURATION: 10s
 
-      - name: Executar Playwright + Lighthouse budgets
+      - name: Executar Playwright + Lighthouse budgets (estrito)
         env:
           LIGHTHOUSE_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/lighthouse
         run: pnpm perf:lighthouse
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
 
       - name: Publicar resultados k6
         uses: actions/upload-artifact@v4
