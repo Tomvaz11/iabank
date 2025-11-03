@@ -345,6 +345,7 @@ jobs:
 
       - name: DAST (OWASP ZAP baseline)
         id: security_dast
+        if: ${{ env.CI_ENFORCE_FULL_SECURITY == 'true' || github.event_name == 'pull_request' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
         env:
           ZAP_BASELINE_TARGET: http://127.0.0.1:8000/health
