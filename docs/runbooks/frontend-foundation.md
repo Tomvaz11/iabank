@@ -103,3 +103,27 @@ Pontos de Contato
 - DS Guild — tokens multi-tenant e acessibilidade.
 - Segurança/Privacy — threat modeling, CI outage e LGPD.
 \n\n## docs: evidências F-10 (2025-11-03T21:22:51Z)\n\n- PR run para capturar Chromatic/DAST/Performance e consolidar checklists.\n
+
+### Evidências PR #12 (Evidências F‑10 PR run)
+
+- Workflow (pull_request): https://github.com/Tomvaz11/iabank/actions/runs/19049757588
+- Jobs:
+  - CI Diagnostics: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406825564 (success)
+  - Lint: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406825581 (success)
+  - Vitest (inclui Pytest): https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406870319 (success)
+    - Coverage Vitest: All files — Statements 95.17%, Lines 95.17%, Functions 88.88%, Branches 84.75.
+    - Coverage Pytest: TOTAL 87%.
+  - Contracts (Spectral, OpenAPI Diff, Pact): https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406986661 (success)
+  - Visual & Accessibility Gates: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407027880 (failure)
+    - Motivo: Chromatic falhou por histórico git raso ("Found only one commit").
+  - Performance Budgets: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407027840 (failure)
+    - Motivo: ação `grafana/setup-k6-action@v0.4.0` não resolvida.
+  - Security Checks: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407027868 (success; fail-open em PR)
+  - Threat Model Lint: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407243828 (success)
+  - CI Outage Guard: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407243841 (success)
+
+### Ações pendentes para fechar gates
+
+- Visual/Chromatic: ajustar `fetch-depth: 0` no `actions/checkout` do job ou adicionar commits na branch para permitir baseline; validar cobertura ≥ 95% e anexar `chromatic-coverage.json`.
+- Performance: atualizar ação k6 para uma tag existente (`grafana/setup-k6-action@v1` ou equivalente), reexecutar; anexar `artifacts/k6-smoke.json` e relatórios Lighthouse.
+- Segurança: corrigir rule Semgrep com schema inválido; ajustar `pip-audit` para Poetry 2.x; garantir SBOM gerada e validada (upload OK).
