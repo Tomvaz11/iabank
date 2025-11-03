@@ -7,6 +7,12 @@ on:
       - master
       - develop
       - 'feature/**'
+  push:
+    branches:
+      - master
+      - develop
+      - 'feature/**'
+      - 'chore/**'
   workflow_dispatch: {}
 
 env:
@@ -279,8 +285,8 @@ jobs:
     needs: contracts
     if: always()
     env:
-      CI_ENFORCE_FULL_SECURITY: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/') }}
-      CI_FAIL_OPEN: ${{ github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
+      CI_ENFORCE_FULL_SECURITY: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/') }}
+      CI_FAIL_OPEN: ${{ github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
