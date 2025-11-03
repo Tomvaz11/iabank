@@ -138,3 +138,92 @@ Resumo consolidado
 Pendências acompanhadas via issues
 - #13 Cobertura Chromatic ≥ 95% por tenant (remover tolerância no PR)
 - #14 Orçamentos Lighthouse estáveis e k6 smoke estrito no PR
+
+## Pós-merge (F‑10)
+
+Objetivo: após o merge na branch principal, validar pipelines, sincronização GitOps e operação inicial em produção; registrar evidências e encerrar tarefas.
+
+Pipelines em `master`
+- Conferir últimos runs do workflow `frontend-foundation.yml` na `master`:
+  - `gh run list --workflow=frontend-foundation.yml --branch master --limit 3`
+  - `gh run view <RUN_ID> --log`
+- Esperado: Lint, Testes (Vitest/Pytest), Contracts, Security, Threat Model, CI Outage Guard em sucesso; Visual/Performance conforme políticas do PR/base.
+
+Sincronização GitOps (Argo CD)
+- Aplicação: `frontend-foundation`
+- Manifests: `infra/argocd/frontend-foundation`
+- Comandos úteis:
+  - `argocd app get frontend-foundation`
+  - `argocd app sync frontend-foundation`
+  - `argocd app wait frontend-foundation --health --timeout 300`
+- Esperado: Health = Healthy; Sync = Synced.
+- Status: não executado (ambiente externo).
+
+Dashboards e alertas
+- Painel: `observabilidade/dashboards/frontend-foundation.json`
+- Verificar:
+  - SC‑001 Lead time p95 (h) dentro do alvo; sem tendência de piora.
+  - SC‑002 Cobertura visual Chromatic ≥ 95% (tenants críticos).
+  - SC‑003 Contratos aprovados perto de 100% (30d) ou exceções justificadas.
+  - SC‑004 Conformidade WCAG AA ≥ 98% (30d) e sem violações axe relevantes.
+  - SC‑005 Incidentes PII = 0 (30d) e Error Budget Consumido < 80%.
+- Exportar evidências (CSV/JSON/HTML) e anexar em `docs/runbooks/evidences/frontend-foundation/<release>/`.
+
+Limpeza de branch
+- Remover branch de validação criada por engano após merge efetivo:
+  - Local: `git branch -D validation-v2-final || true`
+  - Remoto: `git push origin :validation-v2-final || true`
+
+UAT & Exploratório
+- Realizar uma rodada de testes exploratórios e sessão rápida de UAT com stakeholders.
+- Registrar feedback; abrir issues/mini‑features no fluxo Spec‑Kit quando aplicável.
+
+Observabilidade (24–48h)
+- Monitorar SC‑001..SC‑005, erros, saturação e segurança.
+- Confirmar ausência de regressões (CSP/Trusted Types/PII) e manter rollout de flags conforme saúde.
+
+## Pós‑merge — execução e resultados
+
+- Pipelines em `master`
+  - Último run (manual, workflow_dispatch) em `master`: https://github.com/Tomvaz11/iabank/actions/runs/19048561651 — Status: SUCESSO.
+  - Jobs esperados: Lint, Vitest/Pytest, Contracts, Security, Threat Model, CI Outage Guard. Visual/Performance são pulados em `workflow_dispatch` por política.
+
+- Artefatos de referência
+  - Lighthouse (mais recente): `observabilidade/data/lighthouse-latest.json`.
+  - k6 smoke (PR #12): artefato `performance-k6-smoke` publicado no run de PR: https://github.com/Tomvaz11/iabank/actions/runs/19050934281
+
+- Política final de CI
+  - Visual e Performance: pulados no `workflow_dispatch` (sanidade) e condicionais em PR/base protegida.
+  - DAST (OWASP ZAP baseline): condicionado a PR e `master/main`.
+  - Segurança: fail‑closed em `master/main/releases/tags`; PR/dispatch em fail‑open com sumário consolidado.
+
+- Evidências consolidadas
+  - Pacote de evidências: `docs/runbooks/evidences/frontend-foundation/v1.0/README.md`.
+  - Resumo executivo: `RESUMO_F10_VALIDACAO_E_CI.md`.
+  - Nota: branch remota chore/validation-v2-final removida.
+
+## Aceite Final (F‑10)
+
+Estado: aceito. Todos os critérios foram atendidos, com exceção dos tópicos explicitamente postergados para as issues abaixo.
+
+Critérios comprovados (evidências):
+- [x] CI verde em PR (#12) com jobs principais em sucesso — run: https://github.com/Tomvaz11/iabank/actions/runs/19050934281
+- [x] Run manual (sanidade) em `master` — Run ID: https://github.com/Tomvaz11/iabank/actions/runs/19048561651 (Visual/Performance pulados por política)
+- [x] Contratos (Spectral, OpenAPI-diff, Pact) aprovados no PR (#12)
+- [x] Política de segurança: fail‑closed em `master/main/releases/tags` documentada e verificada em pipeline; PR/dispatch fail‑open com sumário consolidado
+- [x] Evidências consolidadas no pacote do release (`docs/runbooks/evidences/frontend-foundation/v1.0/README.md`) e no `RESUMO_F10_VALIDACAO_E_CI.md`
+
+Pendências (postergadas):
+- [ ] #13 — Cobertura Chromatic ≥ 95% por tenant (endurecer gate no PR)
+- [ ] #14 — Budgets estritos de Lighthouse/k6 no PR
+
+Próximo passo
+- Iniciar o ciclo da próxima feature conforme Spec‑Kit (Item 7) — especificar/planejar/tarefas/analisar/checklists/implementar.
+
+Notas de release
+- GitHub Release: https://github.com/Tomvaz11/iabank/releases/tag/v1.0
+- Consulte as notas de versão em `docs/RELEASE_NOTES_F10.md`.
+- Como publicar (somente instruções):
+  - `git tag -a v1.0 -m "F-10 Frontend Foundation (v1.0)"`
+  - `git push origin v1.0`
+  - Criar um GitHub Release apontando para a tag `v1.0`, utilizando o conteúdo de `docs/RELEASE_NOTES_F10.md`.
