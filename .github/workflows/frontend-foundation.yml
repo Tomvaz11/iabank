@@ -232,6 +232,7 @@ jobs:
   performance:
     name: Performance Budgets
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
     needs: contracts
     steps:
       - name: Checkout
