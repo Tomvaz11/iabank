@@ -2,8 +2,6 @@ import json
 import subprocess
 from pathlib import Path
 
-import pytest
-
 
 def test_k6_script_exports_foundation_api_throughput():
     script_path = Path("tests/performance/frontend-smoke.js")
