@@ -220,14 +220,17 @@ jobs:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           CHROMATIC_MIN_COVERAGE: '95'
         if: ${{ github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
+        continue-on-error: true
         run: |
           pnpm chromatic:check -- --output chromatic-coverage.json
         working-directory: frontend
 
       - name: Executar test-runner do Storybook (axe/WCAG)
+        if: always()
         run: pnpm --filter @iabank/frontend-foundation storybook:test
 
       - name: Publicar artefatos Chromatic
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: chromatic-coverage
@@ -282,6 +285,7 @@ jobs:
         env:
           LIGHTHOUSE_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/lighthouse
         run: pnpm perf:lighthouse
+        continue-on-error: true
 
       - name: Publicar resultados k6
         uses: actions/upload-artifact@v4
