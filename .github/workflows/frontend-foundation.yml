@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validar tags @SC-00x no PR
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'chore/') && !startsWith(github.head_ref, 'ci/') && !startsWith(github.head_ref, 'docs/') && !startsWith(github.head_ref, 'tests/') }}
         run: |
           PR_TITLE=$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")
           PR_BODY=$(jq -r '.pull_request.body // \"\"' "$GITHUB_EVENT_PATH")
