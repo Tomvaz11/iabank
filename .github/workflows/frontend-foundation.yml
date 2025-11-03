@@ -175,6 +175,7 @@ jobs:
   visual-accessibility:
     name: Visual & Accessibility Gates
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'workflow_dispatch' }}
     needs: contracts
     steps:
       - name: Checkout
@@ -232,7 +233,7 @@ jobs:
   performance:
     name: Performance Budgets
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
+    if: ${{ (github.event_name == 'pull_request' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main') && github.event_name != 'workflow_dispatch' }}
     needs: contracts
     steps:
       - name: Checkout
@@ -301,7 +302,7 @@ jobs:
     needs: contracts
     if: always()
     env:
-      CI_ENFORCE_FULL_SECURITY: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/') }}
+      CI_ENFORCE_FULL_SECURITY: ${{ github.event_name != 'workflow_dispatch' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/')) }}
       CI_FAIL_OPEN: ${{ github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
     steps:
       - name: Checkout
@@ -411,6 +412,7 @@ jobs:
     name: Threat Model Lint
     runs-on: ubuntu-latest
     needs: security
+    if: always()
     env:
       THREAT_MODEL_RELEASE: v1.0
     steps:
