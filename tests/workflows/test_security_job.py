@@ -5,7 +5,17 @@ import yaml
 
 
 def load_workflow() -> dict:
-    with open(".github/workflows/ci/frontend-foundation.yml", "r", encoding="utf-8") as handler:
+    """Carrega o workflow da fundação a partir do caminho atual.
+
+    Compatibilidade: o arquivo foi movido de
+    .github/workflows/ci/frontend-foundation.yml
+    para
+    .github/workflows/frontend-foundation.yml
+    """
+    legacy = Path(".github/workflows/ci/frontend-foundation.yml")
+    current = Path(".github/workflows/frontend-foundation.yml")
+    path = current if current.exists() else legacy
+    with open(path, "r", encoding="utf-8") as handler:
         return yaml.safe_load(handler)
 
 
