@@ -7,6 +7,12 @@ on:
       - master
       - develop
       - 'feature/**'
+  push:
+    branches:
+      - master
+      - develop
+      - 'feature/**'
+      - 'chore/**'
   workflow_dispatch: {}
 
 env:
@@ -14,6 +20,20 @@ env:
   NODE_VERSION: 20.17.0
 
 jobs:
+  diag:
+    name: CI Diagnostics
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print GitHub context
+        run: |
+          echo "event_name=${{ github.event_name }}"
+          echo "ref=${{ github.ref }}"
+          echo "head_ref=${{ github.head_ref }}"
+          echo "sha=${{ github.sha }}"
+          echo "workflow_ref=${{ github.workflow_ref }}"
+          echo "actor=${{ github.actor }}"
+          echo "repository=${{ github.repository }}"
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -182,17 +202,18 @@ jobs:
         run: pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps
 
       - name: Executar Chromatic
-        if: ${{ github.event_name != 'workflow_dispatch' && secrets.CHROMATIC_PROJECT_TOKEN != '' }}
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+        if: ${{ github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
         run: |
           pnpm chromatic:ci
         working-directory: frontend
 
       - name: Validar cobertura visual por tenant
-        if: ${{ github.event_name != 'workflow_dispatch' && secrets.CHROMATIC_PROJECT_TOKEN != '' }}
         env:
+          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           CHROMATIC_MIN_COVERAGE: '95'
+        if: ${{ github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
         run: |
           pnpm chromatic:check -- --output chromatic-coverage.json
         working-directory: frontend
@@ -211,6 +232,7 @@ jobs:
   performance:
     name: Performance Budgets
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' }}
     needs: contracts
     steps:
       - name: Checkout
@@ -279,8 +301,8 @@ jobs:
     needs: contracts
     if: always()
     env:
-      CI_ENFORCE_FULL_SECURITY: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/') }}
-      CI_FAIL_OPEN: ${{ github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
+      CI_ENFORCE_FULL_SECURITY: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/') }}
+      CI_FAIL_OPEN: ${{ github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/master' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -324,6 +346,7 @@ jobs:
 
       - name: DAST (OWASP ZAP baseline)
         id: security_dast
+        if: ${{ env.CI_ENFORCE_FULL_SECURITY == 'true' || github.event_name == 'pull_request' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
         env:
           ZAP_BASELINE_TARGET: http://127.0.0.1:8000/health
@@ -332,7 +355,7 @@ jobs:
       - name: Validação pgcrypto
         id: security_pgcrypto
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
-        run: poetry run python scripts/security/check_pgcrypto.py
+        run: poetry run python -m scripts.security.check_pgcrypto
 
       - name: pip-audit (Python SCA)
         id: security_pip_audit
