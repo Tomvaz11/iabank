@@ -40,4 +40,4 @@ Itens objetivos (marcados apenas com evidências claras):
 Observações finais:
 - Último run manual (sanidade) em master: Run ID `19048561651` (referência: `run.log`).
 - Incluir também os PRs #10 e #11 como evidências no runbook/PR final.
- - PR de evidências para CI: #12 — https://github.com/Tomvaz11/iabank/pull/12
+ - PR de evidências para CI: #12 — https://github.com/Tomvaz11/iabank/pull/12 (verde: https://github.com/Tomvaz11/iabank/actions/runs/19050934281)
