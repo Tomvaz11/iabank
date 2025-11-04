@@ -17,7 +17,7 @@ Responsáveis: Frontend Foundation Guild / Platform
     - Performance: success (k6 + Lighthouse tolerantes em PR; artefatos publicados)
     - Security Checks: success (PR = fail‑open por política)
     - Threat Model Lint: success
-- Run manual (sanidade em master): ID 19048561651 (workflow_dispatch) — logs locais em `run.log`
+- Run manual (sanidade em main): ID 19048561651 (workflow_dispatch) — logs locais em `run.log` (histórico foi em `master`).
 
 ## Artefatos
 
@@ -41,10 +41,9 @@ Responsáveis: Frontend Foundation Guild / Platform
   - Chromatic roda apenas em PR; cobertura por tenant ≥ 95% será endurecida após a issue #13.
   - Budgets Lighthouse/k6 tolerantes em PR; endurecer após a issue #14.
 - Segurança:
-  - fail‑closed em `master/main/releases/tags`; PR/dispatch com fail‑open e sumário consolidado.
+- fail‑closed em `main/releases/tags` (compatível com `master` durante transição); PR/dispatch com fail‑open e sumário consolidado.
 
 ## Follow‑ups (hardening)
 
 - #13 — Elevar cobertura Chromatic ≥ 95% por tenant e remover tolerância no PR.
 - #14 — Estabilizar budgets Lighthouse/k6 e tornar os gates de performance rígidos no PR.
-

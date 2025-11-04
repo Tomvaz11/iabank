@@ -89,7 +89,7 @@ gh run list --workflow=frontend-foundation.yml --event pull_request --limit 3
 ## Itens pendentes/ajustes possíveis
 
 - (Estratégia) Migrar default branch para `main` no futuro (gatilhos já compatíveis com ambos).
-- (Política) Opcional: endurecer Segurança (fail‑closed) também em PRs cujo base seja `master/main` (hoje PRs seguem fail‑open; `master/main/releases/tags` já estão fail‑closed).
+- (Política) Opcional: endurecer Segurança (fail‑closed) também em PRs cujo base seja `main` (hoje PRs seguem fail‑open; `main/releases/tags` já estão fail‑closed; compatível com `master` durante transição).
 
 ## Referências
 

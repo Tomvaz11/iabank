@@ -22,5 +22,5 @@ Itens objetivos:
   - Evidências: implementado no PR #16 (CI hardening) — budgets agora falham PR ao exceder limites.
 
 Notas:
-- Em `workflow_dispatch` (sanidade) budgets de performance são pulados por design; validar via PR/master.
+- Em `workflow_dispatch` (sanidade) budgets de performance são pulados por design; validar via PR/main.
 - Endurecer budgets e k6 no PR após issue #14.
