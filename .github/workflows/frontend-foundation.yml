@@ -9,6 +9,7 @@ on:
       - 'feature/**'
   push:
     branches:
+      - main
       - master
       - develop
       - 'feature/**'
