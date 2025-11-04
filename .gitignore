@@ -26,3 +26,7 @@ __pycache__/
 venv/
 *.egg-info/
 codex-action/
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup

@@ -1,0 +1,25 @@
+repos:
+  # Hooks locais para evitar downloads em ambiente sem rede.
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff (python)
+        entry: poetry
+        args: ["run", "ruff", "check", "--force-exclude", "--fix"]
+        language: system
+        types: [python]
+        pass_filenames: true
+
+      - id: eslint-frontend
+        name: eslint (frontend)
+        entry: pnpm
+        args: ["--filter", "@iabank/frontend-foundation", "lint"]
+        language: system
+        pass_filenames: false
+        files: ^frontend/
+
+      - id: conventional-commit-msg
+        name: conventional commit message
+        entry: bash scripts/git/verify-commit-msg.sh
+        language: system
+        stages: [commit-msg]

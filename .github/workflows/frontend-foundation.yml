@@ -11,6 +11,7 @@ on:
       - main
       - develop
       - 'feature/**'
+      - '[0-9][0-9][0-9]-*'
       - 'chore/**'
   workflow_dispatch: {}
 
@@ -47,6 +48,16 @@ jobs:
           PR_BODY=$(jq -r '.pull_request.body // \"\"' "$GITHUB_EVENT_PATH")
           if ! printf '%s\n%s\n' "$PR_TITLE" "$PR_BODY" | grep -Eq '@SC-00[1-5]'; then
             echo 'PR precisa mencionar pelo menos uma tag @SC-00x (SC-001..SC-005).'
+            exit 1
+          fi
+
+      - name: Validar título Conventional Commits
+        if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'chore/') && !startsWith(github.head_ref, 'ci/') && !startsWith(github.head_ref, 'docs/') && !startsWith(github.head_ref, 'tests/') }}
+        run: |
+          PR_TITLE=$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")
+          re='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._-]+\))?!?: .+'
+          if ! grep -Eiq "$re" <(printf '%s' "$PR_TITLE"); then
+            echo 'Título do PR deve seguir Conventional Commits (ex.: feat(scope): descrição).'
             exit 1
           fi
 
