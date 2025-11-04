@@ -324,7 +324,10 @@ const cleanupLegacyArtifacts = async (): Promise<void> => {
     const code = (error as NodeJS.ErrnoException | undefined)?.code;
     if (code && code !== 'ENOENT') {
       // eslint-disable-next-line no-console
-      console.warn(`[foundation:tokens] Falha ao limpar diretório legado ${duplicatedRoot}:`, error);
+      console.warn(
+        `[foundation:tokens] Falha ao limpar diretório legado ${duplicatedRoot}:`,
+        error,
+      );
     }
   }
 };

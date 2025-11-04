@@ -8,6 +8,7 @@ const meta: Meta<typeof DataStateError> = {
   component: DataStateError,
   parameters: {
     layout: 'centered',
+    tenants: ['tenant-default', 'tenant-alfa', 'tenant-beta'],
   },
   args: {
     title: 'Não foi possível carregar os dados',
@@ -34,3 +35,18 @@ export const SemRetry: Story = {
   },
 };
 
+// Variações por tenant para cobertura visual (Chromatic)
+export const TenantDefault: Story = {
+  name: 'Tenant default',
+  parameters: { tenant: 'tenant-default' },
+};
+
+export const TenantAlfa: Story = {
+  name: 'Tenant Alfa',
+  parameters: { tenant: 'tenant-alfa' },
+};
+
+export const TenantBeta: Story = {
+  name: 'Tenant Beta',
+  parameters: { tenant: 'tenant-beta' },
+};

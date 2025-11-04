@@ -139,6 +139,9 @@ const main = async () => {
     FOUNDATION_PERF_BASE_URL: previewBaseUrl,
   };
 
+  // Para evitar ruído local, não define endpoint OTEL por padrão;
+  // quando configurado externamente, será propagado ao k6.
+
   const previewProcess = spawn('pnpm', previewArgs, {
     stdio: 'inherit',
     shell: false,

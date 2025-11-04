@@ -19,10 +19,27 @@ const DEFAULT_DURATION = '30s';
 const DEFAULT_SERVICE_NAME = 'frontend-foundation';
 const DEFAULT_OTEL_TIMEOUT_MS = 2000;
 const otelServiceName = __ENV.OTEL_SERVICE_NAME || DEFAULT_SERVICE_NAME;
-const otelEndpoint =
-  (__ENV.FOUNDATION_OTEL_EXPORT_URL || __ENV.OTEL_EXPORTER_OTLP_ENDPOINT || '').replace(/\/$/, '');
-const throughputCritical = Number(__ENV.FOUNDATION_PERF_THROUGHPUT_CRITICAL || 45);
-const throughputWarning = Number(__ENV.FOUNDATION_PERF_THROUGHPUT_WARNING || throughputCritical * 0.9);
+const otelEndpoint = (
+  __ENV.FOUNDATION_OTEL_EXPORT_URL ||
+  __ENV.OTEL_EXPORTER_OTLP_ENDPOINT ||
+  ''
+).replace(/\/$/, '');
+// Modo local tem hardware variado; usar limites mais brandos por padrão.
+const isLocalMode =
+  String(__ENV.FOUNDATION_PERF_MODE || '').toLowerCase() === 'local' ||
+  String(__ENV.CI || '') !== 'true';
+const DEFAULT_THROUGHPUT_CRITICAL_CI = 45;
+const DEFAULT_THROUGHPUT_CRITICAL_LOCAL = 8;
+const throughputCritical = Number(
+  __ENV.FOUNDATION_PERF_THROUGHPUT_CRITICAL ||
+    (isLocalMode ? DEFAULT_THROUGHPUT_CRITICAL_LOCAL : DEFAULT_THROUGHPUT_CRITICAL_CI),
+);
+const throughputWarning = Number(
+  __ENV.FOUNDATION_PERF_THROUGHPUT_WARNING ||
+    (isLocalMode
+      ? Math.round(DEFAULT_THROUGHPUT_CRITICAL_LOCAL * 0.8)
+      : Math.round(DEFAULT_THROUGHPUT_CRITICAL_CI * 0.9)),
+);
 
 const randomHex = (length) => {
   let output = '';
@@ -74,8 +91,7 @@ const getHeaderValue = (headers, headerName) => {
   return undefined;
 };
 
-const isLocalMode =
-  String(__ENV.FOUNDATION_PERF_MODE || '').toLowerCase() === 'local' || String(__ENV.CI || '') !== 'true';
+// isLocalMode já definido acima
 
 const ciThresholds = {
   http_req_failed: ['rate<0.01'],
@@ -210,22 +226,21 @@ const publishFoundationThroughput = (value, attributes) => {
       },
     ],
   });
-  const timeoutSeconds = Math.max(Number(__ENV.FOUNDATION_OTEL_TIMEOUT_MS || DEFAULT_OTEL_TIMEOUT_MS) / 1000, 1);
+  const timeoutSeconds = Math.max(
+    Number(__ENV.FOUNDATION_OTEL_TIMEOUT_MS || DEFAULT_OTEL_TIMEOUT_MS) / 1000,
+    1,
+  );
   try {
-    const response = http.post(
-      url,
-      payload,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        timeout: `${timeoutSeconds}s`,
-        tags: {
-          ...baseTags,
-          otel_export: 'foundation_api_throughput',
-        },
+    const response = http.post(url, payload, {
+      headers: {
+        'Content-Type': 'application/json',
       },
-    );
+      timeout: `${timeoutSeconds}s`,
+      tags: {
+        ...baseTags,
+        otel_export: 'foundation_api_throughput',
+      },
+    });
     if (response.status >= 300) {
       console.error(
         `[foundation:throughput] Falha ao publicar foundation_api_throughput: status=${response.status} body=${response.body}`,
@@ -254,9 +269,7 @@ const extractCount = (metric) => {
 
 export function handleSummary(data) {
   const metrics = data?.metrics ?? {};
-  const totalRequests =
-    extractCount(metrics.http_reqs) ||
-    extractCount(metrics.iterations);
+  const totalRequests = extractCount(metrics.http_reqs) || extractCount(metrics.iterations);
   const scenarioDuration =
     options.scenarios?.smoke?.duration || __ENV.FOUNDATION_PERF_DURATION || DEFAULT_DURATION;
   const durationSeconds = parseDurationToSeconds(scenarioDuration);

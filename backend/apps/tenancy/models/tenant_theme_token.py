@@ -41,51 +41,58 @@ class TenantThemeToken(models.Model):
     def __str__(self) -> str:  # pragma: no cover - repr utilitário
         return f'TenantThemeToken<{self.tenant_id}:{self.version}>'
 
-    def clean(self) -> None:  # pragma: no cover - executado via save/full_clean
-        errors: dict[str, list[str]] = {}
-
+    def _validate_version(self, errors: dict[str, list[str]]) -> None:
         if self.version and not SEMVER_PATTERN.match(self.version):
             errors.setdefault('version', []).append('Versão deve seguir o formato SemVer (ex.: 1.2.3).')
 
+    def _validate_wcag_presence_and_type(self, errors: dict[str, list[str]]) -> dict[str, object] | None:
         if self.category != self.Category.FOUNDATION and not self.wcag_report:
             errors.setdefault('wcag_report', []).append(
                 'Tokens semânticos e de componentes exigem relatório WCAG associado.',
             )
-
         if self.wcag_report and not isinstance(self.wcag_report, dict):
             errors.setdefault('wcag_report', []).append('Relatório WCAG deve ser um objeto JSON.')
+        return self.wcag_report if isinstance(self.wcag_report, dict) else None
 
-        wcag_data: dict[str, object] | None = self.wcag_report if isinstance(self.wcag_report, dict) else None
+    def _validate_default_wcag(self, wcag_data: dict[str, object] | None, errors: dict[str, list[str]]) -> None:
+        if self.category == self.Category.FOUNDATION or not self.is_default:
+            return
+        if not wcag_data:
+            errors.setdefault('wcag_report', []).append(
+                'Auditoria WCAG válida é obrigatória para marcar tokens padrão.',
+            )
+            return
 
-        if self.category != self.Category.FOUNDATION and self.is_default:
-            if not wcag_data:
+        status_value = str(wcag_data.get('status', '')).lower()
+        if status_value != 'pass':
+            errors.setdefault('wcag_report', []).append(
+                'Somente tokens com status WCAG "pass" podem ser definidos como padrão.',
+            )
+
+        violations = wcag_data.get('violations', [])
+        if violations is None:
+            wcag_data['violations'] = []
+        elif isinstance(violations, list):
+            if len(violations) > 0:
                 errors.setdefault('wcag_report', []).append(
-                    'Auditoria WCAG válida é obrigatória para marcar tokens padrão.',
+                    'Resolva violações WCAG antes de marcar o token como padrão.',
                 )
-            else:
-                status = str(wcag_data.get('status', '')).lower()
-                if status != 'pass':
-                    errors.setdefault('wcag_report', []).append(
-                        'Somente tokens com status WCAG "pass" podem ser definidos como padrão.',
-                    )
+        else:
+            errors.setdefault('wcag_report', []).append('Campo "violations" deve ser uma lista.')
 
-                violations = wcag_data.get('violations', [])
-                if violations is None:
-                    wcag_data['violations'] = []
-                elif isinstance(violations, list):
-                    if len(violations) > 0:
-                        errors.setdefault('wcag_report', []).append(
-                            'Resolva violações WCAG antes de marcar o token como padrão.',
-                        )
-                else:
-                    errors.setdefault('wcag_report', []).append('Campo "violations" deve ser uma lista.')
+        if status_value == 'pass':
+            self.wcag_report = {
+                **wcag_data,
+                'status': 'pass',
+                'violations': wcag_data.get('violations', []),
+            }
 
-                if status == 'pass':
-                    self.wcag_report = {
-                        **wcag_data,
-                        'status': 'pass',
-                        'violations': wcag_data.get('violations', []),
-                    }
+    def clean(self) -> None:  # pragma: no cover - executado via save/full_clean
+        errors: dict[str, list[str]] = {}
+
+        self._validate_version(errors)
+        wcag_data = self._validate_wcag_presence_and_type(errors)
+        self._validate_default_wcag(wcag_data, errors)
 
         if errors:
             raise ValidationError(errors)

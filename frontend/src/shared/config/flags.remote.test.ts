@@ -11,13 +11,11 @@ describe('createFeatureFlagClient com ConfigCat', () => {
   it('utiliza client remoto e aplica fallback em erros', async () => {
     const listeners = new Set<() => void>();
 
-    const getValueAsync = (vi.fn(async () => {
+    const getValueAsync = vi.fn(async () => {
       throw new Error('ConfigCat indisponível');
     }) as unknown as ((...args: unknown[]) => Promise<unknown>) & {
-      mockImplementationOnce: (
-        impl: (...args: unknown[]) => unknown | Promise<unknown>,
-      ) => unknown;
-    });
+      mockImplementationOnce: (impl: (...args: unknown[]) => unknown | Promise<unknown>) => unknown;
+    };
     getValueAsync.mockImplementationOnce(async () => 'valor-inválido');
 
     const on = vi.fn((event: string, handler: () => void) => {

@@ -8,6 +8,7 @@ const meta: Meta<typeof DataStateEmpty> = {
   component: DataStateEmpty,
   parameters: {
     layout: 'centered',
+    tenants: ['tenant-default', 'tenant-alfa', 'tenant-beta'],
   },
   args: {
     title: 'Nenhum resultado encontrado',
@@ -31,4 +32,20 @@ export const SemAcao: Story = {
   args: {
     action: undefined,
   },
+};
+
+// Variações por tenant para cobertura visual (Chromatic)
+export const TenantDefault: Story = {
+  name: 'Tenant default',
+  parameters: { tenant: 'tenant-default' },
+};
+
+export const TenantAlfa: Story = {
+  name: 'Tenant Alfa',
+  parameters: { tenant: 'tenant-alfa' },
+};
+
+export const TenantBeta: Story = {
+  name: 'Tenant Beta',
+  parameters: { tenant: 'tenant-beta' },
 };

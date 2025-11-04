@@ -129,7 +129,10 @@ const isChromaticEnabled = (entry: StoryIndexEntry): boolean => {
 
 const deriveTenantsFromId = (id: string): string[] => {
   const match = id.match(/--tenant-([a-z0-9-]+)/i);
-  if (match && match[1]) return [match[1]];
+  if (match && match[1]) {
+    const suffix = match[1].toLowerCase();
+    return [`tenant-${suffix}`];
+  }
   return [];
 };
 

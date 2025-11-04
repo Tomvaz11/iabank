@@ -7,6 +7,7 @@ const meta: Meta<typeof DataStateSkeleton> = {
   component: DataStateSkeleton,
   parameters: {
     layout: 'centered',
+    tenants: ['tenant-default', 'tenant-alfa', 'tenant-beta'],
   },
   args: {
     lines: 3,
@@ -27,3 +28,18 @@ export const WithoutAvatar: Story = {
   },
 };
 
+// Variações por tenant para cobertura visual (Chromatic)
+export const TenantDefault: Story = {
+  name: 'Tenant default',
+  parameters: { tenant: 'tenant-default' },
+};
+
+export const TenantAlfa: Story = {
+  name: 'Tenant Alfa',
+  parameters: { tenant: 'tenant-alfa' },
+};
+
+export const TenantBeta: Story = {
+  name: 'Tenant Beta',
+  parameters: { tenant: 'tenant-beta' },
+};
