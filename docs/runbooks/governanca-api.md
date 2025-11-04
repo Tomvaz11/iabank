@@ -22,4 +22,4 @@ Aplicação operacional do **ADR-011** e do Artigo XI da Constituição.
 
 ## Auditoria
 - Armazene relatórios do diff e resultados do Pact no bucket WORM.
-- Atualize `docs/auditoria/api-governance.md` com links para cada release.
+- Atualize `docs/runbooks/api-governance.md` com links para cada release.
