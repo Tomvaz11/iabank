@@ -8,7 +8,7 @@ Referências base:
 - CI (últimos runs):
   - push: `push_run.log`
   - PR: (fornecer link do Actions ao último run verde do workflow)
-  - manual (sanidade, main): Run ID `19048561651` — `run.log` (histórico original em `master`).
+  - manual (sanidade, main): Run ID `19048561651` — `run.log`.
 - PRs relevantes: #10, #11
 
 Especificidades obrigatórias: Storybook + test-runner (axe/WCAG) e Chromatic (condicional em PR).

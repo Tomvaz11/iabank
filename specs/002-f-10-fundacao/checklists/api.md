@@ -9,7 +9,7 @@ Referências base:
 - CI (últimos runs):
   - push: `push_run.log` (logs locais)
   - PR: (fornecer link do Actions ao último run verde do workflow)
-  - manual (sanidade, main): Run ID `19048561651` — logs: `run.log` (histórico executado em branch antiga `master`).
+  - manual (sanidade, main): Run ID `19048561651` — logs: `run.log`
 - PRs relevantes: #10 (Merge validation v2 final), #11 (Cleanup pós-merge F‑10 CI)
 
 Especificidades obrigatórias deste tema: Spectral, OpenAPI-diff e Pact.

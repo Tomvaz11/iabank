@@ -9,7 +9,7 @@ Referências base:
 - CI (últimos runs):
   - push: `push_run.log` (logs locais)
   - PR: (fornecer link do Actions ao último run verde do workflow)
-  - manual (sanidade, main): Run ID `19048561651` (evento `workflow_dispatch`) — logs: `run.log` (histórico originalmente em `master`).
+  - manual (sanidade, main): Run ID `19048561651` (evento `workflow_dispatch`) — logs: `run.log`.
 - PRs relevantes: #10 (Merge validation v2 final), #11 (Cleanup pós-merge F‑10 CI)
 
 Itens objetivos (marcados apenas com evidências claras):
@@ -38,17 +38,17 @@ Itens objetivos (marcados apenas com evidências claras):
 
 Atualizações recentes:
 - PR #12 (Evidências F‑10) mergeado. Run verde (PR): https://github.com/Tomvaz11/iabank/actions/runs/19050934281
-- Run manual (sanidade, main): ID 19048561651 — logs locais em `run.log` (execução histórica ocorreu em `master`).
+- Run manual (sanidade, main): ID 19048561651 — logs locais em `run.log`.
 
 Observações finais:
-- Último run manual (sanidade) em main: Run ID `19048561651` (referência: `run.log`; histórico em `master`).
+ 
 - Incluir também os PRs #10 e #11 como evidências no runbook/PR final.
  - PR de evidências para CI: #12 — https://github.com/Tomvaz11/iabank/pull/12 (verde: https://github.com/Tomvaz11/iabank/actions/runs/19050934281)
 
 ## Pós-merge — validações e limpeza
 
 - [x] Pipelines na `main` verificados (workflow `frontend-foundation.yml`).
-  - Evidência: run manual (workflow_dispatch) em `main` — https://github.com/Tomvaz11/iabank/actions/runs/19048561651 — sucesso; Visual/Performance pulados conforme política. (Histórico: execução original em `master`).
+  - Evidência: run manual (workflow_dispatch) em `main` — https://github.com/Tomvaz11/iabank/actions/runs/19048561651 — sucesso; Visual/Performance pulados conforme política.
 - [x] GitOps (Argo CD) sincronizado para `infra/argocd/frontend-foundation`.
   - Evidência: comandos documentados no runbook; execução em ambiente externo (não executado aqui) — aceito no contexto do aceite final.
 - [x] Limpeza de branch de validação confirmada localmente.
@@ -66,9 +66,9 @@ Estado geral: ACEITO, com exceções controladas.
 
 Comprovado com evidências:
 - [x] CI verde em PR (#12) — run: https://github.com/Tomvaz11/iabank/actions/runs/19050934281
-- [x] Run manual (sanidade) em `main` — https://github.com/Tomvaz11/iabank/actions/runs/19048561651 (histórico executado antes da migração)
+- [x] Run manual (sanidade) em `main` — https://github.com/Tomvaz11/iabank/actions/runs/19048561651
 - [x] Contratos (Spectral/OpenAPI-diff/Pact) aprovados no PR
-- [x] Política de segurança fail‑closed aplicada em `main/releases/tags` (PR/dispatch = fail‑open documentado; compatível com `master` durante transição)
+- [x] Política de segurança fail‑closed aplicada em `main/releases/tags` (PR/dispatch = fail‑open documentado)
 - [x] Evidências consolidadas (runbook + pacote de evidências + resumo)
 
 Pendências (postergadas):

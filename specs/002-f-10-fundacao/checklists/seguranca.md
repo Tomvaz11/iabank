@@ -20,7 +20,7 @@ Itens objetivos:
 - [x] pgcrypto — validação do script
   - Evidências: step "Validação pgcrypto" imprime "json_payload protegido com pgcrypto." em `push_run.log`.
 - [x] SAST (Semgrep) — sem HIGH/CRITICAL em release
-  - Evidências: job Security Checks verde no PR #12 (sem falhas bloqueantes) — https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407027868; política fail‑closed aplicada em `main/releases/tags` (compatível com `master` durante transição) e aceita no "Aceite Final (F‑10)".
+  - Evidências: job Security Checks verde no PR #12 (sem falhas bloqueantes) — https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407027868; política fail‑closed aplicada em `main/releases/tags` e aceita no "Aceite Final (F‑10)".
 - [x] DAST (OWASP ZAP baseline) — sem falhas críticas
   - Evidências: step habilitado em PR e branches protegidas; aceito no "Aceite Final (F‑10)" com jobs de segurança verdes (PR #12).
 - [x] SCA (pnpm audit / safety/pip-audit) — sem HIGH/CRITICAL
@@ -31,7 +31,7 @@ Itens objetivos:
   - Evidências: `docs/security/threat-models/frontend-foundation/v1.0.md` com lint OK; aceito no "Aceite Final (F‑10)".
 
 Notas:
-- `CI_ENFORCE_FULL_SECURITY` é aplicado a `main/releases/tags` (fail‑closed; compatível com `master` durante transição). Em outros casos/dispatch, passos podem ser fail‑open — documentar no runbook a política vigente.
+- `CI_ENFORCE_FULL_SECURITY` é aplicado a `main/releases/tags` (fail‑closed). Em outros casos/dispatch, passos podem ser fail‑open — documentar no runbook a política vigente.
 
 Atualizações recentes:
 - PR #12 mergeado; job Security Checks verde (fail‑open no PR) — https://github.com/Tomvaz11/iabank/actions/runs/19050934281
