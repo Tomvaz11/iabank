@@ -3,7 +3,7 @@
 ## Pré-requisitos
 - `specs/<feature>/tasks.md` aprovado, sem lacunas no checklist.
 - Checklists em `specs/<feature>/checklists/` atualizados; itens críticos devem estar marcados como completo ou mapeados para tarefas iniciais.
-- Ambiente local com dependências instaladas (`npm install`, ferramentas pact, Spectral, etc.).
+- Ambiente local com dependências instaladas (`pnpm install`, ferramentas pact, Spectral, etc.).
 
 ## Execução
 1. A partir da raiz do repo, execute `/speckit.implement --feature 002-f-10-fundacao`.
