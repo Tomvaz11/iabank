@@ -41,13 +41,14 @@ pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps
 ```
 
 ## Suíte completa (1 comando)
-Executa: formatação, lint, typecheck, Storybook + cobertura Chromatic por tenant, testes unitários e E2E, Lighthouse, contratos (Spectral + diff + codegen), Pact, performance k6 (modo local), Ruff e Pytest com cobertura.
+Executa: formatação, lint, typecheck, Storybook + teste de histórias (Storybook Test Runner) + cobertura Chromatic por tenant, testes unitários e E2E, Lighthouse, contratos (Spectral + diff + codegen), Pact, performance k6 (modo local), Ruff e Pytest com cobertura.
 
 ```bash
 pnpm format && \
   pnpm lint && \
   pnpm typecheck && \
   pnpm --filter @iabank/frontend-foundation storybook:build && \
+  pnpm --filter @iabank/frontend-foundation storybook:test && \
   pnpm --filter @iabank/frontend-foundation chromatic:check -- --verbose && \
   pnpm test && \
   pnpm test:e2e && \
@@ -79,6 +80,7 @@ Notas:
 
 ## Execução por fases (opcional)
 - Frontend: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm perf:lighthouse`
+- Storybook Test Runner: `pnpm --filter @iabank/frontend-foundation storybook:test`
 - Chromatic local: `pnpm --filter @iabank/frontend-foundation storybook:build && pnpm --filter @iabank/frontend-foundation chromatic:check -- --verbose`
 - Contratos/API: `pnpm openapi && pnpm pact:verify`
 - Performance: `pnpm perf:smoke:local`
