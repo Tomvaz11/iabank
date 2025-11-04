@@ -143,9 +143,9 @@ Pendências acompanhadas via issues
 
 Objetivo: após o merge na branch principal, validar pipelines, sincronização GitOps e operação inicial em produção; registrar evidências e encerrar tarefas.
 
-Pipelines em `master`
-- Conferir últimos runs do workflow `frontend-foundation.yml` na `master`:
-  - `gh run list --workflow=frontend-foundation.yml --branch master --limit 3`
+Pipelines em `main`
+- Conferir últimos runs do workflow `frontend-foundation.yml` na `main`:
+  - `gh run list --workflow=frontend-foundation.yml --branch main --limit 3`
   - `gh run view <RUN_ID> --log`
 - Esperado: Lint, Testes (Vitest/Pytest), Contracts, Security, Threat Model, CI Outage Guard em sucesso; Visual/Performance conforme políticas do PR/base.
 
@@ -184,8 +184,8 @@ Observabilidade (24–48h)
 
 ## Pós‑merge — execução e resultados
 
-- Pipelines em `master`
-  - Último run (manual, workflow_dispatch) em `master`: https://github.com/Tomvaz11/iabank/actions/runs/19048561651 — Status: SUCESSO.
+- Pipelines em `main`
+  - Último run (manual, workflow_dispatch) em `main`: https://github.com/Tomvaz11/iabank/actions/runs/19048561651 — Status: SUCESSO. (Execução histórica ocorreu em `master` antes da migração.)
   - Jobs esperados: Lint, Vitest/Pytest, Contracts, Security, Threat Model, CI Outage Guard. Visual/Performance são pulados em `workflow_dispatch` por política.
 
 - Artefatos de referência
@@ -194,8 +194,8 @@ Observabilidade (24–48h)
 
 - Política final de CI
   - Visual e Performance: pulados no `workflow_dispatch` (sanidade) e condicionais em PR/base protegida.
-  - DAST (OWASP ZAP baseline): condicionado a PR e `master/main`.
-  - Segurança: fail‑closed em `master/main/releases/tags`; PR/dispatch em fail‑open com sumário consolidado.
+  - DAST (OWASP ZAP baseline): condicionado a PR e `main` (compatível com `master` durante transição).
+  - Segurança: fail‑closed em `main/releases/tags`; PR/dispatch em fail‑open com sumário consolidado.
 
 - Evidências consolidadas
   - Pacote de evidências: `docs/runbooks/evidences/frontend-foundation/v1.0/README.md`.

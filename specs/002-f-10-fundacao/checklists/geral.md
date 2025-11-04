@@ -47,8 +47,8 @@ Observações finais:
 
 ## Pós-merge — validações e limpeza
 
-- [x] Pipelines na `master` verificados (workflow `frontend-foundation.yml`).
-  - Evidência: run manual (workflow_dispatch) em `master` — https://github.com/Tomvaz11/iabank/actions/runs/19048561651 — sucesso; Visual/Performance pulados conforme política.
+- [x] Pipelines na `main` verificados (workflow `frontend-foundation.yml`).
+  - Evidência: run manual (workflow_dispatch) em `main` — https://github.com/Tomvaz11/iabank/actions/runs/19048561651 — sucesso; Visual/Performance pulados conforme política. (Histórico: execução original em `master`).
 - [x] GitOps (Argo CD) sincronizado para `infra/argocd/frontend-foundation`.
   - Evidência: comandos documentados no runbook; execução em ambiente externo (não executado aqui) — aceito no contexto do aceite final.
 - [x] Limpeza de branch de validação confirmada localmente.
@@ -66,7 +66,7 @@ Estado geral: ACEITO, com exceções controladas.
 
 Comprovado com evidências:
 - [x] CI verde em PR (#12) — run: https://github.com/Tomvaz11/iabank/actions/runs/19050934281
-- [x] Run manual (sanidade) em `master` — https://github.com/Tomvaz11/iabank/actions/runs/19048561651
+- [x] Run manual (sanidade) em `main` — https://github.com/Tomvaz11/iabank/actions/runs/19048561651 (histórico executado antes da migração)
 - [x] Contratos (Spectral/OpenAPI-diff/Pact) aprovados no PR
 - [x] Política de segurança fail‑closed aplicada em `master/main/releases/tags` (PR/dispatch = fail‑open documentado)
 - [x] Evidências consolidadas (runbook + pacote de evidências + resumo)

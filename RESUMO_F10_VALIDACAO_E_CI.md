@@ -7,28 +7,28 @@ Este documento consolida o ciclo de encerramento da F‑10: contexto, decisões 
 
 ## Contexto
 
-- F‑10 (“Fundação Frontend FSD e UI Compartilhada”) implementada e integrada em `master` (commit “F‑10 Fundação Frontend FSD e UI Compartilhada (#3)”).
+- F‑10 (“Fundação Frontend FSD e UI Compartilhada”) implementada e integrada na branch padrão `main` (migração concluída a partir de `master`).
 - Objetivo: estabilizar o CI principal, fechar validação final, preparar o pós‑merge segundo o Spec‑Kit.
 
 ## Decisões (PORQUÊ)
 
-1) Padronizar CI na branch base `master` (mantendo compatibilidade com `main`).
+1) Padronizar CI na branch base `main` (mantendo compatibilidade com `master` durante a transição).
 2) Execuções manuais (`workflow_dispatch`) são para sanidade — sem “falsos vermelhos”.
 3) Evitar instabilidades em `push` de branches utilitárias (Chromatic/Lighthouse/DAST apenas onde faz sentido).
 
 ## Alterações (O QUÊ) e Implementação (COMO)
 
 1) Workflow principal do CI: `.github/workflows/frontend-foundation.yml`:1
-   - Gatilhos: `pull_request` (main/master/develop/feature/**), `push` (master/develop/feature/**/chore/**), `workflow_dispatch`.
+   - Gatilhos: `pull_request` (main/master/develop/feature/**), `push` (main/develop/feature/**/chore/**), `workflow_dispatch`.
    - Diagnóstico: job `CI Diagnostics` imprime contexto e garante logs.
    - Visual & A11y:
      - Chromatic roda apenas em `pull_request` se houver `CHROMATIC_PROJECT_TOKEN` (via `env`, não em `if: secrets.*`).
      - Em `workflow_dispatch`, o job Visual & A11y é pulado (sanidade).
    - Performance Budgets:
-     - Executa somente em `pull_request` e em `master/main`; nunca em `workflow_dispatch` (evita falso vermelho no manual).
+     - Executa somente em `pull_request` e em `main` (compatível com `master`); nunca em `workflow_dispatch` (evita falso vermelho no manual).
    - Segurança:
-     - `CI_ENFORCE_FULL_SECURITY` ativo em `master/main/releases/tags` (fail‑closed). Em PR/branches/dispatch → fail‑open, com sumário consolidado.
-     - DAST (ZAP) executa apenas em PR e `master/main`.
+     - `CI_ENFORCE_FULL_SECURITY` ativo em `main/releases/tags` (fail‑closed; compatível com `master`). Em PR/branches/dispatch → fail‑open, com sumário consolidado.
+     - DAST (ZAP) executa apenas em PR e `main` (compatível com `master`).
    - Testes:
      - Vitest: statements/lines/functions ≥85%; branches via env `FOUNDATION_COVERAGE_BRANCHES`.
      - Pytest: serviço Postgres 15 + envs `FOUNDATION_DB_*` no step dedicado.
@@ -50,7 +50,7 @@ Este documento consolida o ciclo de encerramento da F‑10: contexto, decisões 
 - Push (branch utilitária `chore/ci-nudge`): SUCESSO
   - Lint: PASS; Vitest/Pytest: PASS; Contracts: PASS; Visual & A11y (axe/WCAG): PASS; Segurança: PASS (fail‑open); Performance: pulado.
 
-- Manual (workflow_dispatch em `master`): SUCESSO — Run ID: `19048561651`
+- Manual (workflow_dispatch em `main`): SUCESSO — Run ID: `19048561651` (histórico originalmente executado em `master` antes da migração)
   - Visual & A11y: pulado integralmente (sanidade)
   - Performance Budgets: pulado integralmente (sanidade)
   - Segurança: fail‑open; DAST não executa (somente PR/protegidas); sumário consolidado OK
@@ -62,10 +62,10 @@ Este documento consolida o ciclo de encerramento da F‑10: contexto, decisões 
 
 ## Como rodar
 
-1) Manual (sanidade em `master`):
+1) Manual (sanidade em `main`):
 ```bash
-gh workflow run .github/workflows/frontend-foundation.yml --ref master
-gh run list --workflow=".github/workflows/frontend-foundation.yml" --event workflow_dispatch --branch master --limit 3
+gh workflow run .github/workflows/frontend-foundation.yml --ref main
+gh run list --workflow=".github/workflows/frontend-foundation.yml" --event workflow_dispatch --branch main --limit 3
 gh run view <RUN_ID> --log
 ```
 

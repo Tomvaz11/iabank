@@ -11,11 +11,11 @@ Por quê
 - Estabelecer baseline consistente para desenvolvimento frontend multi‑tenant, com governança de UI, cobertura de testes ≥ 85%, contratos estáveis e políticas de segurança/observabilidade padronizadas.
 
 Decisões principais de CI
-- Branch base `master` (compatível com `main`).
-- Gatilhos: `pull_request`, `push` (master/develop/feature/**/chore/**) e `workflow_dispatch` (sanidade).
+- Branch base `main` (compatível com `master` durante transição).
+- Gatilhos: `pull_request`, `push` (main/develop/feature/**/chore/**) e `workflow_dispatch` (sanidade).
 - Visual & A11y: Chromatic executa em PR; pulado em `workflow_dispatch` (evita falso vermelho manual).
-- Performance Budgets: executa em PR e `master/main`; pulado em `workflow_dispatch`.
-- Segurança: `fail‑closed` em `master/main/releases/tags`; PR/dispatch em `fail‑open` com sumário consolidado. DAST (ZAP baseline) em PR e `master/main`.
+- Performance Budgets: executa em PR e `main` (compatível com `master`); pulado em `workflow_dispatch`.
+- Segurança: `fail‑closed` em `main/releases/tags`; PR/dispatch em `fail‑open` com sumário consolidado. DAST (ZAP baseline) em PR e `main`.
 - Testes: Vitest/Pytest com cobertura alvo ≥ 85%. Postgres 15 provisionado no CI para backend.
 - Robustez do YAML: uso de `env.*` nas condições; `pgcrypto` validado via script dedicado.
 
@@ -28,7 +28,7 @@ Artefatos e links
 - k6 smoke (PR #12): artefato `performance-k6-smoke` (run de PR abaixo)
 
 ## Runs
-- workflow_dispatch (master): https://github.com/Tomvaz11/iabank/actions/runs/19048561651 (SUCESSO; Visual/Performance pulados por política)
+- workflow_dispatch (main): https://github.com/Tomvaz11/iabank/actions/runs/19048561651 (SUCESSO; Visual/Performance pulados por política; histórico pré-migração em `master`).
 - PR #12 (run verde): https://github.com/Tomvaz11/iabank/actions/runs/19050934281 (Lint, Vitest/Pytest, Contracts, Visual & A11y, Performance, Security, Threat Model)
 
 ## PRs correlatos
@@ -52,4 +52,3 @@ git push origin v1.0
 GitHub Release:
 - Criar um Release no GitHub apontando para a tag `v1.0`.
 - Usar este arquivo (`docs/RELEASE_NOTES_F10.md`) como release notes (copiar/colar ou anexar como referência).
-
