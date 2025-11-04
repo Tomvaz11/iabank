@@ -69,6 +69,14 @@ Notas:
 - Performance (k6) em modo local usa `FOUNDATION_PERF_VUS=1` por padrão e pode sinalizar status `critical` apenas por throughput. Para um OK completo, use algo como `FOUNDATION_PERF_VUS=50 pnpm perf:smoke:ci` ou ajuste `FOUNDATION_PERF_THROUGHPUT_CRITICAL`.
 - A cobertura visual (Chromatic) requer build prévio do Storybook; o comando acima já executa o build.
 
+## TDD & Evidências no PR
+- Siga “vermelho → verde”: registre no PR os commits (ou links de run) do estado vermelho (falha esperada do teste) e do estado verde (após a implementação).
+- Para casos de exceção (ajustes de CI/docs/hotfix infra), documente a justificativa no PR.
+
+## Complexidade (Radon)
+- Gate no CI: `scripts/ci/check_python_complexity.py` (limite cc ≤ 10; allowlist em `scripts/ci/complexity_allowlist.json`).
+- Execução local: `poetry run python scripts/ci/check_python_complexity.py`.
+
 ## Execução por fases (opcional)
 - Frontend: `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm perf:lighthouse`
 - Chromatic local: `pnpm --filter @iabank/frontend-foundation storybook:build && pnpm --filter @iabank/frontend-foundation chromatic:check -- --verbose`
@@ -80,4 +88,3 @@ Notas:
 - Playwright: rode `pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps` se faltar navegador.
 - Postgres/Redis: ajuste portas em `infra/docker-compose.foundation.yml` via `FOUNDATION_STACK_POSTGRES_PORT` e `FOUNDATION_STACK_REDIS_PORT`.
 - OTEL (k6): para publicar métricas, defina `OTEL_EXPORTER_OTLP_ENDPOINT` (ex.: `http://localhost:4318`).
-

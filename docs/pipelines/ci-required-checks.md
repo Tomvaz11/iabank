@@ -11,6 +11,7 @@ Reflete os gates constitucionais (v5.1.1) e ADRs 008–012.
 6. **build-sbom**: Gera CycloneDX/SPDX.
 7. **iac-policy**: Terraform plan + OPA/Gatekeeper.
 8. **finops-tags**: Script para validar tagging obrigatório (Artigo XVI).
+9. **complexity-gate**: Radon cc ≤ 10 (Python) usando `scripts/ci/check_python_complexity.py` e allowlist controlado.
 
 ## Automação Pendente
 - Revisar periodicamente os scripts em `scripts/` conforme o amadurecimento dos serviços.
@@ -22,6 +23,16 @@ Reflete os gates constitucionais (v5.1.1) e ADRs 008–012.
 - Usar filtros de caminho/monorepo para executar somente jobs impactados por cada PR.
 - Monitorar tempos de execução e ajustar limites de cobertura/thresholds via ADR antes de qualquer alteração.
 - Registrar métricas de sucesso dos jobs para alimentar dashboards DORA/SLO automaticamente.
+
+## Prova de TDD (Art. III)
+- PRs DEVEM evidenciar “vermelho → verde” para mudanças de código:
+  - Inclua no corpo do PR os commits/links para: (1) estado vermelho (testes falhando) e (2) estado verde (após implementação).
+  - Alternativamente, anexe logs do job ‘test’ que mostrem a falha esperada anterior à correção.
+- Exceções pontuais (hotfix de infraestrutura, ajustes em scripts/CI ou documentação) DEVEM registrar justificativa no PR.
+
+## Complexidade (Radon)
+- O job `Radon complexity gate` no workflow `frontend-foundation.yml` executa `scripts/ci/check_python_complexity.py` (limite cc ≤ 10; allowlist em `scripts/ci/complexity_allowlist.json`).
+- Localmente, rode: `poetry run python scripts/ci/check_python_complexity.py`.
 
 ## Saídas
 - Artefatos devem ser enviados para armazenamento WORM.
