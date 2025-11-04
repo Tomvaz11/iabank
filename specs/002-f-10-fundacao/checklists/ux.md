@@ -20,7 +20,7 @@ Itens objetivos:
   - Evidências (PR #12): job Visual verde (test‑runner executado sem violações) — https://github.com/Tomvaz11/iabank/actions/runs/19050934281
 - [x] Chromatic executado em PR (condicional)
   - Evidências: PR #12 — build publicado e cobertura validada (job Visual verde após ajustes). Run: https://github.com/Tomvaz11/iabank/actions/runs/19050934281
-  - Observação: cobertura por tenant (≥95%) ficará para follow‑up (issue #13). No PR atual, o step de cobertura roda e publica artefatos, porém sem bloquear.
+  - Observação: cobertura por tenant (≥95%) agora é gate rígido em PR — resolvido no PR #16 (follow‑up #13 concluído).
 - [x] Último run VERDE de PR para o job "Visual & Accessibility Gates"
   - Evidências: PR #12 — job verde — https://github.com/Tomvaz11/iabank/actions/runs/19050934281
 - [x] Runbook atualizado com resultados visuais/A11y

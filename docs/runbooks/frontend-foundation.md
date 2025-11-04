@@ -214,8 +214,8 @@ Critérios comprovados (evidências):
 - [x] Evidências consolidadas no pacote do release (`docs/runbooks/evidences/frontend-foundation/v1.0/README.md`) e no `RESUMO_F10_VALIDACAO_E_CI.md`
 
 Pendências (postergadas):
-- [ ] #13 — Cobertura Chromatic ≥ 95% por tenant (endurecer gate no PR)
-- [ ] #14 — Budgets estritos de Lighthouse/k6 no PR
+- [x] #13 — Cobertura Chromatic ≥ 95% por tenant (resolvido no PR #16 — gate rígido em PR)
+- [x] #14 — Budgets estritos de Lighthouse/k6 no PR (resolvido no PR #16)
 
 Próximo passo
 - Iniciar o ciclo da próxima feature conforme Spec‑Kit (Item 7) — especificar/planejar/tarefas/analisar/checklists/implementar.

@@ -72,8 +72,8 @@ Comprovado com evidências:
 - [x] Evidências consolidadas (runbook + pacote de evidências + resumo)
 
 Pendências (postergadas):
-- [ ] #13 — Cobertura Chromatic ≥ 95% por tenant e endurecimento no PR
-- [ ] #14 — Budgets Lighthouse/k6 estritos no PR
+- [x] #13 — Cobertura Chromatic ≥ 95% por tenant e endurecimento no PR (resolvido pelo PR #16)
+- [x] #14 — Budgets Lighthouse/k6 estritos no PR (resolvido pelo PR #16)
 
 Observação:
 - Item 7 (Próxima feature): iniciar ciclo Spec‑Kit no próximo passo (não iniciado nesta interação).
