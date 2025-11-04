@@ -1,0 +1,11 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: iabank-backend
+    metrics_path: /metrics
+    static_configs:
+      # Scrapa o serviço backend publicado pelo docker-compose na mesma rede
+      - targets: ["backend:8000"]
+

@@ -84,7 +84,96 @@ Notas:
 - Performance: `pnpm perf:smoke:local`
 - Backend: `poetry run ruff check . && poetry run pytest -q`
 
+## Observabilidade local (Prometheus, Grafana, OTEL)
+Este passo valida “de ponta a ponta” as métricas (Prometheus/Grafana) e os traces (OTEL Collector) localmente.
+
+1) Subir backend e OTEL Collector (além de Postgres/Redis já ativos):
+
+```bash
+docker compose -f infra/docker-compose.foundation.yml up -d backend otel-collector
+```
+
+2) Subir Prometheus apontando para o backend:
+
+```bash
+# Usa a rede do docker-compose (infra_default) e a config local
+docker run -d --name infra-prometheus --network infra_default -p 9090:9090 \
+  -v "$PWD/infra/prometheus.local.yml:/etc/prometheus/prometheus.yml:ro" \
+  prom/prometheus:v2.53.0
+
+# Verifique targets (deve aparecer health: up)
+curl -s http://localhost:9090/api/v1/targets | jq .  # opcional
+```
+
+3) Subir Grafana com datasource e dashboard provisionados:
+
+```bash
+docker run -d --name infra-grafana --network infra_default -p 3000:3000 \
+  -e GF_AUTH_ANONYMOUS_ENABLED=true -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
+  -v "$PWD/infra/grafana/provisioning:/etc/grafana/provisioning:ro" \
+  grafana/grafana:10.4.5
+
+# Acesse http://localhost:3000 e procure o painel
+# “IABank Foundation — Observabilidade Local” (datasource Prometheus já é default)
+```
+
+4) Gerar tráfego e uma métrica de negócio (SC‑001) para popular o painel:
+
+```bash
+# Requisições ao /metrics (popular séries HTTP/latência)
+for i in $(seq 1 10); do curl -s -o /dev/null http://localhost:8000/metrics; done
+
+# Registrar um scaffolding (SC‑001) para gerar buckets/sum/count do histograma
+TENANT=00000000-0000-0000-0000-000000000001  # tenant-alfa (semente padrão)
+KEY=$(python3 - <<'PY'
+import uuid; print(uuid.uuid4())
+PY
+)
+curl -s -X POST http://localhost:8000/api/v1/tenants/$TENANT/features/scaffold \
+  -H 'Content-Type: application/json' \
+  -H "X-Tenant-Id: $TENANT" \
+  -H "Idempotency-Key: $KEY" \
+  -d '{
+    "featureSlug": "loan-tracking",
+    "initiatedBy": "00000000-0000-4000-8000-000000000123",
+    "slices": [
+      { "slice": "app",   "files": [{"path":"frontend/src/app/loan-tracking/index.tsx",   "checksum": "4a7d1ed414474e4033ac29ccb8653d9b4a7d1ed414474e4033ac29ccb8653d9b"}]},
+      { "slice": "pages", "files": [{"path":"frontend/src/pages/loan-tracking/index.tsx", "checksum": "6b86b273ff34fce19d6b804eff5a3f5746e0f2c6313be24d09aef7b54afc8cdd"}]}
+    ],
+    "lintCommitHash": "1234567890abcdef1234567890abcdef12345678",
+    "scReferences": ["@SC-001", "@SC-003"],
+    "durationMs": 1450,
+    "metadata": {"cliVersion": "0.1.0"}
+  }'
+```
+
+5) Verificar o painel no Grafana
+- HTTP req/s por método, erros 5xx (%) e latência p95 devem começar a aparecer.
+- O gráfico “SC‑001 — Duração média (min) por feature” usa as séries `sc_001_scaffolding_minutes_{sum,count}`.
+
+6) Verificar OTEL Collector recebendo spans reais
+
+```bash
+pnpm --filter @iabank/frontend-foundation foundation:otel \
+  --endpoint http://localhost:4318/v1/traces \
+  --tenant tenant-alfa \
+  --feature loan-tracking \
+  --service frontend-foundation \
+  --resource deployment.environment=local,service.namespace=iabank
+```
+
+Você verá um JSON resumo (com chaves mascaradas) e o Collector registrará o recebimento do span nos logs.
+
+7) Encerrar serviços locais (opcional)
+
+```bash
+docker compose -f infra/docker-compose.foundation.yml down
+docker rm -f infra-prometheus infra-grafana
+```
+
 ## Troubleshooting rápido
 - Playwright: rode `pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps` se faltar navegador.
 - Postgres/Redis: ajuste portas em `infra/docker-compose.foundation.yml` via `FOUNDATION_STACK_POSTGRES_PORT` e `FOUNDATION_STACK_REDIS_PORT`.
 - OTEL (k6): para publicar métricas, defina `OTEL_EXPORTER_OTLP_ENDPOINT` (ex.: `http://localhost:4318`).
+- Grafana: se o painel não aparecer, reinicie o container para reprocessar o provisioning (`docker restart infra-grafana`) e valide os volumes montados em `infra/grafana/provisioning`.
+- Prometheus: se o target não estiver UP, confirme a rede `infra_default` e o endpoint `backend:8000/metrics` na `infra/prometheus.local.yml`.
