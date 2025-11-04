@@ -1,6 +1,6 @@
 # Pipeline: CI Required Checks
 
-Reflete os gates constitucionais (v5.1.1) e ADRs 008–012.
+Reflete os gates constitucionais (v5.2.0) e ADRs 008–012.
 
 ## Jobs Obrigatórios
 1. **tests-unit**: `pytest` (preferencialmente sharded com `xdist`), cobertura ≥85%.

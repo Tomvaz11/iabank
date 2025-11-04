@@ -1,6 +1,6 @@
 # Runbook: Proteção de Dados Sensíveis e Gestão de Segredos
 
-Este runbook operacionaliza o **ADR-010** e garante conformidade com o Artigo XII da Constituição (v5.1.1).
+Este runbook operacionaliza o **ADR-010** e garante conformidade com o Artigo XII da Constituição (v5.2.0).
 
 ## Objetivo
 Assegurar que PII esteja criptografada em nível de campo e que todos os segredos sejam servidos por Vault/KMS com rotação automática.
