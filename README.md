@@ -1,5 +1,17 @@
 # IABank — Fundação (F‑10)
 
+## Índice
+- [Pré‑requisitos](#pré‑requisitos)
+- [Serviços (Postgres/Redis)](#serviços-postgresredis)
+- [Instalação](#instalação)
+- [Suíte completa (1 comando)](#suíte-completa-1-comando)
+- [Notas](#notas)
+- [TDD & Evidências no PR](#tdd--evidências-no-pr)
+- [Complexidade (Radon)](#complexidade-radon)
+- [Execução por fases (opcional)](#execução-por-fases-opcional)
+- [Observabilidade local (Prometheus, Grafana, OTEL)](#observabilidade-local-prometheus-grafana-otel)
+- [Troubleshooting rápido](#troubleshooting-rápido)
+
 Guia rápido para executar a suíte completa de validações localmente (frontend, backend, contratos e performance).
 
 ## Pré‑requisitos
