@@ -41,8 +41,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect docs-only changes
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD || true)
+          echo "Changed files:\n$CHANGED"
+          NON_DOCS=$(echo "$CHANGED" | grep -Ev '^(docs/|README.md|CONTRIBUTING.md|\.github/CODEOWNERS)$' || true)
+          if [[ -z "$NON_DOCS" && -n "$CHANGED" ]]; then
+            echo "only_docs=true" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change detected. Fast-passing job steps."
+          else
+            echo "only_docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Validar tags @SC-00x no PR
-        if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'chore/') && !startsWith(github.head_ref, 'ci/') && !startsWith(github.head_ref, 'docs/') && !startsWith(github.head_ref, 'tests/') }}
+        if: ${{ github.event_name == 'pull_request' && steps.changes.outputs.only_docs != 'true' && !startsWith(github.head_ref, 'chore/') && !startsWith(github.head_ref, 'ci/') && !startsWith(github.head_ref, 'docs/') && !startsWith(github.head_ref, 'tests/') }}
         run: |
           PR_TITLE=$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")
           PR_BODY=$(jq -r '.pull_request.body // \"\"' "$GITHUB_EVENT_PATH")
@@ -52,7 +68,7 @@ jobs:
           fi
 
       - name: Validar título Conventional Commits
-        if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'chore/') && !startsWith(github.head_ref, 'ci/') && !startsWith(github.head_ref, 'docs/') && !startsWith(github.head_ref, 'tests/') }}
+        if: ${{ github.event_name == 'pull_request' && steps.changes.outputs.only_docs != 'true' && !startsWith(github.head_ref, 'chore/') && !startsWith(github.head_ref, 'ci/') && !startsWith(github.head_ref, 'docs/') && !startsWith(github.head_ref, 'tests/') }}
         run: |
           PR_TITLE=$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")
           re='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._-]+\))?!?: .+'
@@ -62,11 +78,13 @@ jobs:
           fi
 
       - name: Setup pnpm
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: pnpm/action-setup@v2
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -74,10 +92,16 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: ESLint (FSD boundaries + Zustand guard)
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm lint
+
+      - name: Fast-pass (docs-only)
+        if: ${{ github.event_name == 'pull_request' && steps.changes.outputs.only_docs == 'true' }}
+        run: echo "Docs-only PR: lint job fast-passed."
 
   test:
     name: Vitest
@@ -101,12 +125,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect docs-only changes
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD || true)
+          echo "Changed files:\n$CHANGED"
+          NON_DOCS=$(echo "$CHANGED" | grep -Ev '^(docs/|README.md|CONTRIBUTING.md|\.github/CODEOWNERS)$' || true)
+          if [[ -z "$NON_DOCS" && -n "$CHANGED" ]]; then
+            echo "only_docs=true" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change detected. Fast-passing job steps."
+          else
+            echo "only_docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup pnpm
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: pnpm/action-setup@v2
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -114,27 +156,33 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Run Vitest (coverage gate)
         env:
           FOUNDATION_COVERAGE_BRANCHES: '84.7'
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm test:coverage
 
       - name: Setup Python
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install Poetry
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: |
           python -m pip install --upgrade pip
           python -m pip install poetry==2.2.1
       - name: Poetry export plugin (poetry-plugin-export)
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: |
           poetry self add poetry-plugin-export
 
       - name: Install Python dependencies
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: poetry install --with dev
 
       - name: Pytest (coverage gate)
@@ -146,11 +194,17 @@ jobs:
           FOUNDATION_DB_HOST: localhost
           FOUNDATION_DB_PORT: 5432
           FOUNDATION_DB_TEST_NAME: foundation_test
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: |
           poetry run pytest || (echo 'Pytest falhou; reexecutando uma vez...' && sleep 3 && poetry run pytest)
 
       - name: Radon complexity gate
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: poetry run python scripts/ci/check_python_complexity.py
+
+      - name: Fast-pass (docs-only)
+        if: ${{ github.event_name == 'pull_request' && steps.changes.outputs.only_docs == 'true' }}
+        run: echo "Docs-only PR: test job fast-passed."
 
   contracts:
     name: Contracts (Spectral, OpenAPI Diff, Pact)
@@ -162,12 +216,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect docs-only changes
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD || true)
+          echo "Changed files:\n$CHANGED"
+          NON_DOCS=$(echo "$CHANGED" | grep -Ev '^(docs/|README.md|CONTRIBUTING.md|\.github/CODEOWNERS)$' || true)
+          if [[ -z "$NON_DOCS" && -n "$CHANGED" ]]; then
+            echo "only_docs=true" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change detected. Fast-passing job steps."
+          else
+            echo "only_docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup pnpm
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: pnpm/action-setup@v2
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -175,16 +247,24 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Spectral lint (US1/US2/US3)
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm openapi:lint
 
       - name: OpenAPI diff foundation spec
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm openapi:diff
 
       - name: Pact consumer verification (US1/US2/US3)
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm pact:verify
+
+      - name: Fast-pass (docs-only)
+        if: ${{ github.event_name == 'pull_request' && steps.changes.outputs.only_docs == 'true' }}
+        run: echo "Docs-only PR: contracts job fast-passed."
 
   visual-accessibility:
     name: Visual & Accessibility Gates
@@ -197,12 +277,30 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Detect docs-only changes
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD || true)
+          echo "Changed files:\n$CHANGED"
+          NON_DOCS=$(echo "$CHANGED" | grep -Ev '^(docs/|README.md|CONTRIBUTING.md|\.github/CODEOWNERS)$' || true)
+          if [[ -z "$NON_DOCS" && -n "$CHANGED" ]]; then
+            echo "only_docs=true" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change detected. Fast-passing job steps."
+          else
+            echo "only_docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup pnpm
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: pnpm/action-setup@v2
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -210,18 +308,21 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Build Storybook estático
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm --filter @iabank/frontend-foundation storybook:build
 
       - name: Instalar navegadores Playwright
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps
 
       - name: Executar Chromatic
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
-        if: ${{ github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
+        if: ${{ github.event_name == 'pull_request' && steps.changes.outputs.only_docs != 'true' && env.CHROMATIC_PROJECT_TOKEN != '' }}
         run: |
           pnpm chromatic:ci
         working-directory: frontend
@@ -231,23 +332,27 @@ jobs:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           CHROMATIC_MIN_COVERAGE: '95'
           CHROMATIC_TENANTS: 'tenant-alfa'
-        if: ${{ github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
+        if: ${{ github.event_name == 'pull_request' && steps.changes.outputs.only_docs != 'true' && env.CHROMATIC_PROJECT_TOKEN != '' }}
         run: |
           pnpm chromatic:check -- --output chromatic-coverage.json
         working-directory: frontend
 
       - name: Executar test-runner do Storybook (axe/WCAG)
-        if: always()
+        if: ${{ always() && steps.changes.outputs.only_docs != 'true' }}
         run: pnpm --filter @iabank/frontend-foundation storybook:test
 
       - name: Publicar artefatos Chromatic
-        if: always()
+        if: ${{ always() && steps.changes.outputs.only_docs != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: chromatic-coverage
           path: |
             frontend/storybook-static
             frontend/chromatic-coverage.json
+
+      - name: Fast-pass (docs-only)
+        if: ${{ github.event_name == 'pull_request' && steps.changes.outputs.only_docs == 'true' }}
+        run: echo "Docs-only PR: visual-accessibility job fast-passed."
 
   performance:
     name: Performance Budgets
@@ -258,12 +363,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect docs-only changes
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD || true)
+          echo "Changed files:\n$CHANGED"
+          NON_DOCS=$(echo "$CHANGED" | grep -Ev '^(docs/|README.md|CONTRIBUTING.md|\.github/CODEOWNERS)$' || true)
+          if [[ -z "$NON_DOCS" && -n "$CHANGED" ]]; then
+            echo "only_docs=true" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change detected. Fast-passing job steps."
+          else
+            echo "only_docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup pnpm
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: pnpm/action-setup@v2
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -271,20 +394,25 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup k6
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: grafana/setup-k6-action@v1
 
       - name: Install dependencies
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Instalar navegadores Playwright
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps
 
       - name: Preparar artefatos de performance
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: |
           mkdir -p artifacts
           mkdir -p artifacts/lighthouse
 
       - name: Executar k6 smoke (estrito)
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm perf:smoke:ci
         env:
           FOUNDATION_PERF_BASE_URL: https://example.com
@@ -295,15 +423,18 @@ jobs:
       - name: Executar Playwright + Lighthouse budgets (estrito)
         env:
           LIGHTHOUSE_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/lighthouse
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm perf:lighthouse
 
       - name: Publicar resultados k6
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: performance-k6-smoke
           path: artifacts/k6-smoke.json
 
       - name: Publicar relatórios Lighthouse
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: performance-lighthouse-budgets
@@ -312,8 +443,12 @@ jobs:
             observabilidade/data/lighthouse-latest.json
 
       - name: Resumo dos budgets Lighthouse
-        if: always()
+        if: ${{ always() && steps.changes.outputs.only_docs != 'true' }}
         run: node scripts/ci/lighthouse-summary.js
+
+      - name: Fast-pass (docs-only)
+        if: ${{ github.event_name == 'pull_request' && steps.changes.outputs.only_docs == 'true' }}
+        run: echo "Docs-only PR: performance job fast-passed."
 
   security:
     name: Security Checks
@@ -327,12 +462,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect docs-only changes
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD || true)
+          echo "Changed files:\n$CHANGED"
+          NON_DOCS=$(echo "$CHANGED" | grep -Ev '^(docs/|README.md|CONTRIBUTING.md|\.github/CODEOWNERS)$' || true)
+          if [[ -z "$NON_DOCS" && -n "$CHANGED" ]]; then
+            echo "only_docs=true" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change detected. Fast-passing job steps."
+          else
+            echo "only_docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup pnpm
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: pnpm/action-setup@v2
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -340,34 +493,41 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Python
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Install dependencies
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Install Poetry
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: |
           python -m pip install --upgrade pip
           python -m pip install poetry==2.2.1
 
       - name: Install Python dependencies
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: poetry install --with dev
 
       - name: Instalar ferramentas de segurança
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: |
           poetry run python -m pip install --quiet semgrep==1.94.0 pip-audit==2.7.3 safety==3.6.2
 
       - name: SAST (Semgrep)
         id: security_sast
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: poetry run bash scripts/security/run_sast.sh
 
       - name: DAST (OWASP ZAP baseline)
         id: security_dast
         if: ${{ env.CI_ENFORCE_FULL_SECURITY == 'true' || github.event_name == 'pull_request' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         env:
           ZAP_BASELINE_TARGET: http://127.0.0.1:8000/health
         run: poetry run bash scripts/security/run_dast.sh
@@ -375,26 +535,31 @@ jobs:
       - name: Validação pgcrypto
         id: security_pgcrypto
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: poetry run python -m scripts.security.check_pgcrypto
 
       - name: pip-audit (Python SCA)
         id: security_pip_audit
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: poetry run bash scripts/security/run_python_sca.sh pip-audit
 
       - name: Safety (Python SCA)
         id: security_safety
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: poetry run bash scripts/security/run_python_sca.sh safety
 
       - name: pnpm audit (SCA)
         id: security_pnpm_audit
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: pnpm audit:frontend
 
       - name: Gerar SBOM CycloneDX
         id: security_sbom_generate
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: |
           mkdir -p sbom
           pnpm sbom:frontend
@@ -402,11 +567,12 @@ jobs:
       - name: Validar SBOM
         id: security_sbom_validate
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: poetry run python scripts/security/validate_sbom.py sbom/frontend-foundation.json
 
       - name: Upload SBOM
+        if: ${{ steps.changes.outputs.only_docs != 'true' && steps.security_sbom_generate.outcome == 'success' && steps.security_sbom_validate.outcome == 'success' }}
         uses: actions/upload-artifact@v4
-        if: ${{ steps.security_sbom_generate.outcome == 'success' && steps.security_sbom_validate.outcome == 'success' }}
         with:
           name: sbom-frontend-foundation
           path: sbom/frontend-foundation.json
@@ -427,6 +593,10 @@ jobs:
           SBOM_VALIDATE: ${{ steps.security_sbom_validate.outcome }}
         run: poetry run python scripts/ci/security_summary.py
 
+      - name: Fast-pass (docs-only)
+        if: ${{ github.event_name == 'pull_request' && steps.changes.outputs.only_docs == 'true' }}
+        run: echo "Docs-only PR: security job fast-passed."
+
   threat-model-lint:
     name: Threat Model Lint
     runs-on: ubuntu-latest
@@ -438,13 +608,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect docs-only changes
+        id: changes
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          CHANGED=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD || true)
+          echo "Changed files:\n$CHANGED"
+          NON_DOCS=$(echo "$CHANGED" | grep -Ev '^(docs/|README.md|CONTRIBUTING.md|\.github/CODEOWNERS)$' || true)
+          if [[ -z "$NON_DOCS" && -n "$CHANGED" ]]; then
+            echo "only_docs=true" >> "$GITHUB_OUTPUT"
+            echo "Docs-only change detected. Fast-passing job steps."
+          else
+            echo "only_docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Setup Python
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Validar threat model
+        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         run: python scripts/security/threat_model_lint.py --release "${THREAT_MODEL_RELEASE}"
+
+      - name: Fast-pass (docs-only)
+        if: ${{ github.event_name == 'pull_request' && steps.changes.outputs.only_docs == 'true' }}
+        run: echo "Docs-only PR: threat-model-lint job fast-passed."
 
   ci-outage-guard:
     name: CI Outage Guard
