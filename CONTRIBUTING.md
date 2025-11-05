@@ -42,6 +42,12 @@ A pipeline principal executa e/ou exige:
 - `git commit --fixup` + `git rebase -i --autosquash` para organizar antes do PR.
 - `git stash -u` para pausar trabalho; `git reflog` para recuperar histórico.
 
+## Pre-commit (hooks)
+- Arquivo de configuração: `.pre-commit-config.yaml` (hooks: Ruff/Python, ESLint/Frontend e verificação de mensagem convencional).
+- Ative localmente os hooks para “amarrar” o padrão antes do CI:
+  - Com Poetry: `poetry run pre-commit install` (ou `pre-commit install`).
+  - Rodar em todos os arquivos: `pre-commit run -a`.
+
 ## Governança (resumo)
 - Revisões: CODEOWNERS define responsáveis por áreas do código.
 - Proteção da `main`: habilite no GitHub (require PR, squash only, linear history, required checks). Configuração é feita nas “Branch protection rules” do repositório.
