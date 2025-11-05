@@ -55,3 +55,9 @@ Notas de governança relacionadas:
 - Histórico linear: habilitado.
 - Resolução de conversas antes do merge: habilitada.
 - Aprovações obrigatórias: 0 (atual) — quando houver equipe, migrar para 1–2 aprovações e, se desejado, exigir review de CODEOWNERS.
+
+## Notas DAST (ZAP)
+- Alvo do DAST: `http://127.0.0.1:8000/metrics` (exposto por `django_prometheus`).
+- O job provisiona Postgres (`services: postgres:15`) e exporta `FOUNDATION_DB_*` para o Django conectar.
+- O script `scripts/security/run_dast.sh` aplica migrações e inicia o `runserver` antes do scan; aguarda o endpoint responder.
+- Política: em `main` e versões (`release/*`, tags) é fail‑closed; em PRs pode ser fail‑open conforme a variável `CI_FAIL_OPEN` do workflow.
