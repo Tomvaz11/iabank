@@ -26,8 +26,19 @@ if command -v "${POETRY_BIN}" >/dev/null 2>&1; then
     "${POETRY_BIN}" run python -m pip install --quiet --upgrade pip
   fi
   "${POETRY_BIN}" run python -m pip install --quiet "pip-audit==2.7.3" "safety==3.6.2"
-  PIP_AUDIT_CMD=("${POETRY_BIN}" "run" "pip-audit")
-  SAFETY_CMD=("${POETRY_BIN}" "run" "safety")
+  # Resolve binários absolutos dentro do venv do Poetry para permitir executar fora do CWD do projeto
+  PIP_AUDIT_BIN="$(${POETRY_BIN} run which pip-audit)"
+  SAFETY_BIN="$(${POETRY_BIN} run which safety)"
+  if [[ -z "${PIP_AUDIT_BIN}" || ! -x "${PIP_AUDIT_BIN}" ]]; then
+    echo "pip-audit não encontrado no ambiente do Poetry." >&2
+    exit 1
+  fi
+  if [[ -z "${SAFETY_BIN}" || ! -x "${SAFETY_BIN}" ]]; then
+    echo "safety não encontrado no ambiente do Poetry." >&2
+    exit 1
+  fi
+  PIP_AUDIT_CMD=("${PIP_AUDIT_BIN}")
+  SAFETY_CMD=("${SAFETY_BIN}")
 else
   echo "Poetry não encontrado; utilizando ambiente global para dependências Python." >&2
   python -m pip install --quiet --upgrade pip

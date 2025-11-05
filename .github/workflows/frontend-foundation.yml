@@ -307,6 +307,7 @@ jobs:
           path: artifacts/k6-smoke.json
 
       - name: Publicar relatórios Lighthouse
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: performance-lighthouse-budgets
