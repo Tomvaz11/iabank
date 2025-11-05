@@ -290,7 +290,6 @@ jobs:
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: pnpm perf:smoke:ci
         env:
-          FOUNDATION_PERF_BASE_URL: https://example.com
           FOUNDATION_PERF_TENANT: tenant-alfa
           FOUNDATION_PERF_VUS: 1
           FOUNDATION_PERF_DURATION: 10s
