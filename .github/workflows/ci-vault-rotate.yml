@@ -30,13 +30,20 @@ jobs:
           ./scripts/security/check_pgcrypto.sh --help > /dev/null
         shell: bash
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pytest (for redaction test)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -q pytest
+        shell: bash
+
       - name: Verify log redaction test
         run: |
-          if command -v pytest >/dev/null 2>&1; then
-            pytest tests/security/test_log_redaction.py
-          else
-            echo "::warning::pytest not installed; skipping log redaction tests"
-          fi
+          pytest tests/security/test_log_redaction.py
         shell: bash
 
       - name: Vault rotation placeholder
