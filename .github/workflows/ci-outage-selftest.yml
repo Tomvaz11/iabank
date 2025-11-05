@@ -1,0 +1,66 @@
+name: CI Outage Selftest
+
+on:
+  workflow_dispatch: {}
+
+env:
+  PNPM_VERSION: 9.12.2
+  NODE_VERSION: 20.17.0
+
+jobs:
+  selftest:
+    name: Post OTEL Outage Event (Cloudflare)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Compile TypeScript (scripts)
+        run: pnpm exec tsc -p tsconfig.scripts.json
+
+      - name: Execute outage selftest (simulate Chromatic failure)
+        env:
+          # Secrets for endpoint and token (configured by you in repo settings)
+          FOUNDATION_OTEL_OUTAGE_ENDPOINT: ${{ secrets.FOUNDATION_OTEL_OUTAGE_ENDPOINT }}
+          FOUNDATION_OTEL_OUTAGE_TOKEN: ${{ secrets.FOUNDATION_OTEL_OUTAGE_TOKEN }}
+          # Synthetic inputs to simulate outage
+          CI_OUTAGE_CHROMATIC_JOB_STATUS: failure
+          CI_OUTAGE_CHROMATIC_JOB_NAME: selftest-chromatic
+          CI_OUTAGE_LIGHTHOUSE_JOB_STATUS: success
+          CI_OUTAGE_LIGHTHOUSE_JOB_NAME: selftest-lighthouse
+          CI_OUTAGE_AXE_JOB_STATUS: success
+          CI_OUTAGE_AXE_JOB_NAME: selftest-axe
+          FOUNDATION_DEFAULT_TENANT: tenant-alfa
+          # GitHub context (best effort; script tolerates missing PR)
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          echo "Running outage selftest..."
+          node scripts/dist/ci/handle-outage.js | tee selftest-output.json
+          echo "--- Selftest output (truncated) ---"
+          head -n 50 selftest-output.json || true
+
+      - name: Upload outage report artifact (if any)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-outage-selftest
+          path: |
+            observabilidade/data/ci-outages.json
+          if-no-files-found: ignore
+
