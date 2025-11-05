@@ -346,11 +346,17 @@ async function emitOtelEvent(input: OutageInput, outages: ToolEvaluation[]) {
     if (token && token.length > 0) {
       headers['X-Token'] = token;
     }
-    await fetch(input.otelEndpoint, {
+    const resp = await fetch(input.otelEndpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
     });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      console.warn(
+        `[ci-outage] OTEL endpoint respondeu ${resp.status} ${resp.statusText}. Corpo: ${text?.slice(0, 200)}`,
+      );
+    }
   } catch (error) {
     console.warn(`[ci-outage] Falha ao enviar evento OTEL: ${(error as Error).message}`);
   }
@@ -378,7 +384,62 @@ async function main() {
   const args = parseArgs();
   let input: OutageInput;
   if (args.inputPath) {
-    input = await readJson(args.inputPath);
+    // Quando um arquivo de input é fornecido, faça merge com as variáveis de ambiente
+    // para preencher campos ausentes (ex.: otelEndpoint, githubToken, owner/repository).
+    const fileInput: OutageInput = await readJson(args.inputPath);
+    const envInput: OutageInput = buildInputFromEnv();
+    // Mesclar ferramentas por "name" preservando logPath/statusUrl do ENV
+    const mergeTools = (envTools: ToolStatus[], fileTools?: ToolStatus[]): ToolStatus[] => {
+      if (!fileTools || fileTools.length === 0) return envTools;
+      const byName = new Map<string, ToolStatus>();
+      for (const t of envTools) {
+        byName.set(t.name, { ...t });
+      }
+      const result: ToolStatus[] = [];
+      for (const ft of fileTools) {
+        const base = byName.get(ft.name);
+        if (base) {
+          // status do arquivo prevalece; preencha ausentes com ENV
+          result.push({
+            name: ft.name,
+            job: ft.job || base.job,
+            status: ft.status || base.status,
+            statusUrl: ft.statusUrl || base.statusUrl,
+            logPath: ft.logPath || base.logPath,
+            failurePatterns: ft.failurePatterns || base.failurePatterns,
+            allowFailOpen: typeof ft.allowFailOpen === 'boolean' ? ft.allowFailOpen : base.allowFailOpen,
+          });
+          byName.delete(ft.name);
+        } else {
+          // Sem base: mantenha tool do arquivo e deixe defaults para avaliação (statusUrl por nome)
+          result.push({
+            name: ft.name,
+            job: ft.job || 'unknown',
+            status: ft.status || 'unknown',
+            statusUrl: ft.statusUrl, // evaluateTool usará DEFAULT_STATUS_URLS se faltar
+            logPath: ft.logPath,
+            failurePatterns: ft.failurePatterns || OUTAGE_PATTERNS,
+            allowFailOpen: typeof ft.allowFailOpen === 'boolean' ? ft.allowFailOpen : true,
+          });
+        }
+      }
+      // Itens do ENV que não apareceram no arquivo (mantém)
+      for (const rest of byName.values()) {
+        result.push(rest);
+      }
+      return result;
+    };
+    input = {
+      ...envInput,
+      ...fileInput,
+      // Mescla por nome: preserva logPath/statusUrl do ENV e status vindo do arquivo
+      tools: mergeTools(envInput.tools, fileInput.tools),
+      // Se releaseBranches não vier do arquivo, preserve as do ambiente
+      releaseBranches:
+        Array.isArray(fileInput.releaseBranches) && fileInput.releaseBranches.length > 0
+          ? fileInput.releaseBranches
+          : envInput.releaseBranches,
+    };
   } else {
     input = buildInputFromEnv();
   }
