@@ -56,20 +56,7 @@ jobs:
           set -euo pipefail
           echo "Running outage selftest (fail-open)..."
           echo "ECONNRESET simulated by selftest" > "$CI_OUTAGE_CHROMATIC_LOG"
-          cat > selftest-input.json << 'JSON'
-          {
-            "branch": "selftest-failopen",
-            "eventName": "workflow_dispatch",
-            "runId": ${{ github.run_id }},
-            "runUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-            "commit": "${{ github.sha }}",
-            "defaultTenant": "tenant-alfa",
-            "tools": [
-              { "name": "chromatic", "job": "selftest-chromatic", "status": "failure" }
-            ]
-          }
-          JSON
-          node scripts/dist/ci/handle-outage.js --input selftest-input.json | tee selftest-output.json
+          node scripts/dist/ci/handle-outage.js | tee selftest-output.json
           echo "--- Selftest output (truncated) ---"
           head -n 50 selftest-output.json || true
 
@@ -125,21 +112,8 @@ jobs:
           set -euo pipefail
           echo "Running outage selftest (fail-closed expected on main)..."
           echo "service unavailable (selftest)" > "$CI_OUTAGE_CHROMATIC_LOG"
-          cat > selftest-input-fc.json << 'JSON'
-          {
-            "branch": "main",
-            "eventName": "workflow_dispatch",
-            "runId": ${{ github.run_id }},
-            "runUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-            "commit": "${{ github.sha }}",
-            "defaultTenant": "tenant-alfa",
-            "tools": [
-              { "name": "chromatic", "job": "selftest-chromatic", "status": "failure" }
-            ]
-          }
-          JSON
           # The script should exit(1) because branch is main (release) and outage exists
-          node scripts/dist/ci/handle-outage.js --input selftest-input-fc.json || echo "EXPECTED_FAIL_CLOSED"
+          node scripts/dist/ci/handle-outage.js || echo "EXPECTED_FAIL_CLOSED"
 
       - name: Upload outage report artifact (if any)
         if: always()
