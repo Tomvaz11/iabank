@@ -11,20 +11,23 @@
   "assignees": ["frontend-foundation-guild"],
   "reviewers": ["@iabank/arquitetura-fundacao"],
   "labels": ["dependencies", "renovate"],
-  "schedule": ["after 10pm and before 6am on Sunday"],
+  "schedule": [
+    "after 10pm on Sunday",
+    "before 6am on Sunday"
+  ],
   "packageRules": [
     {
       "matchManagers": ["npm"],
-      "matchPaths": ["frontend/**"],
+      "matchFileNames": ["frontend/**"],
       "groupName": "frontend dependencies",
-      "stabilityDays": 3
+      "minimumReleaseAge": "3 days"
     },
     {
       "matchManagers": ["npm"],
       "matchPackageNames": ["react", "react-dom", "typescript", "vite"],
       "labels": ["critical-upgrade"],
       "prPriority": 1,
-      "stabilityDays": 7
+      "minimumReleaseAge": "7 days"
     }
   ]
 }
