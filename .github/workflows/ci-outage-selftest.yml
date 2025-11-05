@@ -46,6 +46,8 @@ jobs:
           CI_OUTAGE_AXE_JOB_STATUS: success
           CI_OUTAGE_AXE_JOB_NAME: selftest-axe
           FOUNDATION_DEFAULT_TENANT: tenant-alfa
+          # Force non-release branch name to validate fail-open behavior
+          GITHUB_REF_NAME: selftest-failopen
           # GitHub context (best effort; script tolerates missing PR)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -64,3 +66,55 @@ jobs:
             observabilidade/data/ci-outages.json
           if-no-files-found: ignore
 
+  selftest-fail-closed:
+    name: Post OTEL Outage Event (Fail-Closed on main)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Compile TypeScript (scripts)
+        run: pnpm exec tsc -p tsconfig.scripts.json
+
+      - name: Execute outage selftest (fail-closed expected on main)
+        continue-on-error: true
+        env:
+          FOUNDATION_OTEL_OUTAGE_ENDPOINT: ${{ secrets.FOUNDATION_OTEL_OUTAGE_ENDPOINT }}
+          FOUNDATION_OTEL_OUTAGE_TOKEN: ${{ secrets.FOUNDATION_OTEL_OUTAGE_TOKEN }}
+          CI_OUTAGE_CHROMATIC_JOB_STATUS: failure
+          CI_OUTAGE_CHROMATIC_JOB_NAME: selftest-chromatic
+          CI_OUTAGE_LIGHTHOUSE_JOB_STATUS: success
+          CI_OUTAGE_LIGHTHOUSE_JOB_NAME: selftest-lighthouse
+          CI_OUTAGE_AXE_JOB_STATUS: success
+          CI_OUTAGE_AXE_JOB_NAME: selftest-axe
+          FOUNDATION_DEFAULT_TENANT: tenant-alfa
+          GITHUB_REF_NAME: main
+        run: |
+          set -euo pipefail
+          echo "Running outage selftest (fail-closed expected on main)..."
+          # The script should exit(1) because branch is main (release) and outage exists
+          node scripts/dist/ci/handle-outage.js || echo "EXPECTED_FAIL_CLOSED"
+
+      - name: Upload outage report artifact (if any)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-outage-selftest-fail-closed
+          path: |
+            observabilidade/data/ci-outages.json
+          if-no-files-found: ignore
