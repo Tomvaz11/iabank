@@ -56,7 +56,6 @@ if [[ "${MODE}" == "all" || "${MODE}" == "pip-audit" ]]; then
     cd "${TMP_SCAN_DIR}" >/dev/null
     "${PIP_AUDIT_CMD[@]}" \
       --requirement "${REQ_FILE}" \
-      --severity HIGH \
       --format json \
       --output "${PIP_AUDIT_REPORT}" \
       --progress-spinner off

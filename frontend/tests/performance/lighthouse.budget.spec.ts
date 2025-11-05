@@ -6,6 +6,8 @@ test.describe('@SC-004 Orçamento Lighthouse', () => {
     test.skip(browserName !== 'chromium', 'Lighthouse roda apenas em Chromium');
 
     await page.goto('/');
+    // Garante estabilidade antes da coleta do Lighthouse
+    await page.waitForLoadState('networkidle');
 
     const { passed } = await enforceLighthouseBudgets(page);
 
