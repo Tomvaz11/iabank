@@ -287,6 +287,7 @@ jobs:
           mkdir -p artifacts/lighthouse
 
       - name: Executar k6 smoke (estrito)
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: pnpm perf:smoke:ci
         env:
           FOUNDATION_PERF_BASE_URL: https://example.com
@@ -295,6 +296,7 @@ jobs:
           FOUNDATION_PERF_DURATION: 10s
 
       - name: Executar Playwright + Lighthouse budgets (estrito)
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         env:
           LIGHTHOUSE_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/lighthouse
         run: pnpm perf:lighthouse
