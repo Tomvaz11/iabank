@@ -201,6 +201,14 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
       metrics.tbt <= METRIC_BUDGETS.tbt &&
       metrics.cls <= METRIC_BUDGETS.cls;
 
+    if (!passed) {
+      // Ajuda na depuração em CI quando budgets estouram (sem depender apenas de artifacts)
+      // eslint-disable-next-line no-console
+      console.log(
+        `[Lighthouse budgets] FAILED: metrics=${JSON.stringify(metrics)} budgets=${JSON.stringify(METRIC_BUDGETS)}`
+      );
+    }
+
     return {
       passed,
       details: summary,
