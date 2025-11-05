@@ -19,11 +19,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate schema
-        uses: renovatebot/github-action@v40.0.0
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          action: 'validate'
-          configFile: 'renovate.json'
+          node-version: '20'
+
+      - name: Validate Renovate schema (renovate-config-validator)
+        run: |
+          set -euo pipefail
+          npx --yes renovate@latest renovate-config-validator --strict -c renovate.json
 
       - name: Ensure assignees configurados
         run: |

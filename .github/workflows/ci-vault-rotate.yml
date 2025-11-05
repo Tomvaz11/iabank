@@ -13,9 +13,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Vault CLI
-        uses: hashicorp/setup-vault@v2
-        with:
-          version: 1.17.3
+        env:
+          VAULT_VERSION: 1.17.3
+        run: |
+          set -euo pipefail
+          echo "Installing Vault ${VAULT_VERSION}"
+          curl -fsSL -o vault.zip "https://releases.hashicorp.com/vault/${VAULT_VERSION}/vault_${VAULT_VERSION}_linux_amd64.zip"
+          sudo unzip -o vault.zip -d /usr/local/bin
+          sudo chmod +x /usr/local/bin/vault
+          rm -f vault.zip
+          vault -v
+        shell: bash
 
       - name: Ensure pgcrypto enforcement scripts exist
         run: |
