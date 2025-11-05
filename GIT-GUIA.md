@@ -1,3 +1,6 @@
+> [AVISO — ARQUIVADO]
+> Este documento foi mantido apenas como referência histórica. O fluxo oficial de Git, governança de revisão e links para runbooks estão consolidados em `CONTRIBUTING.md`.
+
 Objetivo
 
 - Te guiar, passo a passo, para usar Git com segurança e eficiência no IABANK, com explicações práticas, analogias simples e exemplos de comandos prontos para copiar.
@@ -180,4 +183,3 @@ Quando usar Spec‑Kit (ajustes importantes)
   - Fluxo: `/speckit.specify` → `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks` → implementação/PR.
   - Mantenha a branch de feature sincronizada com `main` usando `git fetch && git rebase origin/main` antes de abrir o PR.
   - Após merge/squash na `main`, apague a branch local com `git branch -d 00X-...`.
-

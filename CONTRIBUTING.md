@@ -45,5 +45,6 @@ A pipeline principal executa e/ou exige:
 ## Governança (resumo)
 - Revisões: CODEOWNERS define responsáveis por áreas do código.
 - Proteção da `main`: habilite no GitHub (require PR, squash only, linear history, required checks). Configuração é feita nas “Branch protection rules” do repositório.
+- Aprovações obrigatórias: enquanto houver 1 mantenedor, mantenha 0 aprovações obrigatórias (evita bloqueios). Ao formar equipe, passe para 1–2 aprovações e, se fizer sentido, exija review de CODEOWNERS.
 
 Se tiver dúvidas, abra um PR rascunho (draft) e marque as seções pendentes no template.

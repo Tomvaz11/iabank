@@ -37,3 +37,21 @@ Reflete os gates constitucionais (v5.2.0) e ADRs 008–012.
 ## Saídas
 - Artefatos devem ser enviados para armazenamento WORM.
 - Resultados agregados alimentam os dashboards DORA/SLO.
+
+## Contextos de proteção (GitHub Required Checks)
+Estes são os contextos atualmente exigidos na proteção da branch `main` (Branch protection rules). Mantemos a lista aqui para referência rápida e auditoria:
+- Lint
+- Vitest
+- Contracts (Spectral, OpenAPI Diff, Pact)
+- Visual & Accessibility Gates
+- Performance Budgets
+- Security Checks
+- Threat Model Lint
+- CI Outage Guard
+- CI Diagnostics
+
+Notas de governança relacionadas:
+- Merge: squash-only, com exclusão de branch ao mesclar.
+- Histórico linear: habilitado.
+- Resolução de conversas antes do merge: habilitada.
+- Aprovações obrigatórias: 0 (atual) — quando houver equipe, migrar para 1–2 aprovações e, se desejado, exigir review de CODEOWNERS.
