@@ -392,9 +392,9 @@ jobs:
             sleep 2;
           done
 
-      - name: Instalar ferramentas de segurança
+      - name: Instalar ferramentas de segurança (SAST)
         run: |
-          poetry run python -m pip install --quiet semgrep==1.94.0 pip-audit==2.7.3 safety==3.6.2
+          poetry run python -m pip install --quiet semgrep==1.94.0
 
       - name: SAST (Semgrep)
         id: security_sast
