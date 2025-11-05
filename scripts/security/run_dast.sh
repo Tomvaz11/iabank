@@ -51,10 +51,11 @@ fi
 
 echo "Executando OWASP ZAP baseline contra ${TARGET_URL}..."
 docker run --rm \
+  --pull=always \
   --network=host \
   -v "${REPORT_DIR}:/zap/wrk" \
-  owasp/zap2docker-stable \
-  zap-baseline.py \
+  ghcr.io/zaproxy/zaproxy:stable \
+  /zap/zap-baseline.py \
   -t "${TARGET_URL}" \
   -a \
   -J zap-baseline.json \
