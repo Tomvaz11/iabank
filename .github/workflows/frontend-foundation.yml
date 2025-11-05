@@ -487,6 +487,7 @@ jobs:
           CI_OUTAGE_AXE_JOB_STATUS: ${{ needs.visual-accessibility.result }}
           CI_OUTAGE_AXE_JOB_NAME: visual-accessibility
           FOUNDATION_OTEL_OUTAGE_ENDPOINT: ${{ secrets.FOUNDATION_OTEL_OUTAGE_ENDPOINT }}
+          FOUNDATION_OTEL_OUTAGE_TOKEN: ${{ secrets.FOUNDATION_OTEL_OUTAGE_TOKEN }}
           FOUNDATION_DEFAULT_TENANT: tenant-alfa
         run: node scripts/dist/ci/handle-outage.js
 

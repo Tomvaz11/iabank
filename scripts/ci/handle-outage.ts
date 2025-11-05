@@ -340,9 +340,15 @@ async function emitOtelEvent(input: OutageInput, outages: ToolEvaluation[]) {
     timestamp: new Date().toISOString(),
   };
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    // Opcional: autenticação simples via cabeçalho X-Token
+    const token = process.env.FOUNDATION_OTEL_OUTAGE_TOKEN;
+    if (token && token.length > 0) {
+      headers['X-Token'] = token;
+    }
     await fetch(input.otelEndpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payload),
     });
   } catch (error) {
