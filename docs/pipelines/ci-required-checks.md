@@ -12,11 +12,13 @@ Reflete os gates constitucionais (v5.2.0) e ADRs 008–012.
 7. **iac-policy**: Terraform plan + OPA/Gatekeeper.
 8. **finops-tags**: Script para validar tagging obrigatório (Artigo XVI).
 9. **complexity-gate**: Radon cc ≤ 10 (Python) usando `scripts/ci/check_python_complexity.py` e allowlist controlado.
+10. **ci-outage-guard**: aplica política fail-open (não-release) e fail-closed (main/release/hotfix) para ferramentas de QA (Chromatic/Lighthouse/Axe). É um required check e roda após os jobs de qualidade (visual, performance, segurança).
 
 ## Automação Pendente
 - Revisar periodicamente os scripts em `scripts/` conforme o amadurecimento dos serviços.
 - Ajustar workflows (`.github/workflows/*.yml`) quando a infraestrutura real for integrada.
 - Atualizar o catálogo de SLO/thresholds em `docs/slo/` sempre que novos domínios surgirem.
+ - Workflow auxiliar: "Renovate Config Validation" valida `renovate.json` (Node 22.13 no job; `renovate-config-validator --strict`). Não é required-check do PR.
 
 ## Estratégia de Execução
 - Habilitar paralelização (e.g., `pytest-xdist`, `k6` em múltiplos VUs) para manter SLAs de pipeline < 15 min.
