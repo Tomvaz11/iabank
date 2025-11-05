@@ -324,9 +324,29 @@ jobs:
     runs-on: ubuntu-latest
     needs: contracts
     if: always()
+    services:
+      postgres:
+        image: postgres:15
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_DB: foundation
+          POSTGRES_USER: foundation
+          POSTGRES_PASSWORD: foundation
+        options: >-
+          --health-cmd "pg_isready -U foundation -d foundation"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
       CI_ENFORCE_FULL_SECURITY: ${{ github.event_name != 'workflow_dispatch' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/')) }}
       CI_FAIL_OPEN: ${{ github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
+      FOUNDATION_DB_VENDOR: postgresql
+      FOUNDATION_DB_HOST: 127.0.0.1
+      FOUNDATION_DB_PORT: '5432'
+      FOUNDATION_DB_NAME: foundation
+      FOUNDATION_DB_USER: foundation
+      FOUNDATION_DB_PASSWORD: foundation
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -362,6 +382,17 @@ jobs:
       - name: Install Python dependencies
         run: poetry install --with dev
 
+      - name: Aguardar Postgres ficar disponível
+        run: |
+          for i in {1..30}; do
+            if (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1; then
+              echo "[ok] Postgres disponível";
+              break;
+            fi
+            echo "[wait] aguardando Postgres (tentativa $i/30)...";
+            sleep 2;
+          done
+
       - name: Instalar ferramentas de segurança
         run: |
           poetry run python -m pip install --quiet semgrep==1.94.0 pip-audit==2.7.3 safety==3.6.2
@@ -376,7 +407,7 @@ jobs:
         if: ${{ env.CI_ENFORCE_FULL_SECURITY == 'true' || github.event_name == 'pull_request' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
         env:
-          ZAP_BASELINE_TARGET: http://127.0.0.1:8000/health
+          ZAP_BASELINE_TARGET: http://127.0.0.1:8000/metrics
         run: poetry run bash scripts/security/run_dast.sh
 
       - name: Validação pgcrypto
