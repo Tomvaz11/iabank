@@ -9,6 +9,8 @@ Objetivo: padronizar como detectar, registrar e agir em casos de indisponibilida
   - Branches release/main: fail‑closed (quebra o pipeline) quando houver outage.
 - Eventos são enviados via HTTP para um Worker Cloudflare (binding KV `CI_OUTAGES`) e persistidos como pares chave‑valor.
 
+Política de release branches (padrão do script): `main`, `release/*`, `hotfix/*`.
+
 Componentes relevantes:
 - Script: `scripts/ci/handle-outage.ts` (compilado em `scripts/dist/ci/handle-outage.js`).
 - Workflow principal: `.github/workflows/frontend-foundation.yml` (job `ci-outage-guard`).
@@ -29,12 +31,14 @@ Componentes relevantes:
 
 1) Acesse o workflow manual (branch `main`):
    - GitHub Actions → "CI Outage Selftest" → `Run workflow`.
-2) O workflow executa dois jobs:
-   - `Post OTEL Outage Event (Cloudflare)` (fail‑open): simula falha do Chromatic e envia evento.
-   - `Post OTEL Outage Event (Fail‑Closed on main)`: simula falha em `main`; o script sai com código 1, mas o passo ignora o erro (marcado como esperado).
+2) O workflow executa dois jobs (somente variáveis de ambiente, sem `--input`):
+  - `Post OTEL Outage Event (Cloudflare)` (fail‑open): simula falha do Chromatic e envia evento.
+  - `Post OTEL Outage Event (Fail‑Closed on main)`: simula falha em `main`; o script sai com código 1, mas o passo ignora o erro (marcado como esperado).
 3) Artefatos: baixe `ci-outage-selftest*` e verifique `observabilidade/data/ci-outages.json` se desejar confirmar localmente.
 
-Observação: o selftest injeta um log de erro sintético (padrões: `ECONNRESET`, `service unavailable`) para que o script detecte outage mesmo quando a status page não responde em JSON.
+Observações:
+- O selftest injeta um log de erro sintético (padrões: `ECONNRESET`, `service unavailable`) para que o script detecte outage mesmo quando a status page não responde em JSON.
+- O job fail‑open força a branch com `GITHUB_REF_NAME=selftest-failopen`; o job fail‑closed força `GITHUB_REF_NAME=main`.
 
 ## Validar no Cloudflare (KV)
 
@@ -64,7 +68,7 @@ Observação: o selftest injeta um log de erro sintético (padrões: `ECONNRESET
 - "Não gerou chave no KV":
   - Confirme que abriu a namespace **via link do Binding** `CI_OUTAGES` (evita ver a namespace errada).
   - Verifique no log do step "Executar política de outage" se há `outages: []`. Isso indica que nem status page nem log sugeriram outage. Em selftest, o log sintético deve estar presente.
-  - Verifique secrets no GitHub (endpoint/token) e no Worker (secret `CI_OUTAGE_TOKEN`). Erros de token aparecem como `401 Unauthorized` no log.
+  - Verifique secrets no GitHub (endpoint/token) e no Worker (secret `CI_OUTAGE_TOKEN`). Em caso de falha no POST, o script registra: `[ci-outage] OTEL endpoint respondeu <status> <statusText>`; `401/403` indicam problema de token/permissão.
 - "Status page JSON inválido":
   - O script tolera esse caso lendo o log local (padrões de erro). Em produção, confie na detecção por status page **ou** por log.
 - "Sem botão Run workflow":
@@ -84,4 +88,3 @@ Observação: o selftest injeta um log de erro sintético (padrões: `ECONNRESET
 - Selftest: `.github/workflows/ci-outage-selftest.yml`.
 - Script: `scripts/ci/handle-outage.ts` (distribuído como `scripts/dist/ci/handle-outage.js`).
 - Worker Cloudflare: binding `CI_OUTAGES` + secret `CI_OUTAGE_TOKEN`.
-
