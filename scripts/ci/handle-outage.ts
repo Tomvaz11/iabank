@@ -346,11 +346,17 @@ async function emitOtelEvent(input: OutageInput, outages: ToolEvaluation[]) {
     if (token && token.length > 0) {
       headers['X-Token'] = token;
     }
-    await fetch(input.otelEndpoint, {
+    const resp = await fetch(input.otelEndpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify(payload),
     });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      console.warn(
+        `[ci-outage] OTEL endpoint respondeu ${resp.status} ${resp.statusText}. Corpo: ${text?.slice(0, 200)}`,
+      );
+    }
   } catch (error) {
     console.warn(`[ci-outage] Falha ao enviar evento OTEL: ${(error as Error).message}`);
   }
@@ -378,7 +384,21 @@ async function main() {
   const args = parseArgs();
   let input: OutageInput;
   if (args.inputPath) {
-    input = await readJson(args.inputPath);
+    // Quando um arquivo de input é fornecido, faça merge com as variáveis de ambiente
+    // para preencher campos ausentes (ex.: otelEndpoint, githubToken, owner/repository).
+    const fileInput: OutageInput = await readJson(args.inputPath);
+    const envInput: OutageInput = buildInputFromEnv();
+    input = {
+      ...envInput,
+      ...fileInput,
+      // Se a lista de ferramentas vier vazia do arquivo, preserve as do ambiente
+      tools: Array.isArray(fileInput.tools) && fileInput.tools.length > 0 ? fileInput.tools : envInput.tools,
+      // Se releaseBranches não vier do arquivo, preserve as do ambiente
+      releaseBranches:
+        Array.isArray(fileInput.releaseBranches) && fileInput.releaseBranches.length > 0
+          ? fileInput.releaseBranches
+          : envInput.releaseBranches,
+    };
   } else {
     input = buildInputFromEnv();
   }
