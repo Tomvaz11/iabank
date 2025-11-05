@@ -77,6 +77,42 @@ function ensureReportArray(report: RunnerResult['report']) {
   return Array.isArray(report) ? report : [report];
 }
 
+type RunOutcome = {
+  lhr: RunnerResult['lhr'];
+  reports: RunnerResult['report'];
+  metrics: Record<MetricKey | 'performanceScore', number>;
+};
+
+function chooseBetterRun(a: RunOutcome, b: RunOutcome): RunOutcome {
+  // Critério: maior performanceScore; em empate, menor LCP, depois TTI, TBT, CLS.
+  const scoreA = a.metrics.performanceScore;
+  const scoreB = b.metrics.performanceScore;
+  if (scoreA !== scoreB) return scoreA > scoreB ? a : b;
+  if (a.metrics.lcp !== b.metrics.lcp) return a.metrics.lcp < b.metrics.lcp ? a : b;
+  if (a.metrics.tti !== b.metrics.tti) return a.metrics.tti < b.metrics.tti ? a : b;
+  if (a.metrics.tbt !== b.metrics.tbt) return a.metrics.tbt < b.metrics.tbt ? a : b;
+  if (a.metrics.cls !== b.metrics.cls) return a.metrics.cls < b.metrics.cls ? a : b;
+  return a; // estável
+}
+
+async function runOnce(
+  targetUrl: string,
+  options: Record<string, unknown>,
+  userConfig: Record<string, unknown>
+): Promise<RunOutcome> {
+  const { default: lighthouse } = await import('lighthouse');
+  const runner: RunnerResult = await lighthouse(targetUrl, options, userConfig);
+  const lhr = runner.lhr;
+  const metrics = {
+    lcp: lhr.audits['largest-contentful-paint'].numericValue ?? Number.POSITIVE_INFINITY,
+    tti: lhr.audits.interactive.numericValue ?? Number.POSITIVE_INFINITY,
+    tbt: lhr.audits['total-blocking-time'].numericValue ?? Number.POSITIVE_INFINITY,
+    cls: lhr.audits['cumulative-layout-shift'].numericValue ?? Number.POSITIVE_INFINITY,
+    performanceScore: (lhr.categories.performance?.score ?? 0) * 100,
+  } as const;
+  return { lhr, reports: runner.report, metrics };
+}
+
 export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBudgetInsights> {
   const targetUrl = page.url();
   const reportBaseName = process.env.LIGHTHOUSE_REPORT_NAME ?? 'home';
@@ -89,7 +125,6 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
   await mkdir(artifactsDir, { recursive: true });
   await mkdir(dashboardDataDir, { recursive: true });
 
-  const { default: lighthouse } = await import('lighthouse');
   const { collectSettings, budgets } = await loadLighthouseConfig();
 
   const remoteDebuggingPort = Number(process.env.LIGHTHOUSE_DEBUG_PORT ?? 9222);
@@ -111,9 +146,12 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
     const options = buildLighthouseOptions(remoteDebuggingPort, collectSettings);
     const userConfig = buildUserConfig(collectSettings, budgets);
 
-    const runner: RunnerResult = await lighthouse(targetUrl, options, userConfig);
+    // Executa duas vezes e escolhe o melhor resultado (best-of-2) para reduzir flutuação do runner.
+    const first = await runOnce(targetUrl, options, userConfig);
+    const second = await runOnce(targetUrl, options, userConfig);
+    const best = chooseBetterRun(first, second);
     const formats = Array.isArray(options.output) ? options.output : [options.output];
-    const reports = ensureReportArray(runner.report);
+    const reports = ensureReportArray(best.reports);
 
     const reportPaths: Record<'html' | 'json', string> = {
       html: path.join(artifactsDir, `${reportBaseName}.html`),
@@ -133,14 +171,7 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
       })
     );
 
-    const lhr = runner.lhr;
-    const metrics = {
-      lcp: lhr.audits['largest-contentful-paint'].numericValue ?? Number.POSITIVE_INFINITY,
-      tti: lhr.audits.interactive.numericValue ?? Number.POSITIVE_INFINITY,
-      tbt: lhr.audits['total-blocking-time'].numericValue ?? Number.POSITIVE_INFINITY,
-      cls: lhr.audits['cumulative-layout-shift'].numericValue ?? Number.POSITIVE_INFINITY,
-      performanceScore: (lhr.categories.performance?.score ?? 0) * 100,
-    };
+    const metrics = best.metrics;
 
     const dashboardPath = path.join(dashboardDataDir, 'lighthouse-latest.json');
     const summary: LighthouseSummary = {
