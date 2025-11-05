@@ -31,13 +31,13 @@ PY
   else
     "${POETRY_BIN}" run python -m pip install --quiet --upgrade pip
   fi
-  "${POETRY_BIN}" run python -m pip install --quiet "pip-audit==2.7.3" "safety==3.3.4"
+  "${POETRY_BIN}" run python -m pip install --quiet "pip-audit==2.7.3" "safety==3.6.2"
   PIP_AUDIT_CMD=("${POETRY_BIN}" "run" "pip-audit")
   SAFETY_CMD=("${POETRY_BIN}" "run" "safety")
 else
   echo "Poetry não encontrado; utilizando ambiente global para dependências Python." >&2
   python -m pip install --quiet --upgrade pip
-  python -m pip install --quiet "pip-audit==2.7.3" "safety==3.3.4"
+  python -m pip install --quiet "pip-audit==2.7.3" "safety==3.6.2"
   pip freeze > "${REQ_FILE}"
   PIP_AUDIT_CMD=("pip-audit")
   SAFETY_CMD=("safety")
