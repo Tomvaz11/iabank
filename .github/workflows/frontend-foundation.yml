@@ -525,9 +525,8 @@ jobs:
 
       - name: DAST (OWASP ZAP baseline)
         id: security_dast
-        if: ${{ env.CI_ENFORCE_FULL_SECURITY == 'true' || github.event_name == 'pull_request' }}
+        if: ${{ (env.CI_ENFORCE_FULL_SECURITY == 'true' || github.event_name == 'pull_request') && steps.changes.outputs.only_docs != 'true' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
-        if: ${{ steps.changes.outputs.only_docs != 'true' }}
         env:
           ZAP_BASELINE_TARGET: http://127.0.0.1:8000/health
         run: poetry run bash scripts/security/run_dast.sh
