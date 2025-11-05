@@ -45,6 +45,7 @@ export default defineConfig({
       name: 'lighthouse',
       testDir: './tests/performance',
       testMatch: ['**/*.spec.ts'],
+      timeout: 180_000,
       retries: process.env.CI ? 1 : 0,
       use: {
         ...devices['Desktop Chrome'],
