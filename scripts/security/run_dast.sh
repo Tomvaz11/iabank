@@ -50,6 +50,8 @@ if ! curl --fail --silent "${TARGET_URL}" >/dev/null 2>&1; then
 fi
 
 echo "Executando OWASP ZAP baseline contra ${TARGET_URL}..."
+# Executa o baseline e tolera código 2 (apenas WARN). Falha em qualquer FAIL.
+set +e
 docker run --rm \
   --pull=always \
   --network=host \
@@ -63,5 +65,12 @@ docker run --rm \
   -r zap-report.html \
   -x zap-report.xml \
   -m 5
+status=$?
+set -e
+if [ "$status" -eq 2 ]; then
+  echo "[DAST] Somente WARN foram detectados — registrando como sucesso (sem FAILs)."
+  status=0
+fi
+exit "$status"
 
 echo "Relatórios ZAP armazenados em ${REPORT_DIR}."
