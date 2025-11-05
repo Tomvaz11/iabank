@@ -130,9 +130,11 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install poetry==1.8.3
-      - name: Poetry export plugin (poetry-plugin-export)
-        run: |
-          poetry self add poetry-plugin-export
+      # Removido: plugin de export não é necessário para instalação/execução dos testes
+      # e versões recentes (>=1.9) exigem Poetry 2.x, conflitando com 1.8.x.
+
+      - name: Atualizar lock (sem atualizar versões)
+        run: poetry lock --no-update
 
       - name: Install Python dependencies
         run: poetry install --with dev
@@ -351,6 +353,9 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install poetry==1.8.3
+
+      - name: Atualizar lock (sem atualizar versões)
+        run: poetry lock --no-update
 
       - name: Install Python dependencies
         run: poetry install --with dev
