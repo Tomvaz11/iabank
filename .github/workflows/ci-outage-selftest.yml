@@ -46,14 +46,30 @@ jobs:
           CI_OUTAGE_AXE_JOB_STATUS: success
           CI_OUTAGE_AXE_JOB_NAME: selftest-axe
           FOUNDATION_DEFAULT_TENANT: tenant-alfa
-          # Force non-release branch name to validate fail-open behavior
+          # Simulate outage via local log with known patterns (read by script)
+          CI_OUTAGE_CHROMATIC_LOG: chromatic-selftest.log
+          # Force non-release branch name to validate fail-open behavior (we also pass explicit JSON)
           GITHUB_REF_NAME: selftest-failopen
           # GitHub context (best effort; script tolerates missing PR)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          echo "Running outage selftest..."
-          node scripts/dist/ci/handle-outage.js | tee selftest-output.json
+          echo "Running outage selftest (fail-open)..."
+          echo "ECONNRESET simulated by selftest" > "$CI_OUTAGE_CHROMATIC_LOG"
+          cat > selftest-input.json << 'JSON'
+          {
+            "branch": "selftest-failopen",
+            "eventName": "workflow_dispatch",
+            "runId": ${{ github.run_id }},
+            "runUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "commit": "${{ github.sha }}",
+            "defaultTenant": "tenant-alfa",
+            "tools": [
+              { "name": "chromatic", "job": "selftest-chromatic", "status": "failure" }
+            ]
+          }
+          JSON
+          node scripts/dist/ci/handle-outage.js --input selftest-input.json | tee selftest-output.json
           echo "--- Selftest output (truncated) ---"
           head -n 50 selftest-output.json || true
 
@@ -103,12 +119,27 @@ jobs:
           CI_OUTAGE_AXE_JOB_STATUS: success
           CI_OUTAGE_AXE_JOB_NAME: selftest-axe
           FOUNDATION_DEFAULT_TENANT: tenant-alfa
+          CI_OUTAGE_CHROMATIC_LOG: chromatic-selftest-fc.log
           GITHUB_REF_NAME: main
         run: |
           set -euo pipefail
           echo "Running outage selftest (fail-closed expected on main)..."
+          echo "service unavailable (selftest)" > "$CI_OUTAGE_CHROMATIC_LOG"
+          cat > selftest-input-fc.json << 'JSON'
+          {
+            "branch": "main",
+            "eventName": "workflow_dispatch",
+            "runId": ${{ github.run_id }},
+            "runUrl": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "commit": "${{ github.sha }}",
+            "defaultTenant": "tenant-alfa",
+            "tools": [
+              { "name": "chromatic", "job": "selftest-chromatic", "status": "failure" }
+            ]
+          }
+          JSON
           # The script should exit(1) because branch is main (release) and outage exists
-          node scripts/dist/ci/handle-outage.js || echo "EXPECTED_FAIL_CLOSED"
+          node scripts/dist/ci/handle-outage.js --input selftest-input-fc.json || echo "EXPECTED_FAIL_CLOSED"
 
       - name: Upload outage report artifact (if any)
         if: always()
