@@ -1,0 +1,12 @@
+# CODEOWNERS — governança básica de revisão
+# Ajuste os usuários/times abaixo conforme sua organização.
+
+# Dono padrão (fallback)
+* @Tomvaz11
+
+# Áreas principais
+frontend/** @Tomvaz11
+scripts/** @Tomvaz11
+.github/workflows/** @Tomvaz11
+contracts/** @Tomvaz11
+docs/** @Tomvaz11
