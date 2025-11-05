@@ -61,3 +61,4 @@ Notas de governança relacionadas:
 - O job provisiona Postgres (`services: postgres:15`) e exporta `FOUNDATION_DB_*` para o Django conectar.
 - O script `scripts/security/run_dast.sh` aplica migrações e inicia o `runserver` antes do scan; aguarda o endpoint responder.
 - Política: em `main` e versões (`release/*`, tags) é fail‑closed; em PRs pode ser fail‑open conforme a variável `CI_FAIL_OPEN` do workflow.
+  - Tratamento de severidade: WARN não quebra pipeline (exit 2 do ZAP é normalizado para sucesso); FAIL quebra (exit 1/3) — reduz ruído mantendo fail‑closed para vulnerabilidades reais.
