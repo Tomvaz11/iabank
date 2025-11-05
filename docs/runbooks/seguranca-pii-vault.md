@@ -18,6 +18,11 @@ Assegurar que PII esteja criptografada em nível de campo e que todos os segredo
    - Audite políticas do Vault para cada ambiente (`vault policy read <env>`).
    - Confirme que aplicações usam credenciais efêmeras (`vault auth list`).
 
+## Notas para CI (Vault Rotation Checks)
+- Instalação da CLI do Vault no CI: usamos download oficial via `curl` + `unzip` (sem `hashicorp/setup-vault@v2`).
+- Teste de redaction de logs: o job cria um `pytest-min.ini` e roda `pytest -c pytest-min.ini -q tests/security/test_log_redaction.py` para evitar herdar `addopts` de cobertura do repositório (e dependências de plugins de cobertura).
+- Qualquer alerta/erro sobre cobertura global no job de rotação deve ser ignorado — o teste de redaction é isolado e rápido (apenas valida mascaramento de PII nos logs).
+
 ## Resposta a Incidentes
 - Em caso de vazamento de PII ou falha de rotação:
   1. Acione o time de segurança (#incident-response).
