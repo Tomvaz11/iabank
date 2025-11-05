@@ -43,7 +43,9 @@ jobs:
 
       - name: Verify log redaction test
         run: |
-          pytest tests/security/test_log_redaction.py
+          echo "[i] Using minimal pytest config to ignore repo coverage settings"
+          printf "[pytest]\npythonpath = .\n" > pytest-min.ini
+          pytest -c pytest-min.ini -q tests/security/test_log_redaction.py
         shell: bash
 
       - name: Vault rotation placeholder

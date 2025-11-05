@@ -28,7 +28,7 @@ jobs:
       - name: Validate Renovate schema (renovate-config-validator)
         run: |
           set -euo pipefail
-          npx --yes renovate-config-validator@latest --strict -c renovate.json
+          npx --yes -p renovate@latest renovate-config-validator --strict -c renovate.json
 
       - name: Ensure assignees configurados
         run: |
