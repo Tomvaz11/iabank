@@ -8,26 +8,20 @@ REPORT_DIR="${PYTHON_SCA_REPORT_DIR:-${ROOT_DIR}/artifacts/python-sca}"
 mkdir -p "${REPORT_DIR}"
 
 REQ_FILE="$(mktemp)"
+TMP_SCAN_DIR="$(mktemp -d)"
 cleanup() {
   rm -f "${REQ_FILE}"
+  rm -rf "${TMP_SCAN_DIR}"
 }
 trap cleanup EXIT
 
 if command -v "${POETRY_BIN}" >/dev/null 2>&1; then
-  # Poetry 2.x requer plugin de export; se falhar, faz fallback para freeze do env
+  # Em Poetry 1.8.x, o comando export depende de plugin; se indisponível, faz fallback para freeze.
   if ! "${POETRY_BIN}" export --with dev --format requirements.txt --output "${REQ_FILE}" >/dev/null 2>&1; then
     echo "Poetry export indisponível; usando freeze do ambiente virtual gerenciado pelo Poetry." >&2
-    # Garante pip atualizado dentro do env
     "${POETRY_BIN}" run python -m pip install --quiet --upgrade pip
-    "${POETRY_BIN}" run python - <<'PY'
-import pkgutil, subprocess, sys
-try:
-    import pip
-except Exception:
-    pass
-subprocess.check_call([sys.executable, '-m', 'pip', 'freeze'], stdout=open(sys.argv[1], 'w'))
-PY
-    "${REQ_FILE}"
+    # Gera requirements a partir do ambiente do Poetry
+    "${POETRY_BIN}" run python -m pip freeze > "${REQ_FILE}"
   else
     "${POETRY_BIN}" run python -m pip install --quiet --upgrade pip
   fi
@@ -45,11 +39,17 @@ fi
 
 if [[ "${MODE}" == "all" || "${MODE}" == "pip-audit" ]]; then
   PIP_AUDIT_REPORT="${REPORT_DIR}/pip-audit.json"
-  "${PIP_AUDIT_CMD[@]}" \
-    --requirement "${REQ_FILE}" \
-    --severity HIGH \
-    --format json \
-    --output "${PIP_AUDIT_REPORT}"
+  # Executa a partir de um diretório vazio para evitar que a CLI infira project_path
+  # quando há um pyproject.toml no CWD, o que conflita com -r/--requirement em algumas versões.
+  (
+    cd "${TMP_SCAN_DIR}" >/dev/null
+    "${PIP_AUDIT_CMD[@]}" \
+      --requirement "${REQ_FILE}" \
+      --severity HIGH \
+      --format json \
+      --output "${PIP_AUDIT_REPORT}" \
+      --progress-spinner off
+  )
   echo "Relatório do pip-audit disponível em ${PIP_AUDIT_REPORT}."
 fi
 
