@@ -65,21 +65,68 @@ fi
 
 if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
   SAFETY_REPORT="${REPORT_DIR}/safety.json"
-  # Desabilita telemetria do Safety para evitar ruído na saída JSON
-  export SAFETY_DISABLE_TELEMETRY=1
+  # Hardening de locale/encoding para evitar ruído em stdout
+  export PYTHONUTF8=1
+  export LANG=C
+  export LC_ALL=C
+
+  SAFETY_JSON_TMP="${SAFETY_REPORT}.tmp"
+  SAFETY_STDERR_LOG="${REPORT_DIR}/safety.stderr.log"
 
   set +e
-  # --full-report é incompatível com --json/--output nas versões atuais do safety.
-  # Gera JSON limpo diretamente em arquivo usando a flag nativa de output.
-  # Safety 3.x: a flag --output recebe o FORMATO (ex.: json). Redirecionamos stdout para arquivo.
-  "${SAFETY_CMD[@]}" check --stdin --output json < "${REQ_FILE}" > "${SAFETY_REPORT}"
-  SAFETY_EXIT=$?
+  # Preferir subcomando moderno 'scan' com saída JSON estrita em stdout e stderr separado
+  if "${SAFETY_CMD[@]}" --version 2>/dev/null | grep -Eq "\b3\.|\b2\."; then
+    "${SAFETY_CMD[@]}" scan \
+      -r "${REQ_FILE}" \
+      --output json \
+      --disable-optional-telemetry \
+      >"${SAFETY_JSON_TMP}" 2>"${SAFETY_STDERR_LOG}"
+    SAFETY_EXIT=$?
+    # Fallback para 'check' se a versão não suportar 'scan' corretamente
+    if [[ ! -s "${SAFETY_JSON_TMP}" ]]; then
+      "${SAFETY_CMD[@]}" check \
+        -r "${REQ_FILE}" \
+        --output json \
+        --disable-optional-telemetry \
+        >"${SAFETY_JSON_TMP}" 2>>"${SAFETY_STDERR_LOG}"
+      SAFETY_EXIT=$?
+    fi
+  else
+    # Versão antiga/desconhecida: usar 'check' com --output json
+    "${SAFETY_CMD[@]}" check \
+      -r "${REQ_FILE}" \
+      --output json \
+      --disable-optional-telemetry \
+      >"${SAFETY_JSON_TMP}" 2>"${SAFETY_STDERR_LOG}"
+    SAFETY_EXIT=$?
+  fi
   set -e
 
-  if [[ ! -s "${SAFETY_REPORT}" ]]; then
-    echo "Safety não gerou relatório JSON válido." >&2
-    exit 1
-  fi
+  # Validar JSON antes de promover para o arquivo final
+  python - <<PY
+import json, sys, pathlib
+tmp = pathlib.Path(r"${SAFETY_JSON_TMP}")
+err = pathlib.Path(r"${SAFETY_STDERR_LOG}")
+try:
+    raw = tmp.read_text(encoding='utf-8')
+    json.loads(raw)
+except Exception as e:
+    print("ERRO: safety.json inválido:", e, file=sys.stderr)
+    try:
+        sample = tmp.read_text(encoding='utf-8')[:1000]
+    except Exception:
+        sample = '<sem conteúdo>'
+    print("\n--- Amostra do stdout capturado (início) ---\n" + sample, file=sys.stderr)
+    try:
+        est = err.read_text(encoding='utf-8')[:4000]
+    except Exception:
+        est = ''
+    if est:
+        print("\n--- STDERR do Safety ---\n" + est, file=sys.stderr)
+    sys.exit(1)
+PY
+
+  mv -f "${SAFETY_JSON_TMP}" "${SAFETY_REPORT}"
 
   export SAFETY_REPORT_PATH="${SAFETY_REPORT}"
   export SAFETY_EXIT_CODE="${SAFETY_EXIT}"
