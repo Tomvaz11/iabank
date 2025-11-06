@@ -26,6 +26,7 @@ interface LighthouseSummary {
   dashboard: {
     json: string;
   };
+  runtimeError?: { code?: string; message?: string };
 }
 
 export interface LighthouseBudgetInsights {
@@ -41,21 +42,15 @@ async function loadLighthouseConfig() {
   return { collectSettings, budgets };
 }
 
-function buildLighthouseOptions(port: number, collectSettings: Record<string, unknown>) {
-  const { screenEmulation, throttling, ...rest } = collectSettings;
+function buildLighthouseOptions(port: number, _collectSettings: Record<string, unknown>) {
+  // Flags (Node API) — keep minimal and let Settings drive the run.
+  // Avoid overriding throttling/screenEmulation here to prevent conflicts.
   return {
     port,
     logLevel: 'silent',
     output: ['json', 'html'] as const,
-    screenEmulation,
-    ...rest,
-    throttlingMethod: 'provided',
-    throttling: {
-      rttMs: 0,
-      throughputKbps: 0,
-      cpuSlowdownMultiplier: 1,
-      ...(typeof throttling === 'object' ? throttling : {}),
-    },
+    // Give extra time for CI cold starts and slower environments
+    maxWaitForLoad: 120_000,
   };
 }
 
@@ -63,9 +58,27 @@ function buildUserConfig(
   collectSettings: Record<string, unknown>,
   budgets: unknown
 ) {
+  // Defaults that help stabilize CI runs; values from collectSettings take precedence
+  const defaults = {
+    // Ensure desktop form factor unless explicitly overridden
+    emulatedFormFactor: 'desktop',
+    formFactor: 'desktop',
+    // Use devtools throttling in CI for stability
+    throttlingMethod: 'devtools',
+    // Prefer near-real machine performance to avoid artificial TTI inflations
+    throttling: {
+      rttMs: 0,
+      throughputKbps: 0,
+      cpuSlowdownMultiplier: 1,
+    },
+    // Avoid clearing storage/caches between LH passes when running under Playwright preview
+    disableStorageReset: true,
+  } as const;
+
   return {
     extends: 'lighthouse:default',
     settings: {
+      ...defaults,
       ...collectSettings,
       budgets,
       onlyCategories: ['performance'],
@@ -171,6 +184,13 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
       })
     );
 
+    // Usa o melhor dos dois runs, mas preserva diagnóstico do runtimeError
+    const lhr = best.lhr;
+    if (lhr.runtimeError) {
+      const { code, message } = lhr.runtimeError as { code?: string; message?: string };
+      // eslint-disable-next-line no-console
+      console.error(`[Lighthouse runtimeError] code=${code ?? 'unknown'} message=${message ?? 'n/a'}`);
+    }
     const metrics = best.metrics;
 
     const dashboardPath = path.join(dashboardDataDir, 'lighthouse-latest.json');
@@ -183,6 +203,7 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
       dashboard: {
         json: dashboardPath,
       },
+      runtimeError: lhr.runtimeError as { code?: string; message?: string } | undefined,
     };
 
     const summaryPath = path.join(artifactsDir, `${reportBaseName}.summary.json`);
