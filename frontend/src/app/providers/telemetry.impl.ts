@@ -91,7 +91,7 @@ export const createInteractionTracer = ({
   interactionName: string;
 }) => {
   return async (operation: (span: Span) => Promise<void> | void) => {
-    const tracer = trace.getTracer('foundation-ui');
+    const tracer = trace.getTracer('frontend-foundation');
     const activeContext = context.active();
     const baggageValue = propagation.createBaggage({
       'tenant.id': { value: tenantId },
@@ -127,4 +127,3 @@ export const createInteractionTracer = ({
     );
   };
 };
-

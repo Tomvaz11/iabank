@@ -20,7 +20,7 @@ describe('initializeSentry', () => {
   test('não inicializa quando DSN está ausente', async () => {
     const { initializeSentry } = await import('../sentry');
 
-    initializeSentry({
+    await initializeSentry({
       dsn: undefined,
       environment: 'test',
       release: '1.0.0',
@@ -35,7 +35,7 @@ describe('initializeSentry', () => {
   test('configura Sentry com scrubbing de PII', async () => {
     const { initializeSentry } = await import('../sentry');
 
-    initializeSentry({
+    await initializeSentry({
       dsn: 'https://public@sentry.invalid/1',
       environment: 'test',
       release: '1.0.0',
@@ -82,4 +82,3 @@ describe('initializeSentry', () => {
     expect(scrubbedBreadcrumb.data.headers.Authorization).toBe('[Filtered]');
   });
 });
-

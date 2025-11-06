@@ -45,15 +45,16 @@ export const TelemetryProvider = ({ children }: Props) => {
       setTimeout(cb, 0);
     };
 
-    queue(() => {
-      // Permite stub de bootstrap em testes
-      if (activeBootstrap) {
-        try {
-          const maybe = activeBootstrap({
-            endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
-            serviceName: env.OTEL_SERVICE_NAME,
-            resourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES,
-          });
+    // Se um bootstrap customizado foi definido (ex.: nos testes), executa-o imediatamente
+    // para permitir asserções síncronas.
+    if (activeBootstrap) {
+      try {
+        const maybe = activeBootstrap({
+          endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+          serviceName: env.OTEL_SERVICE_NAME,
+          resourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES,
+        });
+        if (maybe && typeof (maybe as unknown as { then?: unknown }).then === 'function') {
           Promise.resolve(maybe)
             .then((client) => {
               clientRef.current = client;
@@ -63,38 +64,41 @@ export const TelemetryProvider = ({ children }: Props) => {
               console.warn('[telemetry] Bootstrap configurado falhou.', error);
               clientRef.current = null;
             });
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.warn('[telemetry] Bootstrap configurado falhou.', error);
-          clientRef.current = null;
+        } else {
+          clientRef.current = maybe as TelemetryClient;
         }
-        return;
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn('[telemetry] Bootstrap configurado falhou.', error);
+        clientRef.current = null;
       }
-
+    } else {
       // Carrega a pilha pesada de telemetria de forma assíncrona (code-splitting)
-      void import('./telemetry.impl')
-        .then(async (mod) => {
-          try {
-            const client = await mod.initializeTelemetryStack({
-              endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
-              serviceName: env.OTEL_SERVICE_NAME,
-              resourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES,
-            });
-            clientRef.current = client;
-          } catch (error) {
+      queue(() => {
+        void import('./telemetry.impl')
+          .then(async (mod) => {
+            try {
+              const client = await mod.initializeTelemetryStack({
+                endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+                serviceName: env.OTEL_SERVICE_NAME,
+                resourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES,
+              });
+              clientRef.current = client;
+            } catch (error) {
+              // eslint-disable-next-line no-console
+              console.warn(
+                '[telemetry] Falha ao iniciar coleta OTEL/Sentry; seguindo sem telemetria.',
+                error,
+              );
+              clientRef.current = null;
+            }
+          })
+          .catch(() => {
             // eslint-disable-next-line no-console
-            console.warn(
-              '[telemetry] Falha ao iniciar coleta OTEL/Sentry; seguindo sem telemetria.',
-              error,
-            );
-            clientRef.current = null;
-          }
-        })
-        .catch(() => {
-          // eslint-disable-next-line no-console
-          console.warn('[telemetry] Módulo de telemetria não carregado.');
-        });
-    });
+            console.warn('[telemetry] Módulo de telemetria não carregado.');
+          });
+      });
+    }
 
     return () => {
       const client = clientRef.current;
@@ -108,3 +112,6 @@ export const TelemetryProvider = ({ children }: Props) => {
 
   return <>{children}</>;
 };
+
+// Reexporta helpers utilizados diretamente pelos testes e por código legado
+export { bootstrapTelemetry, createInteractionTracer } from './telemetry.impl';

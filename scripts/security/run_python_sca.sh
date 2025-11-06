@@ -66,7 +66,9 @@ fi
 if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
   SAFETY_REPORT="${REPORT_DIR}/safety.json"
   set +e
-  "${SAFETY_CMD[@]}" check --stdin --json --full-report < "${REQ_FILE}" > "${SAFETY_REPORT}"
+  # --full-report é incompatível com --json/--output nas versões atuais do safety.
+  # Mantemos apenas --json para gerar um relatório consumível pela pipeline.
+  "${SAFETY_CMD[@]}" check --stdin --json < "${REQ_FILE}" > "${SAFETY_REPORT}"
   SAFETY_EXIT=$?
   set -e
 
