@@ -64,25 +64,32 @@ if [[ "${MODE}" == "all" || "${MODE}" == "pip-audit" ]]; then
 fi
 
 if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
-  SAFETY_REPORT="${REPORT_DIR}/safety.json"
-  # Hardening de locale/encoding para evitar ruído em stdout
+  # Hardening do ambiente para saídas determinísticas e UTF-8
   export PYTHONUTF8=1
   export LANG=C
   export LC_ALL=C
 
-  SAFETY_JSON_TMP="${SAFETY_REPORT}.tmp"
-  SAFETY_STDERR_LOG="${REPORT_DIR}/safety.stderr.log"
+  SAFETY_DIR="${REPORT_DIR}"
+  mkdir -p "${SAFETY_DIR}"
+  SAFETY_JSON_TMP="${SAFETY_DIR}/safety.json.tmp"
+  SAFETY_JSON_FINAL="${SAFETY_DIR}/safety.json"
+  SAFETY_STDERR_LOG="${SAFETY_DIR}/safety.stderr.log"
 
+  # Executa Safety em modo JSON estrito via stdout e captura stderr separado
   set +e
-  # Preferir subcomando moderno 'scan' com saída JSON estrita em stdout e stderr separado
   if "${SAFETY_CMD[@]}" --version 2>/dev/null | grep -Eq "\b3\.|\b2\."; then
+    # Preferir o subcomando moderno 'scan'; fazer fallback para 'check' se necessário
     "${SAFETY_CMD[@]}" scan \
       -r "${REQ_FILE}" \
       --output json \
       --disable-optional-telemetry \
       >"${SAFETY_JSON_TMP}" 2>"${SAFETY_STDERR_LOG}"
     SAFETY_EXIT=$?
-    # Fallback para 'check' se a versão não suportar 'scan' corretamente
+    if [[ ${SAFETY_EXIT} -ne 0 ]]; then
+      # Alguns ambientes retornam 1 quando encontra vulnerabilidades; aceitável para processamento
+      true
+    fi
+    # Se 'scan' não existir (versão mais antiga), tentar 'check'
     if [[ ! -s "${SAFETY_JSON_TMP}" ]]; then
       "${SAFETY_CMD[@]}" check \
         -r "${REQ_FILE}" \
@@ -92,7 +99,7 @@ if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
       SAFETY_EXIT=$?
     fi
   else
-    # Versão antiga/desconhecida: usar 'check' com --output json
+    # Versões fora do padrão — tentativa conservadora
     "${SAFETY_CMD[@]}" check \
       -r "${REQ_FILE}" \
       --output json \
@@ -102,7 +109,7 @@ if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
   fi
   set -e
 
-  # Validar JSON antes de promover para o arquivo final
+  # Validar JSON antes de mover para o arquivo final
   python - <<PY
 import json, sys, pathlib
 tmp = pathlib.Path(r"${SAFETY_JSON_TMP}")
@@ -125,10 +132,9 @@ except Exception as e:
         print("\n--- STDERR do Safety ---\n" + est, file=sys.stderr)
     sys.exit(1)
 PY
+  mv -f "${SAFETY_JSON_TMP}" "${SAFETY_JSON_FINAL}"
 
-  mv -f "${SAFETY_JSON_TMP}" "${SAFETY_REPORT}"
-
-  export SAFETY_REPORT_PATH="${SAFETY_REPORT}"
+  export SAFETY_REPORT_PATH="${SAFETY_JSON_FINAL}"
   export SAFETY_EXIT_CODE="${SAFETY_EXIT}"
   SAFETY_STATUS="$(
     python <<'PY'

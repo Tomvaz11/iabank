@@ -149,10 +149,16 @@ async function runOnce(
 }
 
 export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBudgetInsights> {
-  // Deriva uma URL estável com conteúdo garantido a partir da origem atual
-  const current = new URL(page.url());
-  const envOverride = process.env.LIGHTHOUSE_TARGET_URL;
-  const targetUrl = envOverride ?? `${current.origin}/`;
+  // Aguarda que a página tenha algo renderizável antes de auditar (melhora a estabilidade em CI)
+  await page.waitForLoadState('domcontentloaded');
+  await page
+    .waitForSelector('main, #root, [data-app-ready]', { timeout: 60_000 })
+    .catch(async () => {
+      // Caso a aplicação não use esses seletores, ao menos aguarde um breve período
+      await page.waitForTimeout(1000);
+    });
+
+  const targetUrl = process.env.LIGHTHOUSE_TARGET_URL ?? page.url();
   const reportBaseName = process.env.LIGHTHOUSE_REPORT_NAME ?? 'home';
   const artifactsDir =
     process.env.LIGHTHOUSE_ARTIFACT_DIR ??
