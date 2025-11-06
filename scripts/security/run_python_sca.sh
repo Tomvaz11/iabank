@@ -65,10 +65,13 @@ fi
 
 if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
   SAFETY_REPORT="${REPORT_DIR}/safety.json"
+  # Desabilita telemetria do Safety para evitar ruído na saída JSON
+  export SAFETY_DISABLE_TELEMETRY=1
+
   set +e
   # --full-report é incompatível com --json/--output nas versões atuais do safety.
-  # Mantemos apenas --json para gerar um relatório consumível pela pipeline.
-  "${SAFETY_CMD[@]}" check --stdin --json < "${REQ_FILE}" > "${SAFETY_REPORT}"
+  # Gera JSON limpo diretamente em arquivo usando a flag nativa de output.
+  "${SAFETY_CMD[@]}" check --stdin --json --output "${SAFETY_REPORT}" < "${REQ_FILE}"
   SAFETY_EXIT=$?
   set -e
 
