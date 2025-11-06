@@ -28,16 +28,19 @@ A pipeline principal executa e/ou exige:
 - Threat model lint.
 - CI Outage Guard: fail‑open em branches não release para ferramentas de QA; fail‑closed em `main`/`release/*`/`hotfix/*`.
 
-### Referências rápidas de CI/Workflows
+### Onde consultar gates do CI (sem duplicar valores)
 - Workflow principal: `.github/workflows/frontend-foundation.yml:1`
-- Inspecionar runs (gh CLI):
+- Como localizar regras no YAML:
+  - Vitest (coverage gate): procurar `FOUNDATION_COVERAGE_BRANCHES` e os passos "Run Vitest (coverage gate)".
+    - Comando: `rg -n "FOUNDATION_COVERAGE_BRANCHES|Run Vitest" .github/workflows/frontend-foundation.yml`
+  - Segurança (fail-open/closed): procurar `CI_ENFORCE_FULL_SECURITY` e `CI_FAIL_OPEN`.
+    - Comando: `rg -n "CI_ENFORCE_FULL_SECURITY|CI_FAIL_OPEN" .github/workflows/frontend-foundation.yml`
+  - Performance (Lighthouse/k6): procurar "Performance Budgets" e "Lighthouse".
+    - Comando: `rg -n "Performance Budgets|Lighthouse" .github/workflows/frontend-foundation.yml`
+- Inspecionar runs no GitHub Actions (gh CLI):
   - `gh run list --limit 10`
-  - `gh run view <RUN_ID>` (ou somente falhas: `--log-failed`)
-  - `gh run rerun <RUN_ID>` (ou `--failed` para reexecutar só o que falhou)
-- Gates típicos por evento:
-  - Vitest branches: PR ≥ 84.5%, main/releases ≥ 84.8%
-  - Segurança: fail‑closed em main/releases; fail‑open em PR/dev
-  - Performance budgets: “hard” em main; “soft” em PR
+  - `gh run view <RUN_ID>` (ou apenas falhas: `--log-failed`)
+  - `gh run rerun <RUN_ID>` (ou `--failed` para só os jobs que falharam)
 
 ## Runbooks úteis
 - Outage (Chromatic/Lighthouse/Axe): `docs/runbooks/frontend-outage.md`.
