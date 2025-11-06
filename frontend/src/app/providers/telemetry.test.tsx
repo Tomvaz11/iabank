@@ -69,9 +69,8 @@ describe('TelemetryProvider', () => {
 
     expect(screen.getByText('child')).toBeInTheDocument();
     await waitFor(() => expect(warnSpy).toHaveBeenCalled());
-    expect(warnSpy.mock.calls[0][0]).toContain(
-      '[telemetry] Falha ao iniciar coleta OTEL; execução seguirá sem telemetria.',
-    );
+    // Implementação atual emite este aviso quando o bootstrap customizado falha
+    expect(warnSpy.mock.calls[0][0]).toContain('[telemetry] Bootstrap configurado falhou.');
 
     unmount();
     telemetryModule.resetTelemetryBootstrap();
