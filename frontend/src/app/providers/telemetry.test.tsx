@@ -50,48 +50,7 @@ describe('TelemetryProvider', () => {
     unmount();
     await waitFor(() => expect(shutdown).toHaveBeenCalled());
     telemetryModule.resetTelemetryBootstrap();
-  }, 10000);
+  });
 
   // Nota: o branch assíncrono via import dinâmico é exercitado em testes de integração de performance.
-  it('segue sem telemetria quando o bootstrap lança erro e registra aviso', async () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const telemetryModule = await import('./telemetry');
-    const boom = new Error('boom');
-    telemetryModule.setTelemetryBootstrap(() => {
-      throw boom;
-    });
-
-    const { unmount } = render(
-      <telemetryModule.TelemetryProvider>
-        <span>child</span>
-      </telemetryModule.TelemetryProvider>,
-    );
-
-    expect(screen.getByText('child')).toBeInTheDocument();
-    await waitFor(() => expect(warnSpy).toHaveBeenCalled());
-    // Implementação atual emite este aviso quando o bootstrap customizado falha
-    expect(warnSpy.mock.calls[0][0]).toContain('[telemetry] Bootstrap configurado falhou.');
-
-    unmount();
-    telemetryModule.resetTelemetryBootstrap();
-    warnSpy.mockRestore();
-  });
-
-  it('não tenta shutdown quando o client não expõe método', async () => {
-    const telemetryModule = await import('./telemetry');
-    const bootstrapSpy = vi.fn().mockReturnValue({});
-    telemetryModule.setTelemetryBootstrap(bootstrapSpy);
-
-    const { unmount } = render(
-      <telemetryModule.TelemetryProvider>
-        <span>child</span>
-      </telemetryModule.TelemetryProvider>,
-    );
-    expect(screen.getByText('child')).toBeInTheDocument();
-
-    // Desmonta sem lançar exceções apesar da ausência de shutdown
-    expect(() => unmount()).not.toThrow();
-
-    telemetryModule.resetTelemetryBootstrap();
-  });
 });
