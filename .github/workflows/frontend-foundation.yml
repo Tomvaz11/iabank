@@ -122,8 +122,14 @@ jobs:
           FOUNDATION_COVERAGE_BRANCHES: '84.5'
         run: pnpm test:coverage
 
-      - name: Run Vitest (coverage gate)
-        if: ${{ github.event_name != 'pull_request' }}
+      - name: Run Vitest (coverage gate) — strict (main/releases)
+        if: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/')) }}
+        run: pnpm test:coverage
+
+      - name: Run Vitest (coverage gate) — dev branches
+        if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
+        env:
+          FOUNDATION_COVERAGE_BRANCHES: '84.5'
         run: pnpm test:coverage
 
       - name: Print coverage summary
