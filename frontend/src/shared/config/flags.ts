@@ -1,4 +1,10 @@
-import { getClient, PollingMode, type IConfigCatClient } from 'configcat-js';
+// Evita incluir o SDK de flags no bundle inicial; carregamos sob demanda
+type IConfigCatClient = {
+  getValueAsync<T>(key: string, defaultValue: T, user?: unknown): Promise<T>;
+  on(event: 'configChanged', listener: () => void): void;
+  off(event: 'configChanged', listener: () => void): void;
+  dispose(): void;
+};
 
 import { env } from './env';
 
@@ -98,9 +104,25 @@ const evaluateWithClient = async (
 };
 
 const createConfigCatClient = (sdkKey: string): FeatureFlagClient => {
-  const client = getClient(sdkKey, PollingMode.AutoPoll, {
-    pollIntervalSeconds: 60,
-  });
+  // Nota: import dinâmico para permitir code-splitting
+  // O módulo só é carregado quando há SDK key configurada
+  let clientPromise: Promise<IConfigCatClient> | null = null;
+  const getClientInstance = async (): Promise<IConfigCatClient> => {
+    if (!clientPromise) {
+      clientPromise = import('configcat-js').then((mod) => {
+        const { getClient, PollingMode } = mod as unknown as {
+          getClient: (
+            key: string,
+            mode: unknown,
+            opts: { pollIntervalSeconds: number },
+          ) => IConfigCatClient;
+          PollingMode: { AutoPoll: unknown };
+        };
+        return getClient(sdkKey, PollingMode.AutoPoll, { pollIntervalSeconds: 60 });
+      });
+    }
+    return clientPromise;
+  };
 
   const listeners = new Set<() => void>();
 
@@ -121,10 +143,10 @@ const createConfigCatClient = (sdkKey: string): FeatureFlagClient => {
     notify();
   };
 
-  client.on('configChanged', onConfigChanged);
+  void getClientInstance().then((client) => client.on('configChanged', onConfigChanged));
 
   return {
-    getSnapshot: (tenantId) => evaluateWithClient(client, tenantId),
+    getSnapshot: async (tenantId) => evaluateWithClient(await getClientInstance(), tenantId),
     subscribe: (listener) => {
       listeners.add(listener);
       return () => {
@@ -133,8 +155,11 @@ const createConfigCatClient = (sdkKey: string): FeatureFlagClient => {
     },
     dispose: async () => {
       listeners.clear();
-      client.off('configChanged', onConfigChanged);
-      client.dispose();
+      const client = await getClientInstance().catch(() => null);
+      if (client) {
+        client.off('configChanged', onConfigChanged);
+        client.dispose();
+      }
     },
   };
 };

@@ -1,4 +1,5 @@
-import * as Sentry from '@sentry/react';
+// Carrega Sentry dinamicamente para evitar entrar no bundle inicial
+// e permitir code-splitting do vendor pesado.
 
 const FILTERED_VALUE = '[Filtered]';
 const SENSITIVE_KEYWORDS = [
@@ -104,11 +105,12 @@ const scrubBreadcrumb = <T>(breadcrumb: T): T => {
   return breadcrumb;
 };
 
-export const initializeSentry = (config: SentryConfig) => {
+export const initializeSentry = async (config: SentryConfig) => {
   if (!config.dsn) {
     return;
   }
 
+  const Sentry = await import('@sentry/react');
   Sentry.init({
     dsn: config.dsn,
     environment: config.environment,

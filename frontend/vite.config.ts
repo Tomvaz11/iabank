@@ -2,7 +2,7 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import autoprefixer from 'autoprefixer';
 import tailwindcss from 'tailwindcss';
-import { defineConfig } from 'vite';
+import { defineConfig, splitVendorChunkPlugin } from 'vite';
 
 import { createFoundationCspPlugin } from './vite.csp.middleware';
 
@@ -16,6 +16,8 @@ const previewPort = Number(process.env.FOUNDATION_PERF_PORT ?? '4173');
 export default defineConfig({
   plugins: [
     react(),
+    // Melhora code-splitting de dependências de terceiros
+    splitVendorChunkPlugin(),
     createFoundationCspPlugin({
       nonce,
       trustedTypesPolicy,
@@ -44,6 +46,17 @@ export default defineConfig({
   },
   build: {
     chunkSizeWarningLimit: 1024,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('@opentelemetry')) return 'vendor-otel';
+            if (id.includes('@sentry')) return 'vendor-sentry';
+            if (id.includes('react')) return 'vendor-react';
+          }
+        },
+      },
+    },
   },
   css: {
     postcss: {
