@@ -8,41 +8,36 @@ REPORT_DIR="${PYTHON_SCA_REPORT_DIR:-${ROOT_DIR}/artifacts/python-sca}"
 mkdir -p "${REPORT_DIR}"
 
 REQ_FILE="$(mktemp)"
-TMP_SCAN_DIR="$(mktemp -d)"
 cleanup() {
   rm -f "${REQ_FILE}"
-  rm -rf "${TMP_SCAN_DIR}"
 }
 trap cleanup EXIT
 
 if command -v "${POETRY_BIN}" >/dev/null 2>&1; then
-  # Em Poetry 1.8.x, o comando export depende de plugin; se indisponível, faz fallback para freeze.
+  # Poetry 2.x requer plugin de export; se falhar, faz fallback para freeze do env
   if ! "${POETRY_BIN}" export --with dev --format requirements.txt --output "${REQ_FILE}" >/dev/null 2>&1; then
     echo "Poetry export indisponível; usando freeze do ambiente virtual gerenciado pelo Poetry." >&2
+    # Garante pip atualizado dentro do env
     "${POETRY_BIN}" run python -m pip install --quiet --upgrade pip
-    # Gera requirements a partir do ambiente do Poetry
-    "${POETRY_BIN}" run python -m pip freeze > "${REQ_FILE}"
+    "${POETRY_BIN}" run python - <<'PY'
+import pkgutil, subprocess, sys
+try:
+    import pip
+except Exception:
+    pass
+subprocess.check_call([sys.executable, '-m', 'pip', 'freeze'], stdout=open(sys.argv[1], 'w'))
+PY
+    "${REQ_FILE}"
   else
     "${POETRY_BIN}" run python -m pip install --quiet --upgrade pip
   fi
-  "${POETRY_BIN}" run python -m pip install --quiet "pip-audit==2.7.3" "safety==3.6.2"
-  # Resolve binários absolutos dentro do venv do Poetry para permitir executar fora do CWD do projeto
-  PIP_AUDIT_BIN="$(${POETRY_BIN} run which pip-audit)"
-  SAFETY_BIN="$(${POETRY_BIN} run which safety)"
-  if [[ -z "${PIP_AUDIT_BIN}" || ! -x "${PIP_AUDIT_BIN}" ]]; then
-    echo "pip-audit não encontrado no ambiente do Poetry." >&2
-    exit 1
-  fi
-  if [[ -z "${SAFETY_BIN}" || ! -x "${SAFETY_BIN}" ]]; then
-    echo "safety não encontrado no ambiente do Poetry." >&2
-    exit 1
-  fi
-  PIP_AUDIT_CMD=("${PIP_AUDIT_BIN}")
-  SAFETY_CMD=("${SAFETY_BIN}")
+  "${POETRY_BIN}" run python -m pip install --quiet "pip-audit==2.7.3" "safety==3.3.4"
+  PIP_AUDIT_CMD=("${POETRY_BIN}" "run" "pip-audit")
+  SAFETY_CMD=("${POETRY_BIN}" "run" "safety")
 else
   echo "Poetry não encontrado; utilizando ambiente global para dependências Python." >&2
   python -m pip install --quiet --upgrade pip
-  python -m pip install --quiet "pip-audit==2.7.3" "safety==3.6.2"
+  python -m pip install --quiet "pip-audit==2.7.3" "safety==3.3.4"
   pip freeze > "${REQ_FILE}"
   PIP_AUDIT_CMD=("pip-audit")
   SAFETY_CMD=("safety")
@@ -50,110 +45,31 @@ fi
 
 if [[ "${MODE}" == "all" || "${MODE}" == "pip-audit" ]]; then
   PIP_AUDIT_REPORT="${REPORT_DIR}/pip-audit.json"
-  # Executa a partir de um diretório vazio para evitar que a CLI infira project_path
-  # quando há um pyproject.toml no CWD, o que conflita com -r/--requirement em algumas versões.
-  (
-    cd "${TMP_SCAN_DIR}" >/dev/null
-    "${PIP_AUDIT_CMD[@]}" \
-      --requirement "${REQ_FILE}" \
-      --format json \
-      --output "${PIP_AUDIT_REPORT}" \
-      --progress-spinner off
-  )
+  "${PIP_AUDIT_CMD[@]}" \
+    --requirement "${REQ_FILE}" \
+    --severity HIGH \
+    --format json \
+    --output "${PIP_AUDIT_REPORT}"
   echo "Relatório do pip-audit disponível em ${PIP_AUDIT_REPORT}."
 fi
 
 if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
-  # Hardening do ambiente para saídas determinísticas e UTF-8
-  export PYTHONUTF8=1
-  export LANG=C
-  export LC_ALL=C
+  SAFETY_REPORT="${REPORT_DIR}/safety.json"
+  # Desabilita telemetria do Safety para evitar ruído na saída JSON
+  export SAFETY_DISABLE_TELEMETRY=1
 
-  SAFETY_DIR="${REPORT_DIR}"
-  mkdir -p "${SAFETY_DIR}"
-  SAFETY_JSON_TMP="${SAFETY_DIR}/safety.json.tmp"
-  SAFETY_JSON_FINAL="${SAFETY_DIR}/safety.json"
-  SAFETY_STDERR_LOG="${SAFETY_DIR}/safety.stderr.log"
-
-  # Executa Safety em modo JSON estrito via stdout e captura stderr separado
   set +e
-  # Descobre suporte à flag de telemetria opcional nesta versão (best-effort)
-  SAFETY_FLAGS=()
-  if "${SAFETY_CMD[@]}" scan --help 2>/dev/null | grep -q -- '--disable-optional-telemetry'; then
-    SAFETY_FLAGS+=("--disable-optional-telemetry")
-  fi
-
-  # Preferir sempre 'scan' e evitar 'check' (que pode imprimir banners em stdout)
-  "${SAFETY_CMD[@]}" scan \
-    -r "${REQ_FILE}" \
-    --output json \
-    ${SAFETY_FLAGS[@]+"${SAFETY_FLAGS[@]}"} \
-    >"${SAFETY_JSON_TMP}" 2>"${SAFETY_STDERR_LOG}"
+  # Usa saída em arquivo via flag nativa para garantir JSON limpo
+  "${SAFETY_CMD[@]}" check --stdin --json --output "${SAFETY_REPORT}" < "${REQ_FILE}"
   SAFETY_EXIT=$?
-  if [[ ${SAFETY_EXIT} -ne 0 ]]; then
-    # Alguns ambientes retornam 1 quando encontra vulnerabilidades; aceitável para processamento
-    true
-  fi
   set -e
 
-  # Validar JSON antes de mover para o arquivo final
-  python - <<PY
-import json, sys, pathlib
-tmp = pathlib.Path(r"${SAFETY_JSON_TMP}")
-err = pathlib.Path(r"${SAFETY_STDERR_LOG}")
-raw = ''
-if tmp.exists():
-    raw = tmp.read_text(encoding='utf-8')
+  if [[ ! -s "${SAFETY_REPORT}" ]]; then
+    echo "Safety não gerou relatório JSON válido." >&2
+    exit 1
+  fi
 
-def try_parse(text: str):
-    try:
-        json.loads(text)
-        return True
-    except Exception:
-        return False
-
-if not raw.strip():
-    print("ERRO: safety.json vazio; veja STDERR a seguir.", file=sys.stderr)
-    try:
-        est = err.read_text(encoding='utf-8')[:4000]
-    except Exception:
-        est = ''
-    if est:
-        print("\n--- STDERR do Safety ---\n" + est, file=sys.stderr)
-    sys.exit(1)
-
-if not try_parse(raw):
-    # Tenta saneamento: recorta a partir do primeiro '{' até o último '}'
-    start = raw.find('{')
-    end = raw.rfind('}')
-    if start != -1 and end != -1 and end > start:
-        candidate = raw[start:end+1]
-        if try_parse(candidate):
-            tmp.write_text(candidate, encoding='utf-8')
-        else:
-            print("ERRO: safety.json inválido mesmo após saneamento.", file=sys.stderr)
-            print("\n--- Amostra do stdout capturado (início) ---\n" + raw[:1000], file=sys.stderr)
-            try:
-                est = err.read_text(encoding='utf-8')[:4000]
-            except Exception:
-                est = ''
-            if est:
-                print("\n--- STDERR do Safety ---\n" + est, file=sys.stderr)
-            sys.exit(1)
-    else:
-        print("ERRO: safety.json inválido: não foi encontrado bloco JSON.", file=sys.stderr)
-        print("\n--- Amostra do stdout capturado (início) ---\n" + raw[:1000], file=sys.stderr)
-        try:
-            est = err.read_text(encoding='utf-8')[:4000]
-        except Exception:
-            est = ''
-        if est:
-            print("\n--- STDERR do Safety ---\n" + est, file=sys.stderr)
-        sys.exit(1)
-PY
-  mv -f "${SAFETY_JSON_TMP}" "${SAFETY_JSON_FINAL}"
-
-  export SAFETY_REPORT_PATH="${SAFETY_JSON_FINAL}"
+  export SAFETY_REPORT_PATH="${SAFETY_REPORT}"
   export SAFETY_EXIT_CODE="${SAFETY_EXIT}"
   SAFETY_STATUS="$(
     python <<'PY'
