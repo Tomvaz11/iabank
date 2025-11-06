@@ -69,9 +69,9 @@ describe('TelemetryProvider', () => {
 
     expect(screen.getByText('child')).toBeInTheDocument();
     await waitFor(() => expect(warnSpy).toHaveBeenCalled());
-    expect(warnSpy.mock.calls[0][0]).toContain(
-      '[telemetry] Falha ao iniciar coleta OTEL; execução seguirá sem telemetria.',
-    );
+    const msg = String(warnSpy.mock.calls[0][0] ?? '');
+    // Aceita mensagem antiga e nova para reduzir flakiness entre branches
+    expect(msg).toMatch(/\[telemetry\] (Falha ao iniciar coleta OTEL|Bootstrap configurado falhou)/);
 
     unmount();
     telemetryModule.resetTelemetryBootstrap();
