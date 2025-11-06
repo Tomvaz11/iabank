@@ -28,6 +28,17 @@ A pipeline principal executa e/ou exige:
 - Threat model lint.
 - CI Outage Guard: fail‑open em branches não release para ferramentas de QA; fail‑closed em `main`/`release/*`/`hotfix/*`.
 
+### Referências rápidas de CI/Workflows
+- Workflow principal: `.github/workflows/frontend-foundation.yml:1`
+- Inspecionar runs (gh CLI):
+  - `gh run list --limit 10`
+  - `gh run view <RUN_ID>` (ou somente falhas: `--log-failed`)
+  - `gh run rerun <RUN_ID>` (ou `--failed` para reexecutar só o que falhou)
+- Gates típicos por evento:
+  - Vitest branches: PR ≥ 84.5%, main/releases ≥ 84.8%
+  - Segurança: fail‑closed em main/releases; fail‑open em PR/dev
+  - Performance budgets: “hard” em main; “soft” em PR
+
 ## Runbooks úteis
 - Outage (Chromatic/Lighthouse/Axe): `docs/runbooks/frontend-outage.md`.
 - Renovate Validation (Node 22.13 no job; `renovate-config-validator`): `docs/runbooks/renovate-validation.md`.
