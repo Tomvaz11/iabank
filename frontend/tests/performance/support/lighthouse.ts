@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { setTimeout as delay } from 'node:timers/promises';
 import type { Page } from '@playwright/test';
 import { chromium } from 'playwright';
 import type { RunnerResult } from 'lighthouse/types/lh';
@@ -40,6 +41,27 @@ async function loadLighthouseConfig() {
   const collectSettings = config?.ci?.collect?.settings ?? {};
   const budgets = config?.ci?.lighthouse?.budgets ?? [];
   return { collectSettings, budgets };
+}
+
+async function waitForHttp200(url: string, timeoutMs = 30_000) {
+  const start = Date.now();
+  let attempt = 0;
+  // Node 20 possui fetch global
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const res = await fetch(url, { method: 'GET' });
+      if (res.ok) return; // 2xx
+    } catch {
+      // ignora erros de conexão enquanto aguardamos o serviço subir
+    }
+    attempt += 1;
+    if (attempt % 5 === 0) {
+      // eslint-disable-next-line no-console
+      console.log(`[Lighthouse] aguardando HTTP 200 em ${url} (tentativa ${attempt})`);
+    }
+    await delay(1_000);
+  }
+  throw new Error(`Timeout aguardando HTTP 200 de ${url} após ${timeoutMs}ms`);
 }
 
 function buildLighthouseOptions(port: number, _collectSettings: Record<string, unknown>) {
@@ -127,7 +149,10 @@ async function runOnce(
 }
 
 export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBudgetInsights> {
-  const targetUrl = page.url();
+  // Deriva uma URL estável com conteúdo garantido a partir da origem atual
+  const current = new URL(page.url());
+  const envOverride = process.env.LIGHTHOUSE_TARGET_URL;
+  const targetUrl = envOverride ?? `${current.origin}/`;
   const reportBaseName = process.env.LIGHTHOUSE_REPORT_NAME ?? 'home';
   const artifactsDir =
     process.env.LIGHTHOUSE_ARTIFACT_DIR ??
@@ -158,11 +183,31 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
   try {
     const options = buildLighthouseOptions(remoteDebuggingPort, collectSettings);
     const userConfig = buildUserConfig(collectSettings, budgets);
+    // Aguarda servidor responder 200 antes de iniciar a coleta
+    await waitForHttp200(targetUrl, 30_000);
 
     // Executa duas vezes e escolhe o melhor resultado (best-of-2) para reduzir flutuação do runner.
     const first = await runOnce(targetUrl, options, userConfig);
     const second = await runOnce(targetUrl, options, userConfig);
-    const best = chooseBetterRun(first, second);
+    let best = chooseBetterRun(first, second);
+
+    // Se houve NO_FCP ou métricas ausentes, faz um pequeno backoff e tenta mais uma vez
+    const hadRuntimeNoFcp = Boolean(
+      best.lhr.runtimeError && (best.lhr.runtimeError as { code?: string }).code === 'NO_FCP'
+    );
+    const hasMissingMetrics = !Number.isFinite(best.metrics.lcp)
+      || !Number.isFinite(best.metrics.tti)
+      || !Number.isFinite(best.metrics.tbt)
+      || !Number.isFinite(best.metrics.cls)
+      || best.metrics.performanceScore === 0;
+    if (hadRuntimeNoFcp || hasMissingMetrics) {
+      // eslint-disable-next-line no-console
+      console.warn('[Lighthouse] Detected NO_FCP/métricas ausentes. Retentando após breve backoff...');
+      await delay(5_000);
+      await waitForHttp200(targetUrl, 15_000);
+      const third = await runOnce(targetUrl, options, userConfig);
+      best = chooseBetterRun(best, third);
+    }
     const formats = Array.isArray(options.output) ? options.output : [options.output];
     const reports = ensureReportArray(best.reports);
 

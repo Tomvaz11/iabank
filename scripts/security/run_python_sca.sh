@@ -71,7 +71,8 @@ if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
   set +e
   # --full-report é incompatível com --json/--output nas versões atuais do safety.
   # Gera JSON limpo diretamente em arquivo usando a flag nativa de output.
-  "${SAFETY_CMD[@]}" check --stdin --json --output "${SAFETY_REPORT}" < "${REQ_FILE}"
+  # Safety 3.x: a flag --output recebe o FORMATO (ex.: json). Redirecionamos stdout para arquivo.
+  "${SAFETY_CMD[@]}" check --stdin --output json < "${REQ_FILE}" > "${SAFETY_REPORT}"
   SAFETY_EXIT=$?
   set -e
 
