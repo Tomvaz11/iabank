@@ -12,7 +12,8 @@ const path = require('node:path');
 
 const projectRoot = path.resolve(__dirname, '..', '..');
 const frontendDir = path.join(projectRoot, 'frontend');
-const outputFile = path.join(frontendDir, 'sbom', 'frontend-foundation.json');
+// Alinhar com o workflow, que valida em sbom/frontend-foundation.json (raiz do repo)
+const outputFile = path.join(projectRoot, 'sbom', 'frontend-foundation.json');
 
 const run = (command, options = {}) => {
   execSync(command, {
@@ -33,6 +34,8 @@ const main = () => {
   const pluginTarget = path.join(tempScriptsDir, 'eslint-plugin-fsd-boundaries');
 
   try {
+    // Garante diretório de saída existente
+    mkdirSync(path.dirname(outputFile), { recursive: true });
     mkdirSync(tempScriptsDir, { recursive: true });
     cpSync(path.join(frontendDir, 'package.json'), path.join(tempFrontendDir, 'package.json'));
     cpSync(pluginSource, pluginTarget, { recursive: true });

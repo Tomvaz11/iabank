@@ -23,6 +23,12 @@ COPY contracts /app/contracts
 COPY docs /app/docs
 COPY observabilidade /app/observabilidade
 
+# Cria usuário não-root e ajusta permissões do diretório de trabalho
+RUN groupadd -r appuser && useradd -r -g appuser appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
 EXPOSE 8000
 
 CMD ["poetry", "run", "python", "backend/manage.py", "runserver", "0.0.0.0:8000"]

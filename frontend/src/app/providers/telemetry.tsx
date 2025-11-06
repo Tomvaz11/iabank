@@ -1,25 +1,5 @@
 import { useEffect, useRef } from 'react';
-
-import { trace, context, propagation } from '@opentelemetry/api';
-import type { Span } from '@opentelemetry/api';
-import { ZoneContextManager } from '@opentelemetry/context-zone';
-import {
-  CompositePropagator,
-  W3CTraceContextPropagator,
-  W3CBaggagePropagator,
-} from '@opentelemetry/core';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
-import { registerInstrumentations } from '@opentelemetry/instrumentation';
-import { DocumentLoadInstrumentation } from '@opentelemetry/instrumentation-document-load';
-import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
-import { UserInteractionInstrumentation } from '@opentelemetry/instrumentation-user-interaction';
-import { Resource } from '@opentelemetry/resources';
-import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
-import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
-import { SemanticResourceAttributes } from '@opentelemetry/semantic-conventions';
-
 import { env } from '../../shared/config/env';
-import { initializeSentry } from './sentry';
 
 export type TelemetryBootstrapConfig = {
   endpoint: string;
@@ -31,120 +11,17 @@ export type TelemetryClient = {
   shutdown: () => Promise<void> | void;
 };
 
-const createInstrumentations = () => [
-  new FetchInstrumentation({
-    propagateTraceHeaderCorsUrls: [env.API_BASE_URL],
-  }),
-  new DocumentLoadInstrumentation(),
-  new UserInteractionInstrumentation({
-    eventNames: ['click', 'submit', 'keydown'],
-    shouldPreventSpanCreation: () => false,
-  }),
-];
 
-let currentServiceName = env.OTEL_SERVICE_NAME;
+let activeBootstrap: ((config: TelemetryBootstrapConfig) => Promise<TelemetryClient> | TelemetryClient) | null = null;
 
-export const bootstrapTelemetry = (
-  config: TelemetryBootstrapConfig,
-): TelemetryClient => {
-  currentServiceName = config.serviceName;
-
-  const baseResource = Resource.default();
-  const serviceResource = new Resource({
-    ...config.resourceAttributes,
-    [SemanticResourceAttributes.SERVICE_NAME]: config.serviceName,
-  });
-  const resource = baseResource.merge(serviceResource);
-
-  const provider = new WebTracerProvider({ resource });
-  const exporter = new OTLPTraceExporter({ url: config.endpoint });
-  const spanProcessor = new BatchSpanProcessor(exporter);
-  if (typeof provider.addSpanProcessor === 'function') {
-    provider.addSpanProcessor(spanProcessor);
-  } else {
-    // eslint-disable-next-line no-console
-    console.warn(
-      '[telemetry] Provider não suporta addSpanProcessor; inicialização seguirá sem exportador.',
-    );
-  }
-
-  const propagator = new CompositePropagator({
-    propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
-  });
-
-  provider.register({
-    contextManager: new ZoneContextManager(),
-    propagator,
-  });
-
-  trace.setGlobalTracerProvider(provider);
-  propagation.setGlobalPropagator(propagator);
-
-  registerInstrumentations({
-    tracerProvider: provider,
-    instrumentations: createInstrumentations(),
-  });
-
-  return {
-    shutdown: () => provider.shutdown(),
-  };
-};
-
-export const createInteractionTracer = ({
-  tenantId,
-  featureSlug,
-  interactionName,
-}: {
-  tenantId: string;
-  featureSlug: string;
-  interactionName: string;
-}) => {
-  return async (operation: (span: Span) => Promise<void> | void) => {
-    const tracer = trace.getTracer(currentServiceName);
-    const activeContext = context.active();
-    const baggageValue = propagation.createBaggage({
-      'tenant.id': { value: tenantId },
-      'feature.slug': { value: featureSlug },
-      'interaction.name': { value: interactionName },
-    });
-    const contextWithBaggage = propagation.setBaggage(activeContext, baggageValue);
-
-    return context.with(contextWithBaggage, async () =>
-      tracer.startActiveSpan(
-        `interaction.${interactionName}`,
-        {
-          attributes: {
-            'app.tenant_id': tenantId,
-            'app.feature_slug': featureSlug,
-            'app.interaction': interactionName,
-          },
-        },
-        contextWithBaggage,
-        async (span: Span) => {
-          try {
-            span.setAttributes({
-              'app.tenant_id': tenantId,
-              'app.feature_slug': featureSlug,
-              'app.interaction': interactionName,
-            });
-            await operation(span);
-          } finally {
-            span.end();
-          }
-        },
-      ),
-    );
-  };
-};
-
-let activeBootstrap = bootstrapTelemetry;
-
-export const setTelemetryBootstrap = (impl: typeof bootstrapTelemetry) => {
+export const setTelemetryBootstrap = (
+  impl: (config: TelemetryBootstrapConfig) => Promise<TelemetryClient> | TelemetryClient,
+) => {
   activeBootstrap = impl;
 };
 
 export const resetTelemetryBootstrap = () => {
-  activeBootstrap = bootstrapTelemetry;
+  activeBootstrap = null;
 };
 
 type Props = {
@@ -155,28 +32,72 @@ export const TelemetryProvider = ({ children }: Props) => {
   const clientRef = useRef<TelemetryClient | null>(null);
 
   useEffect(() => {
-    initializeSentry({
-      dsn: env.SENTRY_DSN,
-      environment: env.SENTRY_ENVIRONMENT,
-      release: env.SENTRY_RELEASE,
-      tracesSampleRate: env.SENTRY_TRACES_SAMPLE_RATE,
-      replaysSessionSampleRate: env.SENTRY_REPLAYS_SESSION_SAMPLE_RATE,
-      replaysOnErrorSampleRate: env.SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE,
-    });
+    const queue = (cb: () => void) => {
+      if (typeof window !== 'undefined') {
+        const win = window as Window & {
+          requestIdleCallback?: (cb: IdleRequestCallback, opts?: IdleRequestOptions) => number;
+        };
+        if (typeof win.requestIdleCallback === 'function') {
+          win.requestIdleCallback(cb, { timeout: 2000 });
+          return;
+        }
+      }
+      setTimeout(cb, 0);
+    };
 
-    try {
-      clientRef.current = activeBootstrap({
-        endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
-        serviceName: env.OTEL_SERVICE_NAME,
-        resourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES,
+    // Se um bootstrap customizado foi definido (ex.: nos testes), executa-o imediatamente
+    // para permitir asserções síncronas.
+    if (activeBootstrap) {
+      try {
+        const maybe = activeBootstrap({
+          endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+          serviceName: env.OTEL_SERVICE_NAME,
+          resourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES,
+        });
+        if (maybe && typeof (maybe as unknown as { then?: unknown }).then === 'function') {
+          Promise.resolve(maybe)
+            .then((client) => {
+              clientRef.current = client;
+            })
+            .catch((error) => {
+              // eslint-disable-next-line no-console
+              console.warn('[telemetry] Bootstrap configurado falhou.', error);
+              clientRef.current = null;
+            });
+        } else {
+          clientRef.current = maybe as TelemetryClient;
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.warn('[telemetry] Bootstrap configurado falhou.', error);
+        clientRef.current = null;
+      }
+    } else {
+      // Carrega a pilha pesada de telemetria de forma assíncrona (code-splitting)
+      queue(() => {
+        void import('./telemetry.impl')
+          .then(async (mod) => {
+            try {
+              const client = await mod.initializeTelemetryStack({
+                endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+                serviceName: env.OTEL_SERVICE_NAME,
+                resourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES,
+              });
+              clientRef.current = client;
+            } catch (error) {
+              // eslint-disable-next-line no-console
+              console.warn(
+                '[telemetry] Falha ao iniciar coleta OTEL/Sentry; seguindo sem telemetria.',
+                error,
+              );
+              clientRef.current = null;
+            }
+          })
+          .catch(() => {
+            // eslint-disable-next-line no-console
+            console.warn('[telemetry] Módulo de telemetria não carregado.');
+          });
       });
-    } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        '[telemetry] Falha ao iniciar coleta OTEL; execução seguirá sem telemetria.',
-        error,
-      );
-      clientRef.current = null;
     }
 
     return () => {
@@ -191,3 +112,6 @@ export const TelemetryProvider = ({ children }: Props) => {
 
   return <>{children}</>;
 };
+
+// Reexporta helpers utilizados diretamente pelos testes e por código legado
+export { bootstrapTelemetry, createInteractionTracer } from './telemetry.impl';
