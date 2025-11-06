@@ -175,6 +175,8 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
       '--disable-gpu',
       '--no-sandbox',
       '--disable-dev-shm-usage',
+      '--no-first-run',
+      '--no-default-browser-check',
       `--user-data-dir=${userDataDir}`,
       `--remote-debugging-port=${remoteDebuggingPort}`,
     ],
