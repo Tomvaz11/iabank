@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../shared/config/env', () => ({
@@ -45,7 +45,9 @@ describe('TelemetryProvider', () => {
     });
 
     unmount();
-    expect(shutdown).toHaveBeenCalled();
+    await waitFor(() => expect(shutdown).toHaveBeenCalled());
     telemetryModule.resetTelemetryBootstrap();
   });
+
+  // Nota: o branch assíncrono via import dinâmico é exercitado em testes de integração de performance.
 });
