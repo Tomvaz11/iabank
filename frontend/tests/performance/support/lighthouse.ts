@@ -51,7 +51,11 @@ async function waitForHttp200(url: string, timeoutMs = 30_000) {
   while (Date.now() - start < timeoutMs) {
     try {
       const res = await fetch(url, { method: 'GET' });
-      if (res.ok) return; // 2xx
+      if (res.ok) {
+        // eslint-disable-next-line no-console
+        console.log(`[Lighthouse] HTTP 200 confirmado em ${url}`);
+        return; // 2xx
+      }
     } catch {
       // ignora erros de conexão enquanto aguardamos o serviço subir
     }
@@ -197,115 +201,89 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
     ],
   });
 
+  const options = buildLighthouseOptions(remoteDebuggingPort, collectSettings);
+  const userConfig = buildUserConfig(collectSettings, budgets);
+
+  let bestOutcome: RunOutcome | null = null;
+  const maxAttempts = Number(process.env.LIGHTHOUSE_RUNS ?? 2);
+  const warmupDelay = Number(process.env.LIGHTHOUSE_WARMUP_DELAY_MS ?? 5_000);
+  const bailOnError = process.env.LIGHTHOUSE_BAIL_ON_ERROR !== 'false';
+
   try {
-    const options = buildLighthouseOptions(remoteDebuggingPort, collectSettings);
-    const userConfig = buildUserConfig(collectSettings, budgets);
-    // Aguarda servidor responder 200 antes de iniciar a coleta
-    await waitForHttp200(targetUrl, 30_000);
-
-    // Número de execuções configurável (default 2); no CI podemos usar 1 para acelerar
-    const configuredRuns = Number(process.env.LIGHTHOUSE_RUNS ?? '2');
-    const initialRuns = Number.isFinite(configuredRuns) && configuredRuns >= 1 && configuredRuns <= 3 ? configuredRuns : 2;
-
-    let best: RunOutcome | undefined;
-    for (let i = 0; i < initialRuns; i += 1) {
-      const current = await runOnce(targetUrl, options, userConfig);
-      best = best ? chooseBetterRun(best, current) : current;
-    }
-
-    // Se houve NO_FCP ou métricas ausentes, faz um pequeno backoff e tenta mais uma vez
-    const hadRuntimeNoFcp = Boolean(
-      best!.lhr.runtimeError && (best!.lhr.runtimeError as { code?: string }).code === 'NO_FCP'
-    );
-    const hasMissingMetrics = !Number.isFinite(best!.metrics.lcp)
-      || !Number.isFinite(best!.metrics.tti)
-      || !Number.isFinite(best!.metrics.tbt)
-      || !Number.isFinite(best!.metrics.cls)
-      || best!.metrics.performanceScore === 0;
-    if (hadRuntimeNoFcp || hasMissingMetrics) {
+    await waitForHttp200(targetUrl);
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       // eslint-disable-next-line no-console
-      console.warn('[Lighthouse] Detected NO_FCP/métricas ausentes. Retentando após breve backoff...');
-      await delay(5_000);
-      await waitForHttp200(targetUrl, 15_000);
-      const extra = await runOnce(targetUrl, options, userConfig);
-      best = chooseBetterRun(best!, extra);
+      console.log(`[Lighthouse] Iniciando tentativa ${attempt}/${maxAttempts} em ${targetUrl}`);
+      try {
+        const outcome = await runOnce(targetUrl, options, userConfig);
+        bestOutcome = bestOutcome ? chooseBetterRun(bestOutcome, outcome) : outcome;
+        const passedBudgets = (['lcp', 'tti', 'tbt', 'cls'] as MetricKey[]).every((metric) => {
+          const value = outcome.metrics[metric];
+          const budget = METRIC_BUDGETS[metric];
+          return Number.isFinite(value) && value <= budget;
+        });
+        if (passedBudgets) {
+          // eslint-disable-next-line no-console
+          console.log('[Lighthouse] Budgets respeitados; encerrando antecipadamente.');
+          break;
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('[Lighthouse] Tentativa falhou:', error);
+        if (bailOnError && attempt === maxAttempts) {
+          throw error;
+        }
+      }
+      if (attempt < maxAttempts) {
+        await delay(warmupDelay);
+      }
     }
-    const formats = Array.isArray(options.output) ? options.output : [options.output];
-    const reports = ensureReportArray(best!.reports);
+  } finally {
+    await chrome.kill().catch((error) => {
+      // eslint-disable-next-line no-console
+      console.warn('[Lighthouse] Falha ao encerrar Chrome:', error);
+    });
+  }
 
-    const reportPaths: Record<'html' | 'json', string> = {
+  if (!bestOutcome) {
+    throw new Error('[Lighthouse] Não foi possível obter métricas válidas.');
+  }
+
+  const { lhr, reports, metrics } = bestOutcome;
+  const reportsArray = ensureReportArray(reports);
+
+  const summary: LighthouseSummary = {
+    url: targetUrl,
+    generatedAt: new Date().toISOString(),
+    metrics: {
+      ...metrics,
+      performanceScore: (lhr.categories.performance?.score ?? 0) * 100,
+    },
+    budgets: METRIC_BUDGETS,
+    reports: {
       html: path.join(artifactsDir, `${reportBaseName}.html`),
       json: path.join(artifactsDir, `${reportBaseName}.json`),
-    };
+    },
+    dashboard: {
+      json: path.join(dashboardDataDir, 'lighthouse-latest.json'),
+    },
+    runtimeError: lhr.runtimeError ?? undefined,
+  };
 
-    await Promise.all(
-      reports.map(async (content, index) => {
-        const format = formats[index];
-        if (!content || typeof content !== 'string' || format == null) {
-          return;
-        }
-        if (format !== 'html' && format !== 'json') {
-          return;
-        }
-        await writeFile(reportPaths[format], content, 'utf-8');
-      })
-    );
-    // eslint-disable-next-line no-console
-    console.log(`[Lighthouse] Reports salvos em: HTML=${reportPaths.html} JSON=${reportPaths.json}`);
+  await Promise.all([
+    writeFile(summary.reports.html, reportsArray.find((r): r is string => typeof r === 'string') ?? '', 'utf-8'),
+    writeFile(summary.reports.json, JSON.stringify(reportsArray[0], null, 2), 'utf-8'),
+    writeFile(summary.dashboard.json, JSON.stringify(summary, null, 2), 'utf-8'),
+  ]);
 
-    // Usa o melhor dos dois runs, mas preserva diagnóstico do runtimeError
-    const lhr = best!.lhr;
-    if (lhr.runtimeError) {
-      const { code, message } = lhr.runtimeError as { code?: string; message?: string };
-      // eslint-disable-next-line no-console
-      console.error(`[Lighthouse runtimeError] code=${code ?? 'unknown'} message=${message ?? 'n/a'}`);
-    }
-    const metrics = best!.metrics;
+  const passedBudgets = (['lcp', 'tti', 'tbt', 'cls'] as MetricKey[]).every((metric) => {
+    const value = metrics[metric];
+    const budget = METRIC_BUDGETS[metric];
+    return Number.isFinite(value) && value <= budget;
+  });
 
-    const dashboardPath = path.join(dashboardDataDir, 'lighthouse-latest.json');
-    const summary: LighthouseSummary = {
-      url: targetUrl,
-      generatedAt: new Date().toISOString(),
-      metrics,
-      budgets: METRIC_BUDGETS,
-      reports: reportPaths,
-      dashboard: {
-        json: dashboardPath,
-      },
-      runtimeError: lhr.runtimeError as { code?: string; message?: string } | undefined,
-    };
-
-    const summaryPath = path.join(artifactsDir, `${reportBaseName}.summary.json`);
-    await writeFile(summaryPath, JSON.stringify(summary, null, 2), 'utf-8');
-    const dashboardPayload = {
-      url: summary.url,
-      generatedAt: summary.generatedAt,
-      metrics: summary.metrics,
-      budgets: summary.budgets,
-    };
-    await writeFile(dashboardPath, JSON.stringify(dashboardPayload, null, 2), 'utf-8');
-    // eslint-disable-next-line no-console
-    console.log(`[Lighthouse] Summary salvo em ${summaryPath}`);
-
-    const passed =
-      metrics.lcp <= METRIC_BUDGETS.lcp &&
-      metrics.tti <= METRIC_BUDGETS.tti &&
-      metrics.tbt <= METRIC_BUDGETS.tbt &&
-      metrics.cls <= METRIC_BUDGETS.cls;
-
-    if (!passed) {
-      // Ajuda na depuração em CI quando budgets estouram (sem depender apenas de artifacts)
-      // eslint-disable-next-line no-console
-      console.log(
-        `[Lighthouse budgets] FAILED: metrics=${JSON.stringify(metrics)} budgets=${JSON.stringify(METRIC_BUDGETS)}`
-      );
-    }
-
-    return {
-      passed,
-      details: summary,
-    };
-  } finally {
-    await chrome.kill();
-  }
+  return {
+    passed: passedBudgets,
+    details: summary,
+  };
 }

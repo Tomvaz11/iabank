@@ -16,6 +16,15 @@ jobs:
   performance:
     name: Performance Budgets (quick)
     runs-on: ubuntu-latest
+    env:
+      VITE_API_BASE_URL: https://api.iabank.test
+      VITE_TENANT_DEFAULT: tenant-alfa
+      VITE_OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318
+      VITE_OTEL_SERVICE_NAME: frontend-foundation
+      VITE_OTEL_RESOURCE_ATTRIBUTES: service.namespace=iabank,service.version=0.1.0,environment=ci
+      VITE_FOUNDATION_CSP_NONCE: ci-nonce-fallback
+      VITE_FOUNDATION_TRUSTED_TYPES_POLICY: foundation-ui
+      VITE_FOUNDATION_PGCRYPTO_KEY: ci-only-pgcrypto-key
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,6 +60,7 @@ jobs:
         run: pnpm perf:lighthouse
 
       - name: Publicar relatórios Lighthouse
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: performance-lighthouse-budgets
@@ -86,8 +96,8 @@ jobs:
         run: poetry run bash scripts/security/run_python_sca.sh safety
 
       - name: Publicar artefatos SCA
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: python-sca
           path: artifacts/python-sca
-

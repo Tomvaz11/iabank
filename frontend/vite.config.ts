@@ -52,7 +52,6 @@ export default defineConfig({
           if (id.includes('node_modules')) {
             if (id.includes('@opentelemetry')) return 'vendor-otel';
             if (id.includes('@sentry')) return 'vendor-sentry';
-            if (id.includes('react')) return 'vendor-react';
           }
         },
       },

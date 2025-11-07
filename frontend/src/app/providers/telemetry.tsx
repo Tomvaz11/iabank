@@ -28,10 +28,19 @@ type Props = {
   children: React.ReactNode;
 };
 
+const TELEMETRY_FAILURE_WARNING =
+  '[telemetry] Falha ao iniciar coleta OTEL; execução seguirá sem telemetria.';
+
 export const TelemetryProvider = ({ children }: Props) => {
   const clientRef = useRef<TelemetryClient | null>(null);
 
   useEffect(() => {
+    const handleBootstrapFailure = (error: unknown) => {
+      // eslint-disable-next-line no-console
+      console.warn(TELEMETRY_FAILURE_WARNING, error);
+      clientRef.current = null;
+    };
+
     const queue = (cb: () => void) => {
       if (typeof window !== 'undefined') {
         const win = window as Window & {
@@ -55,22 +64,17 @@ export const TelemetryProvider = ({ children }: Props) => {
           resourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES,
         });
         if (maybe && typeof (maybe as unknown as { then?: unknown }).then === 'function') {
-          Promise.resolve(maybe)
-            .then((client) => {
+          Promise.resolve(maybe).then(
+            (client) => {
               clientRef.current = client;
-            })
-            .catch((error) => {
-              // eslint-disable-next-line no-console
-              console.warn('[telemetry] Bootstrap configurado falhou.', error);
-              clientRef.current = null;
-            });
+            },
+            handleBootstrapFailure,
+          );
         } else {
           clientRef.current = maybe as TelemetryClient;
         }
       } catch (error) {
-        // eslint-disable-next-line no-console
-        console.warn('[telemetry] Bootstrap configurado falhou.', error);
-        clientRef.current = null;
+        handleBootstrapFailure(error);
       }
     } else {
       // Carrega a pilha pesada de telemetria de forma assíncrona (code-splitting)
@@ -85,12 +89,7 @@ export const TelemetryProvider = ({ children }: Props) => {
               });
               clientRef.current = client;
             } catch (error) {
-              // eslint-disable-next-line no-console
-              console.warn(
-                '[telemetry] Falha ao iniciar coleta OTEL/Sentry; seguindo sem telemetria.',
-                error,
-              );
-              clientRef.current = null;
+              handleBootstrapFailure(error);
             }
           })
           .catch(() => {
