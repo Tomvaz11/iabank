@@ -12,7 +12,15 @@ test.describe('@SC-004 Orçamento Lighthouse', () => {
       return page.waitForTimeout(1500);
     });
 
-    const { passed } = await enforceLighthouseBudgets(page);
+    let passed: boolean | undefined;
+    try {
+      const result = await enforceLighthouseBudgets(page);
+      passed = result.passed;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[Lighthouse test] erro ao executar enforceLighthouseBudgets:', err);
+      throw err;
+    }
 
     expect(passed).toBe(true);
   });

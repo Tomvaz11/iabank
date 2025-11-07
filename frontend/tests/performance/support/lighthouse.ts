@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
+import fs from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { Page } from '@playwright/test';
 import { chromium } from 'playwright';
@@ -173,9 +174,17 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
 
   const remoteDebuggingPort = Number(process.env.LIGHTHOUSE_DEBUG_PORT ?? 9222);
   const userDataDir = path.join(artifactsDir, '.chrome-profile');
+  const chromePath = chromium.executablePath();
+  if (!fs.existsSync(chromePath)) {
+    // eslint-disable-next-line no-console
+    console.warn(`[Lighthouse] Chromium não encontrado em ${chromePath}`);
+  } else {
+    // eslint-disable-next-line no-console
+    console.log(`[Lighthouse] Usando Chromium em ${chromePath}`);
+  }
   const chrome = await chromeLauncher.launch({
     port: remoteDebuggingPort,
-    chromePath: chromium.executablePath(),
+    chromePath,
     chromeFlags: [
       '--headless=new',
       '--disable-gpu',
@@ -236,6 +245,8 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
         await writeFile(reportPaths[format], content, 'utf-8');
       })
     );
+    // eslint-disable-next-line no-console
+    console.log(`[Lighthouse] Reports salvos em: HTML=${reportPaths.html} JSON=${reportPaths.json}`);
 
     // Usa o melhor dos dois runs, mas preserva diagnóstico do runtimeError
     const lhr = best.lhr;
@@ -268,6 +279,8 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
       budgets: summary.budgets,
     };
     await writeFile(dashboardPath, JSON.stringify(dashboardPayload, null, 2), 'utf-8');
+    // eslint-disable-next-line no-console
+    console.log(`[Lighthouse] Summary salvo em ${summaryPath}`);
 
     const passed =
       metrics.lcp <= METRIC_BUDGETS.lcp &&

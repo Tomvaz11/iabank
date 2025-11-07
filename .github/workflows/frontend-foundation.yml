@@ -240,8 +240,8 @@ jobs:
       - name: Build Storybook estático
         run: pnpm --filter @iabank/frontend-foundation storybook:build
 
-      - name: Instalar navegadores Playwright
-        run: pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps
+      - name: Instalar navegadores Playwright (apenas Chromium)
+        run: pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps chromium
 
       - name: Executar Chromatic
         env:
@@ -323,6 +323,17 @@ jobs:
           LIGHTHOUSE_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/lighthouse
           LIGHTHOUSE_TARGET_URL: http://localhost:4173/foundation/scaffold?tenant=tenant-alfa&feature=foundation-scaffold
         run: pnpm perf:lighthouse
+
+      - name: Verificar artefatos Lighthouse
+        if: always()
+        run: |
+          set -euo pipefail
+          echo "Listando artifacts em $LIGHTHOUSE_ARTIFACT_DIR";
+          ls -alR "$LIGHTHOUSE_ARTIFACT_DIR" || true
+          if [ ! -f "$LIGHTHOUSE_ARTIFACT_DIR/home.summary.json" ]; then
+            echo "::error::Lighthouse não gerou home.summary.json";
+            exit 1;
+          fi
 
       - name: Publicar resultados k6
         uses: actions/upload-artifact@v4
