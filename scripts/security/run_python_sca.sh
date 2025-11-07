@@ -77,12 +77,18 @@ if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
 
   # Executa Safety em modo JSON estrito via stdout e captura stderr separado
   set +e
+  # Descobre suporte à flag de telemetria opcional nesta versão
+  SAFETY_FLAGS=()
+  if "${SAFETY_CMD[@]}" scan --help 2>/dev/null | grep -q -- '--disable-optional-telemetry'; then
+    SAFETY_FLAGS+=("--disable-optional-telemetry")
+  fi
+
   if "${SAFETY_CMD[@]}" --version 2>/dev/null | grep -Eq "\b3\.|\b2\."; then
     # Preferir o subcomando moderno 'scan'; fazer fallback para 'check' se necessário
     "${SAFETY_CMD[@]}" scan \
       -r "${REQ_FILE}" \
       --output json \
-      --disable-optional-telemetry \
+      ${SAFETY_FLAGS[@]+"${SAFETY_FLAGS[@]}"} \
       >"${SAFETY_JSON_TMP}" 2>"${SAFETY_STDERR_LOG}"
     SAFETY_EXIT=$?
     if [[ ${SAFETY_EXIT} -ne 0 ]]; then
@@ -94,7 +100,7 @@ if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
       "${SAFETY_CMD[@]}" check \
         -r "${REQ_FILE}" \
         --output json \
-        --disable-optional-telemetry \
+        ${SAFETY_FLAGS[@]+"${SAFETY_FLAGS[@]}"} \
         >"${SAFETY_JSON_TMP}" 2>>"${SAFETY_STDERR_LOG}"
       SAFETY_EXIT=$?
     fi
@@ -103,7 +109,7 @@ if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
     "${SAFETY_CMD[@]}" check \
       -r "${REQ_FILE}" \
       --output json \
-      --disable-optional-telemetry \
+      ${SAFETY_FLAGS[@]+"${SAFETY_FLAGS[@]}"} \
       >"${SAFETY_JSON_TMP}" 2>"${SAFETY_STDERR_LOG}"
     SAFETY_EXIT=$?
   fi
