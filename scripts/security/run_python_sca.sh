@@ -77,41 +77,22 @@ if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
 
   # Executa Safety em modo JSON estrito via stdout e captura stderr separado
   set +e
-  # Descobre suporte à flag de telemetria opcional nesta versão
+  # Descobre suporte à flag de telemetria opcional nesta versão (best-effort)
   SAFETY_FLAGS=()
   if "${SAFETY_CMD[@]}" scan --help 2>/dev/null | grep -q -- '--disable-optional-telemetry'; then
     SAFETY_FLAGS+=("--disable-optional-telemetry")
   fi
 
-  if "${SAFETY_CMD[@]}" --version 2>/dev/null | grep -Eq "\b3\.|\b2\."; then
-    # Preferir o subcomando moderno 'scan'; fazer fallback para 'check' se necessário
-    "${SAFETY_CMD[@]}" scan \
-      -r "${REQ_FILE}" \
-      --output json \
-      ${SAFETY_FLAGS[@]+"${SAFETY_FLAGS[@]}"} \
-      >"${SAFETY_JSON_TMP}" 2>"${SAFETY_STDERR_LOG}"
-    SAFETY_EXIT=$?
-    if [[ ${SAFETY_EXIT} -ne 0 ]]; then
-      # Alguns ambientes retornam 1 quando encontra vulnerabilidades; aceitável para processamento
-      true
-    fi
-    # Se 'scan' não existir (versão mais antiga), tentar 'check'
-    if [[ ! -s "${SAFETY_JSON_TMP}" ]]; then
-      "${SAFETY_CMD[@]}" check \
-        -r "${REQ_FILE}" \
-        --output json \
-        ${SAFETY_FLAGS[@]+"${SAFETY_FLAGS[@]}"} \
-        >"${SAFETY_JSON_TMP}" 2>>"${SAFETY_STDERR_LOG}"
-      SAFETY_EXIT=$?
-    fi
-  else
-    # Versões fora do padrão — tentativa conservadora
-    "${SAFETY_CMD[@]}" check \
-      -r "${REQ_FILE}" \
-      --output json \
-      ${SAFETY_FLAGS[@]+"${SAFETY_FLAGS[@]}"} \
-      >"${SAFETY_JSON_TMP}" 2>"${SAFETY_STDERR_LOG}"
-    SAFETY_EXIT=$?
+  # Preferir sempre 'scan' e evitar 'check' (que pode imprimir banners em stdout)
+  "${SAFETY_CMD[@]}" scan \
+    -r "${REQ_FILE}" \
+    --output json \
+    ${SAFETY_FLAGS[@]+"${SAFETY_FLAGS[@]}"} \
+    >"${SAFETY_JSON_TMP}" 2>"${SAFETY_STDERR_LOG}"
+  SAFETY_EXIT=$?
+  if [[ ${SAFETY_EXIT} -ne 0 ]]; then
+    # Alguns ambientes retornam 1 quando encontra vulnerabilidades; aceitável para processamento
+    true
   fi
   set -e
 
@@ -120,16 +101,19 @@ if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
 import json, sys, pathlib
 tmp = pathlib.Path(r"${SAFETY_JSON_TMP}")
 err = pathlib.Path(r"${SAFETY_STDERR_LOG}")
-try:
+raw = ''
+if tmp.exists():
     raw = tmp.read_text(encoding='utf-8')
-    json.loads(raw)
-except Exception as e:
-    print("ERRO: safety.json inválido:", e, file=sys.stderr)
+
+def try_parse(text: str):
     try:
-        sample = tmp.read_text(encoding='utf-8')[:1000]
+        json.loads(text)
+        return True
     except Exception:
-        sample = '<sem conteúdo>'
-    print("\n--- Amostra do stdout capturado (início) ---\n" + sample, file=sys.stderr)
+        return False
+
+if not raw.strip():
+    print("ERRO: safety.json vazio; veja STDERR a seguir.", file=sys.stderr)
     try:
         est = err.read_text(encoding='utf-8')[:4000]
     except Exception:
@@ -137,6 +121,35 @@ except Exception as e:
     if est:
         print("\n--- STDERR do Safety ---\n" + est, file=sys.stderr)
     sys.exit(1)
+
+if not try_parse(raw):
+    # Tenta saneamento: recorta a partir do primeiro '{' até o último '}'
+    start = raw.find('{')
+    end = raw.rfind('}')
+    if start != -1 and end != -1 and end > start:
+        candidate = raw[start:end+1]
+        if try_parse(candidate):
+            tmp.write_text(candidate, encoding='utf-8')
+        else:
+            print("ERRO: safety.json inválido mesmo após saneamento.", file=sys.stderr)
+            print("\n--- Amostra do stdout capturado (início) ---\n" + raw[:1000], file=sys.stderr)
+            try:
+                est = err.read_text(encoding='utf-8')[:4000]
+            except Exception:
+                est = ''
+            if est:
+                print("\n--- STDERR do Safety ---\n" + est, file=sys.stderr)
+            sys.exit(1)
+    else:
+        print("ERRO: safety.json inválido: não foi encontrado bloco JSON.", file=sys.stderr)
+        print("\n--- Amostra do stdout capturado (início) ---\n" + raw[:1000], file=sys.stderr)
+        try:
+            est = err.read_text(encoding='utf-8')[:4000]
+        except Exception:
+            est = ''
+        if est:
+            print("\n--- STDERR do Safety ---\n" + est, file=sys.stderr)
+        sys.exit(1)
 PY
   mv -f "${SAFETY_JSON_TMP}" "${SAFETY_JSON_FINAL}"
 

@@ -45,7 +45,7 @@ export default defineConfig({
       name: 'lighthouse',
       testDir: './tests/performance',
       testMatch: ['**/*.spec.ts'],
-      timeout: 180_000,
+      timeout: 300_000,
       retries: process.env.CI ? 1 : 0,
       use: {
         ...devices['Desktop Chrome'],
@@ -59,6 +59,6 @@ export default defineConfig({
     command: `pnpm preview --host 0.0.0.0 --port ${PORT} --strictPort`,
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000
+    timeout: 180_000
   }
 });

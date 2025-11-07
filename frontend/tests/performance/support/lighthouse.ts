@@ -203,30 +203,35 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
     // Aguarda servidor responder 200 antes de iniciar a coleta
     await waitForHttp200(targetUrl, 30_000);
 
-    // Executa duas vezes e escolhe o melhor resultado (best-of-2) para reduzir flutuação do runner.
-    const first = await runOnce(targetUrl, options, userConfig);
-    const second = await runOnce(targetUrl, options, userConfig);
-    let best = chooseBetterRun(first, second);
+    // Número de execuções configurável (default 2); no CI podemos usar 1 para acelerar
+    const configuredRuns = Number(process.env.LIGHTHOUSE_RUNS ?? '2');
+    const initialRuns = Number.isFinite(configuredRuns) && configuredRuns >= 1 && configuredRuns <= 3 ? configuredRuns : 2;
+
+    let best: RunOutcome | undefined;
+    for (let i = 0; i < initialRuns; i += 1) {
+      const current = await runOnce(targetUrl, options, userConfig);
+      best = best ? chooseBetterRun(best, current) : current;
+    }
 
     // Se houve NO_FCP ou métricas ausentes, faz um pequeno backoff e tenta mais uma vez
     const hadRuntimeNoFcp = Boolean(
-      best.lhr.runtimeError && (best.lhr.runtimeError as { code?: string }).code === 'NO_FCP'
+      best!.lhr.runtimeError && (best!.lhr.runtimeError as { code?: string }).code === 'NO_FCP'
     );
-    const hasMissingMetrics = !Number.isFinite(best.metrics.lcp)
-      || !Number.isFinite(best.metrics.tti)
-      || !Number.isFinite(best.metrics.tbt)
-      || !Number.isFinite(best.metrics.cls)
-      || best.metrics.performanceScore === 0;
+    const hasMissingMetrics = !Number.isFinite(best!.metrics.lcp)
+      || !Number.isFinite(best!.metrics.tti)
+      || !Number.isFinite(best!.metrics.tbt)
+      || !Number.isFinite(best!.metrics.cls)
+      || best!.metrics.performanceScore === 0;
     if (hadRuntimeNoFcp || hasMissingMetrics) {
       // eslint-disable-next-line no-console
       console.warn('[Lighthouse] Detected NO_FCP/métricas ausentes. Retentando após breve backoff...');
       await delay(5_000);
       await waitForHttp200(targetUrl, 15_000);
-      const third = await runOnce(targetUrl, options, userConfig);
-      best = chooseBetterRun(best, third);
+      const extra = await runOnce(targetUrl, options, userConfig);
+      best = chooseBetterRun(best!, extra);
     }
     const formats = Array.isArray(options.output) ? options.output : [options.output];
-    const reports = ensureReportArray(best.reports);
+    const reports = ensureReportArray(best!.reports);
 
     const reportPaths: Record<'html' | 'json', string> = {
       html: path.join(artifactsDir, `${reportBaseName}.html`),
@@ -249,13 +254,13 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
     console.log(`[Lighthouse] Reports salvos em: HTML=${reportPaths.html} JSON=${reportPaths.json}`);
 
     // Usa o melhor dos dois runs, mas preserva diagnóstico do runtimeError
-    const lhr = best.lhr;
+    const lhr = best!.lhr;
     if (lhr.runtimeError) {
       const { code, message } = lhr.runtimeError as { code?: string; message?: string };
       // eslint-disable-next-line no-console
       console.error(`[Lighthouse runtimeError] code=${code ?? 'unknown'} message=${message ?? 'n/a'}`);
     }
-    const metrics = best.metrics;
+    const metrics = best!.metrics;
 
     const dashboardPath = path.join(dashboardDataDir, 'lighthouse-latest.json');
     const summary: LighthouseSummary = {
