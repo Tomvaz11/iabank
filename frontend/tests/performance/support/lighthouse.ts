@@ -270,9 +270,12 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
     runtimeError: lhr.runtimeError ?? undefined,
   };
 
+  const summaryPath = path.join(artifactsDir, `${reportBaseName}.summary.json`);
+
   await Promise.all([
     writeFile(summary.reports.html, reportsArray.find((r): r is string => typeof r === 'string') ?? '', 'utf-8'),
     writeFile(summary.reports.json, JSON.stringify(reportsArray[0], null, 2), 'utf-8'),
+    writeFile(summaryPath, JSON.stringify(summary, null, 2), 'utf-8'),
     writeFile(summary.dashboard.json, JSON.stringify(summary, null, 2), 'utf-8'),
   ]);
 

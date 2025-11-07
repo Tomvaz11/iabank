@@ -279,6 +279,16 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
     needs: contracts
+    env:
+      VITE_API_BASE_URL: https://api.iabank.test
+      VITE_TENANT_DEFAULT: tenant-alfa
+      VITE_OTEL_EXPORTER_OTLP_ENDPOINT: http://localhost:4318
+      VITE_OTEL_SERVICE_NAME: frontend-foundation
+      VITE_OTEL_RESOURCE_ATTRIBUTES: service.namespace=iabank,service.version=0.1.0,environment=ci
+      VITE_FOUNDATION_CSP_NONCE: ci-nonce-fallback
+      VITE_FOUNDATION_TRUSTED_TYPES_POLICY: foundation-ui
+      VITE_FOUNDATION_PGCRYPTO_KEY: ci-only-pgcrypto-key
+      LIGHTHOUSE_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/lighthouse
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -320,7 +330,6 @@ jobs:
       - name: Executar Playwright + Lighthouse budgets (estrito)
         continue-on-error: ${{ github.event_name == 'pull_request' }}
         env:
-          LIGHTHOUSE_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/lighthouse
           LIGHTHOUSE_TARGET_URL: http://localhost:4173/foundation/scaffold?tenant=tenant-alfa&feature=foundation-scaffold
         run: pnpm perf:lighthouse
 
