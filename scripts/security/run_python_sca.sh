@@ -15,6 +15,51 @@ cleanup() {
 }
 trap cleanup EXIT
 
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+if ! command -v "${PYTHON_BIN}" >/dev/null 2>&1; then
+  PYTHON_BIN="python"
+fi
+
+create_tool_venv() {
+  local name="$1"
+  shift
+  local dest="${TMP_SCAN_DIR}/${name}-venv"
+  "${PYTHON_BIN}" -m venv "${dest}"
+  "${dest}/bin/python" -m pip install --quiet --upgrade pip
+  if (($#)); then
+    "${dest}/bin/python" -m pip install --quiet "$@"
+  fi
+  echo "${dest}"
+}
+
+RUN_PIP_AUDIT=false
+RUN_SAFETY=false
+case "${MODE}" in
+  all)
+    RUN_PIP_AUDIT=true
+    RUN_SAFETY=true
+    ;;
+  pip-audit)
+    RUN_PIP_AUDIT=true
+    ;;
+  safety)
+    RUN_SAFETY=true
+    ;;
+  *)
+    echo "Modo desconhecido '${MODE}'. Use 'all', 'pip-audit' ou 'safety'." >&2
+    exit 2
+    ;;
+esac
+
+SAFETY_VERSION_WITH_API="3.6.2"
+SAFETY_VERSION_OFFLINE="2.3.5"
+if [[ -n "${SAFETY_API_KEY:-}" ]]; then
+  SAFETY_PKG_VERSION="${SAFETY_VERSION_WITH_API}"
+else
+  # Safety 3.x exige autenticação; com fallback offline usamos a série 2.3.x.
+  SAFETY_PKG_VERSION="${SAFETY_VERSION_OFFLINE}"
+fi
+
 if command -v "${POETRY_BIN}" >/dev/null 2>&1; then
   # Em Poetry 1.8.x, o comando export depende de plugin; se indisponível, faz fallback para freeze.
   if ! "${POETRY_BIN}" export --with dev --format requirements.txt --output "${REQ_FILE}" >/dev/null 2>&1; then
@@ -25,30 +70,23 @@ if command -v "${POETRY_BIN}" >/dev/null 2>&1; then
   else
     "${POETRY_BIN}" run python -m pip install --quiet --upgrade pip
   fi
-  "${POETRY_BIN}" run python -m pip install --quiet "pip-audit==2.7.3" "safety==3.6.2"
-  # Resolve binários absolutos dentro do venv do Poetry para permitir executar fora do CWD do projeto
-  PIP_AUDIT_BIN="$(${POETRY_BIN} run which pip-audit)"
-  SAFETY_BIN="$(${POETRY_BIN} run which safety)"
-  if [[ -z "${PIP_AUDIT_BIN}" || ! -x "${PIP_AUDIT_BIN}" ]]; then
-    echo "pip-audit não encontrado no ambiente do Poetry." >&2
-    exit 1
-  fi
-  if [[ -z "${SAFETY_BIN}" || ! -x "${SAFETY_BIN}" ]]; then
-    echo "safety não encontrado no ambiente do Poetry." >&2
-    exit 1
-  fi
-  PIP_AUDIT_CMD=("${PIP_AUDIT_BIN}")
-  SAFETY_CMD=("${SAFETY_BIN}")
 else
   echo "Poetry não encontrado; utilizando ambiente global para dependências Python." >&2
-  python -m pip install --quiet --upgrade pip
-  python -m pip install --quiet "pip-audit==2.7.3" "safety==3.6.2"
-  pip freeze > "${REQ_FILE}"
-  PIP_AUDIT_CMD=("pip-audit")
-  SAFETY_CMD=("safety")
+  "${PYTHON_BIN}" -m pip install --quiet --upgrade pip
+  "${PYTHON_BIN}" -m pip freeze > "${REQ_FILE}"
 fi
 
-if [[ "${MODE}" == "all" || "${MODE}" == "pip-audit" ]]; then
+if [[ "${RUN_PIP_AUDIT}" == true ]]; then
+  PIP_AUDIT_VENV="$(create_tool_venv "pip-audit" "pip-audit==2.7.3")"
+  PIP_AUDIT_CMD=("${PIP_AUDIT_VENV}/bin/pip-audit")
+fi
+
+if [[ "${RUN_SAFETY}" == true ]]; then
+  SAFETY_VENV="$(create_tool_venv "safety" "safety==${SAFETY_PKG_VERSION}")"
+  SAFETY_CMD=("${SAFETY_VENV}/bin/safety")
+fi
+
+if [[ "${RUN_PIP_AUDIT}" == true ]]; then
   PIP_AUDIT_REPORT="${REPORT_DIR}/pip-audit.json"
   # Executa a partir de um diretório vazio para evitar que a CLI infira project_path
   # quando há um pyproject.toml no CWD, o que conflita com -r/--requirement em algumas versões.
@@ -63,11 +101,15 @@ if [[ "${MODE}" == "all" || "${MODE}" == "pip-audit" ]]; then
   echo "Relatório do pip-audit disponível em ${PIP_AUDIT_REPORT}."
 fi
 
-if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
+if [[ "${RUN_SAFETY}" == true ]]; then
   # Hardening do ambiente para saídas determinísticas e UTF-8
   export PYTHONUTF8=1
   export LANG=C
   export LC_ALL=C
+  export CI=1
+  export PYTHONUNBUFFERED=1
+  export PYTHONIOENCODING=UTF-8
+  export SAFETY_REQUEST_TIMEOUT=${SAFETY_REQUEST_TIMEOUT:-30}
 
   SAFETY_DIR="${REPORT_DIR}"
   mkdir -p "${SAFETY_DIR}"
@@ -82,13 +124,33 @@ if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
   if "${SAFETY_CMD[@]}" scan --help 2>/dev/null | grep -q -- '--disable-optional-telemetry'; then
     SAFETY_FLAGS+=("--disable-optional-telemetry")
   fi
+  SAFETY_JSON_FORMAT_FLAG=()
+  if "${SAFETY_CMD[@]}" check --help 2>/dev/null | grep -q -- '--json-output-format'; then
+    SAFETY_JSON_FORMAT_FLAG=(--json-output-format 1.1)
+  fi
 
-  # Preferir sempre 'scan' e evitar 'check' (que pode imprimir banners em stdout)
-  "${SAFETY_CMD[@]}" scan \
-    -r "${REQ_FILE}" \
-    --output json \
-    ${SAFETY_FLAGS[@]+"${SAFETY_FLAGS[@]}"} \
-    >"${SAFETY_JSON_TMP}" 2>"${SAFETY_STDERR_LOG}"
+  # Registrar versão do Safety para diagnóstico
+  { "${SAFETY_CMD[@]}" --version || true; } >>"${SAFETY_STDERR_LOG}" 2>&1
+
+  SAFETY_SUBCOMMAND="scan"
+  if [[ -z "${SAFETY_API_KEY:-}" ]]; then
+    SAFETY_SUBCOMMAND="check"
+    echo "[Safety] SAFETY_API_KEY não definido; usando fallback 'check' (offline)." >&2
+  fi
+
+  if [[ "${SAFETY_SUBCOMMAND}" == "scan" ]]; then
+    "${SAFETY_CMD[@]}" scan \
+      -r "${REQ_FILE}" \
+      --output json \
+      ${SAFETY_FLAGS[@]+"${SAFETY_FLAGS[@]}"} \
+      >"${SAFETY_JSON_TMP}" 2>"${SAFETY_STDERR_LOG}"
+  else
+    "${SAFETY_CMD[@]}" check \
+      --file "${REQ_FILE}" \
+      --output json \
+      ${SAFETY_JSON_FORMAT_FLAG[@]+"${SAFETY_JSON_FORMAT_FLAG[@]}"} \
+      >"${SAFETY_JSON_TMP}" 2>"${SAFETY_STDERR_LOG}"
+  fi
   SAFETY_EXIT=$?
   if [[ ${SAFETY_EXIT} -ne 0 ]]; then
     # Alguns ambientes retornam 1 quando encontra vulnerabilidades; aceitável para processamento
@@ -97,7 +159,7 @@ if [[ "${MODE}" == "all" || "${MODE}" == "safety" ]]; then
   set -e
 
   # Validar JSON antes de mover para o arquivo final
-  python - <<PY
+  "${PYTHON_BIN}" - <<PY
 import json, sys, pathlib
 tmp = pathlib.Path(r"${SAFETY_JSON_TMP}")
 err = pathlib.Path(r"${SAFETY_STDERR_LOG}")
@@ -115,7 +177,7 @@ def try_parse(text: str):
 if not raw.strip():
     print("ERRO: safety.json vazio; veja STDERR a seguir.", file=sys.stderr)
     try:
-        est = err.read_text(encoding='utf-8')[:4000]
+        est = err.read_text(encoding='utf-8')[:16000]
     except Exception:
         est = ''
     if est:
@@ -134,7 +196,7 @@ if not try_parse(raw):
             print("ERRO: safety.json inválido mesmo após saneamento.", file=sys.stderr)
             print("\n--- Amostra do stdout capturado (início) ---\n" + raw[:1000], file=sys.stderr)
             try:
-                est = err.read_text(encoding='utf-8')[:4000]
+                est = err.read_text(encoding='utf-8')[:16000]
             except Exception:
                 est = ''
             if est:
@@ -144,7 +206,7 @@ if not try_parse(raw):
         print("ERRO: safety.json inválido: não foi encontrado bloco JSON.", file=sys.stderr)
         print("\n--- Amostra do stdout capturado (início) ---\n" + raw[:1000], file=sys.stderr)
         try:
-            est = err.read_text(encoding='utf-8')[:4000]
+            est = err.read_text(encoding='utf-8')[:16000]
         except Exception:
             est = ''
         if est:
@@ -156,7 +218,7 @@ PY
   export SAFETY_REPORT_PATH="${SAFETY_JSON_FINAL}"
   export SAFETY_EXIT_CODE="${SAFETY_EXIT}"
   SAFETY_STATUS="$(
-    python <<'PY'
+    "${PYTHON_BIN}" <<'PY'
 import json
 import os
 import sys
