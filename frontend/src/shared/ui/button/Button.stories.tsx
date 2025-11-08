@@ -1,3 +1,4 @@
+// Ajuste mínimo para validar gating de UI no CI
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, within } from '@storybook/test';
 
