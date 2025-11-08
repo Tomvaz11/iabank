@@ -62,3 +62,11 @@ Notas de governança relacionadas:
 - O script `scripts/security/run_dast.sh` aplica migrações e inicia o `runserver` antes do scan; aguarda o endpoint responder.
 - Política (atualizada em 2025‑11‑08): em PRs, `main`, `release/*` e tags é fail‑closed (sem `fail‑open`). Em `workflow_dispatch`, segue política de sanidade do workflow.
   - Tratamento de severidade: WARN não quebra pipeline (exit 2 do ZAP é normalizado para sucesso); FAIL quebra (exit 1/3) — reduz ruído mantendo fail‑closed para vulnerabilidades reais.
+
+## Notas SCA (Python)
+- Ferramentas: `pip-audit` e `Safety` executam no job “Security Checks”.
+- Feed online do Safety (3.x): habilitado via secret `SAFETY_API_KEY` do repositório.
+  - O workflow principal injeta `SAFETY_API_KEY` no passo "Safety (Python SCA)".
+  - O script `scripts/security/run_python_sca.sh` alterna automaticamente para `safety scan` (3.x) quando a variável está definida; sem a variável, faz fallback seguro para `safety check` (2.3.x, offline).
+- Artefatos: `artifacts/python-sca/safety.json` e `artifacts/python-sca/pip-audit.json`.
+- Política: em PRs e `main` é fail‑closed para High/Critical reportados pelo Safety; em branches não release fora de PR pode aplicar `CI_FAIL_OPEN` conforme política do workflow.
