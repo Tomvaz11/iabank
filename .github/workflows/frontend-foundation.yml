@@ -20,6 +20,32 @@ env:
   NODE_VERSION: 20.17.0
 
 jobs:
+  changes:
+    name: Changeset (paths)
+    runs-on: ubuntu-latest
+    outputs:
+      ui: ${{ steps.filter.outputs.ui }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detectar mudanças relevantes (UI/Storybook)
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          filters: |
+            ui:
+              - 'frontend/**'
+              - 'frontend/.storybook/**'
+              - 'frontend/src/**'
+              - 'frontend/**/*.stories.*'
+              - 'frontend/scripts/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
   diag:
     name: CI Diagnostics
     runs-on: ubuntu-latest
@@ -215,7 +241,9 @@ jobs:
     name: Visual & Accessibility Gates
     runs-on: ubuntu-latest
     if: ${{ github.event_name != 'workflow_dispatch' }}
-    needs: contracts
+    needs:
+      - contracts
+      - changes
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -237,36 +265,42 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Resumo de mudanças (UI)
+        run: |
+          echo "UI changed? -> ${{ needs.changes.outputs.ui }}"
+
       - name: Build Storybook estático
+        if: ${{ needs.changes.outputs.ui == 'true' }}
         run: pnpm --filter @iabank/frontend-foundation storybook:build
 
       - name: Instalar navegadores Playwright (apenas Chromium)
+        if: ${{ needs.changes.outputs.ui == 'true' }}
         run: pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps chromium
 
       - name: Executar Chromatic
+        if: ${{ needs.changes.outputs.ui == 'true' && github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
-        if: ${{ github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
         run: |
           pnpm chromatic:ci
         working-directory: frontend
 
       - name: Validar cobertura visual por tenant (estrito ≥95%)
+        if: ${{ needs.changes.outputs.ui == 'true' && github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           CHROMATIC_MIN_COVERAGE: '95'
           CHROMATIC_TENANTS: 'tenant-alfa'
-        if: ${{ github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
         run: |
           pnpm chromatic:check -- --output chromatic-coverage.json
         working-directory: frontend
 
       - name: Executar test-runner do Storybook (axe/WCAG)
-        if: always()
+        if: ${{ needs.changes.outputs.ui == 'true' || always() }}
         run: pnpm --filter @iabank/frontend-foundation storybook:test
 
       - name: Publicar artefatos Chromatic
-        if: always()
+        if: ${{ always() && needs.changes.outputs.ui == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: chromatic-coverage
