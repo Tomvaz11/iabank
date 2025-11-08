@@ -193,9 +193,10 @@ docker rm -f infra-prometheus infra-grafana
 - Grafana: se o painel não aparecer, reinicie o container para reprocessar o provisioning (`docker restart infra-grafana`) e valide os volumes montados em `infra/grafana/provisioning`.
 - Prometheus: se o target não estiver UP, confirme a rede `infra_default` e o endpoint `backend:8000/metrics` na `infra/prometheus.local.yml`.
 
-## Contribuição
+## Contribu ição
 - Fluxo Git, Padrão de branches, PRs e checks: veja `CONTRIBUTING.md`.
 - Runbooks úteis:
   - Outage (Chromatic/Lighthouse/Axe): `docs/runbooks/frontend-outage.md`
   - Renovate Validation: `docs/runbooks/renovate-validation.md`
   - Vault/PII: `docs/runbooks/seguranca-pii-vault.md`
+  
