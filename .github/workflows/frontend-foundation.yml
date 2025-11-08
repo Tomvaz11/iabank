@@ -19,12 +19,20 @@ env:
   PNPM_VERSION: 9.12.2
   NODE_VERSION: 20.17.0
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   changes:
     name: Changeset (paths)
     runs-on: ubuntu-latest
     outputs:
       ui: ${{ steps.filter.outputs.ui }}
+      contracts: ${{ steps.filter.outputs.contracts }}
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      security: ${{ steps.filter.outputs.security }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,6 +54,24 @@ jobs:
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
+            contracts:
+              - 'contracts/**'
+              - 'scripts/api/**'
+            backend:
+              - 'backend/**'
+              - 'pyproject.toml'
+              - 'poetry.lock'
+              - 'scripts/security/**'
+            frontend:
+              - 'frontend/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
+              - 'pnpm-workspace.yaml'
+            security:
+              - 'scripts/security/**'
+              - 'scripts/ci/**'
+              - '.semgrepignore'
+              - '.spectral.yaml'
   diag:
     name: CI Diagnostics
     runs-on: ubuntu-latest
@@ -175,6 +201,20 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Cache Poetry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-pypoetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: ${{ runner.os }}-pypoetry-
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('poetry.lock') }}
+          restore-keys: ${{ runner.os }}-pip-
+
       - name: Install Poetry (pin 1.8.x para compatibilidade do lock)
         run: |
           python -m pip install --upgrade pip
@@ -209,16 +249,23 @@ jobs:
     needs:
       - lint
       - test
+      - changes
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resumo de mudanças (contracts)
+        run: |
+          echo "Contracts changed? -> ${{ needs.changes.outputs.contracts }}"
+
       - name: Setup pnpm
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
         uses: pnpm/action-setup@v2
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -226,15 +273,19 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Spectral lint (US1/US2/US3)
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
         run: pnpm openapi:lint
 
       - name: OpenAPI diff foundation spec
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
         run: pnpm openapi:diff
 
       - name: Pact consumer verification (US1/US2/US3)
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
         run: pnpm pact:verify
 
   visual-accessibility:
@@ -271,6 +322,7 @@ jobs:
 
       - name: Build Storybook estático
         if: ${{ needs.changes.outputs.ui == 'true' }}
+        timeout-minutes: 15
         run: pnpm --filter @iabank/frontend-foundation storybook:build
 
       - name: Instalar navegadores Playwright (apenas Chromium)
@@ -281,6 +333,7 @@ jobs:
         if: ${{ needs.changes.outputs.ui == 'true' && github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+        timeout-minutes: 20
         run: |
           pnpm chromatic:ci
         working-directory: frontend
@@ -297,6 +350,7 @@ jobs:
 
       - name: Executar test-runner do Storybook (axe/WCAG)
         if: ${{ needs.changes.outputs.ui == 'true' }}
+        timeout-minutes: 15
         run: pnpm --filter @iabank/frontend-foundation storybook:test
 
       - name: Publicar artefatos Chromatic
@@ -307,12 +361,15 @@ jobs:
           path: |
             frontend/storybook-static
             frontend/chromatic-coverage.json
+          retention-days: 7
 
   performance:
     name: Performance Budgets
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
-    needs: contracts
+    needs:
+      - contracts
+      - changes
     env:
       VITE_API_BASE_URL: https://api.iabank.test
       VITE_TENANT_DEFAULT: tenant-alfa
@@ -340,20 +397,30 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup k6
+        if: ${{ needs.changes.outputs.ui == 'true' }}
         uses: grafana/setup-k6-action@v1
 
       - name: Install dependencies
+        if: ${{ needs.changes.outputs.ui == 'true' }}
         run: pnpm install --frozen-lockfile
 
-      - name: Instalar navegadores Playwright
-        run: pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps
+      - name: Resumo de mudanças (UI)
+        run: |
+          echo "UI changed? -> ${{ needs.changes.outputs.ui }}"
+
+      - name: Instalar navegadores Playwright (apenas Chromium)
+        if: ${{ needs.changes.outputs.ui == 'true' }}
+        run: pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps chromium
 
       - name: Preparar artefatos de performance
+        if: ${{ needs.changes.outputs.ui == 'true' }}
         run: |
           mkdir -p artifacts
           mkdir -p artifacts/lighthouse
 
       - name: Executar k6 smoke (estrito)
+        if: ${{ needs.changes.outputs.ui == 'true' }}
+        timeout-minutes: 5
         run: pnpm perf:smoke:ci
         env:
           FOUNDATION_PERF_TENANT: tenant-alfa
@@ -361,6 +428,8 @@ jobs:
           FOUNDATION_PERF_DURATION: 10s
 
       - name: Executar Playwright + Lighthouse budgets (estrito)
+        if: ${{ needs.changes.outputs.ui == 'true' }}
+        timeout-minutes: 15
         env:
           LIGHTHOUSE_TARGET_URL: http://localhost:4173/foundation/scaffold?tenant=tenant-alfa&feature=foundation-scaffold
         run: pnpm perf:lighthouse
@@ -377,19 +446,22 @@ jobs:
           fi
 
       - name: Publicar resultados k6
+        if: ${{ needs.changes.outputs.ui == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: performance-k6-smoke
           path: artifacts/k6-smoke.json
+          retention-days: 14
 
       - name: Publicar relatórios Lighthouse
-        if: always()
+        if: ${{ always() && needs.changes.outputs.ui == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: performance-lighthouse-budgets
           path: |
             artifacts/lighthouse
             observabilidade/data/lighthouse-latest.json
+          retention-days: 14
 
       - name: Resumo dos budgets Lighthouse
         if: always()
@@ -398,7 +470,9 @@ jobs:
   security:
     name: Security Checks
     runs-on: ubuntu-latest
-    needs: contracts
+    needs:
+      - contracts
+      - changes
     if: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch' }}
     services:
       postgres:
@@ -427,12 +501,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Resumo de mudanças (security)
+        run: |
+          echo "backend changed? -> ${{ needs.changes.outputs.backend }}"
+          echo "frontend changed? -> ${{ needs.changes.outputs.frontend }}"
+          echo "security scripts changed? -> ${{ needs.changes.outputs.security }}"
+          echo "enforce full security? -> ${{ env.CI_ENFORCE_FULL_SECURITY }}"
+
       - name: Setup pnpm
+        if: ${{ needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         uses: pnpm/action-setup@v2
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
+        if: ${{ needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -440,25 +523,47 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Python
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
+      - name: Cache Poetry
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-pypoetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: ${{ runner.os }}-pypoetry-
+
+      - name: Cache pip
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('poetry.lock') }}
+          restore-keys: ${{ runner.os }}-pip-
+
       - name: Install dependencies
+        if: ${{ needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Install Poetry (pin 1.8.x para compatibilidade do lock)
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         run: |
           python -m pip install --upgrade pip
           python -m pip install poetry==1.8.3
 
       - name: Atualizar lock (sem atualizar versões)
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         run: poetry lock --no-update
 
       - name: Install Python dependencies
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         run: poetry install --with dev
 
       - name: Aguardar Postgres ficar disponível
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         run: |
           for i in {1..30}; do
             if (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1; then
@@ -470,53 +575,67 @@ jobs:
           done
 
       - name: Instalar ferramentas de segurança (SAST)
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         run: |
           poetry run python -m pip install --quiet semgrep==1.94.0
 
       - name: SAST (Semgrep)
         id: security_sast
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        timeout-minutes: 10
         run: poetry run bash scripts/security/run_sast.sh
 
       - name: DAST (OWASP ZAP baseline)
         id: security_dast
-        if: ${{ env.CI_ENFORCE_FULL_SECURITY == 'true' || github.event_name == 'pull_request' }}
+        if: ${{ (env.CI_ENFORCE_FULL_SECURITY == 'true' || github.event_name == 'pull_request') && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true') }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
         env:
           ZAP_BASELINE_TARGET: http://127.0.0.1:8000/metrics
+        timeout-minutes: 12
         run: poetry run bash scripts/security/run_dast.sh
 
       - name: Validação pgcrypto
         id: security_pgcrypto
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
         run: poetry run python -m scripts.security.check_pgcrypto
 
       - name: pip-audit (Python SCA)
         id: security_pip_audit
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        timeout-minutes: 10
         run: poetry run bash scripts/security/run_python_sca.sh pip-audit
 
       - name: Safety (Python SCA)
         id: security_safety
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
         env:
           SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
+        timeout-minutes: 10
         run: poetry run bash scripts/security/run_python_sca.sh safety
 
       - name: pnpm audit (SCA)
         id: security_pnpm_audit
+        if: ${{ needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        timeout-minutes: 10
         run: pnpm audit:frontend
 
       - name: Gerar SBOM CycloneDX
         id: security_sbom_generate
+        if: ${{ needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        timeout-minutes: 10
         run: |
           mkdir -p sbom
           pnpm sbom:frontend
 
       - name: Validar SBOM
         id: security_sbom_validate
+        if: ${{ needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
         run: poetry run python scripts/security/validate_sbom.py sbom/frontend-foundation.json
 
@@ -526,6 +645,7 @@ jobs:
         with:
           name: sbom-frontend-foundation
           path: sbom/frontend-foundation.json
+          retention-days: 30
 
       - name: Consolidar resultados de segurança
         id: security_summary

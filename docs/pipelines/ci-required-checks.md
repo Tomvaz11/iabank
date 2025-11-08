@@ -24,6 +24,17 @@ Reflete os gates constitucionais (v5.2.0) e ADRs 008–012.
 - Monitorar tempos de execução e ajustar limites de cobertura/thresholds via ADR antes de qualquer alteração.
 - Registrar métricas de sucesso dos jobs para alimentar dashboards DORA/SLO automaticamente.
 
+## Otimizações de CI (2025-11-08)
+- Step-gating por paths mantendo os jobs required sempre presentes:
+  - Visual & Accessibility e Performance só executam build/Chromatic/Playwright/k6/Lighthouse quando há mudanças de UI (`frontend/**`, Storybook, lockfiles e workspace).
+  - Contracts (Spectral/OpenAPI diff/Pact) só executam quando há mudanças em `contracts/**`.
+  - Security (Semgrep, ZAP, pip-audit, Safety, SBOM) executa quando há mudanças em `backend/**`, `frontend/**` ou `scripts/security/**`; em `main/releases/tags` permanece fail-closed e forçado.
+- Concurrency/cancel-in-progress habilitado no workflow principal (por workflow + ref/PR).
+- Playwright padronizado para Chromium nos jobs relevantes (reduz tempo e intermitências de dependências do SO).
+- Caches adicionados: `actions/cache` para `~/.cache/pypoetry` e `~/.cache/pip`; cache PNPM já via `setup-node`.
+- Timeouts defensivos aplicados a passos pesados (Chromatic, Storybook test, k6/Lighthouse, Semgrep/ZAP/SCA).
+- Artifacts com `retention-days` (Chromatic e Performance: 7–14 dias; SBOM: 30 dias).
+
 ## Prova de TDD (Art. III)
 - PRs DEVEM evidenciar “vermelho → verde” para mudanças de código:
   - Inclua no corpo do PR os commits/links para: (1) estado vermelho (testes falhando) e (2) estado verde (após implementação).
