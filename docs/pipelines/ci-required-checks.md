@@ -35,6 +35,8 @@ Reflete os gates constitucionais (v5.2.0) e ADRs 008–012.
 - Timeouts defensivos aplicados a passos pesados (Chromatic, Storybook test, k6/Lighthouse, Semgrep/ZAP/SCA).
 - Artifacts com `retention-days` (Chromatic e Performance: 7–14 dias; SBOM: 30 dias).
 
+Nota operacional: esta seção foi ajustada apenas para validar o comportamento de gating em um PR "docs-only".
+
 ## Prova de TDD (Art. III)
 - PRs DEVEM evidenciar “vermelho → verde” para mudanças de código:
   - Inclua no corpo do PR os commits/links para: (1) estado vermelho (testes falhando) e (2) estado verde (após implementação).
