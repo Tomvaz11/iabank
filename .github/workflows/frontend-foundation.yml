@@ -465,6 +465,8 @@ jobs:
       - name: Safety (Python SCA)
         id: security_safety
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
+        env:
+          SAFETY_API_KEY: ${{ secrets.SAFETY_API_KEY }}
         run: poetry run bash scripts/security/run_python_sca.sh safety
 
       - name: pnpm audit (SCA)
