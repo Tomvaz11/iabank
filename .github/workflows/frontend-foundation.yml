@@ -15,6 +15,10 @@ on:
       - 'chore/**'
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  pull-requests: read
+
 env:
   PNPM_VERSION: 9.12.2
   NODE_VERSION: 20.17.0
@@ -95,18 +99,67 @@ jobs:
 
       - name: Validar tags @SC-00x no PR
         if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'chore/') && !startsWith(github.head_ref, 'ci/') && !startsWith(github.head_ref, 'docs/') && !startsWith(github.head_ref, 'tests/') }}
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title || '' }}
+          PR_BODY: ${{ github.event.pull_request.body || '' }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          API_URL: ${{ github.api_url }}
+          REQUIRED_TAG_REGEX: '@SC-00[1-5]'
         run: |
-          PR_TITLE=$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")
-          PR_BODY=$(jq -r '.pull_request.body // \"\"' "$GITHUB_EVENT_PATH")
-          if ! printf '%s\n%s\n' "$PR_TITLE" "$PR_BODY" | grep -Eq '@SC-00[1-5]'; then
-            echo 'PR precisa mencionar pelo menos uma tag @SC-00x (SC-001..SC-005).'
+          set -euo pipefail
+
+          source_used="event"
+          title="${PR_TITLE:-}"
+          body="${PR_BODY:-}"
+
+          # Fallback para API se qualquer um estiver vazio
+          if [ -z "$title" ] || [ -z "$body" ]; then
+            if command -v gh >/dev/null 2>&1; then
+              if pr_json=$(gh api \
+                -H "Accept: application/vnd.github+json" \
+                "repos/$REPO/pulls/$PR_NUMBER" 2>/dev/null); then
+                title=$(printf '%s' "$pr_json" | jq -r '(.title // "")')
+                body=$(printf '%s' "$pr_json" | jq -r '(.body // "")')
+                source_used="api-gh"
+              fi
+            fi
+          fi
+
+          # Fallback final: arquivo de evento
+          if [ -z "$title" ] && [ -z "$body" ] && [ -f "$GITHUB_EVENT_PATH" ]; then
+            title=$(jq -r '(.pull_request.title // "")' "$GITHUB_EVENT_PATH" || echo "")
+            body=$(jq -r '(.pull_request.body // "")' "$GITHUB_EVENT_PATH" || echo "")
+            source_used="event-file"
+          fi
+
+          found_title=0
+          found_body=0
+          if printf '%s' "$title" | grep -Eq "${REQUIRED_TAG_REGEX}"; then
+            found_title=1
+          fi
+          if printf '%s' "$body" | grep -Eq "${REQUIRED_TAG_REGEX}"; then
+            found_body=1
+          fi
+
+          if [ "$found_title" -eq 0 ] && [ "$found_body" -eq 0 ]; then
+            echo "::error::PR precisa mencionar pelo menos uma tag @SC-00x (SC-001..SC-005).";
+            echo "Fonte de dados utilizada: $source_used"
+            echo "Presença da tag: título=$found_title, corpo=$found_body"
+            echo "Título (até 120 chars): $(printf '%s' "$title" | head -c 120)"
+            echo "Corpo (até 120 chars, normalizado): $(printf '%s' "$body" | tr '\n' ' ' | head -c 120)"
             exit 1
+          else
+            echo "Tag @SC-00x detectada (fonte: $source_used)"
+            if [ "$found_title" -eq 1 ]; then echo " - Encontrada no título"; fi
+            if [ "$found_body" -eq 1 ]; then echo " - Encontrada no corpo"; fi
           fi
 
       - name: Validar título Conventional Commits
         if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'chore/') && !startsWith(github.head_ref, 'ci/') && !startsWith(github.head_ref, 'docs/') && !startsWith(github.head_ref, 'tests/') }}
         run: |
-          PR_TITLE=$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")
+          PR_TITLE=$(jq -r '(.pull_request.title // "")' "$GITHUB_EVENT_PATH")
           re='^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._-]+\))?!?: .+'
           if ! grep -Eiq "$re" <(printf '%s' "$PR_TITLE"); then
             echo 'Título do PR deve seguir Conventional Commits (ex.: feat(scope): descrição).'
