@@ -320,7 +320,6 @@ jobs:
           mkdir -p artifacts/lighthouse
 
       - name: Executar k6 smoke (estrito)
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: pnpm perf:smoke:ci
         env:
           FOUNDATION_PERF_TENANT: tenant-alfa
@@ -328,7 +327,6 @@ jobs:
           FOUNDATION_PERF_DURATION: 10s
 
       - name: Executar Playwright + Lighthouse budgets (estrito)
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
         env:
           LIGHTHOUSE_TARGET_URL: http://localhost:4173/foundation/scaffold?tenant=tenant-alfa&feature=foundation-scaffold
         run: pnpm perf:lighthouse
@@ -384,7 +382,7 @@ jobs:
           --health-retries 5
     env:
       CI_ENFORCE_FULL_SECURITY: ${{ github.event_name != 'workflow_dispatch' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/')) }}
-      CI_FAIL_OPEN: ${{ github.event_name != 'workflow_dispatch' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
+      CI_FAIL_OPEN: ${{ github.event_name != 'workflow_dispatch' && github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
       FOUNDATION_DB_VENDOR: postgresql
       FOUNDATION_DB_HOST: 127.0.0.1
       FOUNDATION_DB_PORT: '5432'
