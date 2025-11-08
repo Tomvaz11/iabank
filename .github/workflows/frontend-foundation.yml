@@ -127,6 +127,20 @@ jobs:
             fi
           fi
 
+          # Fallback alternativo via curl (se gh não estiver disponível ou falhar)
+          if [ -z "$title" ] || [ -z "$body" ]; then
+            if command -v curl >/dev/null 2>&1; then
+              if pr_json=$(curl -fsSL \
+                -H "Authorization: Bearer $GH_TOKEN" \
+                -H "Accept: application/vnd.github+json" \
+                "$API_URL/repos/$REPO/pulls/$PR_NUMBER" 2>/dev/null); then
+                title=$(printf '%s' "$pr_json" | jq -r '(.title // "")')
+                body=$(printf '%s' "$pr_json" | jq -r '(.body // "")')
+                source_used="api-curl"
+              fi
+            fi
+          fi
+
           # Fallback final: arquivo de evento
           if [ -z "$title" ] && [ -z "$body" ] && [ -f "$GITHUB_EVENT_PATH" ]; then
             title=$(jq -r '(.pull_request.title // "")' "$GITHUB_EVENT_PATH" || echo "")
