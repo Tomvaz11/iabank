@@ -1,4 +1,4 @@
-// Ajuste mínimo para validar gating de UI no CI (nudge commit)
+// Ajuste mínimo para validar gating de UI no CI (nudge commit 2)
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, within } from '@storybook/test';
 
