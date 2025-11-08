@@ -130,7 +130,8 @@ Pontos de Contato
 
 ### Evidências PR #12 — run verde
 - Workflow (pull_request): https://github.com/Tomvaz11/iabank/actions/runs/19050934281
-- Jobs (principais): Lint (success); Vitest/Pytest (success); Contracts (success); Visual & A11y (success — Chromatic executado; test‑runner sem violações); Performance (success — k6 e Lighthouse tolerantes); Security Checks (success — PR fail‑open); Threat Model Lint (success).
+- Jobs (principais): Lint (success); Vitest/Pytest (success); Contracts (success); Visual & A11y (success — Chromatic executado; test‑runner sem violações); Performance (success — k6 e Lighthouse tolerantes); Security Checks (success — PR fail‑open).
+  - ATUALIZAÇÃO 2025‑11‑08: gates de Performance e Segurança agora são estritos também nos PRs (fail‑closed). O workflow temporário “Quick Perf+Security Check” foi removido.
 
 Resumo consolidado
 - Consulte `RESUMO_F10_VALIDACAO_E_CI.md` para decisões, alterações e passos de operação.
@@ -190,12 +191,13 @@ Observabilidade (24–48h)
 
 - Artefatos de referência
   - Lighthouse (mais recente): `observabilidade/data/lighthouse-latest.json`.
+  - Lighthouse (resumo usado pelo CI): `artifacts/lighthouse/home.summary.json`.
   - k6 smoke (PR #12): artefato `performance-k6-smoke` publicado no run de PR: https://github.com/Tomvaz11/iabank/actions/runs/19050934281
 
-- Política final de CI
-  - Visual e Performance: pulados no `workflow_dispatch` (sanidade) e condicionais em PR/base protegida.
-  - DAST (OWASP ZAP baseline): condicionado a PR e `main`.
-  - Segurança: fail‑closed em `main/releases/tags`; PR/dispatch em fail‑open com sumário consolidado.
+- Política final de CI (atualizada em 2025‑11‑08)
+  - Visual e Performance: executam em PR e em `main`; são estritos em PR (sem continue‑on‑error). Em `workflow_dispatch` podem ser pulados conforme configuração do workflow.
+  - DAST (OWASP ZAP baseline): executa em PR e `main`; em PR é estrito (sem fail‑open). Em `workflow_dispatch`, segue política do workflow.
+  - Segurança (SAST/SCA/SBOM): fail‑closed em PR, `main`, `release/*` e tags; `fail‑open` não se aplica mais a `pull_request`.
 
 - Evidências consolidadas
   - Pacote de evidências: `docs/runbooks/evidences/frontend-foundation/v1.0/README.md`.

@@ -1,6 +1,7 @@
 # ADR — Performance Frontend (Lighthouse + k6)
 
 **Status**: Aceito — 2025-10-19  
+**Atualização**: 2025-11-08 — PRs agora são fail‑closed para Performance e Segurança; o workflow temporário “Quick Perf+Security Check” foi removido. Esta ADR permanece como registro histórico; ver PRs #50, #51 e #52 para a política vigente.
 **Owners**: Frontend Foundation Guild (tech), SRE (co-owner)  
 **Referências**: Constituição v5.2.0 (Art. IX, Art. XIII), Clarification “Perf-Front” 2025-10-12, BLUEPRINT_ARQUITETURAL.md §4
 
@@ -18,9 +19,9 @@ Sem uma decisão formal havia risco de divergência entre squads, violações da
 
 1. **Budgets Lighthouse (UX)**  
    - `frontend/lighthouse.config.mjs` mantém LCP ≤ 2.5s p95, TTI ≤ 3.0s p95, CLS ≤ 0.1.  
-   - Rodamos via job `performance` no workflow `.github/workflows/ci/frontend-foundation.yml`. Falhas:
-     - `main`/`release/*`: fail-closed (pipeline interrompe).  
-     - Outros branches: fail-open acompanhado de label `@SC-001` e alerta FinOps.
+   - Rodamos via job `performance` no workflow `.github/workflows/ci/frontend-foundation.yml`. Falhas (política vigente em 2025‑11‑08):
+     - `pull_request`, `main`, `release/*` e tags: fail-closed (pipeline interrompe).  
+     - `workflow_dispatch`: execução de sanidade, pode pular ou relaxar gates conforme configuração.
 
 2. **k6 Smoke e Métricas**  
    - `tests/performance/frontend-smoke.js` orquestra cenários críticos com baggage multi-tenant.  
@@ -46,7 +47,7 @@ Sem uma decisão formal havia risco de divergência entre squads, violações da
 - **Riscos Mitigados**:  
   - Evita regressões de UX em tenants críticos.  
   - Mantém rastreabilidade de custos das ferramentas de QA (apoio a NFR-005).  
-  - Suporta fail-open controlado quando Chromatic/Lighthouse estiverem indisponíveis, sem violar Art. IX.
+  - Nota (2025‑11‑08): fail-open controlado deixou de se aplicar a `pull_request`.
 
 ## Alternativas Consideradas
 
