@@ -70,3 +70,16 @@ Notas de governança relacionadas:
   - O script `scripts/security/run_python_sca.sh` alterna automaticamente para `safety scan` (3.x) quando a variável está definida; sem a variável, faz fallback seguro para `safety check` (2.3.x, offline).
 - Artefatos: `artifacts/python-sca/safety.json` e `artifacts/python-sca/pip-audit.json`.
 - Política: em PRs e `main` é fail‑closed para High/Critical reportados pelo Safety; em branches não release fora de PR pode aplicar `CI_FAIL_OPEN` conforme política do workflow.
+
+## Rotação do SAFETY_API_KEY (CI)
+- Periodicidade recomendada: a cada 6 meses ou a qualquer sinal de comprometimento.
+- Procedimento de rotação (GitHub Actions → Secrets do repositório):
+  1. Gere uma nova chave no provedor do Safety (conta/console do Safety CLI).
+  2. No repositório, acesse: Settings → Secrets and variables → Actions.
+  3. Localize o secret `SAFETY_API_KEY` e clique em “Update secret”.
+  4. Substitua pelo novo valor e salve.
+  5. Valide com um PR trivial (ex.: alteração em docs) ou `workflow_dispatch` do workflow principal; o passo “Safety (Python SCA)” deve rodar com sucesso.
+  6. Revogue a chave antiga no provedor do Safety.
+- Observações:
+  - Não registre a chave em issues/PRs/logs. Evite `set -x` em scripts que imprimam variáveis.
+  - A substituição é imediata para novos jobs; jobs já em execução continuarão com o token que receberam no início da execução.
