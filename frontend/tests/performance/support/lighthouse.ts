@@ -274,6 +274,9 @@ export async function enforceLighthouseBudgets(page: Page): Promise<LighthouseBu
     writeFile(summary.reports.html, reportsArray.find((r): r is string => typeof r === 'string') ?? '', 'utf-8'),
     writeFile(summary.reports.json, JSON.stringify(reportsArray[0], null, 2), 'utf-8'),
     writeFile(summary.dashboard.json, JSON.stringify(summary, null, 2), 'utf-8'),
+    // Compatibilidade com passo do CI que verifica especificamente por 'home.summary.json'
+    // Nota: o workflow atual espera o nome fixo 'home.summary.json', independentemente de LIGHTHOUSE_REPORT_NAME
+    writeFile(path.join(artifactsDir, 'home.summary.json'), JSON.stringify(summary, null, 2), 'utf-8'),
   ]);
 
   const passedBudgets = (['lcp', 'tti', 'tbt', 'cls'] as MetricKey[]).every((metric) => {
