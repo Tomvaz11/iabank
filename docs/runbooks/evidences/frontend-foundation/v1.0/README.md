@@ -14,8 +14,8 @@ Responsáveis: Frontend Foundation Guild / Platform
     - Vitest + Pytest: success (All files 95.17/95.17/88.88/84.75; Pytest TOTAL 87%)
     - Contracts (Spectral/OpenAPI/Pact): success
     - Visual & A11y: success (Chromatic executado em PR; test‑runner axe/WCAG sem violações)
-    - Performance: success (k6 + Lighthouse tolerantes em PR; artefatos publicados)
-    - Security Checks: success (PR = fail‑open por política)
+    - Performance: success (histórico). ATUALIZAÇÃO 2025-11-08: gates agora são estritos também em PR; continuam publicando artefatos.
+    - Security Checks: success (histórico). ATUALIZAÇÃO 2025-11-08: em PR passou a ser fail‑closed (sem fail‑open).
     - Threat Model Lint: success
 - Run manual (sanidade em main): ID 19048561651 (workflow_dispatch) — logs locais em `run.log`.
 
@@ -24,6 +24,7 @@ Responsáveis: Frontend Foundation Guild / Platform
 - Storybook estático: `frontend/storybook-static/`
 - Chromatic coverage: `frontend/chromatic-coverage.json` (em PR; cobertura por tenant tolerante)
 - Lighthouse (último): `observabilidade/data/lighthouse-latest.json`
+- Lighthouse (resumo usado pelo CI): `artifacts/lighthouse/home.summary.json`
 - k6 smoke (PR): artifact `performance-k6-smoke` (upload-artifact)
 - SBOM (PR): `sbom/frontend-foundation.json` (após geração/validação)
 
