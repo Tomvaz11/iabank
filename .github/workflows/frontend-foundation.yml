@@ -435,7 +435,7 @@ jobs:
         run: pnpm perf:lighthouse
 
       - name: Verificar artefatos Lighthouse
-        if: always()
+        if: ${{ always() && needs.changes.outputs.ui == 'true' }}
         run: |
           set -euo pipefail
           echo "Listando artifacts em $LIGHTHOUSE_ARTIFACT_DIR";
@@ -661,7 +661,7 @@ jobs:
           PNPM_AUDIT: ${{ steps.security_pnpm_audit.outcome }}
           SBOM_GENERATE: ${{ steps.security_sbom_generate.outcome }}
           SBOM_VALIDATE: ${{ steps.security_sbom_validate.outcome }}
-        run: poetry run python scripts/ci/security_summary.py
+        run: python3 scripts/ci/security_summary.py
 
   threat-model-lint:
     name: Threat Model Lint
