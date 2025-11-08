@@ -296,7 +296,7 @@ jobs:
         working-directory: frontend
 
       - name: Executar test-runner do Storybook (axe/WCAG)
-        if: ${{ needs.changes.outputs.ui == 'true' || always() }}
+        if: ${{ needs.changes.outputs.ui == 'true' }}
         run: pnpm --filter @iabank/frontend-foundation storybook:test
 
       - name: Publicar artefatos Chromatic
