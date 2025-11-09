@@ -18,7 +18,8 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
+  issues: write
 
 env:
   PNPM_VERSION: 9.12.2
@@ -220,19 +221,19 @@ jobs:
       - name: Run Vitest (coverage gate) — PR
         if: ${{ github.event_name == 'pull_request' }}
         env:
-          FOUNDATION_COVERAGE_BRANCHES: '84.5'
+          FOUNDATION_COVERAGE_BRANCHES: '85'
         run: pnpm test:coverage
 
       - name: Run Vitest (coverage gate) — strict (main/releases)
         if: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/')) }}
         env:
-          FOUNDATION_COVERAGE_BRANCHES: '84.8'
+          FOUNDATION_COVERAGE_BRANCHES: '85'
         run: pnpm test:coverage
 
       - name: Run Vitest (coverage gate) — dev branches
         if: ${{ github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
         env:
-          FOUNDATION_COVERAGE_BRANCHES: '84.5'
+          FOUNDATION_COVERAGE_BRANCHES: '85'
         run: pnpm test:coverage
 
       - name: Print coverage summary
