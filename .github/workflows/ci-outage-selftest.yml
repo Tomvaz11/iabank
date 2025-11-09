@@ -51,7 +51,7 @@ jobs:
           # Force non-release branch name to validate fail-open behavior (we also pass explicit JSON)
           GITHUB_REF_NAME: selftest-failopen
           # GitHub context (best effort; script tolerates missing PR)
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           echo "Running outage selftest (fail-open)..."
