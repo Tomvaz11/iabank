@@ -658,6 +658,18 @@ jobs:
         timeout-minutes: 12
         run: poetry run bash scripts/security/run_dast.sh
 
+      - name: Upload ZAP artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-reports
+          path: artifacts/zap
+          retention-days: 14
+
+      - name: Resumo ZAP
+        if: always()
+        run: echo -e "DAST outcome: ${{ steps.security_dast.outcome }}\nArtifacts: artifacts/zap" >> "$GITHUB_STEP_SUMMARY"
+
       - name: Validação pgcrypto
         id: security_pgcrypto
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
