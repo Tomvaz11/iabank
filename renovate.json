@@ -3,8 +3,10 @@
   "extends": [
     "config:recommended",
     ":semanticCommitTypeAll(chore)",
-    ":disableDependencyDashboardAutomerge"
+    ":disableDependencyDashboardAutomerge",
+    ":pinDigests"
   ],
+  "rangeStrategy": "pin",
   "timezone": "America/Sao_Paulo",
   "dependencyDashboard": true,
   "prConcurrentLimit": 5,
