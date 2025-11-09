@@ -246,6 +246,7 @@ jobs:
           fi
 
       - name: Setup Python
+        id: setup_py_test
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -254,15 +255,19 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pypoetry
-          key: ${{ runner.os }}-pypoetry-${{ hashFiles('poetry.lock') }}
-          restore-keys: ${{ runner.os }}-pypoetry-
+          key: ${{ runner.os }}-py-${{ steps.setup_py_test.outputs.python-version }}-pypoetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-py-${{ steps.setup_py_test.outputs.python-version }}-pypoetry-
+            ${{ runner.os }}-pypoetry-
 
       - name: Cache pip
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('poetry.lock') }}
-          restore-keys: ${{ runner.os }}-pip-
+          key: ${{ runner.os }}-py-${{ steps.setup_py_test.outputs.python-version }}-pip-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-py-${{ steps.setup_py_test.outputs.python-version }}-pip-
+            ${{ runner.os }}-pip-
 
       - name: Install Poetry (pin 1.8.x para compatibilidade do lock)
         run: |
@@ -575,6 +580,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Setup Python
+        id: setup_py_sec
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         uses: actions/setup-python@v5
         with:
@@ -585,16 +591,20 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pypoetry
-          key: ${{ runner.os }}-pypoetry-${{ hashFiles('poetry.lock') }}
-          restore-keys: ${{ runner.os }}-pypoetry-
+          key: ${{ runner.os }}-py-${{ steps.setup_py_sec.outputs.python-version }}-pypoetry-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-py-${{ steps.setup_py_sec.outputs.python-version }}-pypoetry-
+            ${{ runner.os }}-pypoetry-
 
       - name: Cache pip
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('poetry.lock') }}
-          restore-keys: ${{ runner.os }}-pip-
+          key: ${{ runner.os }}-py-${{ steps.setup_py_sec.outputs.python-version }}-pip-${{ hashFiles('poetry.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-py-${{ steps.setup_py_sec.outputs.python-version }}-pip-
+            ${{ runner.os }}-pip-
 
       - name: Install dependencies
         if: ${{ needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
