@@ -45,5 +45,5 @@ export SEMGREP_ENABLE_VERSION_CHECK=0
   --error \
   --metrics=off \
   --disable-version-check \
-  --timeout 0 \
+  --timeout ${SEMGREP_TIMEOUT:-300} \
   "${TARGETS[@]}"
