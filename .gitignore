@@ -30,3 +30,12 @@ codex-action/
 .terraform/
 *.tfstate
 *.tfstate.backup
+
+# CLI/CI: artefatos temporários locais (não versionar)
+.gh_*.json
+.runs_*.json
+.run_*.json
+.vault_*.json
+.pr_release_test.json
+.cache/
+.tmp/
