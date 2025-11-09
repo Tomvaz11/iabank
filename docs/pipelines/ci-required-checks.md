@@ -69,6 +69,12 @@ Notas de governança relacionadas:
 - Resolução de conversas antes do merge: habilitada.
 - Aprovações obrigatórias: 0 (atual) — quando houver equipe, migrar para 1–2 aprovações e, se desejado, exigir review de CODEOWNERS.
 
+## Notas SAST (Semgrep)
+- Script: `scripts/security/run_sast.sh`.
+- Timeout: `--timeout ${SEMGREP_TIMEOUT:-300}` — por padrão o scan é interrompido após 300s para evitar travas.
+- Como ajustar: defina `SEMGREP_TIMEOUT` no ambiente do workflow (ex.: `env: SEMGREP_TIMEOUT: 600`) para alterar o limite.
+- Métricas/version-check: desabilitados no script (`--metrics=off`, `--disable-version-check`) para execução determinística no CI.
+
 ## Notas DAST (ZAP)
 - Alvo do DAST: `http://127.0.0.1:8000/metrics` (exposto por `django_prometheus`).
 - O job provisiona Postgres (`services: postgres:15`) e exporta `FOUNDATION_DB_*` para o Django conectar.
