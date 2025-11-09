@@ -351,11 +351,13 @@ jobs:
           fetch-depth: 0
 
       - name: Setup pnpm
+        if: ${{ needs.changes.outputs.ui == 'true' }}
         uses: pnpm/action-setup@v2
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
+        if: ${{ needs.changes.outputs.ui == 'true' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -363,6 +365,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
+        if: ${{ needs.changes.outputs.ui == 'true' }}
         run: pnpm install --frozen-lockfile
 
       - name: Resumo de mudanças (UI)
