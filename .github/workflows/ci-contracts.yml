@@ -7,8 +7,12 @@ on:
       - '.github/workflows/ci-contracts.yml'
       - 'scripts/api/check_rate_headers.sh'
       - 'package.json'
-      - 'package-lock.json'
+      - 'pnpm-lock.yaml'
   workflow_dispatch:
+
+env:
+  PNPM_VERSION: 9.12.2
+  NODE_VERSION: 20.17.0
 
 jobs:
   validate-contracts:
@@ -17,42 +21,53 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies (Node)
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies (pnpm)
         if: ${{ hashFiles('package.json') != '' }}
-        run: |
-          npm install
+        run: pnpm install --frozen-lockfile
         shell: bash
 
       - name: Spectral lint (skips if not installed)
         run: |
-          if command -v npx >/dev/null 2>&1; then
+          if command -v pnpm >/dev/null 2>&1; then
             if [ -n "$(ls contracts 2>/dev/null)" ]; then
-              npx --yes @stoplight/spectral@6 lint contracts/**/*.yaml || exit 1
+              pnpm dlx @stoplight/spectral@6 lint contracts/**/*.yaml || exit 1
             else
               echo "::warning::No contracts directory to lint"
             fi
           else
-            echo "::warning::npx not available; skipping Spectral lint"
+            echo "::warning::pnpm not available; skipping Spectral lint"
           fi
         shell: bash
 
       - name: OpenAPI diff guard
         run: |
-          if command -v npx >/dev/null 2>&1; then
+          if command -v pnpm >/dev/null 2>&1; then
             if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
-              npx --yes openapi-diff contracts/api.previous.yaml contracts/api.yaml
+              pnpm dlx openapi-diff contracts/api.previous.yaml contracts/api.yaml
             else
               echo "::warning::OpenAPI baseline missing; skipping diff"
             fi
           else
-            echo "::warning::npx not available; skipping openapi-diff"
+            echo "::warning::pnpm not available; skipping openapi-diff"
           fi
         shell: bash
 
       - name: Pact contract tests
         run: |
-          if command -v npm >/dev/null 2>&1 && npm run | grep -q 'test:pact'; then
-            npm run test:pact
+          if command -v pnpm >/dev/null 2>&1 && pnpm run | grep -q 'test:pact'; then
+            pnpm run test:pact
           else
             echo "::warning::No pact test command defined; skipping"
           fi
