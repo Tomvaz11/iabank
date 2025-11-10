@@ -18,6 +18,16 @@
 - Pós-merge na `main`: houve run do workflow principal com conclusão failure (reforça que o corte está em vigor); outros workflows não relacionados (ex.: Vault Rotation Checks) passaram.
 - Validação prática (2025-11-10): aberto PR #114 "chore(ci): verify coverage gates (#81)" para acionar o CI. Run do workflow principal: https://github.com/Tomvaz11/iabank/actions/runs/19241440872 — status: failure (gate ativo).
 
+## Validações finais (gh CLI)
+- Issue #81: estado CLOSED e comentário de encerramento confirmados via `gh issue view`.
+- PR #102: MERGED para `main` com commit 0dfd768, confirmado via `gh pr view`.
+- Conteúdo em `main` confirma gates 85%:
+  - `pytest.ini`: `--cov-fail-under=85`.
+  - `frontend/vitest.config.ts`: thresholds default 85 (statements/branches/functions/lines).
+  - Workflow `.github/workflows/frontend-foundation.yml`: `FOUNDATION_COVERAGE_BRANCHES: '85'` em PR/main/dev.
+- PR de verificação (#114): aberto apenas para acionar o CI; runs da branch concluíram como `failure`, evidenciando enforcement dos gates.
+- Conclusão: a implementação da issue está efetiva e validamos seu comportamento na prática.
+
 ## Observações (E2E/DAST)
 - Não era critério da issue #81 executar E2E; foco é cobertura 85%.
 - Houve tentativas de E2E/DAST em PR separado (#106 — “E2E — ZAP artifacts + resumo; Vitest 85%”), com runs falhando e PR fechado sem merge.
