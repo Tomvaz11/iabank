@@ -640,6 +640,8 @@ jobs:
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
         timeout-minutes: 10
+        env:
+          SEMGREP_TIMEOUT: "5"
         run: poetry run bash scripts/security/run_sast.sh
 
       - name: DAST (OWASP ZAP baseline)
