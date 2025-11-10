@@ -17,7 +17,7 @@ Guia rápido para executar a suíte completa de validações localmente (fronten
 
 ## Pré‑requisitos
 - Node.js 20 e pnpm 9 (ver `package.json` → `packageManager`)
-- Python 3.11 + Poetry (dev deps em `pyproject.toml`)
+- Python 3.11 + Poetry 1.8.3 (alinhado a CI/Docker)
 - k6 CLI (para testes de performance)
 - Playwright (navegadores): `pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps`
 
@@ -46,8 +46,9 @@ export FOUNDATION_DB_PASSWORD=foundation
 # Node / pnpm
 pnpm install
 
-# Python / Poetry
-poetry install --with dev
+# Python / Poetry (pin 1.8.3 e instalação sem recriar lock)
+python -m pip install -U pip && pip install "poetry==1.8.3"
+poetry install --with dev --sync --no-interaction --no-ansi
 
 # Playwright browsers
 pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps

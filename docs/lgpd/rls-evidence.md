@@ -16,8 +16,12 @@ Este playbook garante conformidade com Art. XIII (LGPD) e ADR-010, mantendo evid
 
 1. **Preparar ambiente**
    ```bash
-   poetry install --with dev
+   # Node/Frontend
    pnpm install
+
+   # Python/Backend — Poetry 1.8.3 alinhado ao CI/Docker
+   python -m pip install -U pip && pip install "poetry==1.8.3"
+   poetry install --with dev --sync --no-interaction --no-ansi
    ```
 
 2. **Validar RLS programaticamente**
