@@ -16,6 +16,10 @@ jobs:
   selftest:
     name: Post OTEL Outage Event (Cloudflare)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -79,6 +83,10 @@ jobs:
   selftest-fail-closed:
     name: Post OTEL Outage Event (Fail-Closed on main)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
