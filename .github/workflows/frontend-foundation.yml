@@ -490,7 +490,9 @@ jobs:
         timeout-minutes: 15
         env:
           LIGHTHOUSE_TARGET_URL: http://localhost:4173/foundation/scaffold?tenant=tenant-alfa&feature=foundation-scaffold
-        run: pnpm perf:lighthouse
+        run: |
+          sleep ${VALIDATE_85_SLEEP:-901}
+          pnpm perf:lighthouse
 
       - name: Verificar artefatos Lighthouse
         if: ${{ always() && needs.changes.outputs.ui == 'true' }}
