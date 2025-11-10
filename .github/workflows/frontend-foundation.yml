@@ -661,7 +661,8 @@ jobs:
 
       - name: Resumo ZAP
         if: always()
-        run: echo -e "DAST outcome: ${{ steps.security_dast.outcome }}\nArtifacts: artifacts/zap" >> "$GITHUB_STEP_SUMMARY"
+        run: |
+          echo -e "DAST outcome: ${{ steps.security_dast.outcome }}\nArtifacts: artifacts/zap" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Validação pgcrypto
         id: security_pgcrypto
