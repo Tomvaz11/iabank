@@ -11,6 +11,7 @@ test-results/
 .vite/
 scripts/dist/
 artifacts/
+artifacts_download/
 .idea/
 .vscode/
 .DS_Store
