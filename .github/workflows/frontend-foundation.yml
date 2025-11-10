@@ -295,6 +295,9 @@ jobs:
         run: |
           poetry run pytest || (echo 'Pytest falhou; reexecutando uma vez...' && sleep 3 && poetry run pytest)
 
+
+      - name: Pytest (sanidade 99% deve falhar)
+        run: poetry run pytest --cov-fail-under=99
       - name: Radon complexity gate
         run: poetry run python scripts/ci/check_python_complexity.py
 
