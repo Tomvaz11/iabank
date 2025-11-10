@@ -92,6 +92,19 @@ jobs:
           echo "actor=${{ github.actor }}"
           echo "repository=${{ github.repository }}"
 
+  timeout-simulation:
+    name: Timeout Simulation (issue-85)
+    runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/heads/test/issue-85-') }}
+    steps:
+      - name: Simular step longo com timeout
+        timeout-minutes: 1
+        continue-on-error: true
+        run: |
+          echo "[issue-85] simulando step longo (sleep 120s)"
+          sleep 120
+          echo "isto não deve aparecer se timeout funcionar"
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -661,9 +674,17 @@ jobs:
         if: ${{ (env.CI_ENFORCE_FULL_SECURITY == 'true' || github.event_name == 'pull_request') && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true') }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
         env:
-          ZAP_BASELINE_TARGET: http://127.0.0.1:8000/metrics
+          ZAP_BASELINE_TARGET: ${{ startsWith(github.ref, 'refs/heads/test/issue-85-') && 'http://127.0.0.1:8000/invalid' || 'http://127.0.0.1:8000/metrics' }}
         timeout-minutes: 12
         run: poetry run bash scripts/security/run_dast.sh
+
+      - name: Coletar logs do Django (ZAP)
+        if: always()
+        run: |
+          mkdir -p artifacts/zap
+          if [ -f /tmp/django-zap.log ]; then
+            cp /tmp/django-zap.log artifacts/zap/django-zap.log || true
+          fi
 
       - name: Upload ZAP artifacts
         if: always()
