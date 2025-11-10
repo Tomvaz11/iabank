@@ -198,6 +198,7 @@ Observabilidade (24–48h)
   - Visual e Performance: executam em PR e em `main`; são estritos em PR (sem continue‑on‑error). Em `workflow_dispatch` podem ser pulados conforme configuração do workflow.
   - DAST (OWASP ZAP baseline): executa em PR e `main`; em PR é estrito (sem fail‑open). Em `workflow_dispatch`, segue política do workflow.
   - Segurança (SAST/SCA/SBOM): fail‑closed em PR, `main`, `release/*` e tags; `fail‑open` não se aplica mais a `pull_request`.
+  - Referência: ver `docs/pipelines/ci-required-checks.md` — seção "Notas SAST (Semgrep)" para detalhes do `SEMGREP_TIMEOUT` (fallback 300s) e como ajustar no CI.
 
 - Evidências consolidadas
   - Pacote de evidências: `docs/runbooks/evidences/frontend-foundation/v1.0/README.md`.
