@@ -45,3 +45,17 @@ SEMGREP_TIMEOUT=5 bash scripts/security/run_sast.sh
 
 > Resultado desejado: em todos os cenários acima, a análise de SAST não permanece indefinidamente em execução; quando atingir o limite configurado, o job encerra de forma previsível, confirmando a correção.
 
+---
+
+## Validação prática — evidências (execução)
+
+- PR de validação: #121 — "ci(security): validação issue #84 — SAST timeout curto (SEMGREP_TIMEOUT=5)".
+  - Link: https://github.com/Tomvaz11/iabank/pull/121
+  - Runs relevantes:
+    - 19246463414 — Security Checks: "SAST (Semgrep)" = success (não travou). Run cancelado posteriormente por novo push, mas SAST concluiu.
+    - 19246603297 — Security Checks (fallback, SEMGREP_TIMEOUT removido): "SAST (Semgrep)" = success (confirmado fallback 300s; sem travamento).
+  - Status do PR: FECHADO (branch de validação removida). Sem mudanças para merge.
+
+- Execução local controlada:
+  - Comando: `SEMGREP_TIMEOUT=5 bash scripts/security/run_sast.sh`
+  - Resultado: execução concluiu (≈35s) sem travamento, confirmando comportamento regular com timeout configurado.
