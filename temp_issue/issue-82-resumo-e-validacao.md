@@ -63,3 +63,10 @@ Critérios de aceitação
 - Em `main`/`release/*`, o pipeline quebra (fail‑closed) na presença de outage.
 - Comportamento idempotente (sem spam de comentários/labels) e logs claros.
 - Evidências coletadas: links de PRs e runs do Actions anexados às docs do projeto.
+
+## Evidências da validação executada agora
+- PR de teste: #115 — https://github.com/Tomvaz11/iabank/pull/115 (branch `chore/ci-pr-annotation-smoke-issue-82`)
+- Run (fail-open, com anotação no PR): https://github.com/Tomvaz11/iabank/actions/runs/19242247663
+  - Resultado visível no PR: label `ci-outage` aplicada e comentário criado.
+- Run adicional (fail-closed, simulado em `main`): https://github.com/Tomvaz11/iabank/actions/runs/19242295777
+  - Objetivo: validar caminho de fail-closed (sem anotar PR). O job é tolerante a erro (`continue-on-error`) apenas para fins de selftest.
