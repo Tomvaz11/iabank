@@ -3,7 +3,7 @@ FROM python:3.11-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     POETRY_HOME=/opt/poetry \
-    POETRY_VERSION=2.2.1 \
+    POETRY_VERSION=1.8.3 \
     POETRY_VIRTUALENVS_IN_PROJECT=true \
     PATH="/opt/poetry/bin:${PATH}"
 
@@ -16,7 +16,7 @@ RUN curl -sSL https://install.python-poetry.org | python3 -
 WORKDIR /app
 
 COPY pyproject.toml poetry.lock* /app/
-RUN poetry install --with dev --no-root
+RUN poetry install --with dev --no-root --no-interaction --no-ansi --sync
 
 COPY backend /app/backend
 COPY contracts /app/contracts
