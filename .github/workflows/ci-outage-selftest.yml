@@ -1,7 +1,12 @@
 name: CI Outage Selftest
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Número do PR para anotar (opcional para fail-open)"
+        required: false
+        type: string
 
 env:
   PNPM_VERSION: 9.12.2
@@ -52,6 +57,8 @@ jobs:
           GITHUB_REF_NAME: selftest-failopen
           # GitHub context (best effort; script tolerates missing PR)
           GITHUB_TOKEN: ${{ github.token }}
+          # Opcional: anotar um PR específico durante o fail-open
+          PR_NUMBER: ${{ inputs.pr_number || '' }}
         run: |
           set -euo pipefail
           echo "Running outage selftest (fail-open)..."
