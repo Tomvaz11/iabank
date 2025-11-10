@@ -378,6 +378,12 @@ jobs:
         run: |
           echo "UI changed? -> ${{ needs.changes.outputs.ui }}"
 
+
+      - name: Simular outage controlado (#82)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          echo "Simulando outage controlado (#82)"
+          exit 1
       - name: Build Storybook estático
         if: ${{ needs.changes.outputs.ui == 'true' }}
         timeout-minutes: 15
