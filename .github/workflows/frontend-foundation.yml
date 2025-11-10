@@ -9,6 +9,7 @@ on:
       - 'release/**'
   push:
     branches:
+      - 'validate/**'
       - main
       - develop
       - 'feature/**'
