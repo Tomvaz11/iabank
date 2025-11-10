@@ -1,12 +1,7 @@
 name: CI Outage Selftest
 
 on:
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: "Número do PR para anotar (opcional para fail-open)"
-        required: false
-        type: string
+  workflow_dispatch: {}
 
 env:
   PNPM_VERSION: 9.12.2
@@ -16,10 +11,6 @@ jobs:
   selftest:
     name: Post OTEL Outage Event (Cloudflare)
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -57,13 +48,10 @@ jobs:
           FOUNDATION_DEFAULT_TENANT: tenant-alfa
           # Simulate outage via local log with known patterns (read by script)
           CI_OUTAGE_CHROMATIC_LOG: chromatic-selftest.log
-          # Force non-release branch name to validate fail-open behavior (also override HEAD_REF)
+          # Force non-release branch name to validate fail-open behavior (we also pass explicit JSON)
           GITHUB_REF_NAME: selftest-failopen
-          GITHUB_HEAD_REF: selftest-failopen
           # GitHub context (best effort; script tolerates missing PR)
           GITHUB_TOKEN: ${{ github.token }}
-          # Opcional: anotar um PR específico durante o fail-open
-          PR_NUMBER: ${{ inputs.pr_number || '' }}
         run: |
           set -euo pipefail
           echo "Running outage selftest (fail-open)..."
@@ -84,10 +72,6 @@ jobs:
   selftest-fail-closed:
     name: Post OTEL Outage Event (Fail-Closed on main)
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -123,9 +107,7 @@ jobs:
           CI_OUTAGE_AXE_JOB_NAME: selftest-axe
           FOUNDATION_DEFAULT_TENANT: tenant-alfa
           CI_OUTAGE_CHROMATIC_LOG: chromatic-selftest-fc.log
-          # Force release branch context (override HEAD_REF as well)
           GITHUB_REF_NAME: main
-          GITHUB_HEAD_REF: main
         run: |
           set -euo pipefail
           echo "Running outage selftest (fail-closed expected on main)..."
