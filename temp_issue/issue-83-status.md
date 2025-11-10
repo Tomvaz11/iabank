@@ -60,4 +60,47 @@ Objetivo: comprovar que (1) CI e Docker estão alinhados na versão do Poetry (1
 - Adicionar step de verificação de versão: `poetry --version | grep 1.8.3`.
 - Falhar o job se o lock for modificado: `git diff --exit-code poetry.lock` após a instalação.
 
+---
+
+## Validação executada (agora)
+
+Data/hora (UTC): 2025-11-10T19:40:00Z
+
+Ações realizadas
+- GitHub Actions:
+  - Tentativa de `workflow_dispatch` do workflow principal: HTTP 422 — “Workflow does not have 'workflow_dispatch' trigger”.
+  - Reexecução de run anterior: não permitido (“workflow file may be broken”).
+  - Corrigido erro de YAML (passo “Resumo ZAP”) no workflow.
+  - Disparo por push em `chore/issue-83-validation-ci` após a correção:
+    - Run: 19243783235 — conclusão: success
+      - Link: https://github.com/Tomvaz11/iabank/actions/runs/19243783235
+
+- Docker (ambiente controlado):
+  - Build da imagem `iabank-backend:test` OK.
+  - Log de instalação mostra “Installing Poetry (1.8.3)” e finaliza OK.
+  - Comandos validados no container:
+    - `poetry --version` → “Poetry (version 1.8.3)”.
+    - `poetry install --with dev --no-ansi --no-interaction --no-root` foi executado na build com sucesso (sem `poetry lock`).
+  - `pytest` dentro do container retornou erro de configuração do Django (settings/DB), não conclusivo para a saúde dos testes, mas não afeta a validação do alinhamento do Poetry.
+
+Conclusão da validação
+- Alinhamento do Poetry para 1.8.3 e remoção do `poetry lock --no-update` confirmados no Dockerfile e no workflow do CI.
+- Execução ponta a ponta via GitHub Actions foi realizada com sucesso no branch de validação após correção do YAML. Poetry 1.8.3 instalado e `poetry install --with dev --no-ansi --no-interaction` utilizado; nenhum `poetry lock` executado.
+
+Próximos passos sugeridos
+- Abrir/acompanhar PR para levar a correção de YAML ao `main`: https://github.com/Tomvaz11/iabank/pull/119
+- Após merge, revalidar um push em `main` para assegurar estabilidade contínua do pipeline.
+
+---
+
+## Atualizações adicionais
+
+- Guardrails no CI: adicionados passos para verificar a versão do Poetry (1.8.3) e garantir que o `poetry.lock` não foi alterado (via `git diff --exit-code poetry.lock`).
+- Documentação alinhada ao padrão:
+  - `README.md`: pré‑requisito Poetry 1.8.3 e uso de `poetry install --with dev --sync --no-interaction --no-ansi`.
+  - `CONTRIBUTING.md`: seção de Ambiente Python/Poetry com comandos recomendados.
+  - `docs/lgpd/rls-evidence.md`: preparação de ambiente com Poetry 1.8.3.
+  - `docs/runbooks/frontend-foundation.md`: nota sobre validação com Poetry 1.8.3.
+- PR aberto com esses ajustes: https://github.com/Tomvaz11/iabank/pull/120
+
 \n<!-- CI validation trigger: 2025-11-10T19:23:13Z -->
