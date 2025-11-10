@@ -95,7 +95,7 @@ jobs:
   timeout-simulation:
     name: Timeout Simulation (issue-85)
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/heads/test/issue-85-') }}
+    if: ${{ (github.event_name == 'pull_request' && startsWith(github.head_ref, 'test/issue-85-')) || (github.event_name != 'pull_request' && startsWith(github.ref, 'refs/heads/test/issue-85-')) }}
     steps:
       - name: Simular step longo com timeout
         timeout-minutes: 1
@@ -674,7 +674,9 @@ jobs:
         if: ${{ (env.CI_ENFORCE_FULL_SECURITY == 'true' || github.event_name == 'pull_request') && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true') }}
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
         env:
-          ZAP_BASELINE_TARGET: ${{ startsWith(github.ref, 'refs/heads/test/issue-85-') && 'http://127.0.0.1:8000/invalid' || 'http://127.0.0.1:8000/metrics' }}
+          ZAP_BASELINE_TARGET: ${{ (github.event_name == 'pull_request' && startsWith(github.head_ref, 'test/issue-85-')) || (github.event_name != 'pull_request' && startsWith(github.ref, 'refs/heads/test/issue-85-')) 
+            && 'http://127.0.0.1:9999/invalid' 
+            || 'http://127.0.0.1:8000/metrics' }}
         timeout-minutes: 12
         run: poetry run bash scripts/security/run_dast.sh
 
