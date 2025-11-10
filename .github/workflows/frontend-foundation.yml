@@ -665,6 +665,14 @@ jobs:
         timeout-minutes: 12
         run: poetry run bash scripts/security/run_dast.sh
 
+      - name: Coletar logs do Django (ZAP)
+        if: always()
+        run: |
+          mkdir -p artifacts/zap
+          if [ -f /tmp/django-zap.log ]; then
+            cp /tmp/django-zap.log artifacts/zap/django-zap.log || true
+          fi
+
       - name: Upload ZAP artifacts
         if: always()
         uses: actions/upload-artifact@v4

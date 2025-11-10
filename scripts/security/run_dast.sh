@@ -55,6 +55,8 @@ set +e
 docker run --rm \
   --pull=always \
   --network=host \
+  -u 0:0 \
+  -w /zap/wrk \
   -v "${REPORT_DIR}:/zap/wrk" \
   ghcr.io/zaproxy/zaproxy:stable \
   /zap/zap-baseline.py \
@@ -64,13 +66,15 @@ docker run --rm \
   -w zap-warnings.md \
   -r zap-report.html \
   -x zap-report.xml \
-  -m 5
+  -m 5 ${ZAP_BASELINE_EXTRA_ARGS:-}
 status=$?
 set -e
 if [ "$status" -eq 2 ]; then
   echo "[DAST] Somente WARN foram detectados — registrando como sucesso (sem FAILs)."
   status=0
 fi
+echo "Conteúdo do diretório de relatórios (${REPORT_DIR}):"
+ls -la "${REPORT_DIR}" || true
 exit "$status"
 
 echo "Relatórios ZAP armazenados em ${REPORT_DIR}."
