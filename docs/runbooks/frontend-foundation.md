@@ -126,7 +126,7 @@ Pontos de Contato
 
 - Visual/Chromatic: ajustar `fetch-depth: 0` no `actions/checkout` do job ou adicionar commits na branch para permitir baseline; validar cobertura ≥ 95% e anexar `chromatic-coverage.json`.
 - Performance: atualizar ação k6 para uma tag existente (`grafana/setup-k6-action@v1` ou equivalente), reexecutar; anexar `artifacts/k6-smoke.json` e relatórios Lighthouse.
-- Segurança: corrigir rule Semgrep com schema inválido; ajustar `pip-audit` para Poetry 2.x; garantir SBOM gerada e validada (upload OK).
+- Segurança: corrigir rule Semgrep com schema inválido; validar `pip-audit` com Poetry 1.8.3 (alinhado ao CI/Docker); migração para Poetry 2.x fica em backlog; garantir SBOM gerada e validada (upload OK).
 
 ### Evidências PR #12 — run verde
 - Workflow (pull_request): https://github.com/Tomvaz11/iabank/actions/runs/19050934281

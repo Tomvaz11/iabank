@@ -62,6 +62,13 @@ A pipeline principal executa e/ou exige:
   - Com Poetry: `poetry run pre-commit install` (ou `pre-commit install`).
   - Rodar em todos os arquivos: `pre-commit run -a`.
 
+## Ambiente Python/Poetry
+- Versão padronizada: Poetry 1.8.3 (alinhado ao CI e ao Dockerfile).
+- Instalação recomendada local:
+  - `python -m pip install -U pip && pip install "poetry==1.8.3"`
+  - `poetry install --with dev --sync --no-interaction --no-ansi`
+  - O `poetry.lock` não deve ser recriado/alterado no CI; evite `poetry lock` em pipelines.
+
 ## Governança (resumo)
 - Revisões: CODEOWNERS define responsáveis por áreas do código.
 - Proteção da `main`: habilite no GitHub (require PR, squash only, linear history, required checks). Configuração é feita nas “Branch protection rules” do repositório.
