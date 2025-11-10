@@ -277,11 +277,8 @@ jobs:
       # Removido: plugin de export não é necessário para instalação/execução dos testes
       # e versões recentes (>=1.9) exigem Poetry 2.x, conflitando com 1.8.x.
 
-      - name: Atualizar lock (sem atualizar versões)
-        run: poetry lock --no-update
-
       - name: Install Python dependencies
-        run: poetry install --with dev
+        run: poetry install --with dev --no-ansi --no-interaction
 
       - name: Pytest (coverage gate)
         env:
@@ -617,13 +614,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install poetry==1.8.3
 
-      - name: Atualizar lock (sem atualizar versões)
-        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
-        run: poetry lock --no-update
-
       - name: Install Python dependencies
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
-        run: poetry install --with dev
+        run: poetry install --with dev --no-ansi --no-interaction
 
       - name: Aguardar Postgres ficar disponível
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
