@@ -63,6 +63,13 @@ Estes são os contextos atualmente exigidos na proteção da branch `main` (Bran
 - CI Outage Guard
 - CI Diagnostics
 
+Nota — CI Outage Guard (permissões para anotar PR)
+- Para que o Outage Guard possa rotular/comentar PRs quando houver outage, o workflow principal precisa do bloco `permissions` com:
+  - `contents: read`
+  - `pull-requests: write`
+  - `issues: write`
+- Este requisito foi aplicado no PR #90 e verificado em 2025‑11‑09 via smoke test (comentário/label criados e removidos com sucesso em PR existente).
+
 Notas de governança relacionadas:
 - Merge: squash-only, com exclusão de branch ao mesclar.
 - Histórico linear: habilitado.

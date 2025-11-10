@@ -18,6 +18,14 @@ Componentes relevantes:
 - Secrets no GitHub: `FOUNDATION_OTEL_OUTAGE_ENDPOINT`, `FOUNDATION_OTEL_OUTAGE_TOKEN`.
 - Worker Cloudflare: binding `CI_OUTAGES` (KV Namespace) + secret `CI_OUTAGE_TOKEN`.
 
+Permissões do workflow (GITHUB_TOKEN)
+- Para anotar PRs (labels/comentários) quando houver outage, o workflow principal DEVE declarar:
+  - `permissions:`
+    - `contents: read`
+    - `pull-requests: write`
+    - `issues: write`
+- Evidência (2025‑11‑09): run `Frontend Foundation CI` no PR #90 exibiu no log do job `CI Outage Guard` o bloco “GITHUB_TOKEN Permissions: Contents: read; Issues: write; PullRequests: write”.
+
 ## Pré‑requisitos
 
 - Repositório com os secrets configurados (GitHub → Settings → Secrets and variables → Actions):
@@ -62,6 +70,10 @@ Observações:
   - Mantenha o rótulo `ci-outage` até a normalização.
   - Evite merge sem revisão consciente do risco (principalmente se o PR impactar diretamente os gates afetados).
   - Quando os jobs passarem verde novamente, remova o rótulo e prossiga.
+
+## Evidências complementares (2025‑11‑09)
+- PR #90 aplicou as permissões no workflow de CI para permitir anotações em PRs.
+- Smoke test: workflow temporário executado na `main` (run `19215914570`) criou e removeu comentário e label em PR, comprovando o caminho de escrita do `GITHUB_TOKEN`.
 
 ## Troubleshooting
 
