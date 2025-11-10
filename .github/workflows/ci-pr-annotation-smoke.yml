@@ -1,0 +1,61 @@
+name: CI PR Annotation Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Número do PR a ser anotado"
+        required: true
+        type: string
+
+jobs:
+  annotate:
+    name: Simular outage e anotar PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 9.12.2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.17.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Compilar scripts TypeScript
+        run: pnpm exec tsc -p tsconfig.scripts.json
+
+      - name: Criar log sintético com padrão de outage
+        run: echo "ECONNRESET simulated by smoke" > chromatic-smoke.log
+
+      - name: Executar anotação via handle-outage (fail-open)
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+          # Simular falha no Chromatic/axe para acionar outage
+          CI_OUTAGE_CHROMATIC_JOB_STATUS: failure
+          CI_OUTAGE_CHROMATIC_JOB_NAME: smoke-visual
+          CI_OUTAGE_CHROMATIC_LOG: chromatic-smoke.log
+          CI_OUTAGE_AXE_JOB_STATUS: failure
+          CI_OUTAGE_AXE_JOB_NAME: smoke-axe
+          # Forçar branch não-release para política fail-open
+          GITHUB_REF_NAME: smoke-nonrelease-issue-82
+        run: node scripts/dist/ci/handle-outage.js
+
+      - name: Exibir artefato/relato de outage (se existir)
+        if: always()
+        run: |
+          if [ -f observabilidade/data/ci-outages.json ]; then
+            echo "--- outages.json (últimos 50 linhas) ---"; tail -n 50 observabilidade/data/ci-outages.json || true;
+          else
+            echo "observabilidade/data/ci-outages.json não gerado (ok).";
+          fi
