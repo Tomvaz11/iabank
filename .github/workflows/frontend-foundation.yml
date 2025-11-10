@@ -173,7 +173,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            scripts/**
+            frontend/scripts/**
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -184,6 +187,7 @@ jobs:
   test:
     name: Vitest
     runs-on: ubuntu-latest
+    container: python:3.11
     needs: lint
     services:
       postgres:
@@ -192,8 +196,6 @@ jobs:
           POSTGRES_DB: foundation
           POSTGRES_USER: foundation
           POSTGRES_PASSWORD: foundation
-        ports:
-          - 5432:5432
         options: >-
           --health-cmd="pg_isready -U foundation"
           --health-interval=10s
@@ -213,7 +215,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            scripts/**
+            frontend/scripts/**
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -281,7 +286,7 @@ jobs:
         run: poetry --version | grep '1.8.3'
 
       - name: Install Python dependencies
-        run: poetry install --with dev --no-ansi --no-interaction
+        run: poetry install --with dev --no-ansi --no-interaction --sync
 
       - name: Garantir que poetry.lock não foi alterado
         run: git diff --exit-code poetry.lock
@@ -292,7 +297,7 @@ jobs:
           FOUNDATION_DB_NAME: foundation
           FOUNDATION_DB_USER: foundation
           FOUNDATION_DB_PASSWORD: foundation
-          FOUNDATION_DB_HOST: localhost
+          FOUNDATION_DB_HOST: postgres
           FOUNDATION_DB_PORT: 5432
           FOUNDATION_DB_TEST_NAME: foundation_test
         run: |
@@ -328,7 +333,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            scripts/**
+            frontend/scripts/**
 
       - name: Install dependencies
         if: ${{ needs.changes.outputs.contracts == 'true' }}
@@ -371,7 +379,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            scripts/**
+            frontend/scripts/**
 
       - name: Install dependencies
         if: ${{ needs.changes.outputs.ui == 'true' }}
@@ -455,7 +466,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            scripts/**
+            frontend/scripts/**
 
       - name: Setup k6
         if: ${{ needs.changes.outputs.ui == 'true' }}
@@ -531,6 +545,7 @@ jobs:
   security:
     name: Security Checks
     runs-on: ubuntu-latest
+    container: python:3.11
     needs:
       - contracts
       - changes
@@ -538,8 +553,6 @@ jobs:
     services:
       postgres:
         image: postgres:15
-        ports:
-          - 5432:5432
         env:
           POSTGRES_DB: foundation
           POSTGRES_USER: foundation
@@ -553,7 +566,7 @@ jobs:
       CI_ENFORCE_FULL_SECURITY: ${{ github.event_name != 'workflow_dispatch' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/')) }}
       CI_FAIL_OPEN: ${{ github.event_name != 'workflow_dispatch' && github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
       FOUNDATION_DB_VENDOR: postgresql
-      FOUNDATION_DB_HOST: 127.0.0.1
+      FOUNDATION_DB_HOST: postgres
       FOUNDATION_DB_PORT: '5432'
       FOUNDATION_DB_NAME: foundation
       FOUNDATION_DB_USER: foundation
@@ -581,7 +594,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            scripts/**
+            frontend/scripts/**
 
       - name: Setup Python
         id: setup_py_sec
@@ -626,7 +642,7 @@ jobs:
 
       - name: Install Python dependencies
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
-        run: poetry install --with dev --no-ansi --no-interaction
+        run: poetry install --with dev --no-ansi --no-interaction --sync
 
       - name: Garantir que poetry.lock não foi alterado
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
@@ -636,7 +652,7 @@ jobs:
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         run: |
           for i in {1..30}; do
-            if (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1; then
+            if (echo > /dev/tcp/postgres/5432) >/dev/null 2>&1; then
               echo "[ok] Postgres disponível";
               break;
             fi
@@ -795,7 +811,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            scripts/**
+            frontend/scripts/**
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -817,5 +836,48 @@ jobs:
           FOUNDATION_OTEL_OUTAGE_TOKEN: ${{ secrets.FOUNDATION_OTEL_OUTAGE_TOKEN }}
           FOUNDATION_DEFAULT_TENANT: tenant-alfa
         run: node scripts/dist/ci/handle-outage.js
+
+  precommit:
+    name: Pre-commit (opcional)
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pre-commit
+        run: python -m pip install --upgrade pip pre-commit
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            scripts/**
+            frontend/scripts/**
+
+      - name: Install dependencies (frontend)
+        run: pnpm install --frozen-lockfile
+
+      - name: Run pre-commit (não bloqueante)
+        continue-on-error: true
+        run: pre-commit run --all-files --show-diff-on-failure --color always
+
+      - name: Summary do pre-commit
+        if: always()
+        run: |
+          echo "Pre-commit executado. Consulte os logs do job para detalhes." >> "$GITHUB_STEP_SUMMARY"
 
 # no-op bump to trigger indexing
