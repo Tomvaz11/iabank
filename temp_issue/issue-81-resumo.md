@@ -16,6 +16,7 @@
 ## Evidências nos pipelines
 - Branch do PR (#102): múltiplos runs do workflow principal terminaram em failure, consistente com gates ativos (falham quando cobertura/gates não atendem).
 - Pós-merge na `main`: houve run do workflow principal com conclusão failure (reforça que o corte está em vigor); outros workflows não relacionados (ex.: Vault Rotation Checks) passaram.
+- Validação prática (2025-11-10): aberto PR #114 "chore(ci): verify coverage gates (#81)" para acionar o CI. Run do workflow principal: https://github.com/Tomvaz11/iabank/actions/runs/19241440872 — status: failure (gate ativo).
 
 ## Observações (E2E/DAST)
 - Não era critério da issue #81 executar E2E; foco é cobertura 85%.
@@ -62,4 +63,3 @@ poetry run pytest --cov-fail-under=99
 3) Conferir o passo “Print coverage summary” para o resumo do Vitest.
 
 > Conclusão: a issue foi implementada. Os passos acima validam, na prática, que os gates de 85% estão ativos e falham corretamente abaixo do limite.
-
