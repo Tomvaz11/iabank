@@ -559,8 +559,7 @@ jobs:
       FOUNDATION_DB_NAME: foundation
       FOUNDATION_DB_USER: foundation
       FOUNDATION_DB_PASSWORD: foundation
-      # Validação issue #84: forçar timeout curto do Semgrep para confirmar que o job não pendura
-      SEMGREP_TIMEOUT: '5'
+      # Validação issue #84: removido SEMGREP_TIMEOUT para validar fallback padrão (300s)
     steps:
       - name: Checkout
         uses: actions/checkout@v4
