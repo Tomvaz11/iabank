@@ -64,7 +64,7 @@ docker run --rm \
   -w zap-warnings.md \
   -r zap-report.html \
   -x zap-report.xml \
-  -m 5
+  -m 5 ${ZAP_BASELINE_EXTRA_ARGS:-}
 status=$?
 set -e
 if [ "$status" -eq 2 ]; then
