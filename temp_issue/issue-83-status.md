@@ -60,3 +60,4 @@ Objetivo: comprovar que (1) CI e Docker estão alinhados na versão do Poetry (1
 - Adicionar step de verificação de versão: `poetry --version | grep 1.8.3`.
 - Falhar o job se o lock for modificado: `git diff --exit-code poetry.lock` após a instalação.
 
+\n<!-- CI validation trigger: 2025-11-10T19:23:13Z -->
