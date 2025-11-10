@@ -72,6 +72,8 @@ if [ "$status" -eq 2 ]; then
   echo "[DAST] Somente WARN foram detectados — registrando como sucesso (sem FAILs)."
   status=0
 fi
+echo "Conteúdo do diretório de relatórios (${REPORT_DIR}):"
+ls -la "${REPORT_DIR}" || true
 exit "$status"
 
 echo "Relatórios ZAP armazenados em ${REPORT_DIR}."
