@@ -55,6 +55,7 @@ set +e
 docker run --rm \
   --pull=always \
   --network=host \
+  -u 0:0 \
   -w /zap/wrk \
   -v "${REPORT_DIR}:/zap/wrk" \
   ghcr.io/zaproxy/zaproxy:stable \
