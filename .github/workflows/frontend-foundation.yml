@@ -550,7 +550,8 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      CI_ENFORCE_FULL_SECURITY: ${{ github.event_name != 'workflow_dispatch' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/')) }}
+      # Força execução completa dos checks de segurança nesta validação (issue #84)
+      CI_ENFORCE_FULL_SECURITY: true
       CI_FAIL_OPEN: ${{ github.event_name != 'workflow_dispatch' && github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
       FOUNDATION_DB_VENDOR: postgresql
       FOUNDATION_DB_HOST: 127.0.0.1
