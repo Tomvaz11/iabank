@@ -75,7 +75,7 @@
 - Storybook: `pnpm --filter @iabank/frontend-foundation storybook:build` e `storybook:test` → `3-frontend/storybook.log`.
 
 ### 5. E2E e Performance
-- Playwright E2E: `pnpm test:e2e` (instalar browsers se necessário: `pnpm exec playwright install --with-deps`) → `3-frontend/e2e.log`.
+- Playwright E2E: `pnpm test:e2e` (instalar browsers se necessário: `pnpm exec playwright install chromium`) → `3-frontend/e2e.log`.
 - Lighthouse budgets: `pnpm perf:lighthouse` → `5-perf-obs/lighthouse.log` (+ relatórios gerados).
 - k6 smoke: `pnpm perf:smoke:ci` → `5-perf-obs/k6-smoke.log` e `artifacts/k6-smoke.json`.
  - k6 smoke (CI): `pnpm perf:smoke:ci` → `5-perf-obs/k6-smoke.log` e `artifacts/k6-smoke.json`.

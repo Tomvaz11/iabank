@@ -143,7 +143,7 @@
 ## Dependências e Riscos
 - Segredos Vault podem não estar disponíveis em ambiente local; preparar variáveis mock e documentar diferenças.
 - Comandos de performance (Lighthouse/k6) exigem recursos; mitigar rodando isoladamente e monitorando CPU/RAM.
-- Playwright pode requerer `pnpm exec playwright install --with-deps`; prever passo caso falte binário.
+ - Playwright pode requerer `pnpm exec playwright install chromium`; prever passo caso falte binário.
 - Se `act` não estiver instalado, propor alternativa para validar workflow (ex.: `actionlint` remoto ou revisão manual).
 
 ## Estratégia de Comunicação
