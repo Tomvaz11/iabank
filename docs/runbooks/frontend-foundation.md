@@ -35,13 +35,12 @@ Evidências de Rollout & Gates
 - `SC-005`: arquive o resultado do comando `python scripts/observability/check_structlog.py <log>` (aplicado nos logs do deploy) e registre captura do painel “SC-005 — Incidentes PII (30d)”. Confirme também a ausência de sinais no painel “Error Budget Consumido (%)”.
 - Error budget: se o painel atingir ≥ 80%, abra incidente no template `docs/runbooks/incident-response.md`, pause deploys e anexe no README as ações de mitigação planejadas.
 
-Notas CI — Lote 2 (2025‑11‑11)
+Notas CI — Lote 3 (2025‑11‑11)
 - Pre-commit incremental (PR): o log do job “Pre-commit (lint hooks)” deve conter a linha
   "Executando pre-commit por diff: $BASE..$HEAD". Em `main`/`release/*`/tags o job executa full scan.
-- Gates por paths no job “Vitest”:
-  - O passo “Resumo de mudanças (tests)” imprime `frontend changed?` e `backend changed?` com base nos outputs do job `changes`.
-  - PR frontend-only: espera “Vitest sim” e “Pytest/Radon não”. PR backend-only: espera “Pytest/Radon sim” e “Vitest não”.
-  - Em `main`/`release/*`/tags: ambos executam.
+- Gates por paths nos testes:
+  - “Vitest” (job `test-frontend`) roda quando `frontend == 'true'` (PR/dev) e sempre em `main`/`release/*`/tags.
+  - “Pytest + Radon” (job `test-backend`) roda quando `backend == 'true'` (PR/dev) e sempre em `main`/`release/*`/tags.
   - Dica com gh: `gh run view <RUN_ID> --log | rg -n "Run Vitest|Pytest (coverage gate)|Radon complexity gate"`.
 
 Ativação de Flags por Tenant
@@ -119,7 +118,7 @@ Pontos de Contato
 - Jobs:
   - CI Diagnostics: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406825564 (success)
   - Lint: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406825581 (success)
-  - Vitest (inclui Pytest): https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406870319 (success)
+  - Vitest (na época incluía Pytest; hoje separado em “Vitest” e “Pytest + Radon”): https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406870319 (success)
     - Coverage Vitest: All files — Statements 95.17%, Lines 95.17%, Functions 88.88%, Branches 84.75.
     - Coverage Pytest: TOTAL 87%.
   - Contracts (Spectral, OpenAPI Diff, Pact): https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406986661 (success)
@@ -139,7 +138,7 @@ Pontos de Contato
 
 ### Evidências PR #12 — run verde
 - Workflow (pull_request): https://github.com/Tomvaz11/iabank/actions/runs/19050934281
-- Jobs (principais): Lint (success); Vitest/Pytest (success); Contracts (success); Visual & A11y (success — Chromatic executado; test‑runner sem violações); Performance (success — k6 e Lighthouse tolerantes); Security Checks (success — PR fail‑open).
+- Jobs (principais): Lint (success); Vitest e Pytest + Radon (success); Contracts (success); Visual & A11y (success — Chromatic executado; test‑runner sem violações); Performance (success — k6 e Lighthouse tolerantes); Security Checks (success — PR fail‑open).
   - ATUALIZAÇÃO 2025‑11‑08: gates de Performance e Segurança agora são estritos também nos PRs (fail‑closed). O workflow temporário “Quick Perf+Security Check” foi removido.
 
 Resumo consolidado
@@ -157,7 +156,7 @@ Pipelines em `main`
 - Conferir últimos runs do workflow `frontend-foundation.yml` na `main`:
   - `gh run list --workflow=frontend-foundation.yml --branch main --limit 3`
   - `gh run view <RUN_ID> --log`
-- Esperado: Lint, Testes (Vitest/Pytest), Contracts, Security, Threat Model, CI Outage Guard em sucesso; Visual/Performance conforme políticas do PR/base.
+- Esperado: Lint, Testes (Vitest e Pytest + Radon), Contracts, Security, Threat Model, CI Outage Guard em sucesso; Visual/Performance conforme políticas do PR/base.
 
 Sincronização GitOps (Argo CD)
 - Aplicação: `frontend-foundation`
@@ -196,7 +195,7 @@ Observabilidade (24–48h)
 
 - Pipelines em `main`
   - Último run (manual, workflow_dispatch) em `main`: https://github.com/Tomvaz11/iabank/actions/runs/19048561651 — Status: SUCESSO.
-  - Jobs esperados: Lint, Vitest/Pytest, Contracts, Security, Threat Model, CI Outage Guard. Visual/Performance são pulados em `workflow_dispatch` por política.
+  - Jobs esperados: Lint, Vitest, Pytest + Radon, Contracts, Security, Threat Model, CI Outage Guard. Visual/Performance podem ser pulados em `workflow_dispatch` por política.
 
 - Artefatos de referência
   - Lighthouse (mais recente): `observabilidade/data/lighthouse-latest.json`.

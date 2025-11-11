@@ -33,11 +33,11 @@ A pipeline principal executa e/ou exige:
   - O checkout do job usa `fetch-depth: 0` para garantir diffs confiáveis.
   - Hooks definidos em `.pre-commit-config.yaml` (ESLint/Ruff); o job grava um resumo no Job Summary.
 
-- Testes (gates por paths):
-  - O job “Vitest” prepara Node e executa Vitest somente quando há mudanças no frontend (outputs de `changes`), e SEMPRE em `main`/`release/*`/tags.
-  - No mesmo job, a preparação de Python e os passos Pytest/Radon executam somente quando há mudanças no backend (outputs de `changes`), e SEMPRE em `main`/`release/*`/tags.
-  - Dica: o passo “Resumo de mudanças (tests)” imprime `needs.changes.outputs.frontend/backend` para diagnóstico rápido.
-  - Importante: “Vitest” é um Required Check. Não renomeie o job sem atualizar as Branch Protection Rules.
+- Testes (gates por paths) — Lote 3:
+  - “Vitest” (job `test-frontend`): prepara Node e executa Vitest quando `needs.changes.outputs.frontend == 'true'` (em PR/dev). Em `main`/`release/*`/tags, sempre executa.
+  - “Pytest + Radon” (job `test-backend`): prepara Python/Poetry e executa Pytest/Radon quando `needs.changes.outputs.backend == 'true'` (em PR/dev). Em `main`/`release/*`/tags, sempre executa.
+  - Dica: os passos “Resumo de mudanças (tests - frontend/backend)” imprimem `needs.changes.outputs.frontend/backend` para diagnóstico rápido.
+  - Required checks: se “Vitest” já for required, avalie adicionar “Pytest + Radon” às Branch Protection Rules (nome exato do job).
 
 ### Onde consultar gates do CI (sem duplicar valores)
 - Workflow principal: `.github/workflows/frontend-foundation.yml:1`

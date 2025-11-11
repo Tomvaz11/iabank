@@ -42,11 +42,15 @@ Nota operacional: esta seção foi ajustada apenas para validar o comportamento 
   - `actions/checkout@v4` com `fetch-depth: 0` para garantir histórico e permitir `--from-ref/--to-ref`.
   - PRs executam `pre-commit run --from-ref $BASE --to-ref $HEAD --show-diff-on-failure`.
   - Em `main`/`release/*`/tags, executa `--all-files`.
-- Gates por paths no job “Vitest” (tests):
-  - Node/pnpm + “Run Vitest (coverage gate)” executam quando `needs.changes.outputs.frontend == 'true'` ou sempre em `main`/`release/*`/tags.
-  - Python/Poetry + “Pytest (coverage gate)” e “Radon complexity gate” executam quando `needs.changes.outputs.backend == 'true'` ou sempre em `main`/`release/*`/tags.
-  - O job depende de `changes` (`needs: [lint, changes]`) e consome os outputs `frontend`/`backend` do filtro.
-  - Observação: o nome do job permanece “Vitest” por requisito de Branch Protection; não renomear sem atualizar a regra.
+## Atualizações (2025-11-11) — Lote 3
+- Testes paralelos: dividido em dois jobs — `test-frontend` (Vitest) e `test-backend` (Pytest + Radon), ambos com `needs: [lint, changes]` e execução paralela.
+- Gates por paths nos testes:
+  - Vitest: executa quando `needs.changes.outputs.frontend == 'true'` (PR/dev) e SEMPRE em `main`/`release/*`/tags.
+  - Pytest + Radon: executa quando `needs.changes.outputs.backend == 'true'` (PR/dev) e SEMPRE em `main`/`release/*`/tags.
+- Contracts:
+  - `contracts` não depende mais de `test`.
+  - Pact consumer verification roda quando `contracts == 'true'` OU `frontend == 'true'`.
+  - Spectral/OpenAPI diff roda apenas quando `contracts == 'true'`.
 
 ## Prova de TDD (Art. III)
 - PRs DEVEM evidenciar “vermelho → verde” para mudanças de código:
@@ -66,6 +70,7 @@ Nota operacional: esta seção foi ajustada apenas para validar o comportamento 
 Estes são os contextos atualmente exigidos na proteção da branch `main` (Branch protection rules). Mantemos a lista aqui para referência rápida e auditoria:
 - Lint
 - Vitest
+- Pytest + Radon
 - Contracts (Spectral, OpenAPI Diff, Pact)
 - Visual & Accessibility Gates
 - Performance Budgets
