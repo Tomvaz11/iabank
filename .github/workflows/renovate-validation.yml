@@ -28,8 +28,7 @@ jobs:
       - name: Validate Renovate schema (renovate-config-validator)
         run: |
           set -euo pipefail
-          # Pin major estável para previsibilidade (issue #86)
-          npx --yes -p renovate@^39 renovate-config-validator --strict renovate.json
+          npx --yes -p renovate@latest renovate-config-validator --strict renovate.json
 
       - name: Ensure assignees configurados
         run: |

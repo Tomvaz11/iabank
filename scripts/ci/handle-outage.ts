@@ -5,40 +5,6 @@ export {};
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
-const timers = require('timers/promises');
-async function sleep(ms: number) {
-  await timers.setTimeout(ms);
-}
-
-async function fetchWithRetry(
-  url: string,
-  init?: any,
-  attempts = 3,
-  backoffMs = 300,
-): Promise<any> {
-  let lastError: unknown;
-  for (let i = 0; i < attempts; i += 1) {
-    try {
-      const res = await fetch(url, init);
-      if (!res.ok && res.status !== 429 && res.status < 500) {
-        return res;
-      }
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      return res;
-    } catch (err) {
-      lastError = err;
-      if (i < attempts - 1) {
-        await sleep(backoffMs);
-        backoffMs *= 2;
-        continue;
-      }
-    }
-  }
-  throw lastError instanceof Error ? lastError : new Error('fetchWithRetry failed');
-}
-
 type ToolStatus = {
   name: string;
   job: string;
@@ -149,7 +115,7 @@ async function checkStatusPage(url?: string): Promise<'operational' | 'degraded'
     return 'unknown';
   }
   try {
-    const response = await fetchWithRetry(url, { method: 'GET' }, 3, 300);
+    const response = await fetch(url);
     if (!response.ok) {
       return 'unknown';
     }
@@ -314,16 +280,11 @@ async function annotateGitHub(input: OutageInput, outages: ToolEvaluation[]) {
   };
 
   try {
-    await fetchWithRetry(
-      `${urlBase}/issues/${input.prNumber}/labels`,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ labels: ['ci-outage'] }),
-      },
-      3,
-      300,
-    );
+    await fetch(`${urlBase}/issues/${input.prNumber}/labels`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ labels: ['ci-outage'] }),
+    });
   } catch (error) {
     console.warn(`[ci-outage] Falha ao aplicar label ci-outage: ${(error as Error).message}`);
   }
@@ -349,16 +310,11 @@ async function annotateGitHub(input: OutageInput, outages: ToolEvaluation[]) {
   );
 
   try {
-    await fetchWithRetry(
-      `${urlBase}/issues/${input.prNumber}/comments`,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ body: commentLines.join('\n') }),
-      },
-      3,
-      300,
-    );
+    await fetch(`${urlBase}/issues/${input.prNumber}/comments`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ body: commentLines.join('\n') }),
+    });
   } catch (error) {
     console.warn(`[ci-outage] Falha ao registrar comentário: ${(error as Error).message}`);
   }
@@ -391,16 +347,11 @@ async function emitOtelEvent(input: OutageInput, outages: ToolEvaluation[]) {
     if (token && token.length > 0) {
       headers['X-Token'] = token;
     }
-    const resp = await fetchWithRetry(
-      input.otelEndpoint,
-      {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      },
-      3,
-      300,
-    );
+    const resp = await fetch(input.otelEndpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
       console.warn(

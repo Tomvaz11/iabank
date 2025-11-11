@@ -40,10 +40,3 @@
 ## Conclusão de validação
 - A issue #86 permanece apenas parcialmente atendida. Itens confirmados: step summaries e outage selftest. Pendente/fora do esperado: pin do Renovate validator, uso de `--sync` no Poetry, cache pnpm sensível a `scripts/**`, conexão ao DB por hostname `postgres` sem mapear porta, e job opcional de pre-commit.
 
-## Ações recomendadas (follow-up)
-- Renovate validator: trocar `npx -p renovate@latest` por `npx -p renovate@^39 renovate-config-validator` (exemplo) e fixar major.
-- Poetry: alterar comandos para `poetry install --no-interaction --no-ansi --sync` nas etapas de instalação.
-- pnpm cache: incluir `cache-dependency-path` com múltiplos paths (ex.: `pnpm-lock.yaml\nfrontend/scripts/**\nscripts/**`) nas etapas com cache pnpm.
-- DB no CI: remover `ports:` do serviço Postgres e usar `FOUNDATION_DB_HOST=postgres` nos jobs que precisam de banco.
-- Pre-commit: adicionar job leve com `pre-commit run --all-files` e resumo no `GITHUB_STEP_SUMMARY`.
-
