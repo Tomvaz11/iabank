@@ -43,6 +43,13 @@ Notas CI — Lote 3 (2025‑11‑11)
   - “Pytest + Radon” (job `test-backend`) roda quando `backend == 'true'` (PR/dev) e sempre em `main`/`release/*`/tags.
   - Dica com gh: `gh run view <RUN_ID> --log | rg -n "Run Vitest|Pytest (coverage gate)|Radon complexity gate"`.
 
+Notas CI — Lote 4 (2025‑11‑11)
+- Timeouts por job adicionados no workflow principal (Frontend Foundation CI):
+  - Performance Budgets: `timeout-minutes: 30` (nível do job).
+  - Security Checks: `timeout-minutes: 25` (nível do job).
+- Timeouts locais de passos permanecem inalterados (Chromatic, Storybook test, Lighthouse, Semgrep/ZAP/SCA).
+- Referência: `.github/workflows/frontend-foundation.yml`.
+
 Ativação de Flags por Tenant
 1) Validar pipelines verdes para a PR (lint, test, contracts, visual-accessibility, performance, security, SBOM).
 2) Habilitar `foundation.fsd` para um tenant piloto (canary) em 5–10% dos usuários.

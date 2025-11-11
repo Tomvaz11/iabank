@@ -52,6 +52,13 @@ Nota operacional: esta seção foi ajustada apenas para validar o comportamento 
   - Pact consumer verification roda quando `contracts == 'true'` OU `frontend == 'true'`.
   - Spectral/OpenAPI diff roda apenas quando `contracts == 'true'`.
 
+## Atualizações (2025-11-11) — Lote 4
+- Timeouts por job (frontend-foundation):
+  - Performance Budgets: `timeout-minutes: 30` no nível do job.
+  - Security Checks: `timeout-minutes: 25` no nível do job.
+- Timeouts existentes em steps foram preservados (Chromatic, Storybook test, k6/Lighthouse, Semgrep/ZAP/SCA etc.).
+- Arquivo de referência: `.github/workflows/frontend-foundation.yml`.
+
 ## Prova de TDD (Art. III)
 - PRs DEVEM evidenciar “vermelho → verde” para mudanças de código:
   - Inclua no corpo do PR os commits/links para: (1) estado vermelho (testes falhando) e (2) estado verde (após implementação).
