@@ -27,6 +27,7 @@ A pipeline principal executa e/ou exige:
 - Segurança (SAST/DAST/SCA, pgcrypto, SBOM) com enforcement estrito em `main`/release.
 - Threat model lint.
 - CI Outage Guard: fail‑open em branches não release para ferramentas de QA; fail‑closed em `main`/`release/*`/`hotfix/*`.
+- Pre-commit (lint hooks): job leve que prepara Node/pnpm e Poetry e executa os hooks definidos em `.pre-commit-config.yaml` (ESLint/Ruff), com resumo no Job Summary.
 
 ### Onde consultar gates do CI (sem duplicar valores)
 - Workflow principal: `.github/workflows/frontend-foundation.yml:1`

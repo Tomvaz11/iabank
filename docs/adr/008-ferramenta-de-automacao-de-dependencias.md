@@ -13,6 +13,6 @@
 
 **Operacionalização no CI:**
 - A configuração é validada pelo workflow `.github/workflows/renovate-validation.yml` usando `renovate-config-validator` com `--strict`.
-- O job fixa Node `22.13.0` por compatibilidade com `renovate@latest`.
+- O job fixa Node `22.13.0` por compatibilidade com `renovate@^39`.
 - Migrações comuns que podem causar falha no validador: `matchPaths → matchFileNames`, `stabilityDays → minimumReleaseAge`, e schedules compostos devem ser divididos em entradas separadas.
 - Runbook: `docs/runbooks/renovate-validation.md`.
