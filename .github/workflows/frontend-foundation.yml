@@ -339,28 +339,22 @@ jobs:
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Setup Python
-        id: setup_py_test
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Cache Poetry
         uses: actions/cache@v4
         with:
           path: ~/.cache/pypoetry
-          key: ${{ runner.os }}-py-${{ steps.setup_py_test.outputs.python-version }}-pypoetry-${{ hashFiles('poetry.lock') }}
+          key: ${{ runner.os }}-py-3.11-pypoetry-${{ hashFiles('poetry.lock') }}
           restore-keys: |
-            ${{ runner.os }}-py-${{ steps.setup_py_test.outputs.python-version }}-pypoetry-
+            ${{ runner.os }}-py-3.11-pypoetry-
             ${{ runner.os }}-pypoetry-
 
       - name: Cache pip
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-py-${{ steps.setup_py_test.outputs.python-version }}-pip-${{ hashFiles('poetry.lock') }}
+          key: ${{ runner.os }}-py-3.11-pip-${{ hashFiles('poetry.lock') }}
           restore-keys: |
-            ${{ runner.os }}-py-${{ steps.setup_py_test.outputs.python-version }}-pip-
+            ${{ runner.os }}-py-3.11-pip-
             ${{ runner.os }}-pip-
 
       - name: Install Poetry (pin 1.8.x para compatibilidade do lock)
