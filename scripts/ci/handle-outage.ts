@@ -5,8 +5,9 @@ export {};
 const fs = require('node:fs/promises');
 const path = require('node:path');
 
+const timers = require('timers/promises');
 async function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  await timers.setTimeout(ms);
 }
 
 async function fetchWithRetry(
