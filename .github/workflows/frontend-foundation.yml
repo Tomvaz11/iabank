@@ -351,6 +351,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup pnpm (deps para testes Python)
+        if: ${{ (github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true') || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && needs.changes.outputs.backend == 'true') }}
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js (deps para testes Python)
+        if: ${{ (github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true') || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && needs.changes.outputs.backend == 'true') }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+
+      - name: Install Node dependencies (para scripts TS usados pelos testes)
+        if: ${{ (github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true') || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && needs.changes.outputs.backend == 'true') }}
+        run: pnpm install --frozen-lockfile
+
       - name: Resumo de mudanças (tests - backend)
         run: |
           echo "frontend changed? -> ${{ needs.changes.outputs.frontend }}"
