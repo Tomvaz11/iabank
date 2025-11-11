@@ -175,8 +175,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: |
             pnpm-lock.yaml
-            scripts/**
-            frontend/scripts/**
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -205,8 +203,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: |
             pnpm-lock.yaml
-            scripts/**
-            frontend/scripts/**
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -289,8 +285,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: |
             pnpm-lock.yaml
-            scripts/**
-            frontend/scripts/**
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -407,8 +401,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: |
             pnpm-lock.yaml
-            scripts/**
-            frontend/scripts/**
 
       - name: Install dependencies
         if: ${{ needs.changes.outputs.contracts == 'true' }}
@@ -453,8 +445,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: |
             pnpm-lock.yaml
-            scripts/**
-            frontend/scripts/**
 
       - name: Install dependencies
         if: ${{ needs.changes.outputs.ui == 'true' }}
@@ -469,9 +459,23 @@ jobs:
         timeout-minutes: 15
         run: pnpm --filter @iabank/frontend-foundation storybook:build
 
+      - name: Detectar versão do Playwright (UI)
+        if: ${{ needs.changes.outputs.ui == 'true' }}
+        id: pwver_ui
+        run: |
+          echo "version=$(pnpm --filter @iabank/frontend-foundation exec playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright (UI)
+        if: ${{ needs.changes.outputs.ui == 'true' }}
+        id: pwcache_ui
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ steps.pwver_ui.outputs.version }}
+
       - name: Instalar navegadores Playwright (apenas Chromium)
         if: ${{ needs.changes.outputs.ui == 'true' }}
-        run: pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps chromium
+        run: pnpm --filter @iabank/frontend-foundation exec playwright install chromium
 
       - name: Executar Chromatic
         if: ${{ needs.changes.outputs.ui == 'true' && github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
@@ -540,8 +544,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: |
             pnpm-lock.yaml
-            scripts/**
-            frontend/scripts/**
 
       - name: Setup k6
         if: ${{ needs.changes.outputs.ui == 'true' }}
@@ -555,9 +557,23 @@ jobs:
         run: |
           echo "UI changed? -> ${{ needs.changes.outputs.ui }}"
 
+      - name: Detectar versão do Playwright (Perf)
+        if: ${{ needs.changes.outputs.ui == 'true' }}
+        id: pwver_perf
+        run: |
+          echo "version=$(pnpm --filter @iabank/frontend-foundation exec playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright (Perf)
+        if: ${{ needs.changes.outputs.ui == 'true' }}
+        id: pwcache_perf
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-ms-playwright-${{ steps.pwver_perf.outputs.version }}
+
       - name: Instalar navegadores Playwright (apenas Chromium)
         if: ${{ needs.changes.outputs.ui == 'true' }}
-        run: pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps chromium
+        run: pnpm --filter @iabank/frontend-foundation exec playwright install chromium
 
       - name: Preparar artefatos de performance
         if: ${{ needs.changes.outputs.ui == 'true' }}
@@ -669,8 +685,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: |
             pnpm-lock.yaml
-            scripts/**
-            frontend/scripts/**
 
       - name: Setup Python
         id: setup_py_sec
@@ -886,8 +900,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: |
             pnpm-lock.yaml
-            scripts/**
-            frontend/scripts/**
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

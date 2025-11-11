@@ -19,7 +19,7 @@ Guia rápido para executar a suíte completa de validações localmente (fronten
 - Node.js 20 e pnpm 9 (ver `package.json` → `packageManager`)
 - Python 3.11 + Poetry 1.8.3 (alinhado a CI/Docker)
 - k6 CLI (para testes de performance)
-- Playwright (navegadores): `pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps`
+ - Playwright (navegadores): `pnpm --filter @iabank/frontend-foundation exec playwright install`
 
 ## Serviços (Postgres/Redis)
 Você pode usar serviços locais ou subir via Docker Compose (porta alta para evitar conflitos):
@@ -51,7 +51,7 @@ python -m pip install -U pip && pip install "poetry==1.8.3"
 poetry install --with dev --sync --no-interaction --no-ansi
 
 # Playwright browsers
-pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps
+pnpm --filter @iabank/frontend-foundation exec playwright install
 ```
 
 ## Suíte completa (1 comando)
@@ -188,7 +188,7 @@ docker rm -f infra-prometheus infra-grafana
 ```
 
 ## Troubleshooting rápido
-- Playwright: rode `pnpm --filter @iabank/frontend-foundation exec playwright install --with-deps` se faltar navegador.
+- Playwright: rode `pnpm --filter @iabank/frontend-foundation exec playwright install` se faltar navegador.
 - Postgres/Redis: ajuste portas em `infra/docker-compose.foundation.yml` via `FOUNDATION_STACK_POSTGRES_PORT` e `FOUNDATION_STACK_REDIS_PORT`.
 - OTEL (k6): para publicar métricas, defina `OTEL_EXPORTER_OTLP_ENDPOINT` (ex.: `http://localhost:4318`).
 - Grafana: se o painel não aparecer, reinicie o container para reprocessar o provisioning (`docker restart infra-grafana`) e valide os volumes montados em `infra/grafana/provisioning`.
