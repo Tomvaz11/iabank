@@ -13,30 +13,35 @@ source_used="event"
 title="${PR_TITLE:-}"
 body="${PR_BODY:-}"
 
-# Fallback: API via gh
-if [ -z "$title" ] || [ -z "$body" ]; then
-  if command -v gh >/dev/null 2>&1 && [ -n "${PR_NUMBER:-}" ] && [ -n "${REPO:-}" ]; then
-    if pr_json=$(gh api -H "Accept: application/vnd.github+json" "repos/$REPO/pulls/$PR_NUMBER" 2>/dev/null); then
-      title=$(printf '%s' "$pr_json" | jq -r '(.title // "")')
-      body=$(printf '%s' "$pr_json" | jq -r '(.body // "")')
+# Preferir sempre buscar o PR atualizado via API; usar evento apenas se falhar.
+if command -v gh >/dev/null 2>&1 && [ -n "${PR_NUMBER:-}" ] && [ -n "${REPO:-}" ]; then
+  if pr_json=$(gh api -H "Accept: application/vnd.github+json" "repos/$REPO/pulls/$PR_NUMBER" 2>/dev/null); then
+    latest_title=$(printf '%s' "$pr_json" | jq -r '(.title // "")')
+    latest_body=$(printf '%s' "$pr_json" | jq -r '(.body // "")')
+    if [ -n "$latest_title" ] || [ -n "$latest_body" ]; then
+      title="$latest_title"
+      body="$latest_body"
       source_used="api-gh"
     fi
   fi
 fi
 
-# Fallback alternativo: API via curl
-if [ -z "$title" ] || [ -z "$body" ]; then
+if [ "$source_used" = "event" ]; then
   if command -v curl >/dev/null 2>&1 && [ -n "${PR_NUMBER:-}" ] && [ -n "${REPO:-}" ] && [ -n "${GH_TOKEN:-}" ] && [ -n "${API_URL:-}" ]; then
     if pr_json=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$API_URL/repos/$REPO/pulls/$PR_NUMBER" 2>/dev/null); then
-      title=$(printf '%s' "$pr_json" | jq -r '(.title // "")')
-      body=$(printf '%s' "$pr_json" | jq -r '(.body // "")')
-      source_used="api-curl"
+      latest_title=$(printf '%s' "$pr_json" | jq -r '(.title // "")')
+      latest_body=$(printf '%s' "$pr_json" | jq -r '(.body // "")')
+      if [ -n "$latest_title" ] || [ -n "$latest_body" ]; then
+        title="$latest_title"
+        body="$latest_body"
+        source_used="api-curl"
+      fi
     fi
   fi
 fi
 
 # Fallback final: arquivo de evento
-if [ -z "$title" ] && [ -z "$body" ] && [ -n "${GITHUB_EVENT_PATH:-}" ] && [ -f "$GITHUB_EVENT_PATH" ]; then
+if [ "$source_used" = "event" ] && [ -n "${GITHUB_EVENT_PATH:-}" ] && [ -f "$GITHUB_EVENT_PATH" ]; then
   title=$(jq -r '(.pull_request.title // "")' "$GITHUB_EVENT_PATH" || echo "")
   body=$(jq -r '(.pull_request.body // "")' "$GITHUB_EVENT_PATH" || echo "")
   source_used="event-file"
@@ -63,4 +68,3 @@ else
   if [ "$found_title" -eq 1 ]; then echo " - Encontrada no título"; fi
   if [ "$found_body" -eq 1 ]; then echo " - Encontrada no corpo"; fi
 fi
-
