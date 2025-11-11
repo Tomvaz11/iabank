@@ -35,6 +35,15 @@ Evidências de Rollout & Gates
 - `SC-005`: arquive o resultado do comando `python scripts/observability/check_structlog.py <log>` (aplicado nos logs do deploy) e registre captura do painel “SC-005 — Incidentes PII (30d)”. Confirme também a ausência de sinais no painel “Error Budget Consumido (%)”.
 - Error budget: se o painel atingir ≥ 80%, abra incidente no template `docs/runbooks/incident-response.md`, pause deploys e anexe no README as ações de mitigação planejadas.
 
+Notas CI — Lote 2 (2025‑11‑11)
+- Pre-commit incremental (PR): o log do job “Pre-commit (lint hooks)” deve conter a linha
+  "Executando pre-commit por diff: $BASE..$HEAD". Em `main`/`release/*`/tags o job executa full scan.
+- Gates por paths no job “Vitest”:
+  - O passo “Resumo de mudanças (tests)” imprime `frontend changed?` e `backend changed?` com base nos outputs do job `changes`.
+  - PR frontend-only: espera “Vitest sim” e “Pytest/Radon não”. PR backend-only: espera “Pytest/Radon sim” e “Vitest não”.
+  - Em `main`/`release/*`/tags: ambos executam.
+  - Dica com gh: `gh run view <RUN_ID> --log | rg -n "Run Vitest|Pytest (coverage gate)|Radon complexity gate"`.
+
 Ativação de Flags por Tenant
 1) Validar pipelines verdes para a PR (lint, test, contracts, visual-accessibility, performance, security, SBOM).
 2) Habilitar `foundation.fsd` para um tenant piloto (canary) em 5–10% dos usuários.

@@ -37,6 +37,17 @@ Reflete os gates constitucionais (v5.2.0) e ADRs 008–012.
 
 Nota operacional: esta seção foi ajustada apenas para validar o comportamento de gating em um PR "docs-only".
 
+## Atualizações (2025-11-11) — Lote 2
+- Pre-commit incremental por diff (PR):
+  - `actions/checkout@v4` com `fetch-depth: 0` para garantir histórico e permitir `--from-ref/--to-ref`.
+  - PRs executam `pre-commit run --from-ref $BASE --to-ref $HEAD --show-diff-on-failure`.
+  - Em `main`/`release/*`/tags, executa `--all-files`.
+- Gates por paths no job “Vitest” (tests):
+  - Node/pnpm + “Run Vitest (coverage gate)” executam quando `needs.changes.outputs.frontend == 'true'` ou sempre em `main`/`release/*`/tags.
+  - Python/Poetry + “Pytest (coverage gate)” e “Radon complexity gate” executam quando `needs.changes.outputs.backend == 'true'` ou sempre em `main`/`release/*`/tags.
+  - O job depende de `changes` (`needs: [lint, changes]`) e consome os outputs `frontend`/`backend` do filtro.
+  - Observação: o nome do job permanece “Vitest” por requisito de Branch Protection; não renomear sem atualizar a regra.
+
 ## Prova de TDD (Art. III)
 - PRs DEVEM evidenciar “vermelho → verde” para mudanças de código:
   - Inclua no corpo do PR os commits/links para: (1) estado vermelho (testes falhando) e (2) estado verde (após implementação).
