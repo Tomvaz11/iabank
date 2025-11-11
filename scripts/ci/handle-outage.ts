@@ -11,10 +11,10 @@ async function sleep(ms: number) {
 
 async function fetchWithRetry(
   url: string,
-  init?: RequestInit,
+  init?: any,
   attempts = 3,
   backoffMs = 300,
-): Promise<Response> {
+): Promise<any> {
   let lastError: unknown;
   for (let i = 0; i < attempts; i += 1) {
     try {
