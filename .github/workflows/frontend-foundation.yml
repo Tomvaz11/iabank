@@ -187,7 +187,6 @@ jobs:
   test:
     name: Vitest
     runs-on: ubuntu-latest
-    container: python:3.11
     needs: lint
     services:
       postgres:
@@ -196,6 +195,8 @@ jobs:
           POSTGRES_DB: foundation
           POSTGRES_USER: foundation
           POSTGRES_PASSWORD: foundation
+        ports:
+          - 5432:5432
         options: >-
           --health-cmd="pg_isready -U foundation"
           --health-interval=10s
@@ -297,7 +298,7 @@ jobs:
           FOUNDATION_DB_NAME: foundation
           FOUNDATION_DB_USER: foundation
           FOUNDATION_DB_PASSWORD: foundation
-          FOUNDATION_DB_HOST: postgres
+          FOUNDATION_DB_HOST: localhost
           FOUNDATION_DB_PORT: 5432
           FOUNDATION_DB_TEST_NAME: foundation_test
         run: |
