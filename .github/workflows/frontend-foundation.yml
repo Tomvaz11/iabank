@@ -546,7 +546,6 @@ jobs:
   security:
     name: Security Checks
     runs-on: ubuntu-latest
-    container: python:3.11
     needs:
       - contracts
       - changes
@@ -567,7 +566,7 @@ jobs:
       CI_ENFORCE_FULL_SECURITY: ${{ github.event_name != 'workflow_dispatch' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/tags/')) }}
       CI_FAIL_OPEN: ${{ github.event_name != 'workflow_dispatch' && github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/heads/release/') && !startsWith(github.ref, 'refs/tags/') }}
       FOUNDATION_DB_VENDOR: postgresql
-      FOUNDATION_DB_HOST: postgres
+      FOUNDATION_DB_HOST: 127.0.0.1
       FOUNDATION_DB_PORT: '5432'
       FOUNDATION_DB_NAME: foundation
       FOUNDATION_DB_USER: foundation
@@ -659,11 +658,12 @@ jobs:
         run: |
           for i in {1..30}; do
             if (echo > /dev/tcp/postgres/5432) >/dev/null 2>&1; then
-              echo "[ok] Postgres disponível";
-              break;
+              echo "[ok] Postgres disponível via hostname"; break;
+            elif (echo > /dev/tcp/127.0.0.1/5432) >/dev/null 2>&1; then
+              echo "[ok] Postgres disponível via localhost"; break;
+            else
+              echo "[wait] aguardando Postgres (tentativa $i/30)..."; sleep 2;
             fi
-            echo "[wait] aguardando Postgres (tentativa $i/30)...";
-            sleep 2;
           done
 
       - name: Instalar ferramentas de segurança (SAST)
