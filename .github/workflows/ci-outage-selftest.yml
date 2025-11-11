@@ -27,8 +27,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: |
             pnpm-lock.yaml
-            scripts/**
-            frontend/scripts/**
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -91,8 +89,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: |
             pnpm-lock.yaml
-            scripts/**
-            frontend/scripts/**
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

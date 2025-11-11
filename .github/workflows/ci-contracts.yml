@@ -33,8 +33,6 @@ jobs:
           cache: pnpm
           cache-dependency-path: |
             pnpm-lock.yaml
-            scripts/**
-            frontend/scripts/**
 
       - name: Install dependencies (pnpm)
         if: ${{ hashFiles('package.json') != '' }}
@@ -45,7 +43,7 @@ jobs:
         run: |
           if command -v pnpm >/dev/null 2>&1; then
             if [ -n "$(ls contracts 2>/dev/null)" ]; then
-              pnpm dlx @stoplight/spectral@6 lint contracts/**/*.yaml || exit 1
+              pnpm exec spectral lint contracts/**/*.yaml || exit 1
             else
               echo "::warning::No contracts directory to lint"
             fi
@@ -58,7 +56,7 @@ jobs:
         run: |
           if command -v pnpm >/dev/null 2>&1; then
             if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
-              pnpm dlx openapi-diff contracts/api.previous.yaml contracts/api.yaml
+              pnpm exec openapi-diff contracts/api.previous.yaml contracts/api.yaml
             else
               echo "::warning::OpenAPI baseline missing; skipping diff"
             fi
