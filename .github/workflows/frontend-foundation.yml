@@ -270,7 +270,7 @@ jobs:
           echo -e "pre-commit outcome: ${{ steps.precommit.outcome }}" >> "$GITHUB_STEP_SUMMARY"
 
   test:
-    name: Tests (FE/BE gates)
+    name: Vitest
     runs-on: ubuntu-latest
     needs: [lint, changes]
     services:
