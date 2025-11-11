@@ -62,6 +62,7 @@ Estes são os contextos atualmente exigidos na proteção da branch `main` (Bran
 - Threat Model Lint
 - CI Outage Guard
 - CI Diagnostics
+- Validate Renovate configuration
 
 Nota — CI Outage Guard (permissões para anotar PR)
 - Para que o Outage Guard possa rotular/comentar PRs quando houver outage, o workflow principal precisa do bloco `permissions` com:
