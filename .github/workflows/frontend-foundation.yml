@@ -647,7 +647,12 @@ jobs:
 
       - name: Garantir que poetry.lock não foi alterado
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
-        run: git diff --exit-code poetry.lock
+        run: |
+          if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            git diff --exit-code poetry.lock
+          else
+            echo "[warn] repositório git não detectado no container; ignorando verificação de diff do poetry.lock";
+          fi
 
       - name: Aguardar Postgres ficar disponível
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
