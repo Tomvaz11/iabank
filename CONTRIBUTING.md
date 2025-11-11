@@ -27,7 +27,17 @@ A pipeline principal executa e/ou exige:
 - Segurança (SAST/DAST/SCA, pgcrypto, SBOM) com enforcement estrito em `main`/release.
 - Threat model lint.
 - CI Outage Guard: fail‑open em branches não release para ferramentas de QA; fail‑closed em `main`/`release/*`/`hotfix/*`.
-- Pre-commit (lint hooks): job leve que prepara Node/pnpm e Poetry e executa os hooks definidos em `.pre-commit-config.yaml` (ESLint/Ruff), com resumo no Job Summary.
+- Pre-commit (lint hooks):
+  - Em PRs: execução incremental por diff entre base e head (`--from-ref $BASE --to-ref $HEAD`).
+  - Em `main`/`release/*`/tags: execução full (`--all-files`).
+  - O checkout do job usa `fetch-depth: 0` para garantir diffs confiáveis.
+  - Hooks definidos em `.pre-commit-config.yaml` (ESLint/Ruff); o job grava um resumo no Job Summary.
+
+- Testes (gates por paths):
+  - O job “Vitest” prepara Node e executa Vitest somente quando há mudanças no frontend (outputs de `changes`), e SEMPRE em `main`/`release/*`/tags.
+  - No mesmo job, a preparação de Python e os passos Pytest/Radon executam somente quando há mudanças no backend (outputs de `changes`), e SEMPRE em `main`/`release/*`/tags.
+  - Dica: o passo “Resumo de mudanças (tests)” imprime `needs.changes.outputs.frontend/backend` para diagnóstico rápido.
+  - Importante: “Vitest” é um Required Check. Não renomeie o job sem atualizar as Branch Protection Rules.
 
 ### Onde consultar gates do CI (sem duplicar valores)
 - Workflow principal: `.github/workflows/frontend-foundation.yml:1`
@@ -42,6 +52,14 @@ A pipeline principal executa e/ou exige:
   - `gh run list --limit 10`
   - `gh run view <RUN_ID>` (ou apenas falhas: `--log-failed`)
   - `gh run rerun <RUN_ID>` (ou `--failed` para só os jobs que falharam)
+
+### Diagnóstico rápido (Lote 2)
+- Pre-commit incremental (PR):
+  - `gh run view <RUN_ID> --log | rg "Executando pre-commit por diff"`
+- Gates por paths em testes:
+  - PR frontend-only: `rg -n "pnpm test:coverage" artifacts && rg -n "poetry run pytest" artifacts` (espera “Vitest sim / Pytest não”).
+  - PR backend-only: inverso do acima (espera “Pytest sim / Vitest não”).
+  - `main`/`release/*`/tags: ambos executam.
 
 ## Runbooks úteis
 - Outage (Chromatic/Lighthouse/Axe): `docs/runbooks/frontend-outage.md`.
