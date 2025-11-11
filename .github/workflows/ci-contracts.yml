@@ -31,7 +31,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            scripts/**
+            frontend/scripts/**
 
       - name: Install dependencies (pnpm)
         if: ${{ hashFiles('package.json') != '' }}

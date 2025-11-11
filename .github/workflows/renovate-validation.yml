@@ -28,7 +28,9 @@ jobs:
       - name: Validate Renovate schema (renovate-config-validator)
         run: |
           set -euo pipefail
-          npx --yes -p renovate@latest renovate-config-validator --strict renovate.json
+          # Pin major do Renovate para evitar que novos majors quebrem o pipeline.
+          # Ajuste a faixa conforme sua política (ex.: ^39 ou ^38).
+          npx --yes -p renovate@^39 renovate-config-validator --strict renovate.json
 
       - name: Ensure assignees configurados
         run: |

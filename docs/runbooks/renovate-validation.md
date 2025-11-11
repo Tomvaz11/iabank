@@ -5,12 +5,12 @@ Objetivo: validar a configuração do Renovate (`renovate.json`) no CI usando o 
 ## Workflow
 - Arquivo: `.github/workflows/renovate-validation.yml`.
 - Disparo: `workflow_dispatch`, `push` (branch `main`) e `pull_request` quando `renovate.json` muda.
-- Ambiente: Node `22.13.0` (necessário porque `renovate@latest` requer Node ≥ 22.13).
+- Ambiente: Node `22.13.0` (compatível com versões recentes do Renovate).
 
 ## Passos principais
 1. Checkout do repositório.
 2. Setup Node 22.13.0 (`actions/setup-node@v4`).
-3. Validação: `npx --yes -p renovate@latest renovate-config-validator --strict renovate.json`.
+3. Validação: `npx --yes -p renovate@^39 renovate-config-validator --strict renovate.json` (pin de major para estabilidade do CI).
 4. Verificação adicional: garante que `assignees` estejam configurados e válidos.
 
 ## Sintomas comuns e correções

@@ -25,7 +25,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            scripts/**
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -86,7 +88,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            scripts/**
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
