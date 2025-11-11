@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// CI: validação prática da issue #86 (canário) — alteração sem efeito funcional
 export {};
 
 const fs = require('node:fs/promises');

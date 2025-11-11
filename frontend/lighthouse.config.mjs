@@ -47,3 +47,4 @@ export default {
     }
   }
 };
+// CI: validação prática da issue #86 (canário) — alteração sem efeito funcional
