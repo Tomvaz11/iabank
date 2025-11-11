@@ -281,7 +281,7 @@ jobs:
         run: poetry --version | grep '1.8.3'
 
       - name: Install Python dependencies
-        run: poetry install --with dev --no-ansi --no-interaction
+        run: poetry install --no-interaction --no-ansi --sync --with dev
 
       - name: Garantir que poetry.lock não foi alterado
         run: git diff --exit-code poetry.lock
@@ -626,7 +626,7 @@ jobs:
 
       - name: Install Python dependencies
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
-        run: poetry install --with dev --no-ansi --no-interaction
+        run: poetry install --no-interaction --no-ansi --sync --with dev
 
       - name: Garantir que poetry.lock não foi alterado
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
