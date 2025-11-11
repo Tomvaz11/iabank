@@ -2,10 +2,9 @@ name: Renovate Config Validation
 
 on:
   workflow_dispatch: {}
-  pull_request:
-    paths:
-      - renovate.json
-      - .github/workflows/renovate-validation.yml
+  # Executa em todos os PRs para sempre emitir o check requerido
+  pull_request: {}
+  # Continua validando em pushes na main quando houver mudança no renovate.json
   push:
     branches:
       - main
