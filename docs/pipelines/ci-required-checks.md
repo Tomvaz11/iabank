@@ -88,6 +88,13 @@ Notas de governança relacionadas:
 - O script `scripts/security/run_dast.sh` aplica migrações e inicia o `runserver` antes do scan; aguarda o endpoint responder.
 - Política (atualizada em 2025‑11‑08): em PRs, `main`, `release/*` e tags é fail‑closed (sem `fail‑open`). Em `workflow_dispatch`, segue política de sanidade do workflow.
   - Tratamento de severidade: WARN não quebra pipeline (exit 2 do ZAP é normalizado para sucesso); FAIL quebra (exit 1/3) — reduz ruído mantendo fail‑closed para vulnerabilidades reais.
+ - Artefatos publicados (artifact `zap-reports`):
+   - `zap-baseline.json` (JSON do baseline)
+   - `zap-report.html` (relatório navegável)
+   - `zap-report.xml` (máquina/CI)
+   - `zap-warnings.md` (resumo textual de avisos)
+   - `django-zap.log` (log do backend durante o scan)
+ - Resumo no Job Summary: o workflow grava no `$GITHUB_STEP_SUMMARY` a linha com o outcome do DAST e o caminho dos artefatos ("Artifacts: artifacts/zap").
 
 ## Notas SCA (Python)
 - Ferramentas: `pip-audit` e `Safety` executam no job “Security Checks”.
