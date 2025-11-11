@@ -606,6 +606,7 @@ jobs:
       VITE_FOUNDATION_TRUSTED_TYPES_POLICY: foundation-ui
       VITE_FOUNDATION_PGCRYPTO_KEY: ci-only-pgcrypto-key
       LIGHTHOUSE_ARTIFACT_DIR: ${{ github.workspace }}/artifacts/lighthouse
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -738,6 +739,7 @@ jobs:
       FOUNDATION_DB_NAME: foundation
       FOUNDATION_DB_USER: foundation
       FOUNDATION_DB_PASSWORD: foundation
+    timeout-minutes: 25
     steps:
       - name: Checkout
         uses: actions/checkout@v4
