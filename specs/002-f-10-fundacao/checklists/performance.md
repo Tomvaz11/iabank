@@ -6,7 +6,7 @@ Referências base:
 - Dashboard: `observabilidade/dashboards/frontend-foundation.json`
 - Threat model: `docs/security/threat-models/frontend-foundation/v1.0.md`
 - Artefatos: `observabilidade/data/lighthouse-latest.json`
-- CI (últimos runs): push (`push_run.log`), manual (`main`, Run ID `19048561651` → `run.log`), PR (fornecer link do último run verde)
+- CI (últimos runs): push (`artifacts/local/push_run.log`), manual (`main`, Run ID `19048561651` → `artifacts/local/run.log`), PR (fornecer link do último run verde)
 - PRs relevantes: #10, #11
 
 Especificidades obrigatórias: Lighthouse (LCP/TTI/TBT/CLS) e k6 smoke.

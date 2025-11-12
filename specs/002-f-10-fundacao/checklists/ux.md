@@ -6,16 +6,16 @@ Referências base:
 - Dashboard: `observabilidade/dashboards/frontend-foundation.json`
 - Threat model: `docs/security/threat-models/frontend-foundation/v1.0.md`
 - CI (últimos runs):
-  - push: `push_run.log`
+  - push: `artifacts/local/push_run.log`
   - PR: (fornecer link do Actions ao último run verde do workflow)
-  - manual (sanidade, main): Run ID `19048561651` — `run.log`.
+  - manual (sanidade, main): Run ID `19048561651` — `artifacts/local/run.log`.
 - PRs relevantes: #10, #11
 
 Especificidades obrigatórias: Storybook + test-runner (axe/WCAG) e Chromatic (condicional em PR).
 
 Itens objetivos:
 - [x] Storybook build gerado (estático)
-  - Evidências: `push_run.log` (job "Visual & Accessibility Gates" → "Build Storybook estático"), artefatos em `frontend/storybook-static`.
+  - Evidências: `artifacts/local/push_run.log` (job "Visual & Accessibility Gates" → "Build Storybook estático"), artefatos em `frontend/storybook-static`.
 - [x] Test‑runner do Storybook (axe/WCAG) sem violações (PR)
   - Evidências (PR #12): job Visual verde (test‑runner executado sem violações) — https://github.com/Tomvaz11/iabank/actions/runs/19050934281
 - [x] Chromatic executado em PR (condicional)

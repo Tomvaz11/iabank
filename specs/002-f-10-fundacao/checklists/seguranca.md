@@ -5,20 +5,20 @@ Referências base:
 - Runbook: `docs/runbooks/frontend-foundation.md`
 - Dashboard: `observabilidade/dashboards/frontend-foundation.json`
 - Threat model: `docs/security/threat-models/frontend-foundation/v1.0.md`
-- CI (últimos runs): push (`push_run.log`), manual (`main`, Run ID `19048561651` → `run.log`), PR (fornecer link do último run verde)
+- CI (últimos runs): push (`artifacts/local/push_run.log`), manual (`main`, Run ID `19048561651` → `artifacts/local/run.log`), PR (fornecer link do último run verde)
 - PRs relevantes: #10, #11
 
 Especificidades obrigatórias: SAST/DAST/SCA/SBOM, CSP/Trusted Types, PII masking, RLS/pgcrypto.
 
 Itens objetivos:
 - [x] CSP & Trusted Types — política e testes
-  - Evidências: `frontend/tests/vite.csp.middleware.test.ts` (CSP+Trusted Types) e `frontend/tests/security/csp_trusted_types.spec.ts` (modo report→enforce) — ambos passam em `push_run.log` (Vitest).
+  - Evidências: `frontend/tests/vite.csp.middleware.test.ts` (CSP+Trusted Types) e `frontend/tests/security/csp_trusted_types.spec.ts` (modo report→enforce) — ambos passam em `artifacts/local/push_run.log` (Vitest).
 - [x] PII masking — telemetria/relato
-  - Evidências: `frontend/tests/otel/masking.spec.ts` com sucesso em `push_run.log`.
+  - Evidências: `frontend/tests/otel/masking.spec.ts` com sucesso em `artifacts/local/push_run.log`.
 - [x] RLS enforcement — testes de backend
-  - Evidências: `push_run.log` (Pytest) mostra `backend/apps/tenancy/tests/test_rls_enforcement.py ...` e `test_migration_rls.py .` passando.
+  - Evidências: `artifacts/local/push_run.log` (Pytest) mostra `backend/apps/tenancy/tests/test_rls_enforcement.py ...` e `test_migration_rls.py .` passando.
 - [x] pgcrypto — validação do script
-  - Evidências: step "Validação pgcrypto" imprime "json_payload protegido com pgcrypto." em `push_run.log`.
+  - Evidências: step "Validação pgcrypto" imprime "json_payload protegido com pgcrypto." em `artifacts/local/push_run.log`.
 - [x] SAST (Semgrep) — sem HIGH/CRITICAL em release
   - Evidências: job Security Checks verde no PR #12 (sem falhas bloqueantes) — https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407027868; política fail‑closed aplicada em `main/releases/tags` e aceita no "Aceite Final (F‑10)".
 - [x] DAST (OWASP ZAP baseline) — sem falhas críticas

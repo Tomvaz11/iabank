@@ -7,18 +7,18 @@ Referências base:
 - Dashboard: `observabilidade/dashboards/frontend-foundation.json`
 - Threat model: `docs/security/threat-models/frontend-foundation/v1.0.md`
 - CI (últimos runs):
-  - push: `push_run.log` (logs locais)
+  - push: `artifacts/local/push_run.log` (logs locais)
   - PR: (fornecer link do Actions ao último run verde do workflow)
-  - manual (sanidade, main): Run ID `19048561651` (evento `workflow_dispatch`) — logs: `run.log`.
+  - manual (sanidade, main): Run ID `19048561651` (evento `workflow_dispatch`) — logs: `artifacts/local/run.log`.
 - PRs relevantes: #10 (Merge validation v2 final), #11 (Cleanup pós-merge F‑10 CI)
 
 Itens objetivos (marcados apenas com evidências claras):
 - [x] Workflow de CI versionado e com jobs esperados (lint/test/contracts/visual/performance/security/threat-model-lint/ci-outage-guard)
   - Evidências: `.github/workflows/frontend-foundation.yml`
 - [x] Threat Model Lint OK para `v1.0`
-  - Evidências: `push_run.log` (Threat Model Lint) confirma: "[threat-model-lint] Artefato verificado com sucesso" em `docs/security/threat-models/frontend-foundation/v1.0.md`
+  - Evidências: `artifacts/local/push_run.log` (Threat Model Lint) confirma: "[threat-model-lint] Artefato verificado com sucesso" em `docs/security/threat-models/frontend-foundation/v1.0.md`
 - [x] Complexidade ciclomática (Radon) dentro do limite (<=10)
-  - Evidências: `push_run.log` (Vitest job → "Radon complexity gate"): "Complexidade ciclomática dentro do limite (<=10)."
+  - Evidências: `artifacts/local/push_run.log` (Vitest job → "Radon complexity gate"): "Complexidade ciclomática dentro do limite (<=10)."
 - [x] Lint (ESLint + FSD boundaries + guard de Zustand) aprovado
   - Evidências (PR #12): job Lint verde — https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406825581
 - [x] Cobertura (Vitest) ≥ 85% (statements/lines/functions)
@@ -38,7 +38,7 @@ Itens objetivos (marcados apenas com evidências claras):
 
 Atualizações recentes:
 - PR #12 (Evidências F‑10) mergeado. Run verde (PR): https://github.com/Tomvaz11/iabank/actions/runs/19050934281
-- Run manual (sanidade, main): ID 19048561651 — logs locais em `run.log`.
+- Run manual (sanidade, main): ID 19048561651 — logs locais em `artifacts/local/run.log`.
 
 Observações finais:
  
