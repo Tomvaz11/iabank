@@ -39,6 +39,7 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       security: ${{ steps.filter.outputs.security }}
+      tests: ${{ steps.filter.outputs.tests }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -73,6 +74,8 @@ jobs:
               - 'package.json'
               - 'pnpm-lock.yaml'
               - 'pnpm-workspace.yaml'
+            tests:
+              - 'tests/backend/**'
             security:
               - 'scripts/security/**'
               - 'scripts/ci/**'
@@ -352,13 +355,13 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup pnpm (deps para testes Python)
-        if: ${{ (github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true') || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && needs.changes.outputs.backend == 'true') }}
+        if: ${{ (github.event_name == 'pull_request' && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true')) || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true')) }}
         uses: pnpm/action-setup@v2
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js (deps para testes Python)
-        if: ${{ (github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true') || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && needs.changes.outputs.backend == 'true') }}
+        if: ${{ (github.event_name == 'pull_request' && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true')) || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true')) }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -367,23 +370,24 @@ jobs:
             pnpm-lock.yaml
 
       - name: Install Node dependencies (para scripts TS usados pelos testes)
-        if: ${{ (github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true') || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && needs.changes.outputs.backend == 'true') }}
+        if: ${{ (github.event_name == 'pull_request' && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true')) || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true')) }}
         run: pnpm install --frozen-lockfile
 
       - name: Resumo de mudanças (tests - backend)
         run: |
           echo "frontend changed? -> ${{ needs.changes.outputs.frontend }}"
           echo "backend changed? -> ${{ needs.changes.outputs.backend }}"
+          echo "tests (backend) changed? -> ${{ needs.changes.outputs.tests }}"
 
       - name: Setup Python
-        if: ${{ needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
         id: setup_py_test
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
       - name: Cache Poetry
-        if: ${{ needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
         uses: actions/cache@v4
         with:
           path: ~/.cache/pypoetry
@@ -393,7 +397,7 @@ jobs:
             ${{ runner.os }}-pypoetry-
 
       - name: Cache pip
-        if: ${{ needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
@@ -403,7 +407,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Install Poetry (pin 1.8.x para compatibilidade do lock)
-        if: ${{ needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
         run: |
           python -m pip install --upgrade pip
           python -m pip install poetry==1.8.3
@@ -411,19 +415,19 @@ jobs:
       # e versões recentes (>=1.9) exigem Poetry 2.x, conflitando com 1.8.x.
 
       - name: Verificar versão do Poetry (1.8.3)
-        if: ${{ needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
         run: poetry --version | grep '1.8.3'
 
       - name: Install Python dependencies
-        if: ${{ needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
         run: poetry install --no-interaction --no-ansi --sync --with dev
 
       - name: Garantir que poetry.lock não foi alterado
-        if: ${{ needs.changes.outputs.backend == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
         run: git diff --exit-code poetry.lock
 
       - name: Pytest (coverage gate)
-        if: ${{ (github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true') || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && needs.changes.outputs.backend == 'true') }}
+        if: ${{ (github.event_name == 'pull_request' && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true')) || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true')) }}
         env:
           FOUNDATION_DB_VENDOR: postgresql
           FOUNDATION_DB_NAME: foundation
@@ -442,7 +446,7 @@ jobs:
           )
 
       - name: Radon complexity gate
-        if: ${{ (github.event_name == 'pull_request' && needs.changes.outputs.backend == 'true') || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && needs.changes.outputs.backend == 'true') }}
+        if: ${{ (github.event_name == 'pull_request' && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true')) || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true')) }}
         run: poetry run python scripts/ci/check_python_complexity.py
       - name: Upload pytest logs
         if: always()
