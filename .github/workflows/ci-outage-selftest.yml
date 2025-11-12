@@ -58,7 +58,21 @@ jobs:
           echo "Running outage selftest (fail-open)..."
           mkdir -p artifacts/local
           echo "ECONNRESET simulated by selftest" > "$CI_OUTAGE_CHROMATIC_LOG"
-          node scripts/dist/ci/handle-outage.js | tee artifacts/local/selftest-output.json
+          # Força fail-open via input JSON (branch: selftest-failopen)
+          cat > artifacts/local/selftest-input.json << 'JSON'
+          {
+            "branch": "selftest-failopen",
+            "tools": [
+              {
+                "name": "chromatic",
+                "job": "selftest-chromatic",
+                "status": "failure",
+                "logPath": "artifacts/local/chromatic-selftest.log"
+              }
+            ]
+          }
+          JSON
+          node scripts/dist/ci/handle-outage.js --input artifacts/local/selftest-input.json | tee artifacts/local/selftest-output.json
           echo "--- Selftest output (truncated) ---"
           head -n 50 artifacts/local/selftest-output.json || true
 
