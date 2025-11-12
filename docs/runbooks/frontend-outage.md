@@ -39,14 +39,14 @@ Permissões do workflow (GITHUB_TOKEN)
 
 1) Acesse o workflow manual (branch `main`):
    - GitHub Actions → "CI Outage Selftest" → `Run workflow`.
-2) O workflow executa dois jobs (somente variáveis de ambiente, sem `--input`):
-  - `Post OTEL Outage Event (Cloudflare)` (fail‑open): simula falha do Chromatic e envia evento.
+2) O workflow executa dois jobs:
+  - `Post OTEL Outage Event (Cloudflare)` (fail‑open): simula falha do Chromatic e envia evento. Para garantir comportamento fail‑open estável em `main`, o step cria um arquivo `artifacts/local/selftest-input.json` e invoca o script com `--input`, forçando a `branch=selftest-failopen`.
   - `Post OTEL Outage Event (Fail‑Closed on main)`: simula falha em `main`; o script sai com código 1, mas o passo ignora o erro (marcado como esperado).
 3) Artefatos: baixe `ci-outage-selftest*` e verifique `observabilidade/data/ci-outages.json` se desejar confirmar localmente.
 
 Observações:
 - O selftest injeta um log de erro sintético (padrões: `ECONNRESET`, `service unavailable`) para que o script detecte outage mesmo quando a status page não responde em JSON.
-- O job fail‑open força a branch com `GITHUB_REF_NAME=selftest-failopen`; o job fail‑closed força `GITHUB_REF_NAME=main`.
+- O job fail‑open usa `--input artifacts/local/selftest-input.json` para fixar `branch=selftest-failopen`; o job fail‑closed força `GITHUB_REF_NAME=main`.
 
 ## Validar no Cloudflare (KV)
 
