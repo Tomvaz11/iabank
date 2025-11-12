@@ -2,7 +2,7 @@
 
 ## 1. Pré-requisitos
 - Node.js 20.x, pnpm 9.x instalados.
-- Python 3.12 + Poetry para utilitários CLI.
+- Python 3.11 + Poetry 1.8.3 para utilitários CLI.
 - Docker/Docker Compose para stack backend + Redis + PostgreSQL.
 - Acesso ao Vault (`vault login`) e às chaves em `kv/foundation/frontend`:
   - `cspNonceSecret` → exportar em dev como `FOUNDATION_CSP_NONCE`
