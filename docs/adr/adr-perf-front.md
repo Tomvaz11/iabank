@@ -19,7 +19,7 @@ Sem uma decisão formal havia risco de divergência entre squads, violações da
 
 1. **Budgets Lighthouse (UX)**  
    - `frontend/lighthouse.config.mjs` mantém LCP ≤ 2.5s p95, TTI ≤ 3.0s p95, CLS ≤ 0.1.  
-   - Rodamos via job `performance` no workflow `.github/workflows/ci/frontend-foundation.yml`. Falhas (política vigente em 2025‑11‑08):
+   - Rodamos via job `performance` no workflow `.github/workflows/frontend-foundation.yml`. Falhas (política vigente em 2025‑11‑08):
      - `pull_request`, `main`, `release/*` e tags: fail-closed (pipeline interrompe).  
      - `workflow_dispatch`: execução de sanidade, pode pular ou relaxar gates conforme configuração.
 
