@@ -35,8 +35,8 @@ A pipeline principal executa e/ou exige:
 
 - Testes (gates por paths) — Lote 3:
   - “Vitest” (job `test-frontend`): prepara Node e executa Vitest quando `needs.changes.outputs.frontend == 'true'` (em PR/dev). Em `main`/`release/*`/tags, sempre executa.
-  - “Pytest + Radon” (job `test-backend`): prepara Python/Poetry e executa Pytest/Radon quando `needs.changes.outputs.backend == 'true'` (em PR/dev). Em `main`/`release/*`/tags, sempre executa.
-  - Dica: os passos “Resumo de mudanças (tests - frontend/backend)” imprimem `needs.changes.outputs.frontend/backend` para diagnóstico rápido.
+  - “Pytest + Radon” (job `test-backend`): prepara Python/Poetry e executa Pytest/Radon quando `needs.changes.outputs.backend == 'true'` OU `needs.changes.outputs.tests == 'true'` (em PR/dev). Em `main`/`release/*`/tags, sempre executa.
+  - Dica: os passos “Resumo de mudanças (tests - frontend/backend/tests)” imprimem `needs.changes.outputs.frontend/backend/tests` para diagnóstico rápido.
   - Required checks: se “Vitest” já for required, avalie adicionar “Pytest + Radon” às Branch Protection Rules (nome exato do job).
 
 ### Onde consultar gates do CI (sem duplicar valores)

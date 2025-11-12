@@ -40,7 +40,7 @@ Notas CI — Lote 3 (2025‑11‑11)
   "Executando pre-commit por diff: $BASE..$HEAD". Em `main`/`release/*`/tags o job executa full scan.
 - Gates por paths nos testes:
   - “Vitest” (job `test-frontend`) roda quando `frontend == 'true'` (PR/dev) e sempre em `main`/`release/*`/tags.
-  - “Pytest + Radon” (job `test-backend`) roda quando `backend == 'true'` (PR/dev) e sempre em `main`/`release/*`/tags.
+  - “Pytest + Radon” (job `test-backend`) roda quando `backend == 'true'` OU `tests == 'true'` (PR/dev) e sempre em `main`/`release/*`/tags.
   - Dica com gh: `gh run view <RUN_ID> --log | rg -n "Run Vitest|Pytest (coverage gate)|Radon complexity gate"`.
 
 Notas CI — Lote 4 (2025‑11‑11)
