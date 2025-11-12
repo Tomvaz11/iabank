@@ -46,7 +46,7 @@ Nota operacional: esta seção foi ajustada apenas para validar o comportamento 
 - Testes paralelos: dividido em dois jobs — `test-frontend` (Vitest) e `test-backend` (Pytest + Radon), ambos com `needs: [lint, changes]` e execução paralela.
 - Gates por paths nos testes:
   - Vitest: executa quando `needs.changes.outputs.frontend == 'true'` (PR/dev) e SEMPRE em `main`/`release/*`/tags.
-  - Pytest + Radon: executa quando `needs.changes.outputs.backend == 'true'` (PR/dev) e SEMPRE em `main`/`release/*`/tags.
+  - Pytest + Radon: executa quando `needs.changes.outputs.backend == 'true'` OU `needs.changes.outputs.tests == 'true'` (PR/dev) e SEMPRE em `main`/`release/*`/tags.
 - Contracts:
   - `contracts` não depende mais de `test`.
   - Pact consumer verification roda quando `contracts == 'true'` OU `frontend == 'true'`.
