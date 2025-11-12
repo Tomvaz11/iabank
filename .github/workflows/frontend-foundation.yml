@@ -101,6 +101,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Verificar uso do template de PR
         if: ${{ github.event_name == 'pull_request' && !startsWith(github.head_ref, 'chore/') && !startsWith(github.head_ref, 'ci/') && !startsWith(github.head_ref, 'docs/') && !startsWith(github.head_ref, 'tests/') }}
@@ -184,6 +186,9 @@ jobs:
 
       - name: ESLint (FSD boundaries + Zustand guard)
         run: pnpm lint
+
+      - name: Verificar necessidade de atualização de documentação
+        run: node scripts/ci/check-docs-needed.js
 
   pre-commit:
     name: Pre-commit (lint hooks)

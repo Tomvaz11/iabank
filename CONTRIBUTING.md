@@ -26,6 +26,9 @@ A pipeline principal executa e/ou exige:
 - Performance (k6 + Lighthouse budgets) quando aplicável.
 - Segurança (SAST/DAST/SCA, pgcrypto, SBOM) com enforcement estrito em `main`/release.
 - Threat model lint.
+- Verificação de documentação: falha PR quando há mudanças impactantes (CI/infra/versions/contracts)
+  sem atualização correspondente em `README.md`/`CONTRIBUTING.md`/`docs/`. Também verifica drift
+  básico das versões (Node de `.nvmrc`, Poetry pinado no workflow e Python do `pyproject.toml`) contra o README.
 - CI Outage Guard: fail‑open em branches não release para ferramentas de QA; fail‑closed em `main`/`release/*`/`hotfix/*`.
 - Pre-commit (lint hooks):
   - Em PRs: execução incremental por diff entre base e head (`--from-ref $BASE --to-ref $HEAD`).
