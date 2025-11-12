@@ -39,11 +39,12 @@ jobs:
         run: pnpm install --frozen-lockfile
         shell: bash
 
-      - name: Spectral lint (skips if not installed)
+      - name: Spectral lint (via pnpm openapi:lint)
         run: |
           if command -v pnpm >/dev/null 2>&1; then
             if [ -n "$(ls contracts 2>/dev/null)" ]; then
-              pnpm exec spectral lint contracts/**/*.yaml || exit 1
+              # Fonte única de verdade: usa o ruleset de contratos explicitamente
+              pnpm openapi:lint || exit 1
             else
               echo "::warning::No contracts directory to lint"
             fi
