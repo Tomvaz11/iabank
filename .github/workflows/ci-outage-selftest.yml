@@ -48,7 +48,7 @@ jobs:
           CI_OUTAGE_AXE_JOB_NAME: selftest-axe
           FOUNDATION_DEFAULT_TENANT: tenant-alfa
           # Simulate outage via local log with known patterns (read by script)
-          CI_OUTAGE_CHROMATIC_LOG: chromatic-selftest.log
+          CI_OUTAGE_CHROMATIC_LOG: artifacts/local/chromatic-selftest.log
           # Force non-release branch name to validate fail-open behavior (we also pass explicit JSON)
           GITHUB_REF_NAME: selftest-failopen
           # GitHub context (best effort; script tolerates missing PR)
@@ -56,10 +56,11 @@ jobs:
         run: |
           set -euo pipefail
           echo "Running outage selftest (fail-open)..."
+          mkdir -p artifacts/local
           echo "ECONNRESET simulated by selftest" > "$CI_OUTAGE_CHROMATIC_LOG"
-          node scripts/dist/ci/handle-outage.js | tee selftest-output.json
+          node scripts/dist/ci/handle-outage.js | tee artifacts/local/selftest-output.json
           echo "--- Selftest output (truncated) ---"
-          head -n 50 selftest-output.json || true
+          head -n 50 artifacts/local/selftest-output.json || true
 
       - name: Upload outage report artifact (if any)
         if: always()
@@ -108,11 +109,12 @@ jobs:
           CI_OUTAGE_AXE_JOB_STATUS: success
           CI_OUTAGE_AXE_JOB_NAME: selftest-axe
           FOUNDATION_DEFAULT_TENANT: tenant-alfa
-          CI_OUTAGE_CHROMATIC_LOG: chromatic-selftest-fc.log
+          CI_OUTAGE_CHROMATIC_LOG: artifacts/local/chromatic-selftest-fc.log
           GITHUB_REF_NAME: main
         run: |
           set -euo pipefail
           echo "Running outage selftest (fail-closed expected on main)..."
+          mkdir -p artifacts/local
           echo "service unavailable (selftest)" > "$CI_OUTAGE_CHROMATIC_LOG"
           # The script should exit(1) because branch is main (release) and outage exists
           node scripts/dist/ci/handle-outage.js || echo "EXPECTED_FAIL_CLOSED"

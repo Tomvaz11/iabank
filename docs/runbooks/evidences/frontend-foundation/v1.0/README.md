@@ -17,7 +17,7 @@ Responsáveis: Frontend Foundation Guild / Platform
     - Performance: success (histórico). ATUALIZAÇÃO 2025-11-08: gates agora são estritos também em PR; continuam publicando artefatos.
     - Security Checks: success (histórico). ATUALIZAÇÃO 2025-11-08: em PR passou a ser fail‑closed (sem fail‑open).
     - Threat Model Lint: success
-- Run manual (sanidade em main): ID 19048561651 (workflow_dispatch) — logs locais em `run.log`.
+- Run manual (sanidade em main): ID 19048561651 (workflow_dispatch) — logs locais em `artifacts/local/run.log`.
 
 ## Artefatos
 

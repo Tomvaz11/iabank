@@ -29,7 +29,7 @@
     "sbom:frontend": "node scripts/sbom/generate-frontend.js",
     "audit:frontend": "pnpm --dir frontend audit --prod --audit-level=high --json",
     "perf:smoke": "node scripts/perf/run-smoke.js",
-    "perf:smoke:ci": "node scripts/perf/run-smoke.js --summary-export=artifacts/k6-smoke.json",
+    "perf:smoke:ci": "mkdir -p artifacts/perf && node scripts/perf/run-smoke.js --summary-export=artifacts/perf/k6-smoke.json",
     "perf:lighthouse": "pnpm --filter @iabank/frontend-foundation test:lighthouse",
     "perf:smoke:local": "FOUNDATION_PERF_MODE=local FOUNDATION_PERF_SKIP_BUILD=true FOUNDATION_PERF_VUS=1 pnpm perf:smoke:ci",
     "finops:report": "pnpm exec tsc -p tsconfig.scripts.json && node scripts/dist/finops/foundation-costs.js",

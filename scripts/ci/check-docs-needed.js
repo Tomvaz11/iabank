@@ -154,6 +154,56 @@ function main() {
     if (eventName === 'pull_request') hadError = true;
   }
 
+  // Checagem adicional (issue #156): referências antigas a logs/temporários na raiz
+  // Devem apontar para artifacts/local/* conforme padronização.
+  try {
+    const listFiles = (patterns) =>
+      git(`ls-files ${patterns.join(' ')}`)
+        .split('\n')
+        .filter(Boolean);
+    const docFiles = unique(
+      listFiles(['README.md', 'CONTRIBUTING.md', 'docs/**', 'specs/**', 'observabilidade/**']).filter(
+        (f) => !f.includes('arquivo_morto_historico/'),
+      ),
+    );
+    const stalePatterns = [
+      'push_run.log',
+      '`run.log`',
+      '.tmp_vite.log',
+      '.run_main_jobs.json',
+      '.runs_pr_all.json',
+      '.run_main_last.json',
+    ];
+    const staleHits = [];
+    for (const file of docFiles) {
+      const content = readText(path.join(repoRoot, file));
+      for (const pat of stalePatterns) {
+        if (pat === 'push_run.log' && content.includes('artifacts/local/push_run.log')) {
+          continue; // já atualizado para o caminho novo
+        }
+        if (content.includes(pat)) {
+          staleHits.push({ file, pattern: pat });
+        }
+      }
+    }
+    if (staleHits.length > 0) {
+      const emit = eventName === 'pull_request' ? 'error' : 'warning';
+      console.error(`::${emit}::Documentação contém referências antigas a logs/temporários na raiz.`);
+      console.error('Atualize para caminhos sob artifacts/local/. Exemplos:');
+      console.error('- push_run.log → artifacts/local/push_run.log');
+      console.error('- `run.log` → `artifacts/local/run.log`');
+      console.error('- .tmp_vite.log → artifacts/local/vite.log');
+      console.error('- .run_main_jobs.json → artifacts/local/run_main_jobs.json');
+      console.error('- .runs_pr_all.json → artifacts/local/runs_pr_all.json');
+      console.error('- .run_main_last.json → artifacts/local/run_main_last.json');
+      console.error('Ocorrências:');
+      for (const hit of staleHits) console.error(`- ${hit.file} (padrão: ${hit.pattern})`);
+      if (eventName === 'pull_request') hadError = true;
+    }
+  } catch {
+    // Sem ls-files disponível; ignore.
+  }
+
   if (hadError) {
     process.exit(1);
   } else {
