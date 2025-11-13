@@ -27,4 +27,8 @@ Python 3.11; Node.js 20; TypeScript 5.6.: Follow standard conventions
 
 <!-- MANUAL ADDITIONS START -->
 - RESPONDA AO USUARIO SEMPRE EM PT-BR
+
+## PR/Commits (Spec‑Kit)
+- Use `.github/pull_request_template.md`; título em Conventional Commits; inclua ao menos uma tag `@SC-00x` (SC‑001..SC‑005).
+- Validadores: `scripts/git/verify-commit-msg.sh`, `scripts/ci/check-pr-template.sh`, `scripts/ci/validate-sc-tag.sh` (CI: `.github/workflows/frontend-foundation.yml`).
 <!-- MANUAL ADDITIONS END -->
