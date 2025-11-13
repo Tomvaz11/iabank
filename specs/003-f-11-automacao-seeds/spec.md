@@ -53,6 +53,8 @@ Hoje a criação de dados de base e de teste é manual e inconsistente entre amb
 - Ambientes não‑produtivos isolam dados por tenant (RLS) e suportam reexecução idempotente; produção não recebe seeds com PII.
 - Metas de DR acordadas: RTO 60 minutos (p95) e RPO 15 minutos, com snapshots/datasets disponíveis para restauração controlada.
 
+- Adoção de `external_id` nas APIs de domínio depende de coordenação entre equipes; a adoção será gradual, com compatibilidade retroativa, para evitar quebra de consumidores existentes.
+
 ## User Scenarios & Testing (mandatório)
 
 As histórias abaixo são independentes (INVEST) e validáveis de forma isolada.
@@ -195,7 +197,11 @@ Acceptance Scenarios (BDD):
 
 - FR-028: O pipeline de CI/CD DEVE incluir um gate de performance com thresholds mensuráveis por ambiente; mudanças que violem os thresholds devem ser reprovadas e os relatórios publicados como evidência.
 
-- FR-029: DEVE existir matriz RBAC/ABAC que define quem pode executar seeds/rollback/export/restore por ambiente/tenant, acompanhada de testes automatizados de autorização.
+ - FR-029: DEVE existir matriz RBAC/ABAC que define quem pode executar seeds/rollback/export/restore por ambiente/tenant, acompanhada de testes automatizados de autorização.
+
+ - FR-030: Contratos de APIs de domínio afetados por esta feature DEVEM possuir validação automatizada por testes e verificação de diffs de contrato como gate de aprovação antes de promover mudanças, com evidências publicadas no pipeline.
+
+ - FR-031: O isolamento multi-tenant DEVE ser verificado por testes automatizados que falham em qualquer acesso cruzado de tenant; as evidências dessa verificação DEVEM ser publicadas como parte do pipeline de validação.
 
 
 ### Parametrização de Volumetria (Q11)
