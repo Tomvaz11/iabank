@@ -454,11 +454,12 @@ jobs:
         if: ${{ (github.event_name == 'pull_request' && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true')) || (github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/'))) || (github.event_name != 'pull_request' && github.ref != 'refs/heads/main' && !startsWith(github.ref,'refs/heads/release/') && !startsWith(github.ref,'refs/tags/') && (needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true')) }}
         run: poetry run python scripts/ci/check_python_complexity.py
       - name: Upload pytest logs
-        if: always()
+        if: ${{ always() && hashFiles('artifacts/pytest/**') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: pytest-logs
           path: artifacts/pytest
+          if-no-files-found: ignore
 
   contracts:
     name: Contracts (Spectral, OpenAPI Diff, Pact)
@@ -596,6 +597,7 @@ jobs:
           path: |
             frontend/storybook-static
             frontend/chromatic-coverage.json
+          if-no-files-found: ignore
           retention-days: 7
 
   performance:
@@ -698,21 +700,23 @@ jobs:
           fi
 
       - name: Publicar resultados k6
-        if: ${{ needs.changes.outputs.ui == 'true' }}
+        if: ${{ needs.changes.outputs.ui == 'true' && hashFiles('artifacts/perf/k6-smoke.json') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: performance-k6-smoke
           path: artifacts/perf/k6-smoke.json
+          if-no-files-found: ignore
           retention-days: 14
 
       - name: Publicar relatórios Lighthouse
-        if: ${{ always() && needs.changes.outputs.ui == 'true' }}
+        if: ${{ always() && needs.changes.outputs.ui == 'true' && (hashFiles('artifacts/lighthouse/**') != '' || hashFiles('observabilidade/data/lighthouse-latest.json') != '') }}
         uses: actions/upload-artifact@v4
         with:
           name: performance-lighthouse-budgets
           path: |
             artifacts/lighthouse
             observabilidade/data/lighthouse-latest.json
+          if-no-files-found: ignore
           retention-days: 14
 
       - name: Resumo dos budgets Lighthouse
@@ -807,6 +811,17 @@ jobs:
         if: ${{ needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         run: pnpm install --frozen-lockfile
 
+      - name: Cache Semgrep rules
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.semgrep
+            ~/.cache/semgrep
+          key: ${{ runner.os }}-semgrep-v1-${{ hashFiles('scripts/security/semgrep.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-semgrep-v1-
+
       - name: Install Poetry (pin 1.8.x para compatibilidade do lock)
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         run: |
@@ -867,11 +882,12 @@ jobs:
           fi
 
       - name: Upload ZAP artifacts
-        if: always()
+        if: ${{ always() && hashFiles('artifacts/zap/**') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: zap-reports
           path: artifacts/zap
+          if-no-files-found: ignore
           retention-days: 14
 
       - name: Resumo ZAP

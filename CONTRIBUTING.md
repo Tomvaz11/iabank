@@ -36,6 +36,11 @@ A pipeline principal executa e/ou exige:
   - O checkout do job usa `fetch-depth: 0` para garantir diffs confiáveis.
   - Hooks definidos em `.pre-commit-config.yaml` (ESLint/Ruff); o job grava um resumo no Job Summary.
 
+### CI: Gating de jobs e uploads
+- Jobs obrigatórios pela proteção de branch NÃO devem ser pulados no nível do job. Mantenha o gating por paths/refs no nível dos steps para preservar a presença dos checks (status “verde” quando não há trabalho).
+- Para uploads, evite ruído de “No files were found…” usando `if-no-files-found: ignore` e/ou condicionais com `hashFiles()` (ex.: `if: ${{ always() && hashFiles('artifacts/pytest/**') != '' }}`).
+- Segurança: reforçamos caches (Poetry/pip/pnpm e Semgrep) para reduzir tempo, mantendo execução completa em `main`/tags e execução limitada a paths relevantes em PRs.
+
 - Testes (gates por paths) — Lote 3:
   - “Vitest” (job `test-frontend`): prepara Node e executa Vitest quando `needs.changes.outputs.frontend == 'true'` (em PR/dev). Em `main`/`release/*`/tags, sempre executa.
   - “Pytest + Radon” (job `test-backend`): prepara Python/Poetry e executa Pytest/Radon quando `needs.changes.outputs.backend == 'true'` OU `needs.changes.outputs.tests == 'true'` (em PR/dev). Em `main`/`release/*`/tags, sempre executa.
