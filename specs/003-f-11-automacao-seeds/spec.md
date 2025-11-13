@@ -110,26 +110,30 @@ Acceptance Scenarios (BDD):
 
 ## Integrações e Restrições
 
-- Orquestração de entrega: abordagem híbrida — CI valida (gates, relatórios, evidências) e Argo CD aplica nos ambientes (GitOps), com janelas, aprovações e rollback. Execução registrada e auditável por ambiente/tenant.
+- Orquestração de entrega: abordagem híbrida — CI valida (gates, relatórios, evidências) e Argo CD aplica nos ambientes (GitOps), com janelas, aprovações, rollback e detecção de drift; execução disparada por artefatos versionados; execução registrada e auditável por ambiente/tenant.
 - Factories padronizadas: uso de factories compatíveis com o padrão corporativo (ex.: factory-boy) para garantir dados previsíveis, repetíveis e auditáveis.
-- Caminho de execução: seeds e validações operam via APIs de domínio com throttling; acesso direto ao banco é proibido em todos os ambientes. Em produção, apenas seeds não sensíveis são permitidas e obrigatoriamente via APIs com auditoria.
-- Escopo multi-tenant: todas as requisições devem incluir o cabeçalho obrigatório `X-Tenant-ID`; alternativas (path param, subdomínio, somente claim JWT) não são aceitas para seeds/factories.
-- Idempotência via API: todas as APIs de domínio devem aceitar `external_id` estável por entidade/tenant para permitir upsert idempotente sem leitura prévia pelas rotinas de seed.
-- Export/Restore de datasets: adotar NDJSON por entidade, com manifest (schemaVersion, checksums SHA‑256, contagens esperadas, metadados de catálogo de PII). Criptografia obrigatória via Vault Transit por ambiente (envelope AES‑256‑GCM); manifest deve incluir `kid` e `algoritmo`. Formato stream‑friendly, agnóstico de engine e validável no CI/Argo.
-- Export/Restore de datasets: adotar NDJSON por entidade, com manifest (schemaVersion, checksums SHA‑256, contagens esperadas, metadados de catálogo de PII). Criptografia obrigatória via Vault Transit por ambiente (envelope AES‑256‑GCM); manifest deve incluir `kid` e `algoritmo`. Formato stream‑friendly, agnóstico de engine e validável no CI/Argo. Granularidade canônica: por tenant como padrão; restauração do ambiente inteiro apenas via playbook de DR aprovado.
- - Export/Restore de datasets: adotar NDJSON por entidade, com manifest (schemaVersion, checksums SHA‑256, contagens esperadas, metadados de catálogo de PII). Criptografia obrigatória via Vault Transit por ambiente (envelope AES‑256‑GCM); manifest deve incluir `kid` e `algoritmo`. Formato stream‑friendly, agnóstico de engine e validável no CI/Argo. Granularidade canônica: por tenant como padrão; restauração do ambiente inteiro apenas via playbook de DR aprovado. Armazenamento: bucket de objetos por ambiente com versionamento e WORM/imutabilidade, organizado por prefixos de tenant, com políticas de retenção e IAM restritivas.
-- Respeito a limites de taxa: geração e validações não devem exceder 80% do rate limit efetivo das APIs do domínio, incluindo a superfície `/api/v1`, por ambiente e por tenant.
-- Controle de taxa e retries: usar token bucket por tenant combinado a backoff exponencial com jitter e concorrência adaptativa para manter uso ≤ 80% do limite.
+- Caminho de execução: seeds e validações DEVEM operar via APIs de domínio com throttling; acesso direto ao banco É PROIBIDO em todos os ambientes. Em produção, apenas seeds não sensíveis são permitidas e OBRIGATORIAMENTE via APIs com auditoria.
+- Escopo multi-tenant: todas as requisições DEVEM incluir o cabeçalho obrigatório `X-Tenant-ID`; alternativas (path param, subdomínio, somente claim JWT) NÃO SÃO ACEITAS para seeds/factories.
+- Idempotência via API: as rotinas de seed DEVEM enviar `Idempotency-Key` em mutações com TTL e deduplicação auditável; e todas as APIs de domínio DEVEM aceitar `external_id` estável por entidade/tenant para permitir upsert idempotente sem leitura prévia pelas rotinas de seed.
+- Export/Restore de datasets: adotar NDJSON por entidade, com manifest (schemaVersion, checksums SHA‑256, contagens esperadas, metadados de catálogo de PII). Criptografia obrigatória via Vault Transit por ambiente (envelope AES‑256‑GCM); manifest deve incluir `kid` e `algoritmo`. Formato stream‑friendly, agnóstico de engine e validável no CI/Argo. Granularidade canônica: por tenant como padrão; restauração do ambiente inteiro apenas via playbook de DR aprovado. Armazenamento: bucket de objetos por ambiente com versionamento e WORM/imutabilidade, organizado por prefixos de tenant, com políticas de retenção e IAM restritivas.
+- Respeito a limites de taxa: geração e validações NÃO DEVEM exceder 80% do rate limit efetivo das APIs do domínio, incluindo a superfície `/api/v1`, por ambiente e por tenant.
+- Controle de taxa e retries: DEVEM implementar limitação por tenant (ex.: token bucket) combinada a backoff exponencial com jitter e concorrência adaptativa para manter uso ≤ 80% do limite.
  - Concorrência: aplicar exclusão mútua por tenant por meio de lock distribuído com TTL e renovação; proibir execuções paralelas no mesmo tenant para evitar conflitos e pressão nos rate limits.
-- Autenticação: uso de Service Account com OAuth2 Client Credentials com escopos mínimos por domínio; tokens de curta duração (≤ 15 min), segredos/creds geridos no Vault; mTLS opcional como camada adicional. Vedados tokens de usuário delegados e JWT estático de longa duração.
- - Observabilidade: instrumentar seeds/factories/validações com OpenTelemetry (tracing), logs JSON estruturados e métricas (Prometheus), sem PII; adotar amostragem e limites de cardinalidade; correlação por `run_id`, `tenant_id`, `env` e `q11`.
+- Autenticação: DEVEM usar Service Account com OAuth2 Client Credentials com escopos mínimos por domínio; tokens de curta duração (≤ 15 min), segredos/creds geridos no Vault; mTLS opcional como camada adicional. SÃO VEDADOS tokens de usuário delegados e JWT estático de longa duração.
+ - Observabilidade: DEVEM instrumentar seeds/factories/validações com OpenTelemetry (tracing), logs JSON estruturados e métricas (Prometheus), sem PII; adotar amostragem e limites de cardinalidade; correlação por `run_id`, `tenant_id`, `env` e `q11`.
+- Governança de API: erros devem seguir RFC 9457 (Problem Details) e, quando aplicável, mutações devem aplicar controle de concorrência condicional (`ETag`/`If-Match`) para evitar lost‑update.
 - Escopo de execução por ambiente:
   - Desenvolvimento: Q11 baixo por padrão; reexecuções livres, focadas em rapidez.
   - Homologação: Q11 médio; prioriza representatividade e anonimização estrita.
   - Performance: Q11 alto; foco em volumetria e janela controlada sem estourar limites de taxa.
-  - Produção: execução restrita às rotinas sem PII (ex.: catálogos/configurações); seeds com dados sensíveis não devem ser aplicadas em produção.
   - Produção: execução restrita às rotinas sem PII (ex.: catálogos/configurações); seeds com dados sensíveis não devem ser aplicadas em produção; somente via APIs de domínio com throttling e auditoria; vedado acesso direto ao banco.
   - Observação: valores de Q11 podem ser sobrescritos por política do ambiente/tenant, respeitando limites máximos aprovados.
+
+## Interfaces & Comandos (o que/por quê)
+
+- Comando de gerenciamento: a feature DEVE expor um comando de gerenciamento do Django para seeds ("seed_data") responsável por criar/atualizar dados base e de teste por ambiente/tenant, com idempotência comprovada e validações pós‑execução.
+- Parâmetros funcionais obrigatórios: seleção de tenant(s); ambiente de destino; nível de volumetria (Q11: baixo/médio/alto); seleção de entidades/escopos; modos de execução (dry‑run, validate‑only); identificador de execução (run_id); limites configuráveis de concorrência, taxa e tempo; padronização de códigos de saída. Não prescrever sintaxe/flags aqui — detalhar no /speckit.plan.
+- Resultados observáveis: publicar relatórios de validação (contagens/distribuições, integridade referencial, anonimização/PII=0), métricas de execução e artefatos/evidências no pipeline; respeitar rate limit efetivo (≤ 80%) por ambiente/tenant.
 
 ## Requirements (mandatório)
 
@@ -141,7 +145,8 @@ Acceptance Scenarios (BDD):
 | Art. IV (Integração) | Validações integradas e evidências nos fluxos de entrega            | Gate dedicado nas rotinas de entrega, com auditoria e rollback documentado              |
 | Art. VIII (Entrega)  | Estratégia de release segura (feature flag/canary/rollback)        | Execução controlada por ambiente com rollback seguro de dados sem efeito em produção    |
 | Art. IX (CI)         | Cobertura, qualidade e gates em CI                                 | Estágio dedicado que bloqueia merge/deploy ao detectar violações nas validações         |
-| Art. XI (API)        | Contratos e erros padronizados                                     | Alteração aditiva compatível: aceitar `external_id` opcional para upsert idempotente; consumo respeita limites de taxa e sem impacto no SLO |
+| Art. XI (API)        | Contratos e erros padronizados                                     | Aceitar `external_id` para upsert idempotente; exigir `Idempotency-Key` com TTL/deduplicação auditável; erros no padrão RFC 9457; quando aplicável, `ETag`/`If-Match` para evitar lost‑update; consumo respeita limites de taxa e SLO |
+| Art. XII (Security)  | RBAC/ABAC, proteção de dados                                        | Matriz de permissões para executar seeds/rollback/export/restore por ambiente/tenant; testes automatizados de autorização |
 | Art. XIII (LGPD/RLS) | RLS, mascaramento PII, retenção/direito ao esquecimento            | Catálogo de PII, regras de anonimização e evidências de auditoria por ambiente/tenant   |
 | Art. XVI (FinOps)    | Custos rastreados e otimizados                                     | Execuções janeladas, limites por ambiente/tenant e relatórios para evitar picos de custo|
 | ADR-009 (GitOps)     | Entrega declarativa e detecção de drift                            | Seeds integradas ao fluxo GitOps e compatíveis com rollback e auditoria                  |
@@ -158,7 +163,7 @@ Acceptance Scenarios (BDD):
 
 ### Functional Requirements
 
-- FR-001: Disponibilizar comando de produto "seed_data" para criar/atualizar dados base e de teste por ambiente e tenant, com idempotência comprovada.
+- FR-001: Disponibilizar comando de gerenciamento do Django "seed_data" para criar/atualizar dados base e de teste por ambiente e tenant, com idempotência comprovada.
 - FR-002: Disponibilizar factories padronizadas para geração determinística de entidades e relacionamentos, com perfis de dados (mínimo, médio, alto) alinhados ao Q11.
 - FR-003: Aplicar anonimização/mascaramento irreversível para todos os campos classificados como PII/PD antes de qualquer uso fora de produção.
 - FR-004: Implementar validações automáticas pós-seed (contagem mínima por entidade, distribuição por tenant, integridade referencial, inexistência de PII não mascarada). Execução falha ao violar qualquer regra.
@@ -179,12 +184,18 @@ Acceptance Scenarios (BDD):
  - FR-019: Seeds/factories/validações devem autenticar via Service Account por tenant usando OAuth2 Client Credentials com escopos mínimos por domínio; tokens com TTL curto e rotação automática; proibir chaves/tokens estáticos de longa duração.
 - FR-020: Criptografar artefatos de export/restore (NDJSON) usando Vault Transit por ambiente com envelope AES‑256‑GCM; manifest deve conter KID/algoritmo; chaves segregadas por ambiente; proibir armazenamento de PII em claro.
  - FR-021: Instrumentar com OpenTelemetry (tracing), logs estruturados e métricas com cardinalidade controlada; correlação por run_id/tenant_id/env/q11; proibir PII nos sinais.
- - FR-022: Aplicar exclusão mútua por tenant com lock distribuído em Redis 7 (SET NX + TTL e renovação, Redlock-safe) para impedir execuções concorrentes no mesmo tenant; registrar contenda e fila de espera quando aplicável.
+ - FR-022: Aplicar exclusão mútua por tenant com lock distribuído com expiração e renovação para impedir execuções concorrentes no mesmo tenant; registrar contenda e fila de espera quando aplicável.
  - FR-023: Armazenar artefatos NDJSON (export/restore) em bucket de objetos por ambiente com versionamento habilitado e WORM/imutabilidade, usando prefixos por tenant; acesso via IAM mínimo necessário; retenção: Desenvolvimento 7 dias, Homologação 30 dias, Performance 90 dias; ajustes de retenção exigem aprovação do ambiente.
  - FR-024: Reconciliação por origem: realizar upsert determinístico e deletar apenas registros criados pela seed que excedam a meta por entidade/tenant; nunca alterar/deletar dados fora da origem seed; sempre via APIs de domínio.
- - FR-025: Marcação de origem “seed”: todo registro criado via seeds deve ser identificável pela auditoria do domínio (created_by=service account “seed-data” e run_id/correlação persistidos) para permitir reconciliação e auditoria sem mudanças de contrato.
+- FR-025: Marcação de origem “seed”: todo registro criado via seeds deve ser identificável pela auditoria do domínio (created_by=service account “seed-data” e run_id/correlação persistidos) para permitir reconciliação e auditoria sem mudanças de contrato.
 
 - FR-026: Todas as APIs de domínio devem aceitar campo `external_id` estável por entidade/tenant e realizar upsert idempotente com base nele, sem necessidade de leitura prévia; chamadas de seed sem `external_id` devem ser rejeitadas.
+
+- FR-027: As rotinas de seed DEVEM enviar `Idempotency-Key` em todas as mutações e as APIs DEVEM aplicar deduplicação com TTL auditável conforme a governança de API (Art. XI); chamadas que violem a política devem ser rejeitadas.
+
+- FR-028: O pipeline de CI/CD DEVE incluir um gate de performance com thresholds mensuráveis por ambiente; mudanças que violem os thresholds devem ser reprovadas e os relatórios publicados como evidência.
+
+- FR-029: DEVE existir matriz RBAC/ABAC que define quem pode executar seeds/rollback/export/restore por ambiente/tenant, acompanhada de testes automatizados de autorização.
 
 
 ### Parametrização de Volumetria (Q11)
@@ -230,6 +241,8 @@ Modelo de parametrização: manifesto versionado por ambiente define contagens a
 - SC-003: Geração de datasets sintéticos atinge os alvos de volumetria Q11 por tenant em janela acordada (p95: médio ≤ 15 min; alto ≤ 45 min), sem exceder 80% do limite de taxa.
 - SC-004: Gate de entrega reprova 100% das mudanças que causam quebra de seeds/factories/anonimização, com evidências publicadas.
 - SC-005: Procedimento de DR reconstitui ambiente de teste dentro do RTO de 60 minutos (p95) e RPO de 15 minutos, com dados anonimizados.
+
+- SC-006: Gate de performance no CI/CD reprova mudanças que violem thresholds definidos por ambiente; relatórios e métricas de execução publicados como evidência.
 
 Associe cada critério aos testes automatizados e relatórios do pipeline para verificação objetiva.
 
