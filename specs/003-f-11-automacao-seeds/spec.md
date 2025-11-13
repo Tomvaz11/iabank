@@ -112,8 +112,8 @@ Acceptance Scenarios (BDD):
 
 ## Integrações e Restrições
 
-- Orquestração de entrega: abordagem híbrida — CI valida (gates, relatórios, evidências) e orquestração GitOps aplica nos ambientes, com janelas, aprovações, rollback e detecção de drift; execução disparada por artefatos versionados; execução registrada e auditável por ambiente/tenant.
-- Factories padronizadas: uso de factories determinísticas e auditáveis, compatíveis com o ecossistema Python, para garantir dados previsíveis e repetíveis. A tecnologia específica será definida no /speckit.plan.
+- Orquestração de entrega: abordagem híbrida — CI valida (gates, relatórios, evidências) e Argo CD (GitOps) aplica nos ambientes, com janelas, aprovações, rollback e detecção de drift; execução disparada por artefatos versionados; execução registrada e auditável por ambiente/tenant.
+ - Factories padronizadas: uso de factory-boy (pacote `factory_boy`) como padrão (Art. IV) para factories determinísticas e auditáveis, garantindo dados previsíveis e repetíveis. Detalhes de implementação ficam para o /speckit.plan.
 - Caminho de execução: seeds e validações DEVEM operar via APIs de domínio com throttling; acesso direto ao banco É PROIBIDO em todos os ambientes. Em produção, apenas seeds não sensíveis são permitidas e OBRIGATORIAMENTE via APIs com auditoria.
 - Escopo multi-tenant: todas as requisições DEVEM incluir o cabeçalho obrigatório `X-Tenant-ID`; alternativas (path param, subdomínio, somente claim JWT) NÃO SÃO ACEITAS para seeds/factories.
 - Idempotência via API: as rotinas de seed DEVEM enviar `Idempotency-Key` em mutações com TTL e deduplicação auditável; e todas as APIs de domínio DEVEM aceitar `external_id` estável por entidade/tenant para permitir upsert idempotente sem leitura prévia pelas rotinas de seed.
@@ -167,7 +167,7 @@ Acceptance Scenarios (BDD):
 ### Functional Requirements
 
 - FR-001: Disponibilizar comando de gerenciamento do Django "seed_data" para criar/atualizar dados base e de teste por ambiente e tenant, com idempotência comprovada.
-- FR-002: Disponibilizar factories padronizadas para geração determinística de entidades e relacionamentos, com perfis de dados (mínimo, médio, alto) alinhados ao Q11; tecnologia específica definida no /speckit.plan.
+- FR-002: Disponibilizar factories padronizadas com factory-boy (pacote `factory_boy`) para geração determinística de entidades e relacionamentos, com perfis de dados (mínimo, médio, alto) alinhados ao Q11.
 - FR-003: Aplicar anonimização/mascaramento irreversível para todos os campos classificados como PII/PD antes de qualquer uso fora de produção.
 - FR-004: Implementar validações automáticas pós-seed (contagem mínima por entidade, distribuição por tenant, integridade referencial, inexistência de PII não mascarada). Execução falha ao violar qualquer regra.
 - FR-005: Integrar a rotina de seeds aos fluxos de entrega, como um gate obrigatório: mudança só avança se as validações passarem e as evidências forem publicadas.
@@ -179,7 +179,7 @@ Acceptance Scenarios (BDD):
 - FR-011: Restringir execução a perfis autorizados e registrar quem, quando e onde executou, por compliance.
 - FR-012: Adotar UUIDv5 determinístico namespaced por tenant+entidade como chave técnica canônica nas seeds/factories para garantir idempotência e reexecuções seguras sem expor PII.
 - FR-013: Executar seeds via APIs de domínio com throttling e controles de concorrência; vedado acesso direto ao banco em todos os ambientes. Em produção, apenas seeds não sensíveis e obrigatoriamente via APIs com auditoria.
-- FR-014: Orquestração híbrida: validação obrigatória no CI (gates/evidências) e aplicação declarativa via GitOps nos ambientes aprovados (ferramenta definida no /speckit.plan).
+- FR-014: Orquestração híbrida: validação obrigatória no CI (gates/evidências) e aplicação declarativa via Argo CD (GitOps) nos ambientes aprovados.
  - FR-015: Padronizar export/import (DR e seeds) como NDJSON por entidade com manifest (versionamento de schema, ordem topológica por dependências e checksums); restore por tenant como padrão deve validar checksums e contagens esperadas antes de aplicar; restauração de ambiente inteiro somente via playbook de DR aprovado; falhar imediatamente se a versão de schema do manifest divergir da esperada e exigir migração do dataset no CI.
 - FR-016: Anonimização por substituição sintética determinística parametrizada por tenant, usando segredo por ambiente/tenant gerido em cofre/KMS corporativo; preservar formatos/validações de domínio e proibir tokenização reversível.
 - FR-017: Escopo multi-tenant padronizado via cabeçalho obrigatório `X-Tenant-ID` em todas as chamadas realizadas por seeds/factories/validações.
@@ -192,7 +192,8 @@ Acceptance Scenarios (BDD):
  - FR-024: Reconciliação por origem: realizar upsert determinístico e deletar apenas registros criados pela seed que excedam a meta por entidade/tenant; nunca alterar/deletar dados fora da origem seed; sempre via APIs de domínio.
 - FR-025: Marcação de origem “seed”: todo registro criado via seeds deve ser identificável pela auditoria do domínio (created_by=service account “seed-data” e run_id/correlação persistidos) para permitir reconciliação e auditoria sem mudanças de contrato.
 
-- FR-026: Todas as APIs de domínio devem aceitar campo `external_id` estável por entidade/tenant e realizar upsert idempotente com base nele, sem necessidade de leitura prévia; chamadas de seed sem `external_id` devem ser rejeitadas.
+- FR-026: As APIs de domínio tocadas pela F‑11 (entidades usadas pelas seeds) DEVEM aceitar campo `external_id` estável por entidade/tenant e realizar upsert idempotente sem leitura prévia; chamadas de seed sem `external_id` devem ser rejeitadas.
+  - [NEEDS CLARIFICATION] Extender esta exigência para todas as APIs do domínio (fora do escopo F‑11) requer alinhamento e plano de rollout cross‑domínio.
 
 - FR-027: As rotinas de seed DEVEM enviar `Idempotency-Key` em todas as mutações e as APIs DEVEM aplicar deduplicação com TTL auditável conforme a governança de API (Art. XI); chamadas que violem a política devem ser rejeitadas.
 
@@ -238,6 +239,8 @@ Modelo de parametrização: manifesto versionado por ambiente define contagens a
 - Criptografia de artefatos: usar algoritmo AEAD com gerenciamento de chaves por ambiente/tenant; manifest inclui KID/algoritmo; proibir export/armazenamento em claro; evidenciar processo no pipeline.
 - Evidências requeridas: relatório de varredura de PII, relatório de validação de seeds, trilha de auditoria por tenant e por execução.
  - Logs/Traces: aplicar redaction e denylist de PII antes da emissão; validações automáticas em CI para prevenir vazamento.
+ 
+Além disso, o pipeline DEVE publicar evidências de verificação de isolamento multi‑tenant via RLS (testes automatizados que falham em qualquer acesso cruzado de tenant), conforme FR‑031.
 
 ## Success Criteria (mandatório)
 
@@ -255,4 +258,6 @@ Associe cada critério aos testes automatizados e relatórios do pipeline para v
 
 ## Outstanding Questions & Clarifications
 
-Sem pendências críticas no momento; dúvidas operacionais menores podem ser tratadas em planejamento.
+- [Arquitetura] [NEEDS CLARIFICATION] Backend de lock distribuído a ser adotado para exclusão mútua por tenant (Redis, Postgres advisory locks, outro). Impacto: concorrência e robustez das execuções. Artigos relacionados: Art. VII (Observabilidade para monitorar contenda), Art. IX (CI/Confiabilidade).
+- [Segurança] [NEEDS CLARIFICATION] KMS/Cofre corporativo a ser utilizado para AEAD e gestão de segredos/chaves (Hashicorp Vault Transit, AWS KMS, outro). Impacto: integração CI/CD e DR; evidências e KID/algoritmo no manifest. Artigos relacionados: Art. XII (Security), Art. VII (Observabilidade).
+- [Governança de API] [NEEDS CLARIFICATION] Escopo de adoção de `external_id` para upsert idempotente além das entidades tocadas pela F‑11. Impacto: mudanças de contrato e necessidade de validação OpenAPI/Pact; gates de compatibilidade (Art. XI, ADRs).
