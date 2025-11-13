@@ -77,7 +77,7 @@ jobs:
           head -n 50 artifacts/local/selftest-output.json || true
 
       - name: Upload outage report artifact (if any)
-        if: always()
+        if: ${{ always() && hashFiles('observabilidade/data/ci-outages.json') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: ci-outage-selftest
@@ -134,7 +134,7 @@ jobs:
           node scripts/dist/ci/handle-outage.js || echo "EXPECTED_FAIL_CLOSED"
 
       - name: Upload outage report artifact (if any)
-        if: always()
+        if: ${{ always() && hashFiles('observabilidade/data/ci-outages.json') != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: ci-outage-selftest-fail-closed
