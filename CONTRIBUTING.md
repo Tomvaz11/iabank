@@ -41,6 +41,8 @@ A pipeline principal executa e/ou exige:
 - Para uploads, evite ruído de “No files were found…” usando `if-no-files-found: ignore` e/ou condicionais com `hashFiles()` (ex.: `if: ${{ always() && hashFiles('artifacts/pytest/**') != '' }}`).
 - Segurança: reforçamos caches (Poetry/pip/pnpm e Semgrep) para reduzir tempo, mantendo execução completa em `main`/tags e execução limitada a paths relevantes em PRs.
 
+- Padrão em workflows secundários: quando o artefato é opcional (diagnóstico/logs) e pode não existir, aplique `if: ${{ always() && hashFiles('<caminho/**>') != '' }}` junto de `if-no-files-found: ignore`. Ex.: no "CI Outage Selftest", o upload de `observabilidade/data/ci-outages.json` é condicionado com `hashFiles()` para evitar avisos e manter os checks obrigatórios presentes.
+
 - Testes (gates por paths) — Lote 3:
   - “Vitest” (job `test-frontend`): prepara Node e executa Vitest quando `needs.changes.outputs.frontend == 'true'` (em PR/dev). Em `main`/`release/*`/tags, sempre executa.
   - “Pytest + Radon” (job `test-backend`): prepara Python/Poetry e executa Pytest/Radon quando `needs.changes.outputs.backend == 'true'` OU `needs.changes.outputs.tests == 'true'` (em PR/dev). Em `main`/`release/*`/tags, sempre executa.
