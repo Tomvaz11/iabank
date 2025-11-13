@@ -17,14 +17,14 @@ Hoje a criação de dados de base e de teste é manual e inconsistente entre amb
 
 - Q: Qual a chave única canônica para dados gerados que garanta idempotência por tenant sem expor PII? → A: UUIDv5 determinístico namespaced por tenant+entidade.
 - Q: Por onde as seeds devem operar em ambientes não‑produtivos para preservar invariantes e respeitar limites de taxa? → A: APIs de domínio com throttling.
-- Q: Como orquestrar a execução das seeds por ambiente? → A: Híbrido: CI valida; Argo aplica nos ambientes.
+- Q: Como orquestrar a execução das seeds por ambiente? → A: Híbrido: CI valida; orquestração GitOps aplica nos ambientes.
 - Q: Qual o formato padrão para export/restore de datasets (DR/seeds)? → A: NDJSON por entidade + manifest + checksums.
-- Q: Qual a estratégia canônica de anonimização de PII? → A: Substituição sintética determinística (faker+segredo Vault).
+- Q: Qual a estratégia canônica de anonimização de PII? → A: Substituição sintética determinística com segredo por ambiente/tenant gerido em cofre/KMS corporativo.
 - Q: Qual mecanismo padrão para escopo de tenant nas chamadas às APIs de domínio? → A: Cabeçalho X-Tenant-ID obrigatório em todas as requisições.
-- Q: Qual estratégia de rate limiting e retries deve ser adotada nas seeds/chamadas às APIs? → A: Backoff exponencial com jitter + token bucket por tenant.
-- Q: Como as seeds devem se autenticar nas APIs de domínio? → A: Service Account + OAuth2 Client Credentials (escopos mínimos).
-- Q: Qual o padrão mínimo de observabilidade para seeds/factories? → A: OTel tracing + logs estruturados + métricas (cardinalidade controlada).
-- Q: Como criptografar os artefatos NDJSON/DR exportados? → A: Vault Transit por ambiente; envelope AES‑256‑GCM; manifest inclui KID/algoritmo.
+- Q: Qual estratégia de rate limiting e retries deve ser adotada nas seeds/chamadas às APIs? → A: Backoff exponencial com jitter + limitação de taxa por tenant.
+- Q: Como as seeds devem se autenticar nas APIs de domínio? → A: Conta de serviço + autenticação M2M (aplicação‑para‑aplicação) com escopos mínimos.
+- Q: Qual o padrão mínimo de observabilidade para seeds/factories? → A: Tracing + logs estruturados + métricas com correlação e cardinalidade controlada, em conformidade com a Constituição (OpenTelemetry).
+- Q: Como criptografar os artefatos NDJSON/DR exportados? → A: Criptografia forte (AEAD) com gerenciamento de chaves por ambiente/tenant em cofre/KMS corporativo; manifest inclui KID/algoritmo.
 - Q: Qual deve ser a granularidade canônica de restore (DR/seeds)? → A: Por tenant como padrão; ambiente inteiro só via playbook DR aprovado.
 - Q: Como parametrizar Q11 (volumetria) por entidade/tenant? → A: Manifesto por ambiente com contagens absolutas por entidade (versionado) + multiplicador opcional por tenant.
 - Q: Qual política de concorrência para execução de seeds no mesmo tenant? → A: Exclusão mútua por tenant via lock distribuído com TTL e renovação.
@@ -35,9 +35,9 @@ Hoje a criação de dados de base e de teste é manual e inconsistente entre amb
 - Q: Qual a granularidade canônica de rollback/limpeza das seeds? → A: Rollback por run_id: desfaz somente registros seed daquela execução.
 - Q: Como tratar compatibilidade de schema ao importar artefatos NDJSON? → A: Fail-fast se versão do manifest != esperada; migrar dataset no CI.
 - Q: Qual política de retenção WORM para artefatos NDJSON por ambiente? → A: Dev 7d, Homolog 30d, Perf 90d (WORM).
-- Q: Qual backend de lock distribuído para exclusão mútua por tenant? → A: Redis 7 (SET NX + TTL com renovação, Redlock-safe).
+- Q: Qual backend de lock distribuído para exclusão mútua por tenant? → A: Mecanismo de lock distribuído com TTL e renovação.
 - Q: Qual a ordem de import/restore entre entidades? → A: Manifesto com ordem topológica por dependências (ex.: Cliente→Conta→Cartão→Transação→Identificador de Pagamento).
-- Q: Qual a fonte do rate limit efetivo? → A: Auto-descoberta via cabeçalhos HTTP (X-RateLimit-*, Retry-After) com fallback para manifesto por ambiente/tenant.
+- Q: Qual a fonte do rate limit efetivo? → A: Auto‑descoberta via sinais/headers de limite de taxa expostos pelo provedor, com fallback para manifesto por ambiente/tenant.
 - Q: Qual limite de paralelismo global por ambiente? → A: Dev=3, Homolog=5, Perf=10; Produção sem seeds sensíveis.
 - Q: Qual a granularidade das Service Accounts? → A: Service Account por tenant (escopos mínimos por domínio).
 
@@ -47,7 +47,7 @@ Hoje a criação de dados de base e de teste é manual e inconsistente entre amb
 
 - Existem políticas e um catálogo de PII/PD por domínio atualizados e acessíveis para orientar anonimização/mascaramento.
 - Os pipelines de CI/CD possuem permissões e recursos para executar gates de validação de seeds/factories, varreduras de PII e publicação de evidências.
-- A orquestração de entrega via Argo CD está habilitada para aplicar seeds em ambientes pré‑aprovados, respeitando janelas operacionais e RBAC.
+- A orquestração de entrega GitOps está habilitada para aplicar seeds em ambientes pré‑aprovados, respeitando janelas operacionais e RBAC.
 - Os limites de taxa das APIs (incluindo a superfície `/api/v1`) estão documentados por ambiente/tenant; a execução manterá uso ≤ 80% do teto efetivo.
 - A política de volumetria Q11 por ambiente/tenant é vigente (Dev=baixo, Homolog=médio, Perf=alto); sobrescritas exigem aprovação do ambiente.
 - Ambientes não‑produtivos isolam dados por tenant (RLS) e suportam reexecução idempotente; produção não recebe seeds com PII.
@@ -104,25 +104,25 @@ Acceptance Scenarios (BDD):
 - Reexecução de seeds: múltiplas execuções levam ao mesmo estado final (idempotência) e registram difs.
 - Limites de taxa: nunca exceder 80% do limite contratado por ambiente/tenant; aplicar limitação e janelas.
 - Cabeçalho X-Tenant-ID ausente ou inválido: rejeitar com erro claro (HTTP 400/401) sem efeitos colaterais.
-- Erros 429/503: aplicar retries com backoff exponencial com jitter e limitação por token bucket por tenant; abortar após limiar configurado.
+- Erros 429/503: aplicar retries com backoff exponencial com jitter e limitação de taxa por tenant; abortar após limiar configurado.
 - Manifest sem KID/algoritmo ou falha de decriptação: abortar restore com erro claro e registrar evidências; nunca armazenar PII em claro.
-- Autenticação expirada ou escopo insuficiente (401/403): renovar token via OAuth2 CC; falhar com erro claro se o escopo mínimo não estiver disponível.
+- Autenticação expirada ou escopo insuficiente (401/403): renovar token do fluxo M2M; falhar com erro claro se o escopo mínimo não estiver disponível.
  - Logs/traces contendo PII: reprovar pipeline; aplicar redaction e reprocessar; registrar evidências.
  - Explosão de cardinalidade em métricas: aplicar limites/normalização de labels e reduzir cardinalidade; falhar validação se exceder política.
 
 ## Integrações e Restrições
 
-- Orquestração de entrega: abordagem híbrida — CI valida (gates, relatórios, evidências) e Argo CD aplica nos ambientes (GitOps), com janelas, aprovações, rollback e detecção de drift; execução disparada por artefatos versionados; execução registrada e auditável por ambiente/tenant.
-- Factories padronizadas: uso de factories compatíveis com o padrão corporativo (ex.: factory-boy) para garantir dados previsíveis, repetíveis e auditáveis.
+- Orquestração de entrega: abordagem híbrida — CI valida (gates, relatórios, evidências) e orquestração GitOps aplica nos ambientes, com janelas, aprovações, rollback e detecção de drift; execução disparada por artefatos versionados; execução registrada e auditável por ambiente/tenant.
+- Factories padronizadas: uso de factories determinísticas e auditáveis, compatíveis com o ecossistema Python, para garantir dados previsíveis e repetíveis. A tecnologia específica será definida no /speckit.plan.
 - Caminho de execução: seeds e validações DEVEM operar via APIs de domínio com throttling; acesso direto ao banco É PROIBIDO em todos os ambientes. Em produção, apenas seeds não sensíveis são permitidas e OBRIGATORIAMENTE via APIs com auditoria.
 - Escopo multi-tenant: todas as requisições DEVEM incluir o cabeçalho obrigatório `X-Tenant-ID`; alternativas (path param, subdomínio, somente claim JWT) NÃO SÃO ACEITAS para seeds/factories.
 - Idempotência via API: as rotinas de seed DEVEM enviar `Idempotency-Key` em mutações com TTL e deduplicação auditável; e todas as APIs de domínio DEVEM aceitar `external_id` estável por entidade/tenant para permitir upsert idempotente sem leitura prévia pelas rotinas de seed.
-- Export/Restore de datasets: adotar NDJSON por entidade, com manifest (schemaVersion, checksums SHA‑256, contagens esperadas, metadados de catálogo de PII). Criptografia obrigatória via Vault Transit por ambiente (envelope AES‑256‑GCM); manifest deve incluir `kid` e `algoritmo`. Formato stream‑friendly, agnóstico de engine e validável no CI/Argo. Granularidade canônica: por tenant como padrão; restauração do ambiente inteiro apenas via playbook de DR aprovado. Armazenamento: bucket de objetos por ambiente com versionamento e WORM/imutabilidade, organizado por prefixos de tenant, com políticas de retenção e IAM restritivas.
+- Export/Restore de datasets: adotar NDJSON por entidade, com manifest (schemaVersion, checksums SHA‑256, contagens esperadas, metadados de catálogo de PII). Criptografia obrigatória com algoritmo AEAD e gerenciamento de chaves por ambiente/tenant em cofre/KMS corporativo; manifest deve incluir `kid` e `algoritmo`. Formato stream‑friendly, agnóstico de engine e validável no CI/GitOps. Granularidade canônica: por tenant como padrão; restauração do ambiente inteiro apenas via playbook de DR aprovado. Armazenamento: bucket de objetos por ambiente com versionamento e WORM/imutabilidade, organizado por prefixos de tenant, com políticas de retenção e IAM restritivas.
 - Respeito a limites de taxa: geração e validações NÃO DEVEM exceder 80% do rate limit efetivo das APIs do domínio, incluindo a superfície `/api/v1`, por ambiente e por tenant.
-- Controle de taxa e retries: DEVEM implementar limitação por tenant (ex.: token bucket) combinada a backoff exponencial com jitter e concorrência adaptativa para manter uso ≤ 80% do limite.
+- Controle de taxa e retries: DEVEM implementar limitação por tenant combinada a backoff exponencial com jitter e concorrência adaptativa para manter uso ≤ 80% do limite.
  - Concorrência: aplicar exclusão mútua por tenant por meio de lock distribuído com TTL e renovação; proibir execuções paralelas no mesmo tenant para evitar conflitos e pressão nos rate limits.
-- Autenticação: DEVEM usar Service Account com OAuth2 Client Credentials com escopos mínimos por domínio; tokens de curta duração (≤ 15 min), segredos/creds geridos no Vault; mTLS opcional como camada adicional. SÃO VEDADOS tokens de usuário delegados e JWT estático de longa duração.
- - Observabilidade: DEVEM instrumentar seeds/factories/validações com OpenTelemetry (tracing), logs JSON estruturados e métricas (Prometheus), sem PII; adotar amostragem e limites de cardinalidade; correlação por `run_id`, `tenant_id`, `env` e `q11`.
+- Autenticação: DEVEM usar contas de serviço com autenticação M2M com escopos mínimos por domínio; tokens de curta duração (≤ 15 min); segredos/creds geridos em cofre/KMS corporativo. SÃO VEDADOS tokens de usuário delegados e credenciais de longa duração. Camadas adicionais de segurança de transporte poderão ser exigidas conforme política.
+ - Observabilidade: DEVEM instrumentar seeds/factories/validações com tracing, logs JSON estruturados e métricas, sem PII; adotar amostragem e limites de cardinalidade; correlação por `run_id`, `tenant_id`, `env` e `q11`, em conformidade com a Constituição (Art. VII – OpenTelemetry).
 - Governança de API: erros devem seguir RFC 9457 (Problem Details) e, quando aplicável, mutações devem aplicar controle de concorrência condicional (`ETag`/`If-Match`) para evitar lost‑update.
 - Escopo de execução por ambiente:
   - Desenvolvimento: Q11 baixo por padrão; reexecuções livres, focadas em rapidez.
@@ -147,6 +147,7 @@ Acceptance Scenarios (BDD):
 | Art. IV (Integração) | Validações integradas e evidências nos fluxos de entrega            | Gate dedicado nas rotinas de entrega, com auditoria e rollback documentado              |
 | Art. VIII (Entrega)  | Estratégia de release segura (feature flag/canary/rollback)        | Execução controlada por ambiente com rollback seguro de dados sem efeito em produção    |
 | Art. IX (CI)         | Cobertura, qualidade e gates em CI                                 | Estágio dedicado que bloqueia merge/deploy ao detectar violações nas validações         |
+| Art. V (Versionamento) | API versionada e estável                                           | Consumo de `/api/v1` e respeito a SemVer/diff de contrato                               |
 | Art. XI (API)        | Contratos e erros padronizados                                     | Aceitar `external_id` para upsert idempotente; exigir `Idempotency-Key` com TTL/deduplicação auditável; erros no padrão RFC 9457; quando aplicável, `ETag`/`If-Match` para evitar lost‑update; consumo respeita limites de taxa e SLO |
 | Art. XII (Security)  | RBAC/ABAC, proteção de dados                                        | Matriz de permissões para executar seeds/rollback/export/restore por ambiente/tenant; testes automatizados de autorização |
 | Art. XIII (LGPD/RLS) | RLS, mascaramento PII, retenção/direito ao esquecimento            | Catálogo de PII, regras de anonimização e evidências de auditoria por ambiente/tenant   |
@@ -166,7 +167,7 @@ Acceptance Scenarios (BDD):
 ### Functional Requirements
 
 - FR-001: Disponibilizar comando de gerenciamento do Django "seed_data" para criar/atualizar dados base e de teste por ambiente e tenant, com idempotência comprovada.
-- FR-002: Disponibilizar factories padronizadas para geração determinística de entidades e relacionamentos, com perfis de dados (mínimo, médio, alto) alinhados ao Q11.
+- FR-002: Disponibilizar factories padronizadas para geração determinística de entidades e relacionamentos, com perfis de dados (mínimo, médio, alto) alinhados ao Q11; tecnologia específica definida no /speckit.plan.
 - FR-003: Aplicar anonimização/mascaramento irreversível para todos os campos classificados como PII/PD antes de qualquer uso fora de produção.
 - FR-004: Implementar validações automáticas pós-seed (contagem mínima por entidade, distribuição por tenant, integridade referencial, inexistência de PII não mascarada). Execução falha ao violar qualquer regra.
 - FR-005: Integrar a rotina de seeds aos fluxos de entrega, como um gate obrigatório: mudança só avança se as validações passarem e as evidências forem publicadas.
@@ -178,14 +179,14 @@ Acceptance Scenarios (BDD):
 - FR-011: Restringir execução a perfis autorizados e registrar quem, quando e onde executou, por compliance.
 - FR-012: Adotar UUIDv5 determinístico namespaced por tenant+entidade como chave técnica canônica nas seeds/factories para garantir idempotência e reexecuções seguras sem expor PII.
 - FR-013: Executar seeds via APIs de domínio com throttling e controles de concorrência; vedado acesso direto ao banco em todos os ambientes. Em produção, apenas seeds não sensíveis e obrigatoriamente via APIs com auditoria.
-- FR-014: Orquestração híbrida: validação obrigatória no CI (gates/evidências) e aplicação declarativa via Argo CD nos ambientes aprovados.
+- FR-014: Orquestração híbrida: validação obrigatória no CI (gates/evidências) e aplicação declarativa via GitOps nos ambientes aprovados (ferramenta definida no /speckit.plan).
  - FR-015: Padronizar export/import (DR e seeds) como NDJSON por entidade com manifest (versionamento de schema, ordem topológica por dependências e checksums); restore por tenant como padrão deve validar checksums e contagens esperadas antes de aplicar; restauração de ambiente inteiro somente via playbook de DR aprovado; falhar imediatamente se a versão de schema do manifest divergir da esperada e exigir migração do dataset no CI.
-- FR-016: Anonimização por substituição sintética determinística (faker) parametrizada por tenant, usando segredo armazenado no Vault; preservar formatos/validações de domínio e proibir tokenização reversível.
+- FR-016: Anonimização por substituição sintética determinística parametrizada por tenant, usando segredo por ambiente/tenant gerido em cofre/KMS corporativo; preservar formatos/validações de domínio e proibir tokenização reversível.
 - FR-017: Escopo multi-tenant padronizado via cabeçalho obrigatório `X-Tenant-ID` em todas as chamadas realizadas por seeds/factories/validações.
- - FR-018: Implementar retries com backoff exponencial com jitter e limitação por token bucket por tenant, com controle de concorrência para respeitar o teto de 80% do rate limit; descobrir dinamicamente o rate limit via cabeçalhos HTTP (X-RateLimit-*, Retry-After), com fallback para manifesto por ambiente/tenant quando os cabeçalhos não estiverem disponíveis.
- - FR-019: Seeds/factories/validações devem autenticar via Service Account por tenant usando OAuth2 Client Credentials com escopos mínimos por domínio; tokens com TTL curto e rotação automática; proibir chaves/tokens estáticos de longa duração.
-- FR-020: Criptografar artefatos de export/restore (NDJSON) usando Vault Transit por ambiente com envelope AES‑256‑GCM; manifest deve conter KID/algoritmo; chaves segregadas por ambiente; proibir armazenamento de PII em claro.
- - FR-021: Instrumentar com OpenTelemetry (tracing), logs estruturados e métricas com cardinalidade controlada; correlação por run_id/tenant_id/env/q11; proibir PII nos sinais.
+ - FR-018: Implementar retries com backoff exponencial com jitter e limitação de taxa por tenant, com controle de concorrência para respeitar o teto de 80% do rate limit; descobrir dinamicamente o rate limit via sinais/headers expostos pelo provedor, com fallback para manifesto por ambiente/tenant quando tais sinais não estiverem disponíveis.
+ - FR-019: Seeds/factories/validações devem autenticar via contas de serviço por tenant usando autenticação M2M com escopos mínimos por domínio; tokens com TTL curto e rotação automática; proibir chaves/tokens estáticos de longa duração. O mecanismo exato será definido no /speckit.plan.
+- FR-020: Criptografar artefatos de export/restore (NDJSON) com algoritmo AEAD e gerenciamento de chaves por ambiente/tenant; manifest deve conter KID/algoritmo; chaves segregadas por ambiente; proibir armazenamento de PII em claro. O KMS/cofre específico será definido no /speckit.plan.
+ - FR-021: Instrumentar com tracing, logs estruturados e métricas com cardinalidade controlada; correlação por run_id/tenant_id/env/q11; proibir PII nos sinais; aderir à Constituição (Art. VII – OpenTelemetry) quanto a padrões e correlação.
  - FR-022: Aplicar exclusão mútua por tenant com lock distribuído com expiração e renovação para impedir execuções concorrentes no mesmo tenant; registrar contenda e fila de espera quando aplicável.
  - FR-023: Armazenar artefatos NDJSON (export/restore) em bucket de objetos por ambiente com versionamento habilitado e WORM/imutabilidade, usando prefixos por tenant; acesso via IAM mínimo necessário; retenção: Desenvolvimento 7 dias, Homologação 30 dias, Performance 90 dias; ajustes de retenção exigem aprovação do ambiente.
  - FR-024: Reconciliação por origem: realizar upsert determinístico e deletar apenas registros criados pela seed que excedam a meta por entidade/tenant; nunca alterar/deletar dados fora da origem seed; sempre via APIs de domínio.
@@ -221,20 +222,20 @@ Modelo de parametrização: manifesto versionado por ambiente define contagens a
 
 - NFR-001 (Confiabilidade): Reexecuções são idempotentes; falhas parciais recuperam de forma automática sem duplicidades.
 - NFR-002 (Desempenho): População Q11=médio por tenant conclui em até 15 minutos no p95; Q11=alto em até 45 minutos, conforme ambiente.
-- NFR-003 (Observabilidade): OpenTelemetry tracing + logs JSON estruturados + métricas (Prometheus) com cardinalidade controlada e correlação por run_id/tenant_id/env/q11; sem expor PII.
+- NFR-003 (Observabilidade): Tracing + logs JSON estruturados + métricas com cardinalidade controlada e correlação por run_id/tenant_id/env/q11; sem expor PII; aderência aos padrões de observabilidade definidos na Constituição (Art. VII – OpenTelemetry).
 - NFR-004 (Segurança/Compliance): Controles de acesso, classificação de dados e anonimização verificada por varreduras automáticas.
 - NFR-005 (Operabilidade/FinOps): Execuções em janelas, limitação de taxa e paralelismo global configuráveis por ambiente para evitar impactos em custos e SLOs. Limites padrão de execuções simultâneas: Desenvolvimento=3, Homologação=5, Performance=10; Produção: sem seeds sensíveis (somente via APIs com auditoria).
-- NFR-006 (Segurança): Tokens de acesso com TTL ≤ 15 minutos, escopos mínimos por domínio e rotação periódica de credenciais/segredos pelo Vault.
- - NFR-007 (Proteção de dados): Artefatos NDJSON/DR sempre criptografados (AES‑256‑GCM via Vault Transit), com rotação de chaves por ambiente e comprovação de integridade (checksums) antes do restore; restore deve falhar imediatamente em divergência de versão de schema.
+- NFR-006 (Segurança): Tokens de acesso com TTL ≤ 15 minutos, escopos mínimos por domínio e rotação periódica de credenciais/segredos por cofre/KMS/IdP corporativo.
+ - NFR-007 (Proteção de dados): Artefatos NDJSON/DR sempre criptografados com algoritmo AEAD e gerenciamento de chaves por ambiente/tenant, com comprovação de integridade (checksums) antes do restore; restore deve falhar imediatamente em divergência de versão de schema.
  - NFR-008 (Observabilidade): Sampling configurável e limites de cardinalidade em métricas/traces; reprovar execuções que excedam políticas definidas no CI.
 
 ### Dados Sensíveis & Compliance
 
 - Classificar campos sensíveis por domínio (ex.: identificação pessoal, contato, documentos, dados financeiros) e manter catálogo versionado.
 - Regras de anonimização devem ser irreversíveis e consistentes entre ambientes; amostragens devem comprovar 0 ocorrência de PII não mascarada.
-- Estratégia canônica: substituição sintética determinística (faker) com segredo por ambiente/tenant no Vault (KV/Transit), garantindo reprodutibilidade sem reversibilidade; preservar formatos (ex.: CPF/CNPJ com dígitos válidos) sem apontar para pessoas reais.
-- Gestão de credenciais: contas de serviço e client credentials armazenados/rotacionados no Vault; proibir compartilhamento; auditoria de uso por ambiente/tenant.
-- Criptografia de artefatos: usar Vault Transit (AES‑256‑GCM) por ambiente; manifest inclui KID/algoritmo; proibir export/armazenamento em claro; evidenciar processo no pipeline.
+- Estratégia canônica: substituição sintética determinística com segredo por ambiente/tenant gerido em cofre/KMS corporativo, garantindo reprodutibilidade sem reversibilidade; preservar formatos (ex.: CPF/CNPJ com dígitos válidos) sem apontar para pessoas reais.
+- Gestão de credenciais: contas de serviço e credenciais armazenadas/rotacionadas em cofre/KMS/IdP corporativo; proibir compartilhamento; auditoria de uso por ambiente/tenant.
+- Criptografia de artefatos: usar algoritmo AEAD com gerenciamento de chaves por ambiente/tenant; manifest inclui KID/algoritmo; proibir export/armazenamento em claro; evidenciar processo no pipeline.
 - Evidências requeridas: relatório de varredura de PII, relatório de validação de seeds, trilha de auditoria por tenant e por execução.
  - Logs/Traces: aplicar redaction e denylist de PII antes da emissão; validações automáticas em CI para prevenir vazamento.
 
