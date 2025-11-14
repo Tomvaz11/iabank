@@ -52,4 +52,77 @@ Em vez de listar as tarefas, aponte as áreas que estão vagas ou que carecem de
 
 ---
 
+# Prompt Reutilizável — Auditoria do Fluxo `/speckit.plan`
 
+> Use este texto como primeira mensagem para uma IA auditora quando estiver no diretório do projeto (mesmo ambiente desta interação). O prompt assume:
+> - A **branch atual** do repositório corresponde à feature a ser auditada.
+> - O comando `/speckit.plan` já foi executado para essa branch e todos os artefatos foram gerados.
+> - O ambiente contém os mesmos arquivos do repositório (nenhum upload adicional é necessário).
+
+---
+
+Olá! Preciso que você audite o artefato gerado pela etapa `/speckit.plan` da feature que está ativa na branch atual deste repositório.
+
+## Objetivo
+Verificar se a documentação produzida por `/speckit.plan` está completa e consistente o suficiente para que, na sequência, possamos gerar `/speckit.tasks` sem ambiguidades. A auditoria deve apontar qualquer lacuna ou risco antes de seguir para a fase de tarefas/implementação.
+
+## Contexto do Projeto (fixo)
+- Projeto IABANK (monorepo com backend Django/DRF sobre PostgreSQL, frontend React/TypeScript/Vite, Celery/Redis, etc.).
+- Constituição IABANK v5.2.0 (Art. I–XVIII) rege arquitetura, segurança, observabilidade, governança de API e fluxo Spec-Driven.
+- Fluxo esperado: `/speckit.specify` → `/speckit.clarify` → `/speckit.plan` → `/speckit.tasks` → implementação.
+
+## Entradas para Análise (já disponíveis no repo)
+- `specs/<feature>/spec.md`
+- `specs/<feature>/plan.md`
+- `specs/<feature>/research.md`
+- `specs/<feature>/data-model.md`
+- `specs/<feature>/contracts/` (OpenAPI/Pact gerados na etapa)
+- `specs/<feature>/quickstart.md`
+- `AGENTS.md` (contexto de agentes)
+- Quaisquer referências citadas nos documentos (ex.: `BLUEPRINT_ARQUITETURAL.md`, `docs/design-system/tokens.md`, ADRs, voce conseguira ver exatamente tudo o que foi gerado pelo Git). Esses arquivos já estão no repositório; consulte-os conforme necessário.
+
+> Nota: a feature corresponde ao diretório em `specs/` cujo nome combina com a branch atual (ex.: branch `002-f-10-fundacao` → `specs/002-f-10-fundacao/`).
+
+## O que analisar
+1. **Consistência**: As decisões em `plan.md`, `data-model.md`, `contracts/` e `quickstart.md` refletem corretamente os requisitos e clarificações do `spec.md`?
+2. **Lacunas para `/speckit.tasks`**: Existe alguma parte vaga ou sem detalhes suficientes (testes, migrações expand/contract, mapeamentos backend/frontend, políticas de segurança, etc.) que impediria gerar tarefas claras?
+3. **Conformidade Constitucional**:
+   - Art. III (TDD)
+   - Art. VIII (Lançamento Seguro)
+   - Art. IX (Pipeline CI)
+   - Art. XI (Governança de API)
+   - Art. XIII (Multi-tenant & LGPD)
+   - Art. XVIII (Fluxo Spec-Driven)
+4. **Governança/Security/Observabilidade**: CSP, Trusted Types, OTEL, RLS, PII masking, rate limiting, tags `@SC-xxx`, etc., possuem instruções acionáveis?
+
+## Formato esperado da resposta
+```
+### Findings Bloqueantes
+1. arquivo:linha — descrição do problema, impacto na geração de tasks
+
+### Findings Menores
+...
+
+### Sugestões
+...
+
+### Validação Constitucional
+- Art. III (TDD): ✅/⚠️ — comentário
+- Art. VIII (Lançamento Seguro): ...
+- Art. IX (Pipeline CI): ...
+- Art. XI (Governança de API): ...
+- Art. XIII (Multi-tenant & LGPD): ...
+- Art. XVIII (Fluxo Spec-Driven): ...
+
+### Conclusão
+- Plano pronto para `/speckit.tasks`? Sim/Não — justificativa
+```
+
+## Regras
+- Não gerar código nem tarefas; apenas análise.
+- Sempre que possível, cite `arquivo:linha` usando caminhos relativos.
+- Responda em português.
+
+---
+
+TODAS ESSAS ESSAS VERIFICAÇÕES DEVEM SER FEITAS PARA GARANTIR O SUCESSO, MESMO TENDO O COMANDO NOVO "ANALYSE" DEPOIS DE EXECUTAR /TASKS. EU SEMPRE FAÇO AS MESMAS VERIFICAÇÕES VARIAS VEZES COM IAS E MODELOS DE IAS DIFERENTES PARA ALCANÇAR O MAXIMO DE SUCESSO.

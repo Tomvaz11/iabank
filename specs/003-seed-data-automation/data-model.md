@@ -16,7 +16,7 @@ O modelo respeita Art. I, III, IV, VII, IX, XI, XIII da Constituição e as dire
 > Entidades de domínio de negócio existentes (ex.: `Tenant`, `Customer`, `Loan`, `Transaction`, `User`) são referenciadas, mas não redescritas aqui; a ênfase está nas estruturas específicas de seeds/datasets.
 
 ### SeedProfile (config declarativa)
-- **Descrição**: Representa um perfil declarativo de volumetria de seeds, versionado em YAML, combinando ambiente (`dev`, `hom`, `perf`, `dr`) e volume (`small`, `medium`, `large`) por entidade/tenant.
+- **Descrição**: Representa um perfil declarativo de volumetria de seeds, versionado em YAML, combinando ambiente (`dev`, `hom`, `perf`, `dr`, `review`) e volume (`small`, `medium`, `large`) por entidade/tenant.
 - **Tipo**: Configuração de arquivo (não persistido em tabela própria; carregado de `backend/apps/foundation/seeds/config/**.yaml`).
 - **Campos (YAML)**:
   - `id` (string) — identificador lógico (`dev-small`, `perf-large`, etc.).

@@ -67,7 +67,7 @@ Com o backend e seeds aplicados:
 cd /home/pizzaplanet/meus_projetos/iabank
 pytest backend/apps/foundation/tests/test_seed_data_command_integration.py
 pytest backend/apps/tenancy/tests/test_seed_data_multi_tenant.py
-pytest tests/contracts -k seed_data
+pytest tests/contracts/test_seed_data_openapi_usage.py
 ```
 - Usa o catálogo de factories central em `backend/apps/foundation/factories/` para compor cenários de teste.
 - Valida que chamadas à API `/api/v1` (conforme `contracts/api.yaml` e `specs/003-seed-data-automation/contracts/seed-data-openapi.yaml`) respeitam RateLimit, retornam erros RFC 9457 (`429`/`Retry-After`/`RateLimit-*`) e mantêm SLOs definidos.
@@ -100,3 +100,11 @@ pnpm k6 run tests/performance/test_seed_data_load_profiles.js
 - [ ] `specs/003-seed-data-automation/plan.md`, `research.md`, `data-model.md` e `contracts/seed-data-openapi.yaml` revisados e consistentes com `contracts/api.yaml`.  
 - [ ] Evidências de anonimização forte e ausência de PII real em datasets e logs anexadas (relatórios de scanner em `artifacts/`).  
 - [ ] Impacto em FinOps avaliado (tempo de execução de seeds, custo dos testes de carga) e documentado em dashboards/reportes apropriados.  
+
+## 9. Mapa de evidências para SC-001..SC-005
+
+- **SC-001** — Evidenciado pela duração das execuções `SeedRun` (campo `duration_ms` em `specs/003-seed-data-automation/data-model.md:52`) e pela execução bem-sucedida dos testes de integração `backend/apps/foundation/tests/test_seed_data_command_integration.py` e `backend/apps/tenancy/tests/test_seed_data_multi_tenant.py` em pipelines de desenvolvimento/homologação, garantindo ambientes prontos em até 10 minutos.  
+- **SC-002** — Evidenciado pela existência de pelo menos um teste automatizado por user story entre os testes de integração mencionados acima, os testes de contrato de seeds (`tests/contracts/test_seed_data_openapi_usage.py`) e os testes de carga (`tests/performance/test_seed_data_load_profiles.js`), cobrindo comportamento de seeds, anonimização de PII e respeito a RateLimit/API.  
+- **SC-003** — Evidenciado pelos resultados de `pytest tests/security/test_pii_scanner_seeds.py` (ausência de PII real em datasets de teste) e pelo status `pii_scan_status` de `SeedDatasetSnapshot` em `specs/003-seed-data-automation/data-model.md:112-121`, que deve estar em `pass` para datasets utilizados em ambientes não produtivos.  
+- **SC-004** — Evidenciado pela execução de cenários de carga com `pnpm k6 run tests/performance/test_seed_data_load_profiles.js`, verificando que os objetivos de throughput/latência para APIs críticas são atingidos e que a taxa de respostas associadas a limite de consumo (HTTP 429) permanece abaixo de 1% durante o período de teste, salvo cenários desenhados especificamente para exercitar RateLimit.  
+- **SC-005** — Evidenciado por relatórios de custo que isolam o impacto de execuções de `seed_data`, criação de ambientes efêmeros e testes de carga, garantindo que o custo incremental mensal permaneça dentro de 10% do budget por ambiente/tenant, conforme métricas de FinOps descritas em `adicoes_blueprint.md` e nos scripts de validação de tags de custo em `docs/pipelines/ci-required-checks.md`.  
