@@ -97,14 +97,14 @@ Remova linhas nao aplicaveis apenas se justificar o motivo. Itens pendentes fica
 ### Dados Sensiveis & Compliance
 
 - Mapear explicitamente, com base no modelo de dominio, quais campos utilizados pelas seeds e factories contem PII/PD (por exemplo, nomes, documentos, contatos, identificadores de dispositivo) e quais nao contem.  
-- Definir e documentar regras de mascara/anonimizacao por campo e por tipo de dado, incluindo como tratar chaves de negocio (ex.: documentos, e-mails) de forma a manter unicidade por tenant sem permitir reidentificacao. [NEEDS CLARIFICATION: Qual o nivel de rigor esperado para anonimização (pseudonimizacao suficiente para testes internos vs. anonimização forte resistente a reidentificacao)?]  
+- Definir e documentar regras de mascara/anonimizacao por campo e por tipo de dado, incluindo como tratar chaves de negocio (ex.: documentos, e-mails) de forma a manter unicidade por tenant sem permitir reidentificacao, adotando anonimização forte e irreversivel resistente a reidentificacao mesmo com correlacao de multiplas bases.  
 - Garantir que politicas de retencao, direito ao esquecimento e RLS permaneçam validas tambem em ambientes nao produtivos, incluindo a limpeza segura de datasets de teste quando ambientes sao desprovisionados ou quando determinados tenants deixam de existir.  
 - Registrar evidencias (como relatorios de execucao, auditorias e resultados de scanners de PII) que demonstrem a aplicacao das regras acima, para uso em revisoes de LGPD e auditorias internas.
 
 ## Assumptions
 
-- Seeds completas (dados de negocio) serao utilizadas apenas em ambientes nao produtivos (desenvolvimento, homologacao, performance e DR), enquanto producao podera ter apenas seeds tecnicas estritamente necessarias (por exemplo, configuracoes iniciais e usuarios de sistema). [NEEDS CLARIFICATION: Ha algum uso permitido de seeds de dados sinteticos de negocio diretamente em producao (por exemplo, para smoke tests pos-deploy), e, se sim, com quais limites e evidencias de mudanca?]  
-- Os perfis de volumetria (Q11) serao inicialmente definidos em termos de ordens de grandeza (small/medium/large) por tipo de entidade e ajustados iterativamente a partir dos resultados dos testes de carga. [NEEDS CLARIFICATION: Quais faixas numericas iniciais (por tipo de entidade) definem small/medium/large por ambiente/tenant e quais limites de custo mensais sao aceitaveis para execucoes recorrentes de testes de carga?]  
+- Seeds completas (dados de negocio) serao utilizadas apenas em ambientes nao produtivos (desenvolvimento, homologacao, performance e DR), enquanto producao utilizara apenas seeds tecnicas estritamente necessarias (por exemplo, configuracoes iniciais e usuarios de sistema), sem seeds de dados de negocio mesmo sinteticos, com essa politica evidenciada nas politicas de mudanca e playbooks de release.  
+- Os perfis de volumetria (Q11) serao inicialmente definidos em termos de ordens de grandeza (small/medium/large) por tipo de entidade e ajustados iterativamente a partir dos resultados dos testes de carga, adotando referencia inicial: dev/homologacao com small≈50, medium≈200 e large≈500 registros por entidade/tenant; performance com small≈5.000, medium≈20.000 e large≈50.000 registros por entidade/tenant; o custo incremental mensal de seeds e testes de carga deve permanecer em ate 10% do budget aprovado de cada ambiente/tenant.  
 - Testes de carga intensivos serao executados em ambientes dedicados ou janelas controladas, evitando impacto em usuarios reais e respeitando as politicas de RateLimit da plataforma.
 
 ## Success Criteria *(mandatorio)*
@@ -121,6 +121,14 @@ Associe cada criterio aos testes ou dashboards que validam o resultado.
 
 ## Outstanding Questions & Clarifications
 
-- [Escopo/Ambientes] Qual o limite exato de uso de seeds em producao (apenas configuracoes tecnicas ou algum volume minimo de dados de negocio sinteticos) e como isso deve ser evidenciado nas politicas de mudanca?  
-- [Privacidade/LGPD] Qual o nivel de rigor esperado para os mecanismos de anonimização (por exemplo, pseudonimizacao suficiente para testes internos ou anonimização forte resistente a reidentificacao mesmo em cenarios de correlacao de dados)?  
-- [Volumetria/FinOps] Quais faixas numericas iniciais (por tipo de entidade) definem os perfis `small`, `medium` e `large` por ambiente/tenant, e quais limites de custo mensais sao aceitaveis para execucoes recorrentes de testes de carga?
+- [Escopo/Ambientes] Limite de uso de seeds em producao: apenas seeds tecnicas estritamente necessarias (por exemplo, configuracoes iniciais e usuarios de sistema), sem seeds de dados de negocio mesmo sinteticos, com essa politica registrada nas politicas de mudanca.  
+- [Privacidade/LGPD] Nivel de rigor para anonimização: adotar anonimização forte e irreversivel resistente a reidentificacao mesmo com correlacao de multiplas bases.  
+- [Volumetria/FinOps] Perfis de volumetria iniciais: dev/homologacao com small≈50, medium≈200 e large≈500 registros por entidade/tenant; performance com small≈5.000, medium≈20.000 e large≈50.000 registros por entidade/tenant; custo incremental mensal de seeds e testes de carga limitado a ate 10% do budget de cada ambiente/tenant.
+
+## Clarifications
+
+### Session 2025-11-14
+
+- Q: Qual o nivel de rigor esperado para os mecanismos de anonimização (por exemplo, pseudonimizacao suficiente para testes internos ou anonimização forte resistente a reidentificacao mesmo em cenarios de correlacao de dados)? → A: Adotar anonimização forte e irreversivel resistente a reidentificacao mesmo com correlacao de multiplas bases.  
+- Q: Ha algum uso permitido de seeds de dados sinteticos de negocio diretamente em producao (por exemplo, para smoke tests pos-deploy), e, se sim, com quais limites e evidencias de mudanca? → A: Producao utiliza apenas seeds tecnicas estritamente necessarias, sem seeds de dados de negocio mesmo sinteticos, com essa politica evidenciada nas politicas de mudanca.  
+- Q: Quais faixas numericas iniciais (por tipo de entidade) definem small/medium/large por ambiente/tenant e quais limites de custo mensais sao aceitaveis para execucoes recorrentes de testes de carga? → A: Dev/homologacao small≈50, medium≈200, large≈500 registros por entidade/tenant; performance small≈5.000, medium≈20.000, large≈50.000; custo incremental mensal limitado a ate 10% do budget de cada ambiente/tenant.
