@@ -62,10 +62,11 @@ O modelo respeita Art. I, III, IV, VII, IX, XI, XIII da Constituição e as dire
 - **Regras**:
   - Deve ser criado no início do `seed_data` e atualizado ao final, dentro de transação ou com garantias de idempotência para não poluir o histórico em caso de reexecuções.
   - IDs de `SeedRun` devem ser referenciáveis em logs/traces para auditoria.
+  - Não armazena PII/PD nem identificadores diretos de titulares; contém apenas metadados agregados de execução (ambiente, perfil, escopo, status), enquanto qualquer dado por tenant/entidade sensível é representado em `SeedRunEntityMetric`/`SeedDatasetSnapshot` sob RLS e regras de anonimização.
 - **Implementação**:
   - Novo modelo em `backend/apps/foundation/models/seed_run.py`.
   - Managers em `backend/apps/foundation/managers.py` para consultas filtradas por ambiente/status.
-  - Migrações em `backend/apps/foundation/migrations/` sem RLS por tenant (registro de auditoria global por execução de seeds); RLS se aplica às tabelas que possuem `tenant_id` (`SeedRunEntityMetric`, `SeedDatasetSnapshot`). Índices adicionais por (`environment`, `status`, `started_at`) suportam consultas de SRE/FinOps.
+  - Migrações em `backend/apps/foundation/migrations/` sem RLS por tenant (registro de auditoria global por execução de seeds); RLS se aplica às tabelas que possuem `tenant_id` (`SeedRunEntityMetric`, `SeedDatasetSnapshot`). Índices adicionais por (`environment`, `status`, `started_at`) suportam consultas de SRE/FinOps e as migrações seguem o padrão expand/contract (Art. X), evitando bloqueios significativos em cenários de deploy/DR.
 
 ---
 
@@ -95,7 +96,7 @@ O modelo respeita Art. I, III, IV, VII, IX, XI, XIII da Constituição e as dire
   - Campos agregados podem alimentar métricas Prometheus (por ambiente/tenant/entidade).
 - **Implementação**:
   - Novo modelo em `backend/apps/foundation/models/seed_run_entity_metric.py`.
-  - RLS garantindo que consultas em contexto de tenant só acessem métricas do tenant corrente (Art. XIII).
+  - RLS garantindo que consultas em contexto de tenant só acessem métricas do tenant corrente (Art. XIII), com políticas versionadas em `backend/apps/tenancy/sql/rls_policies.sql` (ou arquivos sucessores), seguindo o padrão já adotado para `tenant_theme_tokens`.
 
 ---
 
@@ -121,7 +122,8 @@ O modelo respeita Art. I, III, IV, VII, IX, XI, XIII da Constituição e as dire
   - `pii_scan_status=pass` exige `pii_scan_report_path` não vazio.
 - **Regras**:
   - Usado para rastrear quais datasets basearam quais execuções de testes de carga/contrato e para auditoria de LGPD.  
-  - Permite reuso de datasets entre execuções de testes, desde que os contratos/SLOs continuem válidos.
+  - Permite reuso de datasets entre execuções de testes, desde que os contratos/SLOs continuem válidos.  
+  - Deve ser elegível para remoção/anonimização automática quando o tenant associado for desprovisionado ou quando o ambiente correspondente for destruído, de acordo com políticas de retenção e direito ao esquecimento definidas na `spec.md` e no Art. XIII; rotinas de cleanup utilizarão `environment`, `tenant_id`, `dataset_type` e `created_at` para delimitar o escopo dos datasets a serem limpos.
 - **Implementação**:
   - Novo modelo em `backend/apps/foundation/models/seed_dataset_snapshot.py`.
 
@@ -147,8 +149,9 @@ O modelo respeita Art. I, III, IV, VII, IX, XI, XIII da Constituição e as dire
 
 ---
 
-### AnonymizationRule
+### AnonymizationRule (em código, não persistido)
 - **Descrição**: Define como campos PII/PD são transformados em dados sintéticos ou anonimizados de forma irreversível.
+- **Tipo**: Conjunto de regras estáticas representadas em código, sem tabela dedicada em banco na primeira iteração (similar a um catálogo de constantes/utilitários).
 - **Campos**:
   - `id` (string, PK lógica; ex.: `hash_sha256`, `tokenize_uuid`, `mask_email`, `fake_brazilian_name`).
   - `strategy` (enum: `hash`, `tokenize`, `mask`, `faker`, `drop`) — como o valor é gerado.
@@ -195,6 +198,13 @@ O modelo respeita Art. I, III, IV, VII, IX, XI, XIII da Constituição e as dire
 
 ---
 
+## Uso e Evidências (ligação com SC-001..SC-005)
+
+- `SeedRun.duration_ms` fornece a base de evidência para SC-001 (tempo de preparação de ambiente) e para SLOs de deploy, em conjunto com execuções bem-sucedidas dos testes de integração descritos no `quickstart.md`.  
+- Os campos de volumetria de `SeedRunEntityMetric` (incluindo `target_count`, `created_count`, `reused_count`, `error_count` e `duration_ms`) sustentam painéis de FinOps e throughput por ambiente/tenant/entidade, ligados principalmente a SC-001 e SC-002.  
+- `SeedDatasetSnapshot.pii_scan_status` e `pii_scan_report_path` são a principal evidência automatizada para SC-003 (anonimização de PII), garantindo que datasets utilizados em ambientes não produtivos tenham verificação de PII bem-sucedida.  
+- `SeedDatasetSnapshot.load_test_report_path` conecta explicitamente datasets a relatórios de carga (k6/Gatling) e, junto com métricas de erro/RateLimit, suporta as evidências de SC-004 e SC-005 descritas no `quickstart.md` e em `docs/pipelines/ci-required-checks.md`.
+
 ## State Transitions
 
 ### SeedRun.status
@@ -224,6 +234,7 @@ Regras:
 - Campos classificados como PII/PD em `PiiFieldMapping` devem sempre passar por uma `AnonymizationRule` com `strength=strong_irreversible` em ambientes não produtivos.  
 - Logs estruturados relacionados a `SeedRun`/`SeedDatasetSnapshot` não podem incluir valores de PII em texto claro; apenas IDs, hashes, contagens e status.  
 - Testes de integração e de carga devem garantir que o uso dos datasets não viola RateLimit/API (`429`, `Retry-After`, cabeçalhos `RateLimit-*`) e mantém SLOs de latência/erro definidos.
+ - Quando um tenant é desprovisionado ou um ambiente de teste é desativado, datasets e métricas de seeds associados (incluindo registros em `SeedRunEntityMetric` e `SeedDatasetSnapshot`) DEVEM ser removidos ou tornados irreversivelmente anonimizados como parte do fluxo de teardown, garantindo que políticas de retenção e direito ao esquecimento se apliquem também a ambientes não produtivos, conforme `specs/003-seed-data-automation/spec.md` (Dados Sensíveis & Compliance) e Art. XIII.
 
 ---
 

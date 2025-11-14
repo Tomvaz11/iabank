@@ -53,18 +53,18 @@ python manage.py seed_data \
 - Não duplica registros de negócio; consolida métricas de reuso/criação em `SeedRunEntityMetric`.
 
 ## 4. Validar anonimização e PII
-Após executar `seed_data`, rode os testes de segurança:
+Após executar `seed_data`, rode os testes de segurança (arquivo de teste planejado para esta feature):
 ```bash
-cd /home/pizzaplanet/meus_projetos/iabank
+cd /caminho/para/sua/pasta/iabank
 pytest tests/security/test_pii_scanner_seeds.py
 ```
 - Garante que datasets gerados não contenham PII real (CPF/CNPJ, e-mails, telefones, endereços) e que regras de anonimização/máscara definidas em `PiiFieldMapping`/`AnonymizationRule` estejam ativas.
 - Falhas nesses testes devem bloquear merges e deploys em ambientes não produtivos.
 
 ## 5. Exercitar API `/api/v1` com datasets de seeds
-Com o backend e seeds aplicados:
+Com o backend e seeds aplicados (arquivos de teste planejados para esta feature):
 ```bash
-cd /home/pizzaplanet/meus_projetos/iabank
+cd /caminho/para/sua/pasta/iabank
 pytest backend/apps/foundation/tests/test_seed_data_command_integration.py
 pytest backend/apps/tenancy/tests/test_seed_data_multi_tenant.py
 pytest tests/contracts/test_seed_data_openapi_usage.py
@@ -73,10 +73,12 @@ pytest tests/contracts/test_seed_data_openapi_usage.py
 - Valida que chamadas à API `/api/v1` (conforme `contracts/api.yaml` e `specs/003-seed-data-automation/contracts/seed-data-openapi.yaml`) respeitam RateLimit, retornam erros RFC 9457 (`429`/`Retry-After`/`RateLimit-*`) e mantêm SLOs definidos.
 
 ## 6. Rodar testes de carga com perfis de volumetria
-Para testar volumetria alinhada a Q11:
+Para testar volumetria alinhada a Q11 (script de teste planejado para esta feature):
 ```bash
-cd /home/pizzaplanet/meus_projetos/iabank
-python backend/manage.py seed_data --env perf --profile large --mode async
+cd /caminho/para/sua/pasta/iabank
+cd backend
+python manage.py seed_data --env perf --profile large --mode async
+cd ..
 pnpm k6 run tests/performance/test_seed_data_load_profiles.js
 ```
 - O perfil `perf-large` gera milhares/dezenas de milhares de registros por entidade/tenant, conforme `seed-data-openapi.yaml` (`x-seedProfiles`).
@@ -84,9 +86,9 @@ pnpm k6 run tests/performance/test_seed_data_load_profiles.js
 
 ## 7. Integração com CI/CD e GitOps (visão rápida)
 - **CI (dev/hom)**:
-  - Etapa “Apply Seeds”: `python backend/manage.py seed_data --env dev --profile small --mode auto`.
-  - Etapa “PII Scan”: `pytest tests/security/test_pii_scanner_seeds.py`.
-  - Etapa “Contracts & Load”: Pact/OpenAPI + testes de carga leve.
+  - Etapa “Apply Seeds”: `cd backend && python manage.py seed_data --env dev --profile small --mode auto` (comando planejado, a ser integrado aos workflows de CI).
+  - Etapa “PII Scan”: `pytest tests/security/test_pii_scanner_seeds.py` (teste planejado em `tests/security/test_pii_scanner_seeds.py`).
+  - Etapa “Contracts & Load”: Pact/OpenAPI + testes de carga leve, usando os arquivos de teste planejados citados acima.
 - **GitOps/Argo CD + Terraform**:
   - Após provisionamento de ambiente, Job Kubernetes executa `seed_data` com perfil adequado (`hom-medium`, `perf-large`).
   - Métricas de `SeedRun`/`SeedRunEntityMetric` alimentam dashboards de preparação de ambiente e FinOps.
@@ -94,12 +96,15 @@ pnpm k6 run tests/performance/test_seed_data_load_profiles.js
 > Importante: `seed_data` não deve ser executado com `--env=prod` na feature F-11; seeds de negócio em produção permanecem proibidas, e seeds técnicas continuam sendo tratadas por mecanismos existentes (migrações/fixtures técnicas).
 
 ## 8. Checklist antes do PR
+- Esta checklist deve ter correspondência explícita em `specs/003-seed-data-automation/tasks.md`, gerado via `/speckit.tasks`, de forma que cada item relevante resulte em pelo menos uma tarefa rastreável (Art. XVIII).
 - [ ] `seed_data` executado localmente com sucesso em `dev-small`, sem duplicar registros por tenant.  
 - [ ] Testes de integração/contrato relacionados a seeds/anonimização verdes (`pytest backend/apps/foundation/tests/test_seed_data_command_integration.py`, `pytest tests/security/test_pii_scanner_seeds.py`).  
 - [ ] Testes de carga básicos contra `/api/v1` em dev/hom com perfis `small`/`medium` executados sem violar RateLimit/SLOs.  
 - [ ] `specs/003-seed-data-automation/plan.md`, `research.md`, `data-model.md` e `contracts/seed-data-openapi.yaml` revisados e consistentes com `contracts/api.yaml`.  
 - [ ] Evidências de anonimização forte e ausência de PII real em datasets e logs anexadas (relatórios de scanner em `artifacts/`).  
 - [ ] Impacto em FinOps avaliado (tempo de execução de seeds, custo dos testes de carga) e documentado em dashboards/reportes apropriados.  
+
+Os testes e caminhos de arquivo citados acima (incluindo `backend/apps/foundation/tests/test_seed_data_command_integration.py`, `backend/apps/tenancy/tests/test_seed_data_multi_tenant.py`, `tests/security/test_pii_scanner_seeds.py`, `tests/contracts/test_seed_data_openapi_usage.py` e `tests/performance/test_seed_data_load_profiles.js`) devem ser considerados insumos diretos para `/speckit.tasks`, de forma que o comando gere tarefas que cubram esses pontos de validação sem antecipar a definição detalhada de `tasks.md` nesta fase.
 
 ## 9. Mapa de evidências para SC-001..SC-005
 
@@ -108,3 +113,10 @@ pnpm k6 run tests/performance/test_seed_data_load_profiles.js
 - **SC-003** — Evidenciado pelos resultados de `pytest tests/security/test_pii_scanner_seeds.py` (ausência de PII real em datasets de teste) e pelo status `pii_scan_status` de `SeedDatasetSnapshot` em `specs/003-seed-data-automation/data-model.md:112-121`, que deve estar em `pass` para datasets utilizados em ambientes não produtivos.  
 - **SC-004** — Evidenciado pela execução de cenários de carga com `pnpm k6 run tests/performance/test_seed_data_load_profiles.js`, verificando que os objetivos de throughput/latência para APIs críticas são atingidos e que a taxa de respostas associadas a limite de consumo (HTTP 429) permanece abaixo de 1% durante o período de teste, salvo cenários desenhados especificamente para exercitar RateLimit.  
 - **SC-005** — Evidenciado por relatórios de custo que isolam o impacto de execuções de `seed_data`, criação de ambientes efêmeros e testes de carga, garantindo que o custo incremental mensal permaneça dentro de 10% do budget por ambiente/tenant, conforme métricas de FinOps descritas em `adicoes_blueprint.md` e nos scripts de validação de tags de custo em `docs/pipelines/ci-required-checks.md`.  
+
+Mapeamento aproximado de user stories para evidências (para facilitar `/speckit.tasks` sem alterar o escopo de implementação):  
+- **User Story 1 — Seeds automatizadas por ambiente/tenant**: principalmente SC-001 e SC-002, com foco em `test_seed_data_command_integration.py`, `test_seed_data_multi_tenant.py` e `tests/contracts/test_seed_data_openapi_usage.py`.  
+- **User Story 2 — Dados de teste anonimizados e seguros**: principalmente SC-002 e SC-003, com foco em `tests/security/test_pii_scanner_seeds.py` e no campo `pii_scan_status` de `SeedDatasetSnapshot`.  
+- **User Story 3 — Datasets sintéticos para testes de carga e DR**: principalmente SC-004 e SC-005, com foco em `tests/performance/test_seed_data_load_profiles.js`, nos relatórios de custo FinOps e em execuções de `SeedRun` em ambientes `perf`/`dr`.  
+
+PRs que implementarem F-11 devem referenciar as SCs relevantes com pelo menos uma tag `@SC-00x` no título ou corpo, em alinhamento com `CONTRIBUTING.md` e com o gate de verificação `scripts/ci/validate-sc-tag.sh`.

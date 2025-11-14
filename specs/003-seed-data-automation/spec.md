@@ -2,7 +2,7 @@
 
 **Feature Branch**: `[003-seed-data-automation]`  
 **Created**: 2025-11-14  
-**Status**: Draft  
+**Status**: Approved  
 **Input**: User description: "F-11 Automacao de Seeds, Dados de Teste e Factories. Referencie BLUEPRINT_ARQUITETURAL.md §§3.1,6,26, adicoes_blueprint.md itens 1,3,8,11 e Constituicao Art. III/IV. Escreva especificacao contemplando comandos `seed_data`, factories `factory-boy`, mascaramento de PII, integração com CI/CD, Argo CD e testes de carga. Inclua critérios para validação automatizada das seeds, anonimização, suportes a DR, parametrização de volumetria (Q11) por ambiente/tenant e geração de datasets sintéticos sem quebrar RateLimit/API `/api/v1`."
 
 > Referencias obrigatorias: `BLUEPRINT_ARQUITETURAL.md`, `adicoes_blueprint.md`, Constituicao v5.2.0 (Art. I-XVIII) e ADRs aplicaveis. Toda lacuna deve ser marcada com `[NEEDS CLARIFICATION]` e adicionada ao `/clarify`.
@@ -68,7 +68,7 @@ Hoje os ambientes do IABANK (desenvolvimento, homologacao, performance e DR) dep
 | Art. IV (Teste de Integracao-Primeiro) | Priorizar testes de integracao com banco real e factories | User Stories 1–3 exigem uso consistente de factories para popular banco real em testes de integracao e contrato, inclusive para cenarios multi-tenant, anonimização de PII e RateLimit/API. |
 | Art. VIII (Entrega) | Estrategia de release segura (feature flag/canary/rollback) | Execucao de seeds e geracao de datasets e controlada por configuracoes por ambiente/tenant e integrada aos pipelines, permitindo ativar/desativar perfis de volumetria e cenarios de carga sem risco para producao. |
 | Art. IX (CI) | Cobertura >=85 %, complexidade <=10, SAST/DAST/SCA, SBOM, gate de performance em testes de carga | Pipelines passam a incluir estagios que executam seeds, validam anonimizacao de dados de teste e rodam testes de carga contra datasets sinteticos; qualquer falha nessas etapas quebra o build. |
-| Art. XI (API) | Contratos OpenAPI 3.1 + Pact atualizados, RFC 9457 | Dados de teste e de carga sao gerados em aderencia aos contratos da API `/api/v1` e utilizados em testes de contrato, garantindo que endpoints e limites de erro padronizados sejam respeitados. |
+| Art. XI (API) | Contratos OpenAPI 3.1 + Pact atualizados, RFC 9457 | Dados de teste e de carga sao gerados em aderencia aos contratos da API `/api/v1` e utilizados em testes de contrato, garantindo que endpoints e limites de erro padronizados sejam respeitados; para F-11, a evidência é produzida com contratos OpenAPI 3.0.3 (`contracts/api.yaml`) e anotacoes em `specs/003-seed-data-automation/contracts/seed-data-openapi.yaml`, mantendo a migracao para 3.1 fora do escopo desta feature (enderecada por ADR/feature futura). |
 | Art. XIII (LGPD/RLS) | Enforcar RLS, managers, retencao/direito ao esquecimento | Campos PII/PD sao mapeados, mascarados ou anonimizados antes de uso em ambientes de teste; seeds respeitam RLS por tenant e ha evidencias de que dados sensiveis nao aparecem em ambientes nao produtivos. |
 | Art. XVI (FinOps) | Custos rastreados, tags e budgets atualizados | Perfis de volumetria por ambiente/tenant (Q11) sao definidos com limites de custo e sao acompanhados por relatorios de uso, evitando que testes de carga extrapolem budgets aprovados. |
 | ADR-010/011/012 | Seguranca de dados, governanca de API, observabilidade | Seeds e datasets sinteticos produzem telemetria suficiente para auditar anonimização de PII, consumo de API e impactos em SLIs/SLOs, alinhados aos ADRs de seguranca e observabilidade. |
