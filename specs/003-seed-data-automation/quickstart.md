@@ -35,6 +35,12 @@ python manage.py seed_data \
 - Gera dados sintéticos multi-tenant (clientes, contratos, transações, usuários) com volumetria pequena adequada para desenvolvimento.
 - Registra um `SeedRun` e múltiplos `SeedRunEntityMetric`, permitindo verificar contagens por entidade/tenant e tempo de execução.
 
+Parâmetros principais:
+- `--env` controla o ambiente lógico (`dev`, `hom`, `perf`, `dr`, `review`).  
+- `--profile` combina com `--env` para selecionar o perfil declarativo (`dev-small`, `dev-medium`, etc.).  
+- `--tenants` aceita uma lista de slugs separados por vírgula; se omitido, todos os tenants ativos são considerados.  
+- `--mode` pode ser `sync`, `async` ou `auto` (recomendado em pipelines), onde `auto` usa `sync` para perfis `small` em `dev/hom` e `async` para volumetrias maiores.  
+
 Para reexecução idempotente (incluindo cenários de restauração/DR):
 ```bash
 python manage.py seed_data \
@@ -78,12 +84,14 @@ pnpm k6 run tests/performance/test_seed_data_load_profiles.js
 
 ## 7. Integração com CI/CD e GitOps (visão rápida)
 - **CI (dev/hom)**:
-  - Etapa “Apply Seeds”: `python backend/manage.py seed_data --env dev --profile small --mode sync`.
+  - Etapa “Apply Seeds”: `python backend/manage.py seed_data --env dev --profile small --mode auto`.
   - Etapa “PII Scan”: `pytest tests/security/test_pii_scanner_seeds.py`.
   - Etapa “Contracts & Load”: Pact/OpenAPI + testes de carga leve.
 - **GitOps/Argo CD + Terraform**:
   - Após provisionamento de ambiente, Job Kubernetes executa `seed_data` com perfil adequado (`hom-medium`, `perf-large`).
   - Métricas de `SeedRun`/`SeedRunEntityMetric` alimentam dashboards de preparação de ambiente e FinOps.
+
+> Importante: `seed_data` não deve ser executado com `--env=prod` na feature F-11; seeds de negócio em produção permanecem proibidas, e seeds técnicas continuam sendo tratadas por mecanismos existentes (migrações/fixtures técnicas).
 
 ## 8. Checklist antes do PR
 - [ ] `seed_data` executado localmente com sucesso em `dev-small`, sem duplicar registros por tenant.  

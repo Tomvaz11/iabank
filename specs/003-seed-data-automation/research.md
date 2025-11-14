@@ -123,3 +123,73 @@ Integrar a execução de `seed_data`, verificações de PII e geração de datas
 - **Executar seeds apenas manualmente ou em scripts ad-hoc**: não atende à exigência de automação e reproducibilidade nem se integra bem a GitOps/DR. Rejeitado.  
 - **Rodar seeds apenas em produção**: viola explicitamente o requisito de limitar seeds de negócio em produção e não resolve os problemas de preparação de ambientes não produtivos. Rejeitado.
 
+---
+
+## 7. Representação de `PiiFieldMapping` e `AnonymizationRule`
+
+**Decision**  
+Modelar `PiiFieldMapping` como configuração declarativa em YAML versionado (por exemplo, `backend/apps/foundation/seeds/pii-mapping.yaml`), carregado em memória como estrutura Python pelo módulo de seeds (`backend/apps/foundation/services/seeds.py`), enquanto `AnonymizationRule` será representada inicialmente como um conjunto de regras estáticas em código (enum/constantes e funções utilitárias). Nenhuma tabela adicional de banco de dados será criada para essas entidades na primeira iteração.
+
+**Rationale**  
+- Mantém o mapeamento de PII/PD sob controle de revisão de código (PRs), com histórico claro de alterações, sem exigir novas migrações ou dependências dinâmicas em produção.  
+- Alinha-se ao princípio de simplicidade (Art. II) e evita antecipar necessidades de edição dinâmica de regras que ainda não existem.  
+- Permite que seeds, anonimização e scanners de PII compartilhem a mesma fonte de verdade (`pii-mapping.yaml` + helpers de código), reduzindo risco de divergência.  
+- Caso surja necessidade futura de edição via UI/painel, é possível evoluir para modelos persistidos mediante ADR específico, sem invalidar o desenho atual.
+
+**Alternatives considered**  
+- **Criar tabelas `PiiFieldMapping` e `AnonymizationRule` em PostgreSQL desde o início**: facilitaria alterações dinâmicas, mas introduz complexidade (migrações, interfaces de gestão, ACLs específicas) sem necessidade imediata, além de aumentar a área de superfície de compliance. Rejeitado para a primeira versão.  
+- **Configurações espalhadas em múltiplos módulos Python**: reduziria dependência de YAML, porém dificultaria a visualização e revisão centralizada do mapa de PII/PD. Rejeitado em favor de um único arquivo declarativo.
+
+---
+
+## 8. Granularidade de tasks Celery e modo `--mode=auto`
+
+**Decision**  
+Adotar granularidade de tasks Celery por par `(tenant, entidade)` para seeds assíncronas: o comando `seed_data` cria um `SeedRun` e enfileira uma tarefa para cada combinação de tenant habilitado e entidade declarada no `SeedProfile`. O parâmetro `--mode` terá a seguinte semântica:  
+- `sync`: executa todo o seed de forma síncrona, no próprio processo do management command.  
+- `async`: registra o `SeedRun` e enfileira tasks Celery, retornando assim que as tasks forem publicadas (monitoramento feito via métricas/logs).  
+- `auto`: decisão baseada em ambiente/perfil — perfis `small` em `dev/hom` usam `sync`; demais perfis/ambientes (`medium`/`large`, `perf`, `dr`) usam `async`.
+
+**Rationale**  
+- Granularidade `(tenant, entidade)` oferece equilíbrio entre controle de paralelismo (por tenant/entidade) e sobrecarga de overhead de tasks, evitando milhares de tasks muito pequenas ou poucas tasks gigantes.  
+- A opção `--mode=auto` reduz fricção para uso dia a dia (especialmente em CI e dev local), mantendo ao mesmo tempo o caminho de configuração explícita (`sync`/`async`) quando necessário.  
+- Permite aplicar políticas distintas de concorrência por fila (`seed_data_default`, `seed_data_perf`) e por ambiente, em linha com §26 e metas de SLO/FinOps.
+
+**Alternatives considered**  
+- **Tasks por “chunk” arbitrário de registros (ex.: 1000 por task)**: daria mais controle de volume, mas tornaria a orquestração mais complexa, especialmente na presença de FKs entre entidades. Rejeitado para a primeira versão em favor de agrupamento por entidade/tenant.  
+- **Decidir sempre por `sync` em todos os ambientes**: simplificaria a implementação, porém entraria em conflito com os objetivos de volumetria elevada em performance/DR e com o SLO de preparação de ambiente. Rejeitado.
+
+---
+
+## 9. Políticas de ambiente e uso em produção
+
+**Decision**  
+Restringir o escopo inicial do comando `seed_data` a ambientes não produtivos (`dev`, `hom`, `perf`, `dr`, `review`). Invocações com `--env=prod` devem falhar explicitamente com mensagem clara indicando que seeds de negócio não são suportadas em produção pela feature F-11. Seeds técnicas específicas para produção continuarão a ser tratadas pelos mecanismos existentes (por exemplo, migrações, fixtures técnicas), fora do escopo desta feature.
+
+**Rationale**  
+- Garante alinhamento com a exigência de não criar seeds de dados de negócio (mesmo sintéticos) em produção, reduzindo risco operacional e de compliance.  
+- Mantém o foco de F-11 em melhorar a preparação de ambientes não produtivos e de performance/DR, onde os ganhos de produtividade e qualidade são maiores.  
+- Evita a necessidade de introduzir conceitos adicionais (como perfis “técnicos” específicos de produção) neste estágio, simplificando o plano.
+
+**Alternatives considered**  
+- **Permitir um subconjunto de perfis “técnicos” em produção via `seed_data`**: introduziria complexidade de governança (quem pode rodar, com quais garantias, como auditar) e risco de uso indevido; melhor tratar em feature futura com ADR dedicado. Rejeitado para F-11.  
+- **Bloquear completamente qualquer comando de seed em clusters de produção (inclusive técnicos)**: poderia conflitar com necessidades operacionais legítimas; manter essa decisão para o escopo de runbooks/infra, não para F-11.
+
+---
+
+## 10. Fronteira com snapshots de produção e DR
+
+**Decision**  
+Considerar como pré-condição que snapshots de produção (para testes em ambientes não produtivos ou DR) sejam provisionados/restaurados pelos pipelines de infra (Terraform/DBA/runbooks). A responsabilidade de F-11 é:  
+- Aplicar anonimização forte e/ou geração de dados sintéticos sobre esses dados restaurados, seguindo `PiiFieldMapping`/`AnonymizationRule`.  
+- Gerar evidências automatizadas (scanners de PII, amostragens, relatórios) de que não há PII real remanescente.  
+- Registrar `SeedRun`/`SeedDatasetSnapshot` vinculados à operação de DR para auditoria.  
+Não faz parte do escopo de F-11 orquestrar o próprio processo de snapshot/restore de banco.
+
+**Rationale**  
+- Mantém a separação de responsabilidades entre squads de infra/DBA (snapshot/restore) e a feature de seeds/anonimização (tratamento dos dados não produtivos).  
+- Evita acoplar o comando `seed_data` a detalhes de infraestrutura de backup/restore, que podem variar por ambiente ou evoluir independentemente.  
+- Ainda assim, as entidades de auditoria (`SeedRun`, `SeedDatasetSnapshot`) permitem rastrear e auditar execuções relacionadas a DR.
+
+**Alternatives considered**  
+- **Incluir lógica de snapshot/restore dentro do próprio `seed_data`**: aumentaria muito o escopo da feature, duplicando responsabilidades já cobertas por runbooks e ferramentas de backup; além disso, exigiria permissões elevadas e conhecimento detalhado de infra. Rejeitado.

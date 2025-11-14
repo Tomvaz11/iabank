@@ -65,7 +65,7 @@ O modelo respeita Art. I, III, IV, VII, IX, XI, XIII da Constituição e as dire
 - **Implementação**:
   - Novo modelo em `backend/apps/foundation/models/seed_run.py`.
   - Managers em `backend/apps/foundation/managers.py` para consultas filtradas por ambiente/status.
-  - Migrações em `backend/apps/foundation/migrations/` com RLS baseada em `environment`/tenant, se aplicável ao modelo de auditoria.
+  - Migrações em `backend/apps/foundation/migrations/` sem RLS por tenant (registro de auditoria global por execução de seeds); RLS se aplica às tabelas que possuem `tenant_id` (`SeedRunEntityMetric`, `SeedDatasetSnapshot`). Índices adicionais por (`environment`, `status`, `started_at`) suportam consultas de SRE/FinOps.
 
 ---
 
@@ -129,7 +129,7 @@ O modelo respeita Art. I, III, IV, VII, IX, XI, XIII da Constituição e as dire
 
 ### PiiFieldMapping (config declarativa)
 - **Descrição**: Mapeamento centralizado de campos PII/PD nos modelos de domínio, com a respectiva regra de anonimização/máscara, usado tanto por seeds quanto pelos scanners de PII.
-- **Tipo**: Configuração declarativa (YAML ou estrutura Python) carregada por `backend/apps/foundation/services/seeds.py`.
+- **Tipo**: Configuração declarativa em YAML, versionada em arquivo (por exemplo, `backend/apps/foundation/seeds/pii-mapping.yaml`) e carregada como estrutura Python por `backend/apps/foundation/services/seeds.py`; não há tabela dedicada em banco para esta entidade na primeira iteração.
 - **Campos (conceituais)**:
   - `model` (string) — caminho do modelo Django (`app_label.ModelName`, ex.: `customers.Customer`).
   - `field_name` (string).
@@ -164,7 +164,7 @@ O modelo respeita Art. I, III, IV, VII, IX, XI, XIII da Constituição e as dire
 - **Regras**:
   - Implementadas como funções reutilizáveis em `backend/apps/foundation/services/seeds.py` ou módulo dedicado de anonimização; chamadas tanto por seeds quanto por testes utilitários.
 - **Implementação**:
-  - Pode ser representada via modelos Django ou configuração estática; a decisão pode ser registrada em ADR específico se evoluir.
+  - Representada inicialmente como conjunto de regras estáticas em código (por exemplo, enum/constantes e funções utilitárias em `backend/apps/foundation/services/seeds.py`), evitando novas tabelas e migrações neste estágio. Caso no futuro se torne necessário persistir regras em banco (para edição dinâmica), a mudança deve ser acompanhada de ADR e seguir padrão de migração zero-downtime.
 
 ---
 

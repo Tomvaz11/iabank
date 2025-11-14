@@ -44,3 +44,12 @@ A automação de seeds e dados de teste deve ser desenhada dentro do monolito mo
 
 ---
 
+INTERAÇÕES/PERGUNTAS DE CONFIRMAÇÃO:
+
+Agora, quero que você audite o plano de implementação que voce gerou e os arquivos de detalhes da implementação.
+Sua missão é avaliar se os documentos do plano (plan.md, data-model.md, etc.) contêm informações suficientemente claras e detalhadas para que uma sequência de tarefas de implementação possa ser gerada sem ambiguidades.
+Em vez de listar as tarefas, aponte as áreas que estão vagas ou que carecem de detalhes para a criação de um plano de tarefas. Por exemplo, se uma parte da implementação não está bem detalhada, me diga qual é e por que ela precisa de mais informações antes de virar uma tarefa.
+
+---
+
+

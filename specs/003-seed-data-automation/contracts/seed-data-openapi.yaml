@@ -67,4 +67,18 @@ components:
         rateLimitExpectations:
           - description: 'Retornar 429 com Retry-After e cabeçalhos RateLimit-* ao exceder limites'
             rfc: 'RFC 9457'
-*** End Patch
+      - endpointRef: '../../../contracts/api.yaml#/paths/~1api~1v1~1tenants~1{tenantId}~1features~1scaffold/post'
+        datasets:
+          - profileId: dev-medium
+            purpose: 'testes de contrato e integração multi-tenant para scaffolding FSD'
+        notes:
+          - 'Seeds devem garantir a existência de pelo menos uma feature scaffolding por tenant para validar idempotência e governança de API.'
+      - endpointRef: '../../../contracts/api.yaml#/paths/~1api~1v1~1tenant-metrics~1{tenantId}~1sc/get'
+        datasets:
+          - profileId: dev-medium
+            purpose: 'testes funcionais de métricas SC por tenant'
+          - profileId: perf-small
+            purpose: 'testes de carga leve sobre métricas multi-tenant'
+        rateLimitExpectations:
+          - description: 'Manter consumo dentro dos budgets de RateLimit para endpoints de métricas, sem afetar SLOs de APIs críticas.'
+            rfc: 'RFC 9457'
