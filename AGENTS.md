@@ -27,4 +27,6 @@ Python 3.11; Node.js 20; TypeScript 5.6.: Follow standard conventions
 
 <!-- MANUAL ADDITIONS START -->
 - RESPONDA AO USUARIO SEMPRE EM PT-BR
+- COMMITS: use sempre Conventional Commits (`type(scope?): descrição`) conforme validado pelos hooks de commit.
+- PRs: sempre use o template `.github/pull_request_template.md`; ao criar com `gh pr create`, prefira `--fill` ou edite mantendo as seções `## Descrição`, `## Checklist`, `## Contexto / Referências` e, quando aplicável, pelo menos uma tag `@SC-00x` no título ou corpo.
 <!-- MANUAL ADDITIONS END -->
