@@ -1,0 +1,70 @@
+openapi: 3.0.3
+info:
+  title: IABANK Seed Data & Test Datasets (Design)
+  version: 0.1.0
+  description: |
+    Documento de design para a automação de seeds e datasets de teste da feature F-11.
+    Não introduz novos endpoints públicos, mas descreve como os datasets sintéticos gerados
+    por `seed_data` devem ser usados para validar a API `/api/v1` já versionada por URL,
+    em aderência ao contrato principal `contracts/api.yaml` e à governança de API (Art. XI).
+    Os testes de contrato (OpenAPI/Pact) e de carga (k6/Gatling) referenciados aqui exercitam
+    os endpoints existentes, respeitando RateLimit, RFC 9457 e limites por ambiente/tenant.
+servers:
+  - url: https://api.iabank.com
+    description: Produção
+  - url: https://staging-api.iabank.com
+    description: Homologação
+  - url: https://dev-api.iabank.local
+    description: Desenvolvimento / ambientes efêmeros
+tags:
+  - name: SeedDatasets
+    description: Metadados de uso de datasets sintéticos em contratos e testes de carga.
+paths: {}
+components:
+  x-seedProfiles:
+    description: |
+      Perfis de volumetria usados para preparação de datasets sintéticos em ambientes
+      não produtivos. Estes perfis são configurados em `backend/apps/foundation/seeds/config/**.yaml`
+      e devem respeitar as faixas de Q11 (ordem de dezenas/centenas em dev/hom e milhares/dezenas de milhares
+      em performance), bem como budgets de FinOps (~10% de custo incremental por ambiente/tenant).
+    profiles:
+      - id: dev-small
+        environment: dev
+        volumeProfile: small
+        targetPerTenantHint: 50
+      - id: dev-medium
+        environment: dev
+        volumeProfile: medium
+        targetPerTenantHint: 200
+      - id: dev-large
+        environment: dev
+        volumeProfile: large
+        targetPerTenantHint: 500
+      - id: perf-small
+        environment: perf
+        volumeProfile: small
+        targetPerTenantHint: 5000
+      - id: perf-medium
+        environment: perf
+        volumeProfile: medium
+        targetPerTenantHint: 20000
+      - id: perf-large
+        environment: perf
+        volumeProfile: large
+        targetPerTenantHint: 50000
+  x-seedUsage:
+    description: |
+      Anotações de como os endpoints da API `/api/v1` serão exercitados por datasets de seeds
+      durante testes funcionais, de contrato e de performance. Estas anotações não definem
+      novos caminhos HTTP, apenas explicitam requisitos de cobertura para os contratos existentes.
+    examples:
+      - endpointRef: '../../../contracts/api.yaml#/paths/~1api~1v1~1tenants~1{tenantId}~1themes~1current'
+        datasets:
+          - profileId: dev-small
+            purpose: 'smoke / contrato (Pact)'
+          - profileId: perf-large
+            purpose: 'teste de carga, respeitando RateLimit e SLOs'
+        rateLimitExpectations:
+          - description: 'Retornar 429 com Retry-After e cabeçalhos RateLimit-* ao exceder limites'
+            rfc: 'RFC 9457'
+*** End Patch
