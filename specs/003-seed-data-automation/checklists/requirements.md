@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,4 +31,4 @@
 
 ## Notes
 
-- Existem 3 marcadores `[NEEDS CLARIFICATION]` em pontos criticos (seeds em producao, rigor de anonimização, volumetria/FinOps); eles devem ser resolvidos via `/speckit.clarify` antes de congelar a especificacao para planejamento.
+- Os 3 pontos criticos inicialmente marcados com `[NEEDS CLARIFICATION]` (seeds em producao, rigor de anonimização, volumetria/FinOps) foram esclarecidos e incorporados na secao `## Clarifications` da `spec.md`; nao ha mais marcadores pendentes, e a especificacao esta pronta para seguir para `/speckit.plan`.
