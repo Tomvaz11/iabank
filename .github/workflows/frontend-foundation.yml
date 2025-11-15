@@ -905,7 +905,7 @@ jobs:
 
       - name: Poetry plugin (export)
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
-        run: poetry self add poetry-plugin-export
+        run: poetry self add "poetry-plugin-export<1.9"
 
       - name: pip-audit (Python SCA)
         id: security_pip_audit
