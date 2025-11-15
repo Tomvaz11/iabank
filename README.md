@@ -114,6 +114,7 @@ Notas:
       - `poetry export --format=requirements.txt --with dev --without-hashes -o artifacts/security/requirements.txt`
       - `pip-audit -r artifacts/security/requirements.txt`
     - Alternativamente, use o wrapper: `poetry run bash scripts/security/run_python_sca.sh all`
+    - Nota (Poetry/Export): se o comando `poetry export` não existir (instalações via distro/snap podem não carregar plugins), alinhe-se à versão utilizada no CI e instale o plugin de export compatível. Consulte `.github/workflows/frontend-foundation.yml` e `docs/pipelines/ci-required-checks.md`.
   - DAST (OWASP ZAP baseline):
     - Se o backend via Compose já estiver ativo: `ZAP_BASELINE_TARGET=http://127.0.0.1:8000/metrics ZAP_SKIP_SERVER_START=1 bash scripts/security/run_dast.sh`
     - Caso contrário, o script aplicará migrações e iniciará `runserver` temporariamente (alvo padrão: `/metrics`).
