@@ -34,6 +34,7 @@ Reflete os gates constitucionais (v5.2.0) e ADRs 008–012.
 - Caches adicionados: `actions/cache` para `~/.cache/pypoetry` e `~/.cache/pip`; cache PNPM já via `setup-node`.
 - Timeouts defensivos aplicados a passos pesados (Chromatic, Storybook test, k6/Lighthouse, Semgrep/ZAP/SCA).
 - Artifacts com `retention-days` (Chromatic e Performance: 7–14 dias; SBOM: 30 dias).
+- Upload resiliente dos artefatos Lighthouse (job Performance Budgets): removido o uso de `hashFiles()` no `if` do passo de upload em `.github/workflows/frontend-foundation.yml`, confiando em `if-no-files-found: ignore` do `actions/upload-artifact@v4`. Motivo: evitar falsos negativos intermitentes em runners na avaliação do `hashFiles`.
 
 Nota operacional: esta seção foi ajustada apenas para validar o comportamento de gating em um PR "docs-only".
 
