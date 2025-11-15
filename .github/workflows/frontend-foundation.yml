@@ -709,7 +709,9 @@ jobs:
           retention-days: 14
 
       - name: Publicar relatórios Lighthouse
-        if: ${{ always() && needs.changes.outputs.ui == 'true' && (hashFiles('artifacts/lighthouse/**') != '' || hashFiles('observabilidade/data/lighthouse-latest.json') != '') }}
+        # Observação: evitar uso de hashFiles() no if devido a intermitências em runners.
+        # O upload-artifact já é tolerante com if-no-files-found: ignore.
+        if: ${{ always() && needs.changes.outputs.ui == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: performance-lighthouse-budgets

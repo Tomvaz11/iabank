@@ -1,6 +1,6 @@
 import { mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ZodError } from 'zod';
 
 import { tenantIds, tenantTokens, tenantVersions } from '../../src/shared/config/theme/tenants';
@@ -31,7 +31,9 @@ type BuildTenantArtifactsOptions = {
   tokensCssPath?: string;
 };
 
-const projectRoot = path.resolve(process.cwd());
+// Raiz do pacote "frontend" (independente de onde o processo foi iniciado)
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(moduleDir, '..', '..');
 const DEFAULT_CACHE_DIR = path.join(projectRoot, 'scripts', 'tokens', 'cache');
 const DEFAULT_TENANTS_PATH = path.join(
   projectRoot,
@@ -309,10 +311,18 @@ const formatCss = (data: Array<{ alias: string; categories: TokenCategories }>):
 };
 
 const cleanupLegacyArtifacts = async (): Promise<void> => {
+  // Apenas remove uma duplicação acidental "frontend/frontend" dentro do pacote,
+  // nunca a raiz real do projeto.
   const duplicatedRoot = path.join(projectRoot, 'frontend');
   try {
     const stats = await stat(duplicatedRoot);
     if (!stats.isDirectory()) {
+      return;
+    }
+    const parent = path.dirname(duplicatedRoot);
+    const isNestedDuplicate =
+      path.basename(duplicatedRoot) === 'frontend' && path.basename(parent) === 'frontend' && parent !== projectRoot;
+    if (!isNestedDuplicate) {
       return;
     }
     await rm(duplicatedRoot, { recursive: true, force: true });
