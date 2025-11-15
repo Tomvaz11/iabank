@@ -27,4 +27,11 @@ Python 3.11; Node.js 20; TypeScript 5.6.: Follow standard conventions
 
 <!-- MANUAL ADDITIONS START -->
 - RESPONDA AO USUARIO SEMPRE EM PT-BR
+
+- Commits: `scripts/git/verify-commit-msg.sh`
+- PR – template: `.github/pull_request_template.md`
+- PR – tag @SC-00x: `scripts/ci/validate-sc-tag.sh`
+- Pre-commit: `.pre-commit-config.yaml`
+- Sincronizar branch antes do PR: `CONTRIBUTING.md`
+- Docs gate: `scripts/ci/check-docs-needed.js`
 <!-- MANUAL ADDITIONS END -->
