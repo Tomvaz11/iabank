@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import structlog
 from typing import Dict
 from typing import Optional
 from typing import Protocol
@@ -21,6 +22,7 @@ class FlagProvider(Protocol):
 @dataclass
 class FlagGate:
     provider: Optional[FlagProvider] = None
+    _logger = structlog.get_logger('backend.apps.foundation.flags')
 
     def is_enabled(self, flag_key: str, tenant_id: Optional[str]) -> bool:
         default_value = resolve_fallback_value(flag_key, tenant_id)
@@ -50,4 +52,5 @@ class FlagGate:
             try:
                 self.provider.close()
             except Exception:
-                pass
+                # Evita falhar no shutdown mas registra para observabilidade/SAST
+                self._logger.warning("flag_provider_close_failed", exc_info=True)
