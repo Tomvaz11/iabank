@@ -903,6 +903,10 @@ jobs:
         continue-on-error: ${{ env.CI_FAIL_OPEN == 'true' || github.event_name == 'workflow_dispatch' }}
         run: poetry run python -m scripts.security.check_pgcrypto
 
+      - name: Poetry plugin (export)
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
+        run: poetry self add poetry-plugin-export
+
       - name: pip-audit (Python SCA)
         id: security_pip_audit
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}

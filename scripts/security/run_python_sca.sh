@@ -61,8 +61,8 @@ else
 fi
 
 if command -v "${POETRY_BIN}" >/dev/null 2>&1; then
-  # Em Poetry 1.8.x, o comando export depende de plugin; se indisponível, faz fallback para freeze.
-  if ! "${POETRY_BIN}" export --with dev --format requirements.txt --output "${REQ_FILE}" >/dev/null 2>&1; then
+  # Em Poetry 1.8.x/2.x, o comando export depende de plugin; se indisponível, faz fallback para freeze.
+  if ! "${POETRY_BIN}" export --with dev --without-hashes --format requirements.txt --output "${REQ_FILE}" >/dev/null 2>&1; then
     echo "Poetry export indisponível; usando freeze do ambiente virtual gerenciado pelo Poetry." >&2
     "${POETRY_BIN}" run python -m pip install --quiet --upgrade pip
     # Gera requirements a partir do ambiente do Poetry

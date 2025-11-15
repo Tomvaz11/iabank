@@ -30,6 +30,13 @@ FOUNDATION_STACK_REDIS_PORT=56379 \
   docker compose -f infra/docker-compose.foundation.yml up -d postgres redis
 ```
 
+Para evitar conflito com um serviço local na porta 8000, o backend no Compose expõe a variável `FOUNDATION_STACK_BACKEND_PORT`:
+
+```bash
+FOUNDATION_STACK_BACKEND_PORT=58000 \
+  docker compose -f infra/docker-compose.foundation.yml up -d backend
+```
+
 As variáveis de ambiente abaixo serão usadas pelo pytest quando executado localmente:
 
 ```bash
@@ -99,6 +106,20 @@ Notas:
 - Contratos/API: `pnpm openapi && pnpm pact:verify`
 - Performance: `pnpm perf:smoke:local`
 - Backend: `poetry run ruff check . && poetry run pytest -q`
+- Segurança:
+  - SAST: `bash scripts/security/run_sast.sh`
+  - SCA (Python):
+    - Instale o plugin de export do Poetry (uma vez): `poetry self add poetry-plugin-export`
+    - Exporte deps e audite via pip-audit:
+      - `poetry export --format=requirements.txt --with dev --without-hashes -o artifacts/security/requirements.txt`
+      - `pip-audit -r artifacts/security/requirements.txt`
+    - Alternativamente, use o wrapper: `poetry run bash scripts/security/run_python_sca.sh all`
+  - DAST (OWASP ZAP baseline):
+    - Se o backend via Compose já estiver ativo: `ZAP_BASELINE_TARGET=http://127.0.0.1:8000/metrics ZAP_SKIP_SERVER_START=1 bash scripts/security/run_dast.sh`
+    - Caso contrário, o script aplicará migrações e iniciará `runserver` temporariamente (alvo padrão: `/metrics`).
+
+Notas Lighthouse:
+- Para execuções locais mais estáveis, use warmup e rodadas extras: `LIGHTHOUSE_RUNS=3 LIGHTHOUSE_WARMUP_DELAY_MS=8000 pnpm --filter @iabank/frontend-foundation test:lighthouse`.
 
 ## Observabilidade local (Prometheus, Grafana, OTEL)
 Este passo valida “de ponta a ponta” as métricas (Prometheus/Grafana) e os traces (OTEL Collector) localmente.
