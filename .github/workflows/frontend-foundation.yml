@@ -249,6 +249,15 @@ jobs:
       - name: Verificar versão do Poetry (1.8.3)
         run: poetry --version | grep '1.8.3'
 
+      - name: Verificar header do poetry.lock (não Poetry 2.x)
+        run: |
+          if head -n1 poetry.lock | grep -q 'Poetry 2\.'; then
+            echo '::error::poetry.lock gerado por Poetry 2.x — regenere com Poetry 1.8.3';
+            exit 1;
+          else
+            echo 'Header do poetry.lock OK';
+          fi
+
       - name: Install Python dependencies
         run: poetry install --no-interaction --no-ansi --sync --with dev
 
@@ -422,6 +431,16 @@ jobs:
       - name: Verificar versão do Poetry (1.8.3)
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
         run: poetry --version | grep '1.8.3'
+
+      - name: Verificar header do poetry.lock (não Poetry 2.x)
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
+        run: |
+          if head -n1 poetry.lock | grep -q 'Poetry 2\.'; then
+            echo '::error::poetry.lock gerado por Poetry 2.x — regenere com Poetry 1.8.3';
+            exit 1;
+          else
+            echo 'Header do poetry.lock OK';
+          fi
 
       - name: Install Python dependencies
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.tests == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref,'refs/heads/release/') || startsWith(github.ref,'refs/tags/') }}
@@ -833,6 +852,16 @@ jobs:
       - name: Verificar versão do Poetry (1.8.3)
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
         run: poetry --version | grep '1.8.3'
+
+      - name: Verificar header do poetry.lock (não Poetry 2.x)
+        if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
+        run: |
+          if head -n1 poetry.lock | grep -q 'Poetry 2\.'; then
+            echo '::error::poetry.lock gerado por Poetry 2.x — regenere com Poetry 1.8.3';
+            exit 1;
+          else
+            echo 'Header do poetry.lock OK';
+          fi
 
       - name: Install Python dependencies
         if: ${{ needs.changes.outputs.backend == 'true' || needs.changes.outputs.frontend == 'true' || needs.changes.outputs.security == 'true' || env.CI_ENFORCE_FULL_SECURITY == 'true' }}
