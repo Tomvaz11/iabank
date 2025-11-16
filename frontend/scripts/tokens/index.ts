@@ -321,7 +321,9 @@ const cleanupLegacyArtifacts = async (): Promise<void> => {
     }
     const parent = path.dirname(duplicatedRoot);
     const isNestedDuplicate =
-      path.basename(duplicatedRoot) === 'frontend' && path.basename(parent) === 'frontend' && parent !== projectRoot;
+      path.basename(duplicatedRoot) === 'frontend' &&
+      path.basename(parent) === 'frontend' &&
+      parent !== projectRoot;
     if (!isNestedDuplicate) {
       return;
     }

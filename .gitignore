@@ -4,6 +4,8 @@ node_modules/
 pnpm-debug.log
 dist/
 build/
+frontend/storybook-static/
+frontend/vite.config.ts.timestamp-*.mjs
 coverage/
 playwright-report/
 test-results/

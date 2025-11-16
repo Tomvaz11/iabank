@@ -209,6 +209,18 @@ docker compose -f infra/docker-compose.foundation.yml down
 docker rm -f infra-prometheus infra-grafana
 ```
 
+8) Atalho (Demo local)
+
+Para visualizar rapidamente a métrica SC‑001 sem depender de múltiplos eventos e sem alterar o painel oficial, use o painel “Demo” e o script de seed:
+
+```bash
+# (com backend + prometheus + grafana ativos)
+bash scripts/observabilidade/seed_sc001.sh loan-tracking-demo 1
+
+# Abra no Grafana: IABank → "IABank Foundation — Observabilidade Local (Demo)"
+# O gráfico "SC‑001 — Duração média (min) [Demo]" mostra o valor médio
+```
+
 ## Troubleshooting rápido
 - Playwright: rode `pnpm --filter @iabank/frontend-foundation exec playwright install` se faltar navegador.
 - Postgres/Redis: ajuste portas em `infra/docker-compose.foundation.yml` via `FOUNDATION_STACK_POSTGRES_PORT` e `FOUNDATION_STACK_REDIS_PORT`.

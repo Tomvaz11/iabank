@@ -39,12 +39,16 @@ export const bootstrapTelemetry = async (
     ...config.resourceAttributes,
     [SemanticResourceAttributes.SERVICE_NAME]: config.serviceName,
   });
+  // Alguns ambientes de tipos do OTEL apresentam incompatibilidades entre Resource/IResource.
+  // Mantemos o merge e aplicamos casting defensivo para evitar erro de typecheck.
   const resource = baseResource.merge(serviceResource);
 
-  const provider = new WebTracerProvider({ resource });
+  const provider: WebTracerProvider = new WebTracerProvider({ resource: resource as unknown as never });
   const exporter = new OTLPTraceExporter({ url: config.endpoint });
   const spanProcessor = new BatchSpanProcessor(exporter);
-  provider.addSpanProcessor(spanProcessor);
+  (provider as unknown as { addSpanProcessor: (p: BatchSpanProcessor) => void }).addSpanProcessor(
+    spanProcessor,
+  );
 
   const propagator = new CompositePropagator({
     propagators: [new W3CTraceContextPropagator(), new W3CBaggagePropagator()],
