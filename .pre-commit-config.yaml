@@ -23,3 +23,10 @@ repos:
         entry: bash scripts/git/verify-commit-msg.sh
         language: system
         stages: [commit-msg]
+
+      - id: poetry-lock-guard
+        name: poetry.lock header guard (Poetry 2.x bloqueado)
+        entry: bash scripts/ci/check-poetry-lock-header.sh
+        language: system
+        pass_filenames: false
+        files: ^poetry.lock$
