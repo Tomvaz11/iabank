@@ -47,7 +47,15 @@ A pipeline principal executa e/ou exige:
   - “Vitest” (job `test-frontend`): prepara Node e executa Vitest quando `needs.changes.outputs.frontend == 'true'` (em PR/dev). Em `main`/`release/*`/tags, sempre executa.
   - “Pytest + Radon” (job `test-backend`): prepara Python/Poetry e executa Pytest/Radon quando `needs.changes.outputs.backend == 'true'` OU `needs.changes.outputs.tests == 'true'` (em PR/dev). Em `main`/`release/*`/tags, sempre executa.
   - Dica: os passos “Resumo de mudanças (tests - frontend/backend/tests)” imprimem `needs.changes.outputs.frontend/backend/tests` para diagnóstico rápido.
-  - Required checks: na branch `main`, “Vitest” e “Pytest + Radon” estão configurados como Required Checks (use o nome exato do job). Mantenha-os ao ajustar as Branch Protection Rules.
+- Required checks: na branch `main`, “Vitest” e “Pytest + Radon” estão configurados como Required Checks (use o nome exato do job). Mantenha-os ao ajustar as Branch Protection Rules.
+
+Visual & Accessibility (UI/Chromatic)
+- O workflow “Frontend Foundation CI” contém o job “Visual & Accessibility Gates” que:
+  - constrói o Storybook,
+  - executa o upload/validação no Chromatic (usando `CHROMATIC_PROJECT_TOKEN`),
+  - roda o test‑runner de acessibilidade (axe/WCAG),
+  - e valida cobertura visual por tenant (≥95%).
+- O job é acionado em PRs com mudanças de frontend (UI/stories). Como fallback operacional, pode ser disparado via `workflow_dispatch` no mesmo workflow.
 
 ### Onde consultar gates do CI (sem duplicar valores)
 - Workflow principal: `.github/workflows/frontend-foundation.yml:1`

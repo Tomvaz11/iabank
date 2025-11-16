@@ -95,6 +95,11 @@ Notas:
 - Siga “vermelho → verde”: registre no PR os commits (ou links de run) do estado vermelho (falha esperada do teste) e do estado verde (após a implementação).
 - Para casos de exceção (ajustes de CI/docs/hotfix infra), documente a justificativa no PR.
 
+- Visual & Accessibility (Chromatic)
+  - O job “Visual & Accessibility Gates” roda em PRs que tocam frontend (UI/stories) e publica no Chromatic.
+  - Quando necessário, também é possível disparar manualmente via `workflow_dispatch` no workflow “Frontend Foundation CI” (útil para evidências ou reexecução isolada).
+  - Os artefatos publicados incluem a build estática do Storybook e o relatório de cobertura visual por tenant (≥95%).
+
 ## Complexidade (Radon)
 - Gate no CI: `scripts/ci/check_python_complexity.py` (limite cc ≤ 10; allowlist em `scripts/ci/complexity_allowlist.json`).
 - Execução local: `poetry run python scripts/ci/check_python_complexity.py`.

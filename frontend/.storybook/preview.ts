@@ -46,5 +46,3 @@ const preview: Preview = {
 };
 
 export default preview;
-
-// ci: chromatic validation nudge — comentário inócuo para acionar filtro de UI em PR

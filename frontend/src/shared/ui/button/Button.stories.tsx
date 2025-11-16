@@ -1,4 +1,3 @@
-// Ajuste mínimo para validar gating de UI no CI (nudge commit 2)
 import type { Meta, StoryObj } from '@storybook/react';
 import { expect, within } from '@storybook/test';
 
@@ -90,5 +89,3 @@ export const TenantBeta: Story = {
   parameters: { tenant: 'tenant-beta' },
   play: playStoryForTenant('tenant-beta'),
 };
-
-// ci: chromatic validation trigger (no-op)
