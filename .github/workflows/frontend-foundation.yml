@@ -565,14 +565,16 @@ jobs:
         if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
         run: pnpm --filter @iabank/frontend-foundation exec playwright install chromium
 
-      - name: Executar Chromatic
+      - name: Executar Chromatic (Action)
         if: ${{ (github.event_name == 'workflow_dispatch') || ((needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true') && github.event_name == 'pull_request') }}
-        env:
-          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
-        timeout-minutes: 20
-        run: |
-          pnpm chromatic:ci
-        working-directory: frontend
+        uses: chromaui/action@v1
+        with:
+          projectToken: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
+          workingDir: frontend
+          storybookBuildDir: storybook-static
+          onlyChanged: true
+          exitOnceUploaded: true
+          exitZeroOnChanges: true
 
       - name: Validar cobertura visual por tenant (estrito ≥95%)
         if: ${{ (github.event_name == 'workflow_dispatch') || ((needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true') && github.event_name == 'pull_request') }}
