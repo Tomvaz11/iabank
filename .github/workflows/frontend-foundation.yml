@@ -520,13 +520,13 @@ jobs:
           fetch-depth: 0
 
       - name: Setup pnpm
-        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' }}
+        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
         uses: pnpm/action-setup@v2
         with:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
-        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' }}
+        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -535,7 +535,7 @@ jobs:
             pnpm-lock.yaml
 
       - name: Install dependencies
-        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' }}
+        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
         run: pnpm install --frozen-lockfile
 
       - name: Resumo de mudanças (UI)
@@ -543,18 +543,18 @@ jobs:
           echo "UI changed? -> ${{ needs.changes.outputs.ui }}"
 
       - name: Build Storybook estático
-        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' }}
+        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
         timeout-minutes: 15
         run: pnpm --filter @iabank/frontend-foundation storybook:build
 
       - name: Detectar versão do Playwright (UI)
-        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' }}
+        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
         id: pwver_ui
         run: |
           echo "version=$(pnpm --filter @iabank/frontend-foundation exec playwright --version | awk '{print $2}')" >> $GITHUB_OUTPUT
 
       - name: Cache Playwright (UI)
-        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' }}
+        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
         id: pwcache_ui
         uses: actions/cache@v4
         with:
@@ -562,11 +562,11 @@ jobs:
           key: ${{ runner.os }}-ms-playwright-${{ steps.pwver_ui.outputs.version }}
 
       - name: Instalar navegadores Playwright (apenas Chromium)
-        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' }}
+        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
         run: pnpm --filter @iabank/frontend-foundation exec playwright install chromium
 
       - name: Executar Chromatic
-        if: ${{ (needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true') && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && secrets.CHROMATIC_PROJECT_TOKEN != '' }}
+        if: ${{ (github.event_name == 'workflow_dispatch') || ((needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true') && github.event_name == 'pull_request') }}
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
         timeout-minutes: 20
@@ -575,7 +575,7 @@ jobs:
         working-directory: frontend
 
       - name: Validar cobertura visual por tenant (estrito ≥95%)
-        if: ${{ (needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true') && (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && secrets.CHROMATIC_PROJECT_TOKEN != '' }}
+        if: ${{ (github.event_name == 'workflow_dispatch') || ((needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true') && github.event_name == 'pull_request') }}
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           CHROMATIC_MIN_COVERAGE: '95'
@@ -585,12 +585,12 @@ jobs:
         working-directory: frontend
 
       - name: Executar test-runner do Storybook (axe/WCAG)
-        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' }}
+        if: ${{ needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
         timeout-minutes: 15
         run: pnpm --filter @iabank/frontend-foundation storybook:test
 
       - name: Publicar artefatos Chromatic
-        if: ${{ always() && (needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true') }}
+        if: ${{ always() && (needs.changes.outputs.ui == 'true' || needs.changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch') }}
         uses: actions/upload-artifact@v4
         with:
           name: chromatic-coverage
