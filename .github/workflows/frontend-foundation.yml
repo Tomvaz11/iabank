@@ -566,7 +566,7 @@ jobs:
         run: pnpm --filter @iabank/frontend-foundation exec playwright install chromium
 
       - name: Executar Chromatic
-        if: ${{ needs.changes.outputs.ui == 'true' && github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
+        if: ${{ needs.changes.outputs.ui == 'true' && github.event_name == 'pull_request' && secrets.CHROMATIC_PROJECT_TOKEN != '' }}
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
         timeout-minutes: 20
@@ -575,7 +575,7 @@ jobs:
         working-directory: frontend
 
       - name: Validar cobertura visual por tenant (estrito ≥95%)
-        if: ${{ needs.changes.outputs.ui == 'true' && github.event_name == 'pull_request' && env.CHROMATIC_PROJECT_TOKEN != '' }}
+        if: ${{ needs.changes.outputs.ui == 'true' && github.event_name == 'pull_request' && secrets.CHROMATIC_PROJECT_TOKEN != '' }}
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           CHROMATIC_MIN_COVERAGE: '95'
