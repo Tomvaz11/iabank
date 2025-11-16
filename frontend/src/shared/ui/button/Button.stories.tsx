@@ -90,3 +90,5 @@ export const TenantBeta: Story = {
   parameters: { tenant: 'tenant-beta' },
   play: playStoryForTenant('tenant-beta'),
 };
+
+// ci: chromatic validation trigger (no-op)
