@@ -38,5 +38,5 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 echo "Comparando contratos (oasdiff): $PREV_SPEC -> $CURR_SPEC"
-docker run --rm -v "$(pwd)":"/work" -w /work ghcr.io/tufin/oasdiff:latest \
+docker run --rm -v "$(pwd)":"/work" -w /work tufin/oasdiff:latest \
   diff --fail-on-breaking "$PREV_SPEC" "$CURR_SPEC"
