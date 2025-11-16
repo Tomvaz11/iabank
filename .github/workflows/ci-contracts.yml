@@ -53,16 +53,16 @@ jobs:
           fi
         shell: bash
 
-      - name: OpenAPI diff guard
+      - name: OpenAPI diff guard (Redocly)
         run: |
           if command -v pnpm >/dev/null 2>&1; then
             if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
-              pnpm exec openapi-diff contracts/api.previous.yaml contracts/api.yaml
+              pnpm openapi:diff
             else
               echo "::warning::OpenAPI baseline missing; skipping diff"
             fi
           else
-            echo "::warning::pnpm not available; skipping openapi-diff"
+            echo "::warning::pnpm not available; skipping Redocly diff"
           fi
         shell: bash
 

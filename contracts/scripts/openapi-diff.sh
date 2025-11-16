@@ -16,10 +16,10 @@ if [[ ! -f "$CURR_SPEC" ]]; then
   exit 2
 fi
 
-if ! command -v openapi-diff >/dev/null 2>&1; then
-  echo "openapi-diff não encontrado no PATH. Instale com pnpm add -D openapi-diff." >&2
+if ! command -v redocly >/dev/null 2>&1; then
+  echo "Redocly CLI não encontrado no PATH. Instale com: pnpm add -D @redocly/cli" >&2
   exit 3
 fi
 
-echo "Comparando contratos: $PREV_SPEC -> $CURR_SPEC"
-openapi-diff "$PREV_SPEC" "$CURR_SPEC"
+echo "Comparando contratos (Redocly): $PREV_SPEC -> $CURR_SPEC"
+redocly openapi diff "$PREV_SPEC" "$CURR_SPEC"

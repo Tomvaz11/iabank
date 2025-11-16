@@ -5,7 +5,7 @@ Reflete os gates constitucionais (v5.2.0) e ADRs 008–012.
 ## Jobs Obrigatórios
 1. **tests-unit**: `pytest` (preferencialmente sharded com `xdist`), cobertura ≥85%.
 2. **tests-integration**: inclui cenários de RLS (`CREATE POLICY` + enforcement) e `factory-boy`.
-3. **tests-contract**: Spectral, openapi-diff, Pact (`.github/workflows/ci-contracts.yml`) com cenários de idempotência e concorrência.
+3. **tests-contract**: Spectral, Redocly OpenAPI CLI (diff), Pact (`.github/workflows/ci-contracts.yml`) com cenários de idempotência e concorrência.
 4. **tests-security**: SAST, DAST, SCA, verificação de pgcrypto/mascaramento (scripts do ADR-010).
 5. **tests-performance**: k6 com thresholds definidos nos SLOs aprovados (documentar no repositório de SLOs/SLA) e revisados semestralmente. Artefato JSON: `artifacts/perf/k6-smoke.json`.
 6. **build-sbom**: Gera CycloneDX/SPDX.

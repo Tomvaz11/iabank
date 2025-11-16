@@ -21,7 +21,7 @@
     "format:write": "pnpm exec prettier --write \"frontend/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css}\" \"scripts/**/*.{js,ts}\"",
     "storybook:test": "pnpm --filter @iabank/frontend-foundation storybook:test",
     "openapi:lint": "pnpm exec spectral lint --ruleset=contracts/.spectral.yaml contracts/api.yaml contracts/api.previous.yaml specs/002-f-10-fundacao/contracts/**/*.yaml",
-    "openapi:diff": "contracts/scripts/openapi-diff.sh",
+    "openapi:diff": "pnpm exec redocly openapi diff contracts/api.previous.yaml contracts/api.yaml",
     "openapi:generate": "pnpm exec openapi --input contracts/api.yaml --output frontend/src/shared/api/generated --client fetch --useOptions --exportCore true --exportServices true --exportModels true",
     "openapi": "pnpm openapi:lint && pnpm openapi:diff && pnpm openapi:generate",
     "pact:verify": "pnpm exec vitest run tests/state/query-cache.pact.ts --root frontend",
@@ -44,12 +44,12 @@
     "@cyclonedx/cyclonedx-npm": "^1.9.0",
     "@pact-foundation/pact": "^13.1.0",
     "@pact-foundation/pact-cli": "^16.1.4",
+    "@redocly/cli": "^1.34.5",
     "@stoplight/spectral-cli": "^6.11.0",
     "diff": "^5.2.0",
-    "openapi-diff": "^0.24.1",
+    "openapi-typescript-codegen": "^0.29.0",
     "typescript": "^5.9.3",
     "vitest": "^2.0.5",
-    "yaml": "^2.6.0",
-    "openapi-typescript-codegen": "^0.29.0"
+    "yaml": "^2.6.0"
   }
 }

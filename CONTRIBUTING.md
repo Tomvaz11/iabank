@@ -21,7 +21,7 @@ Este guia consolida o fluxo Git e as práticas de contribuição adotadas no rep
 A pipeline principal executa e/ou exige:
 - Lint (ESLint, boundaries FSD).
 - Testes (Vitest no frontend, Pytest no backend; cobertura mínima definida).
-- Contratos (Spectral + openapi-diff + Pact).
+- Contratos (Spectral + Redocly OpenAPI CLI (diff) + Pact).
 - Visual/Acessibilidade (Storybook Test Runner + Chromatic) quando aplicável.
 - Performance (k6 + Lighthouse budgets) quando aplicável.
 - Segurança (SAST/DAST/SCA, pgcrypto, SBOM) com enforcement estrito em `main`/release.
