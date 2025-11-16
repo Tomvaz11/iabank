@@ -16,10 +16,27 @@ if [[ ! -f "$CURR_SPEC" ]]; then
   exit 2
 fi
 
-if ! command -v redocly >/dev/null 2>&1; then
-  echo "Redocly CLI não encontrado no PATH. Instale com: pnpm add -D @redocly/cli" >&2
-  exit 3
+# Tenta com Redocly CLI (quando disponível com subcomando 'openapi diff').
+if command -v redocly >/dev/null 2>&1; then
+  echo "Comparando contratos (Redocly): $PREV_SPEC -> $CURR_SPEC"
+  set +e
+  redocly openapi diff "$PREV_SPEC" "$CURR_SPEC"
+  rc=$?
+  set -e
+  if [ $rc -eq 0 ]; then
+    exit 0
+  fi
+  echo "Aviso: 'redocly openapi diff' indisponível/não suportado nesta versão (rc=$rc). Tentando fallback 'oasdiff'..." >&2
+else
+  echo "Redocly CLI não encontrado no PATH. Tentando fallback 'oasdiff'." >&2
 fi
 
-echo "Comparando contratos (Redocly): $PREV_SPEC -> $CURR_SPEC"
-redocly openapi diff "$PREV_SPEC" "$CURR_SPEC"
+# Fallback: tufin/oasdiff (suporta OpenAPI 3.1). Requer Docker.
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Docker não encontrado para fallback 'oasdiff'. Instale Docker ou ajuste a ferramenta de diff." >&2
+  exit 4
+fi
+
+echo "Comparando contratos (oasdiff): $PREV_SPEC -> $CURR_SPEC"
+docker run --rm -v "$(pwd)":"/work" -w /work ghcr.io/tufin/oasdiff:latest \
+  diff --fail-on-breaking "$PREV_SPEC" "$CURR_SPEC"
