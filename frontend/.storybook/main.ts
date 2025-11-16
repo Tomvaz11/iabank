@@ -1,13 +1,20 @@
 import type { StorybookConfig } from '@storybook/react-vite';
 import type { InlineConfig } from 'vite';
 
+// Permite desabilitar o addon de a11y quando o test-runner executa checagens via axe-playwright
+// para evitar corrida "Axe is already running".
+const addons: StorybookConfig['addons'] = [
+  '@storybook/addon-essentials',
+  '@storybook/addon-interactions',
+];
+
+if (process.env.STORYBOOK_DISABLE_A11Y !== 'true') {
+  addons.push('@storybook/addon-a11y');
+}
+
 const config: StorybookConfig = {
   stories: ['../src/**/*.stories.@(ts|tsx)'],
-  addons: [
-    '@storybook/addon-essentials',
-    '@storybook/addon-interactions',
-    '@storybook/addon-a11y',
-  ],
+  addons,
   framework: {
     name: '@storybook/react-vite',
     options: {},

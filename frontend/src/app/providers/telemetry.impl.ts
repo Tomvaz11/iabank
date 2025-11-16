@@ -43,7 +43,9 @@ export const bootstrapTelemetry = async (
   // Mantemos o merge e aplicamos casting defensivo para evitar erro de typecheck.
   const resource = baseResource.merge(serviceResource);
 
-  const provider: WebTracerProvider = new WebTracerProvider({ resource: resource as unknown as never });
+  const provider: WebTracerProvider = new WebTracerProvider({
+    resource: resource as unknown as never,
+  });
   const exporter = new OTLPTraceExporter({ url: config.endpoint });
   const spanProcessor = new BatchSpanProcessor(exporter);
   (provider as unknown as { addSpanProcessor: (p: BatchSpanProcessor) => void }).addSpanProcessor(

@@ -19,7 +19,7 @@
     "foundation:otel": "node --loader ./scripts/scaffolding/loader.mjs ./scripts/otel/verify.ts",
     "storybook": "storybook dev -p 6006 --no-open --disable-telemetry",
     "storybook:build": "storybook build --output-dir storybook-static --quiet --disable-telemetry",
-    "storybook:test": "start-server-and-test storybook 6006 \"pnpm exec test-storybook --ci --failOnConsole --url http://127.0.0.1:6006\"",
+    "storybook:test": "STORYBOOK_DISABLE_A11Y=true start-server-and-test storybook 6006 \"pnpm exec test-storybook --ci --failOnConsole --url http://127.0.0.1:6006\"",
     "audit": "pnpm audit --prod --audit-level=high --json",
     "chromatic:ci": "chromatic --project-token $CHROMATIC_PROJECT_TOKEN --storybook-build-dir=storybook-static --exit-once-uploaded --exit-zero-on-changes --only-changed",
     "chromatic:check": "node --loader ./scripts/scaffolding/loader.mjs ./scripts/chromatic/check-coverage.ts --stories storybook-static/stories.json --verbose"

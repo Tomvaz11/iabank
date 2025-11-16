@@ -29,6 +29,9 @@ __pycache__/
 venv/
 *.egg-info/
 codex-action/
+# Artefatos de Storybook e relatórios voláteis (não versionar)
+frontend/storybook-static/
+observabilidade/data/lighthouse-latest.json
 # Terraform
 .terraform/
 *.tfstate
