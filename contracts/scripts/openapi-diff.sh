@@ -37,6 +37,6 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 4
 fi
 
-echo "Comparando contratos (oasdiff): $PREV_SPEC -> $CURR_SPEC"
+echo "Comparando contratos (oasdiff - breaking): $PREV_SPEC -> $CURR_SPEC"
 docker run --rm -v "$(pwd)":"/work" -w /work tufin/oasdiff:latest \
-  diff --fail-on-breaking "$PREV_SPEC" "$CURR_SPEC"
+  breaking -o ERR "$PREV_SPEC" "$CURR_SPEC"
