@@ -57,6 +57,15 @@ jobs:
         run: |
           if command -v pnpm >/dev/null 2>&1; then
             if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
+              # Instala oasdiff (fallback) caso o Redocly não ofereça 'openapi diff' no ambiente
+              tmpdir=$(mktemp -d)
+              pushd "$tmpdir" >/dev/null
+              curl -sSLf -o oasdiff.tgz https://github.com/Tufin/oasdiff/releases/latest/download/oasdiff-linux-amd64.tar.gz || true
+              if [ -s oasdiff.tgz ]; then
+                tar -xzf oasdiff.tgz || true
+                sudo mv -f oasdiff /usr/local/bin/oasdiff || true
+              fi
+              popd >/dev/null
               pnpm openapi:diff
             else
               echo "::warning::OpenAPI baseline missing; skipping diff"

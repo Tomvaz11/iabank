@@ -31,12 +31,20 @@ else
   echo "Redocly CLI não encontrado no PATH. Tentando fallback 'oasdiff'." >&2
 fi
 
-# Fallback: tufin/oasdiff (suporta OpenAPI 3.1). Requer Docker.
-if ! command -v docker >/dev/null 2>&1; then
-  echo "Docker não encontrado para fallback 'oasdiff'. Instale Docker ou ajuste a ferramenta de diff." >&2
-  exit 4
+# Fallback preferencial: binário local 'oasdiff' (se presente)
+if command -v oasdiff >/dev/null 2>&1; then
+  echo "Comparando contratos (oasdiff local - breaking): $PREV_SPEC -> $CURR_SPEC"
+  oasdiff breaking -o ERR "$PREV_SPEC" "$CURR_SPEC"
+  exit $?
 fi
 
-echo "Comparando contratos (oasdiff - breaking): $PREV_SPEC -> $CURR_SPEC"
-docker run --rm -v "$(pwd)":"/work" -w /work tufin/oasdiff:latest \
-  breaking -o ERR "$PREV_SPEC" "$CURR_SPEC"
+# Fallback alternativo: Docker 'tufin/oasdiff' (suporta OpenAPI 3.1)
+if command -v docker >/dev/null 2>&1; then
+  echo "Comparando contratos (oasdiff via Docker - breaking): $PREV_SPEC -> $CURR_SPEC"
+  docker run --rm -v "$(pwd)":"/work" -w /work tufin/oasdiff:latest \
+    breaking -o ERR "$PREV_SPEC" "$CURR_SPEC"
+  exit $?
+fi
+
+echo "Nenhuma estratégia viável de diff encontrada (Redocly 'openapi diff' indisponível e 'oasdiff' não presente)." >&2
+exit 5
