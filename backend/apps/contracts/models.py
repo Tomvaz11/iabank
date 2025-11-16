@@ -30,6 +30,7 @@ class ContractDiffReport(models.Model):
     class Tool(models.TextChoices):
         SPECTRAL = 'spectral', 'Spectral'
         OPENAPI_DIFF = 'openapi-diff', 'OpenAPI Diff'
+        OASDIFF = 'oasdiff', 'oasdiff'
         PACT_CLI = 'pact-cli', 'Pact CLI'
 
     class Status(models.TextChoices):

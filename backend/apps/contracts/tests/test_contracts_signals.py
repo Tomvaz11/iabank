@@ -49,11 +49,11 @@ class ContractSignalsTest(TestCase):
 
         report = ContractDiffReport.objects.create(
             artifact=artifact,
-            tool='openapi-diff',
+            tool='oasdiff',
             status='warn',
             summary='Non-breaking additions detected',
             logged_at=timezone.now(),
         )
 
-        self.assertIn('openapi-diff', str(report))
+        self.assertIn('oasdiff', str(report))
         self.assertIn('warn', str(report))

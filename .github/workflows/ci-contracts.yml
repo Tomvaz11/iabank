@@ -39,6 +39,17 @@ jobs:
         run: pnpm install --frozen-lockfile
         shell: bash
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
+
+      - name: Install oasdiff
+        run: |
+          go install github.com/oasdiff/oasdiff/cmd/oasdiff@v1.11.7
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+        shell: bash
+
       - name: Spectral lint (via pnpm openapi:lint)
         run: |
           if command -v pnpm >/dev/null 2>&1; then
@@ -53,16 +64,12 @@ jobs:
           fi
         shell: bash
 
-      - name: OpenAPI diff guard
+      - name: OpenAPI diff (oasdiff breaking)
         run: |
-          if command -v pnpm >/dev/null 2>&1; then
-            if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
-              pnpm exec openapi-diff contracts/api.previous.yaml contracts/api.yaml
-            else
-              echo "::warning::OpenAPI baseline missing; skipping diff"
-            fi
+          if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
+            oasdiff breaking contracts/api.previous.yaml contracts/api.yaml
           else
-            echo "::warning::pnpm not available; skipping openapi-diff"
+            echo "::warning::OpenAPI baseline missing; skipping diff"
           fi
         shell: bash
 

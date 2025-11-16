@@ -147,7 +147,7 @@ O foco desta fundação é garantir isolamento multi-tenant, governança de desi
 - **Campos**:
   - `id` (UUID, PK).
   - `artifact_id` (UUID, FK → ApiContractArtifact.id).
-  - `tool` (enum: `spectral`, `openapi-diff`, `pact-cli`).
+  - `tool` (enum: `spectral`, `oasdiff`, `pact-cli`).
   - `status` (enum: `pass`, `warn`, `fail`).
   - `summary` (text) — itens relevantes (ex.: campos adicionados).
   - `logged_at` (timestamp with time zone).
