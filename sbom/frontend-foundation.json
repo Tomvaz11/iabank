@@ -3,9 +3,9 @@
   "bomFormat": "CycloneDX",
   "specVersion": "1.6",
   "version": 1,
-  "serialNumber": "urn:uuid:50583c0a-e627-4572-a681-94330308d733",
+  "serialNumber": "urn:uuid:701c3f18-7e0f-462e-ae3c-bb20d76a7b6d",
   "metadata": {
-    "timestamp": "2025-11-16T00:57:42.610Z",
+    "timestamp": "2025-11-16T20:12:24.913Z",
     "tools": {
       "components": [
         {
@@ -8489,7 +8489,7 @@
       "type": "library",
       "name": "strip-ansi",
       "version": "6.0.1",
-      "bom-ref": "BomRef.9uki2dpqos.ap6177ddejg",
+      "bom-ref": "BomRef.7mh3u8qb65o.pd0j26osmbo",
       "author": "Sindre Sorhus",
       "description": "Strip ANSI escape codes from a string",
       "licenses": [
@@ -33790,8 +33790,8 @@
       "type": "library",
       "name": "react-query",
       "group": "@tanstack",
-      "version": "5.90.9",
-      "bom-ref": "@tanstack/react-query@5.90.9",
+      "version": "5.90.10",
+      "bom-ref": "@tanstack/react-query@5.90.10",
       "author": "tannerlinsley",
       "description": "Hooks for managing, caching and syncing asynchronous and remote data in React",
       "licenses": [
@@ -33802,7 +33802,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/%40tanstack/react-query@5.90.9#packages/react-query",
+      "purl": "pkg:npm/%40tanstack/react-query@5.90.10#packages/react-query",
       "externalReferences": [
         {
           "url": "git+https://github.com/TanStack/query.git#packages/react-query",
@@ -33820,12 +33820,12 @@
           "comment": "as detected from PackageJson property \"bugs.url\""
         },
         {
-          "url": "https://registry.npmjs.org/@tanstack/react-query/-/react-query-5.90.9.tgz",
+          "url": "https://registry.npmjs.org/@tanstack/react-query/-/react-query-5.90.10.tgz",
           "type": "distribution",
           "hashes": [
             {
               "alg": "SHA-512",
-              "content": "6647b601a5e26927e71bc8ea3d9479da6f12b1c94a4f677dfff02013f408cf236f6e98ff436967f85b198dbd63ebd6c9654a2e06f5f6b60f4f1e2ae44e6f1aaf"
+              "content": "04a2ecb3d63c3d0f485233d8422bf7fd99a5c7ddaec5f7d4397f1964da109422190493d3e4cf8638c423ef18ac96f550ea5d41b2d063717d1707f6877c561537"
             }
           ],
           "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
@@ -33842,8 +33842,8 @@
       "type": "library",
       "name": "query-core",
       "group": "@tanstack",
-      "version": "5.90.9",
-      "bom-ref": "@tanstack/query-core@5.90.9",
+      "version": "5.90.10",
+      "bom-ref": "@tanstack/query-core@5.90.10",
       "author": "tannerlinsley",
       "description": "The framework agnostic core that powers TanStack Query",
       "licenses": [
@@ -33854,7 +33854,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/%40tanstack/query-core@5.90.9#packages/query-core",
+      "purl": "pkg:npm/%40tanstack/query-core@5.90.10#packages/query-core",
       "externalReferences": [
         {
           "url": "git+https://github.com/TanStack/query.git#packages/query-core",
@@ -33872,12 +33872,12 @@
           "comment": "as detected from PackageJson property \"bugs.url\""
         },
         {
-          "url": "https://registry.npmjs.org/@tanstack/query-core/-/query-core-5.90.9.tgz",
+          "url": "https://registry.npmjs.org/@tanstack/query-core/-/query-core-5.90.10.tgz",
           "type": "distribution",
           "hashes": [
             {
               "alg": "SHA-512",
-              "content": "5053824338baa5119e5535653cdc0d76702f4f7e73ba0708c9daa3bc55331bad9dbf3da256312598da7f849914a0ce5ea9b50f7d253f18922bff06ef0fc6d353"
+              "content": "12165516ef6b97b19f44db892c9dd8ef0b5b4e710db2fce9f98a5c015ee40988979e2d6ff2a661fbe969c38721e2baf00b4bbf11946704721e873086cf05c349"
             }
           ],
           "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
@@ -34498,8 +34498,8 @@
     {
       "type": "library",
       "name": "csstype",
-      "version": "3.2.1",
-      "bom-ref": "csstype@3.2.1",
+      "version": "3.2.2",
+      "bom-ref": "csstype@3.2.2",
       "author": "Fredrik Nicol",
       "description": "Strict TypeScript and Flow types for style based on MDN data",
       "licenses": [
@@ -34510,7 +34510,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/csstype@3.2.1",
+      "purl": "pkg:npm/csstype@3.2.2",
       "externalReferences": [
         {
           "url": "git+https://github.com/frenic/csstype.git",
@@ -34528,12 +34528,12 @@
           "comment": "as detected from PackageJson property \"bugs.url\""
         },
         {
-          "url": "https://registry.npmjs.org/csstype/-/csstype-3.2.1.tgz",
+          "url": "https://registry.npmjs.org/csstype/-/csstype-3.2.2.tgz",
           "type": "distribution",
           "hashes": [
             {
               "alg": "SHA-512",
-              "content": "f7c5c6badad7a21ef932580b8a194dc4019b52e15073b97572a72711994b34a73452b55d3e776099a0e66130c387ddbd552fdea93655d2ba339a1bb6aaa4f5fe"
+              "content": "0fcd13fad8aa91dffc074c4d95bb2d5831b8c7a6aa55f3b9dbe3a54943487644ef98dc34b90a492dea2cd89ff65efa7289d005b933e6a5a77eb54c4b9ddc23ea"
             }
           ],
           "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
@@ -37088,8 +37088,8 @@
     {
       "type": "library",
       "name": "caniuse-lite",
-      "version": "1.0.30001754",
-      "bom-ref": "caniuse-lite@1.0.30001754",
+      "version": "1.0.30001755",
+      "bom-ref": "caniuse-lite@1.0.30001755",
       "author": "Ben Briggs",
       "description": "A smaller version of caniuse-db, with only the essentials!",
       "licenses": [
@@ -37100,7 +37100,7 @@
           }
         }
       ],
-      "purl": "pkg:npm/caniuse-lite@1.0.30001754",
+      "purl": "pkg:npm/caniuse-lite@1.0.30001755",
       "externalReferences": [
         {
           "url": "git+https://github.com/browserslist/caniuse-lite.git",
@@ -37118,12 +37118,12 @@
           "comment": "as detected from PackageJson property \"bugs.url\""
         },
         {
-          "url": "https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001754.tgz",
+          "url": "https://registry.npmjs.org/caniuse-lite/-/caniuse-lite-1.0.30001755.tgz",
           "type": "distribution",
           "hashes": [
             {
               "alg": "SHA-512",
-              "content": "c7a39e057b9ea0071e3a6a2dcf1dcf3b8669b78af3a5e205b12afa00078f4d9c529178980d49a9ca9125ededbef0d09df5b0fb6d78eac9e7fc08960f0b58dfc6"
+              "content": "e3857e266e9cb4f8fb479d8d6b84cb8b766b8b87565258c977e4439be8fc2ed34273f8a12c24fe5f54f3a0e0244444c45aa8ee2e787de7cd5397cd05bcaee354"
             }
           ],
           "comment": "as detected from npm-ls property \"resolved\" and property \"integrity\""
@@ -74730,7 +74730,7 @@
         "@storybook/react-vite@8.6.14",
         "@storybook/react@8.6.14",
         "@storybook/test-runner@0.17.0",
-        "@tanstack/react-query@5.90.9",
+        "@tanstack/react-query@5.90.10",
         "@testing-library/dom@10.4.1",
         "@testing-library/jest-dom@6.9.1",
         "@testing-library/react@16.3.0",
@@ -75566,7 +75566,7 @@
       "ref": "@types/react@18.3.26",
       "dependsOn": [
         "@types/prop-types@15.7.15",
-        "csstype@3.2.1"
+        "csstype@3.2.2"
       ]
     },
     {
@@ -75746,7 +75746,7 @@
       "dependsOn": [
         "string-width@4.2.3",
         "string-width@5.1.2",
-        "BomRef.9uki2dpqos.ap6177ddejg",
+        "BomRef.7mh3u8qb65o.pd0j26osmbo",
         "@isaacs/cliui@8.0.2|strip-ansi@7.1.2",
         "wrap-ansi@7.0.0",
         "wrap-ansi@8.1.0"
@@ -75805,7 +75805,7 @@
       "ref": "emoji-regex@9.2.2"
     },
     {
-      "ref": "BomRef.9uki2dpqos.ap6177ddejg",
+      "ref": "BomRef.7mh3u8qb65o.pd0j26osmbo",
       "dependsOn": [
         "ansi-regex@5.0.1"
       ]
@@ -76209,7 +76209,7 @@
       "ref": "browserslist@4.28.0",
       "dependsOn": [
         "baseline-browser-mapping@2.8.28",
-        "caniuse-lite@1.0.30001754",
+        "caniuse-lite@1.0.30001755",
         "electron-to-chromium@1.5.254",
         "node-releases@2.0.27",
         "update-browserslist-db@1.1.4"
@@ -78685,14 +78685,14 @@
       "ref": "yargs@17.7.2|emoji-regex@8.0.0"
     },
     {
-      "ref": "@tanstack/react-query@5.90.9",
+      "ref": "@tanstack/react-query@5.90.10",
       "dependsOn": [
-        "@tanstack/query-core@5.90.9",
+        "@tanstack/query-core@5.90.10",
         "react@18.3.1"
       ]
     },
     {
-      "ref": "@tanstack/query-core@5.90.9"
+      "ref": "@tanstack/query-core@5.90.10"
     },
     {
       "ref": "@testing-library/dom@10.4.1",
@@ -78760,7 +78760,7 @@
       "ref": "@types/prop-types@15.7.15"
     },
     {
-      "ref": "csstype@3.2.1"
+      "ref": "csstype@3.2.2"
     },
     {
       "ref": "@typescript-eslint/eslint-plugin@8.46.4",
@@ -79132,7 +79132,7 @@
       "ref": "autoprefixer@10.4.22",
       "dependsOn": [
         "browserslist@4.28.0",
-        "caniuse-lite@1.0.30001754",
+        "caniuse-lite@1.0.30001755",
         "fraction.js@5.3.4",
         "normalize-range@0.1.2",
         "picocolors@1.1.1",
@@ -79144,7 +79144,7 @@
       "ref": "baseline-browser-mapping@2.8.28"
     },
     {
-      "ref": "caniuse-lite@1.0.30001754"
+      "ref": "caniuse-lite@1.0.30001755"
     },
     {
       "ref": "electron-to-chromium@1.5.254"
