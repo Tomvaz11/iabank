@@ -60,6 +60,10 @@ Nota operacional: esta seção foi ajustada apenas para validar o comportamento 
 - Timeouts existentes em steps foram preservados (Chromatic, Storybook test, k6/Lighthouse, Semgrep/ZAP/SCA etc.).
 - Arquivo de referência: `.github/workflows/frontend-foundation.yml`.
 
+## Atualizações (2025-11-17) — Lote 5
+- Contracts: renomeado o job para "Contracts (Spectral, oasdiff, Pact)".
+- Instalação do oasdiff nos workflows passou a usar o repositório oficial (`github.com/oasdiff/oasdiff/releases`).
+
 ## Prova de TDD (Art. III)
 - PRs DEVEM evidenciar “vermelho → verde” para mudanças de código:
   - Inclua no corpo do PR os commits/links para: (1) estado vermelho (testes falhando) e (2) estado verde (após implementação).
