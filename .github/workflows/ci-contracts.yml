@@ -46,19 +46,39 @@ jobs:
         run: pnpm install --frozen-lockfile
         shell: bash
 
-      # Instala oasdiff (binário) sem depender do toolchain Go
-      - name: Install oasdiff (v1.11.7, linux_amd64)
+      # Cache do oasdiff por versão (v1.11.7)
+      - name: Restore oasdiff cache
+        id: cache-oasdiff
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/oasdiff/1.11.7
+          key: oasdiff-${{ runner.os }}-v1.11.7
+
+      - name: Install oasdiff (v1.11.7, linux_amd64) [cache miss]
+        if: ${{ steps.cache-oasdiff.outputs.cache-hit != 'true' }}
+        id: install-oasdiff
         run: |
           set -euo pipefail
           OASDIFF_VERSION="1.11.7"
           OASDIFF_URL="https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
-          INSTALL_DIR="$RUNNER_TEMP/oasdiff-bin"
+          INSTALL_DIR="$HOME/.cache/oasdiff/${OASDIFF_VERSION}"
           mkdir -p "$INSTALL_DIR"
           echo "Baixando oasdiff de $OASDIFF_URL"
           curl -sSL "$OASDIFF_URL" -o "$INSTALL_DIR/oasdiff.tar.gz"
           tar -xzf "$INSTALL_DIR/oasdiff.tar.gz" -C "$INSTALL_DIR"
+          rm -f "$INSTALL_DIR/oasdiff.tar.gz"
           chmod +x "$INSTALL_DIR/oasdiff"
-          echo "$INSTALL_DIR" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Add oasdiff to PATH
+        run: |
+          set -euo pipefail
+          echo "$HOME/.cache/oasdiff/1.11.7" >> $GITHUB_PATH
+          if ! command -v oasdiff >/dev/null 2>&1; then
+            echo "oasdiff não encontrado no PATH após setup" >&2
+            exit 1
+          fi
+          oasdiff --version || true
         shell: bash
 
       - name: Spectral lint (via pnpm openapi:lint)

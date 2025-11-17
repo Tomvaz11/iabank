@@ -169,6 +169,7 @@ Notas de governança relacionadas:
   - Instalação em cache miss: download/extract para `~/.cache/oasdiff/1.11.7` e `chmod +x`.
   - PATH: adiciona `~/.cache/oasdiff/1.11.7` via `GITHUB_PATH`.
   - Motivação: eliminar download repetido do binário entre execuções e acelerar o job Contracts.
+  - Também aplicado no workflow dedicado de contratos: `.github/workflows/ci-contracts.yml` (mesma chave e diretório de cache; adiciona o PATH e valida `oasdiff --version`).
 
 ## Atualizações (2025-11-17) — Baseline 3.1 (sombra)
 - Label `contracts:baseline-3.1` em PRs faz o workflow `ci-contracts.yml` usar um baseline alternativo em `contracts/api.baseline-3.1.yaml`.
