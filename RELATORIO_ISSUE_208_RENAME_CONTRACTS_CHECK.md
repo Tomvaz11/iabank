@@ -48,3 +48,8 @@ Renomear o required check de Contracts no CI para "Contracts (Spectral, oasdiff,
 - Required check ativo: "Contracts (Spectral, oasdiff, Pact)".
 - Branch Protection da `main` atualizada e válida.
 - Repositório limpo, sincronizado e sem branches residuais.
+
+## Atualização — Limpeza final (2025-11-17)
+- Removido o job duplicado do workflow principal; mantido apenas o job `contracts` com `name: Contracts (Spectral, oasdiff, Pact)`.
+- Padronizado artifact para `contracts-diff`.
+- PR: #237 — “CI/Contracts: limpeza final (remover job duplicado e padronizar contexto) #208” (auto‑merge).
