@@ -98,7 +98,7 @@ jobs:
       - name: OpenAPI diff (oasdiff breaking via script)
         run: |
           if [ -f contracts/api.yaml ]; then
-            contracts/scripts/openapi-diff.sh || exit 1
+            contracts/scripts/oasdiff.sh || exit 1
           else
             echo "::warning::Spec atual ausente; skipping diff"
           fi

@@ -19,7 +19,7 @@ Padronizar a revisão trimestral do `oasdiff` (pin atual `v1.11.7`), garantindo 
    - Atualizar referências de versão (instalação, cache keys, diretórios) quando necessário.
    - Incluir no PR: “Closes #<issue do ciclo>” e referência ao ADR-013.
 3. Validar no CI
-   - `breaking`: `contracts/scripts/openapi-diff.sh` (baseline padrão ou via `--baseline`/`OPENAPI_BASELINE`).
+   - `breaking`: `contracts/scripts/oasdiff.sh` (baseline padrão ou via `--baseline`/`OPENAPI_BASELINE`).
    - `changelog`: publicar artifact textual `oasdiff changelog <baseline> <atual> -f text`.
 4. Plano de rollback (obrigatório no PR)
    - Reverter commit do pin, restaurar cache key anterior, reexecutar CI.
@@ -33,4 +33,4 @@ Padronizar a revisão trimestral do `oasdiff` (pin atual `v1.11.7`), garantindo 
 ## Referências
 - ADR: `docs/adr/013-governanca-pin-oasdiff.md`
 - CI: `docs/pipelines/ci-required-checks.md`
-- Script: `contracts/scripts/openapi-diff.sh`
+- Script: `contracts/scripts/oasdiff.sh`

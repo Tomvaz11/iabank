@@ -29,7 +29,7 @@ Links de referência:
     - `.github/workflows/frontend-foundation.yml:516`
   - Scripts/PNPM:
     - `package.json:24` — `openapi:diff` usa `oasdiff breaking contracts/api.previous.yaml contracts/api.yaml`.
-    - `contracts/scripts/openapi-diff.sh:1` — wrapper atualizado para `oasdiff breaking`.
+    - `contracts/scripts/oasdiff.sh:1` — wrapper atualizado para `oasdiff breaking`.
 - Backend (aceitar nova ferramenta):
   - `backend/apps/contracts/models.py:32` — adiciona `Tool.OASDIFF`.
   - `backend/apps/contracts/migrations/0002_alter_contractdiffreport_tool_add_oasdiff.py:1` — migração de choices.
@@ -65,7 +65,7 @@ Observações relevantes de execução:
 - `.github/workflows/ci-contracts.yml:43,71` — instalar binário `oasdiff` v1.11.7 e rodar `oasdiff breaking …`.
 - `.github/workflows/frontend-foundation.yml:516` — instalar binário `oasdiff` v1.11.7 no job Contracts.
 - `package.json:24` — `openapi:diff` com `oasdiff breaking`.
-- `contracts/scripts/openapi-diff.sh:1` — wrapper atualizado para `oasdiff breaking`.
+- `contracts/scripts/oasdiff.sh:1` — wrapper atualizado para `oasdiff breaking`.
 - `backend/apps/contracts/models.py:32` — adiciona choice `oasdiff`.
 - `backend/apps/contracts/migrations/0002_alter_contractdiffreport_tool_add_oasdiff.py:1` — migração de choices.
 - `backend/apps/contracts/tests/test_contracts_signals.py:52` — teste ajustado para `'oasdiff'`.

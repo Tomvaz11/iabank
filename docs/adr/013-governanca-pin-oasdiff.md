@@ -25,4 +25,4 @@
 **Referências Operacionais:**
 - Runbook: `docs/runbooks/governanca-oasdiff-pin.md`
 - CI: `docs/pipelines/ci-required-checks.md`
-- Script: `contracts/scripts/openapi-diff.sh`
+- Script: `contracts/scripts/oasdiff.sh`
