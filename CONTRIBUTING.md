@@ -36,6 +36,13 @@ A pipeline principal executa e/ou exige:
   - O checkout do job usa `fetch-depth: 0` para garantir diffs confiáveis.
   - Hooks definidos em `.pre-commit-config.yaml` (ESLint/Ruff); o job grava um resumo no Job Summary.
 
+### Contratos: Baseline alternativo (3.1) — dry‑run por label
+- Como usar: aplique o label do PR `contracts:baseline-3.1` para que os workflows comparem o contrato atual (`contracts/api.yaml`) contra `contracts/api.baseline-3.1.yaml` em vez de `contracts/api.previous.yaml`.
+- Onde atua:
+  - Workflow `ci-contracts.yml`: step de diff usa `OPENAPI_BASELINE` quando o label está presente, chamando o wrapper `contracts/scripts/openapi-diff.sh`.
+  - Workflow principal (`frontend-foundation.yml`): detecta o label e exporta `OPENAPI_BASELINE` para o step de diff e para o changelog.
+- Wrapper de diff: `contracts/scripts/openapi-diff.sh` seleciona o baseline por prioridade: `--baseline PATH` > variável `OPENAPI_BASELINE` > `contracts/api.previous.yaml`. O script imprime no log qual baseline foi escolhido.
+
 ### CI: Gating de jobs e uploads
 - Jobs obrigatórios pela proteção de branch NÃO devem ser pulados no nível do job. Mantenha o gating por paths/refs no nível dos steps para preservar a presença dos checks (status “verde” quando não há trabalho).
 - Para uploads, evite ruído de “No files were found…” usando `if-no-files-found: ignore` e/ou condicionais com `hashFiles()` (ex.: `if: ${{ always() && hashFiles('artifacts/pytest/**') != '' }}`).
