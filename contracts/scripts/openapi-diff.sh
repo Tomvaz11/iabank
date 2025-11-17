@@ -17,7 +17,7 @@ if [[ ! -f "$CURR_SPEC" ]]; then
 fi
 
 if ! command -v oasdiff >/dev/null 2>&1; then
-  echo "oasdiff não encontrado no PATH. Instale via Go: 'go install github.com/oasdiff/oasdiff/cmd/oasdiff@v1.11.7' (ou use o CI)." >&2
+  echo "oasdiff não encontrado no PATH. Instale via Go: 'go install github.com/Tufin/oasdiff/cmd/oasdiff@v1.11.7' (ou use o CI)." >&2
   exit 3
 fi
 

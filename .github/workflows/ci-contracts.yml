@@ -46,7 +46,7 @@ jobs:
 
       - name: Install oasdiff
         run: |
-          go install github.com/oasdiff/oasdiff/cmd/oasdiff@v1.11.7
+          go install github.com/Tufin/oasdiff/cmd/oasdiff@v1.11.7
           echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
         shell: bash
 
