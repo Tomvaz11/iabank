@@ -39,8 +39,10 @@ jobs:
         run: pnpm install --frozen-lockfile
         shell: bash
 
-      # Usa a GitHub Action oficial do oasdiff para evitar flutuações de instalação
-      # e dependências do toolchain Go.
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22.x'
 
       - name: Spectral lint (via pnpm openapi:lint)
         run: |
@@ -56,11 +58,20 @@ jobs:
           fi
         shell: bash
 
+      - name: Install oasdiff (v2 latest)
+        run: |
+          go install github.com/Tufin/oasdiff/v2/cmd/oasdiff@latest
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+        shell: bash
+
       - name: OpenAPI diff (oasdiff breaking)
-        if: ${{ hashFiles('contracts/api.yaml') != '' && hashFiles('contracts/api.previous.yaml') != '' }}
-        uses: oasdiff/oasdiff-action@v1
-        with:
-          args: breaking contracts/api.previous.yaml contracts/api.yaml
+        run: |
+          if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
+            oasdiff breaking contracts/api.previous.yaml contracts/api.yaml
+          else
+            echo "::warning::OpenAPI baseline missing; skipping diff"
+          fi
+        shell: bash
 
       - name: Pact contract tests
         run: |
