@@ -160,3 +160,12 @@ Notas de governança relacionadas:
 - Observações:
   - Não registre a chave em issues/PRs/logs. Evite `set -x` em scripts que imprimam variáveis.
   - A substituição é imediata para novos jobs; jobs já em execução continuarão com o token que receberam no início da execução.
+
+## Atualizações (2025-11-17) — Lote 6
+- Contracts (workflow principal): cache do binário do oasdiff por versão para reduzir tempo de setup.
+  - Workflow: `.github/workflows/frontend-foundation.yml` (job "Contracts (Spectral, OpenAPI Diff, Pact)").
+  - Versão pinada: `v1.11.7` (linux_amd64), conforme relatório da migração (#181).
+  - Cache: `actions/cache@v4` com chave `oasdiff-${{ runner.os }}-v1.11.7`.
+  - Instalação em cache miss: download/extract para `~/.cache/oasdiff/1.11.7` e `chmod +x`.
+  - PATH: adiciona `~/.cache/oasdiff/1.11.7` via `GITHUB_PATH`.
+  - Motivação: eliminar download repetido do binário entre execuções e acelerar o job Contracts.
