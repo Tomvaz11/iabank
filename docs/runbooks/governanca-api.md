@@ -4,6 +4,7 @@ Aplicação operacional do **ADR-011** e do Artigo XI da Constituição.
 
 ## Checklist por Entrega
 1. **Contratos OpenAPI**
+   - Padrão do contrato: OpenAPI 3.1.0; JSON Schema 2020-12 (`jsonSchemaDialect`).
    - Confirme que o arquivo em `/contracts/api.yaml` foi atualizado.
    - Execute `pnpm run openapi:lint` (Spectral) e `pnpm run openapi:diff` (oasdiff v1.11.7 no CI). Ambos DEVEM falhar o pipeline se houver erro.
    - Padrão suportado: utilize sempre `pnpm openapi:lint` (não use `spectral lint` direto sem `--ruleset=contracts/.spectral.yaml`).
@@ -19,9 +20,9 @@ Aplicação operacional do **ADR-011** e do Artigo XI da Constituição.
 
 ## Ações no Pipeline
 - Workflow `ci-contracts.yml` executa Spectral, oasdiff e Pact (com degradação controlada quando ferramentas não estiverem instaladas).
-- Pull requests só podem ser mergeadas após o gate `Contracts Passed`.
+- Pull requests só podem ser mergeadas após o required check `Contracts (Spectral, oasdiff, Pact)` verde.
 - Para dry‑run contra baseline alternativo: aplique o label `contracts:baseline-3.1` no PR. O workflow usará `contracts/api.baseline-3.1.yaml` sem promover `contracts/api.previous.yaml`.
 
 ## Auditoria
 - Armazene relatórios do diff e resultados do Pact no bucket WORM.
-- Atualize `docs/runbooks/api-governance.md` com links para cada release.
+- Atualize `docs/runbooks/governanca-api.md` com links para cada release.
