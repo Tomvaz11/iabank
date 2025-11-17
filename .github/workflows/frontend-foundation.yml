@@ -542,11 +542,19 @@ jobs:
       - name: OpenAPI changelog (texto)
         if: ${{ always() }}
         run: |
+          set +e
           mkdir -p artifacts/contracts
+          OUT="artifacts/contracts/changelog.txt"
           if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
-            oasdiff changelog contracts/api.previous.yaml contracts/api.yaml -f text > artifacts/contracts/changelog.txt || true
+            if command -v oasdiff >/dev/null 2>&1; then
+              if ! oasdiff changelog contracts/api.previous.yaml contracts/api.yaml -f text > "$OUT"; then
+                echo "Falha ao gerar changelog com oasdiff; verifique os logs do step de diff." > "$OUT"
+              fi
+            else
+              echo "oasdiff indisponível neste run; sem mudanças de contracts ou instalação não executada." > "$OUT"
+            fi
           else
-            echo "::warning::OpenAPI baseline missing; skipping changelog text"
+            echo "Baseline ou spec ausente; nada a relatar (sem changelog)." > "$OUT"
           fi
 
       - name: Upload artifacts (contracts)
