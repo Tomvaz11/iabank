@@ -547,11 +547,16 @@ jobs:
         run: |
           set -euo pipefail
           echo "$HOME/.cache/oasdiff/1.11.7" >> $GITHUB_PATH
-          if ! command -v oasdiff >/dev/null 2>&1; then
-            echo "oasdiff não encontrado no PATH após setup" >&2
+          # Verifica diretamente pelo caminho absoluto (GITHUB_PATH só vale no próximo step)
+          if [ ! -x "$HOME/.cache/oasdiff/1.11.7/oasdiff" ]; then
+            echo "oasdiff não encontrado em $HOME/.cache/oasdiff/1.11.7" >&2
+            ls -la "$HOME/.cache/oasdiff/1.11.7" || true
             exit 1
           fi
-          oasdiff --version || true
+      - name: Verify oasdiff
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
+        run: |
+          oasdiff --version || ~/.cache/oasdiff/1.11.7/oasdiff --version || true
 
       - name: Spectral lint (US1/US2/US3)
         if: ${{ needs.changes.outputs.contracts == 'true' }}
