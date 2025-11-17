@@ -67,6 +67,7 @@ Nota operacional: esta seção foi ajustada apenas para validar o comportamento 
   - Steps adicionados em `.github/workflows/ci-contracts.yml` e no job `contracts` do `.github/workflows/frontend-foundation.yml` geram `artifacts/contracts/changelog.txt` via `oasdiff changelog ... -f text`.
   - O diretório `artifacts/contracts` é publicado como artifact `contracts-diff` com `actions/upload-artifact@v4` (`if-no-files-found: ignore`).
   - Objetivo: auditoria de mudanças de OpenAPI em PRs e branch principal.
+  - Job Summary: o workflow escreve um resumo com a primeira linha do changelog no `$GITHUB_STEP_SUMMARY` e referencia o artifact `contracts-diff`.
 
 ### Nota — artifact de changelog (oasdiff)
 - Nome do artifact: `contracts-diff`; arquivo: `artifacts/contracts/changelog.txt`.

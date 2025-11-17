@@ -565,6 +565,19 @@ jobs:
           path: artifacts/contracts
           if-no-files-found: ignore
 
+      - name: Resumo do OpenAPI changelog
+        if: ${{ always() }}
+        run: |
+          OUT="artifacts/contracts/changelog.txt"
+          echo "### OpenAPI Changelog (oasdiff)" >> "$GITHUB_STEP_SUMMARY"
+          if [ -s "$OUT" ]; then
+            first=$(head -n1 "$OUT" | tr -d '\r')
+            echo "- Summary: $first" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Summary: arquivo vazio (sem diffs ou step não executado)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "- Artifact: contracts-diff (artifacts/contracts/changelog.txt)" >> "$GITHUB_STEP_SUMMARY"
+
   visual-accessibility:
     name: Visual & Accessibility Gates
     runs-on: ubuntu-latest
