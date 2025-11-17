@@ -63,6 +63,10 @@ Nota operacional: esta seção foi ajustada apenas para validar o comportamento 
 ## Atualizações (2025-11-17) — Lote 5
 - Contracts: renomeado o job para "Contracts (Spectral, oasdiff, Pact)".
 - Instalação do oasdiff nos workflows passou a usar o repositório oficial (`github.com/oasdiff/oasdiff/releases`).
+- Publicação de changelog textual (oasdiff) como artifact:
+  - Steps adicionados em `.github/workflows/ci-contracts.yml` e no job `contracts` do `.github/workflows/frontend-foundation.yml` geram `artifacts/contracts/changelog.txt` via `oasdiff changelog ... -f text`.
+  - O diretório `artifacts/contracts` é publicado como artifact `contracts-diff` com `actions/upload-artifact@v4` (`if-no-files-found: ignore`).
+  - Objetivo: auditoria de mudanças de OpenAPI em PRs e branch principal.
 
 ## Prova de TDD (Art. III)
 - PRs DEVEM evidenciar “vermelho → verde” para mudanças de código:
