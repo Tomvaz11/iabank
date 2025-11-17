@@ -109,7 +109,7 @@ Este relatório documenta as decisões, mudanças e validações da migração p
 ## Recomendações adicionais e operações
 
 3) Nome do job do Required Check (merge)
-- Manter o nome exatamente como protegido hoje: "Contracts (Spectral, OpenAPI Diff, Pact)" (Branch Protection exige este contexto).
+- Nome padronizado do job no CI: "Contracts (Spectral, oasdiff, Pact)" (ver proteção de branch atualizada).
 - Se optarmos por renomear no futuro (ex.: citar explicitamente "oasdiff"), primeiro atualize os Required Checks da branch `main` para evitar bloqueio de merge.
 
 4) Versão do oasdiff (pin) e revisão periódica

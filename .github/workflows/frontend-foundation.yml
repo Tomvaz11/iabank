@@ -610,6 +610,135 @@ jobs:
           fi
           echo "- Artifact: contracts-diff (artifacts/contracts/changelog.txt)" >> "$GITHUB_STEP_SUMMARY"
 
+  contracts_oasdiff:
+    name: Contracts (Spectral, oasdiff, Pact)
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+      - changes
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect baseline via PR label (contracts:baseline-3.1)
+        if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'contracts:baseline-3.1') }}
+        run: |
+          echo "OPENAPI_BASELINE=contracts/api.baseline-3.1.yaml" >> "$GITHUB_ENV"
+          echo "Usando baseline alternativo por label: $OPENAPI_BASELINE"
+        shell: bash
+
+      - name: Resumo de mudanças (contracts)
+        run: |
+          echo "Contracts changed? -> ${{ needs.changes.outputs.contracts }}"
+
+      - name: Setup pnpm
+        if: ${{ needs.changes.outputs.contracts == 'true' || needs.changes.outputs.frontend == 'true' }}
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        if: ${{ needs.changes.outputs.contracts == 'true' || needs.changes.outputs.frontend == 'true' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+
+      - name: Install dependencies
+        if: ${{ needs.changes.outputs.contracts == 'true' || needs.changes.outputs.frontend == 'true' }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore oasdiff cache
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
+        id: cache-oasdiff-dup
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/oasdiff/1.11.7
+          key: oasdiff-${{ runner.os }}-v1.11.7
+
+      - name: Install oasdiff (v1.11.7, linux_amd64) [cache miss]
+        if: ${{ needs.changes.outputs.contracts == 'true' && steps.cache-oasdiff-dup.outputs.cache-hit != 'true' }}
+        run: |
+          set -euo pipefail
+          OASDIFF_VERSION="1.11.7"
+          OASDIFF_URL="https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          INSTALL_DIR="$HOME/.cache/oasdiff/${OASDIFF_VERSION}"
+          mkdir -p "$INSTALL_DIR"
+          echo "Baixando oasdiff de $OASDIFF_URL"
+          curl -sSL "$OASDIFF_URL" -o "$INSTALL_DIR/oasdiff.tar.gz"
+          tar -xzf "$INSTALL_DIR/oasdiff.tar.gz" -C "$INSTALL_DIR"
+          rm -f "$INSTALL_DIR/oasdiff.tar.gz"
+          chmod +x "$INSTALL_DIR/oasdiff"
+
+      - name: Add oasdiff to PATH
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
+        run: |
+          set -euo pipefail
+          echo "$HOME/.cache/oasdiff/1.11.7" >> $GITHUB_PATH
+          if [ ! -x "$HOME/.cache/oasdiff/1.11.7/oasdiff" ]; then
+            echo "oasdiff não encontrado em $HOME/.cache/oasdiff/1.11.7" >&2
+            ls -la "$HOME/.cache/oasdiff/1.11.7" || true
+            exit 1
+          fi
+      - name: Verify oasdiff
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
+        run: |
+          oasdiff --version || ~/.cache/oasdiff/1.11.7/oasdiff --version || true
+
+      - name: Spectral lint (US1/US2/US3)
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
+        run: pnpm openapi:lint
+
+      - name: OpenAPI diff foundation spec
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
+        run: pnpm openapi:diff
+
+      - name: Pact consumer verification (US1/US2/US3)
+        if: ${{ needs.changes.outputs.contracts == 'true' || needs.changes.outputs.frontend == 'true' }}
+        run: pnpm pact:verify
+
+      - name: OpenAPI changelog (texto)
+        if: ${{ always() }}
+        run: |
+          set +e
+          mkdir -p artifacts/contracts
+          OUT="artifacts/contracts/changelog.txt"
+          BASELINE_PATH="${OPENAPI_BASELINE:-contracts/api.previous.yaml}"
+          if [ -f contracts/api.yaml ] && [ -f "$BASELINE_PATH" ]; then
+            if command -v oasdiff >/dev/null 2>&1; then
+              if ! oasdiff changelog "$BASELINE_PATH" contracts/api.yaml -f text > "$OUT"; then
+                echo "Falha ao gerar changelog com oasdiff; verifique os logs do step de diff." > "$OUT"
+              fi
+            else
+              echo "oasdiff indisponível neste run; sem mudanças de contracts ou instalação não executada." > "$OUT"
+            fi
+          else
+            echo "Baseline ou spec ausente; nada a relatar (sem changelog)." > "$OUT"
+          fi
+
+      - name: Upload artifacts (contracts)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: contracts-diff-oasdiff
+          path: artifacts/contracts
+          if-no-files-found: ignore
+
+      - name: Resumo do OpenAPI changelog
+        if: ${{ always() }}
+        run: |
+          OUT="artifacts/contracts/changelog.txt"
+          echo "### OpenAPI Changelog (oasdiff)" >> "$GITHUB_STEP_SUMMARY"
+          if [ -s "$OUT" ]; then
+            first=$(head -n1 "$OUT" | tr -d '\r')
+            echo "- Summary: $first" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- Summary: arquivo vazio (sem diffs ou step não executado)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "- Artifact: contracts-diff (artifacts/contracts/changelog.txt)" >> "$GITHUB_STEP_SUMMARY"
+
   visual-accessibility:
     name: Visual & Accessibility Gates
     runs-on: ubuntu-latest
