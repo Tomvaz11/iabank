@@ -104,6 +104,7 @@ Notas:
 - Storybook Test Runner: `pnpm --filter @iabank/frontend-foundation storybook:test`
 - Chromatic local: `pnpm --filter @iabank/frontend-foundation storybook:build && pnpm --filter @iabank/frontend-foundation chromatic:check -- --verbose`
 - Contratos/API: `pnpm openapi && pnpm pact:verify`
+  - Codegen (alternativo/spike): `pnpm openapi:generate:next` gera cliente paralelo em `frontend/src/shared/api/generated-next` via `@hey-api/openapi-ts` (não substitui o atual).
 - Performance: `pnpm perf:smoke:local`
 - Backend: `poetry run ruff check . && poetry run pytest -q`
 - Segurança:

@@ -42,6 +42,7 @@ export default defineConfig({
         'tests/**',
         'storybook-static/**',
         'src/shared/api/generated/**',
+        'src/shared/api/generated-next/**',
         'src/shared/config/theme/**',
         'src/shared/ui/**',
         'src/app/providers/sentry.ts',

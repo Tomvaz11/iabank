@@ -23,6 +23,7 @@
     "openapi:lint": "pnpm exec spectral lint --ruleset=contracts/.spectral.yaml contracts/api.yaml contracts/api.previous.yaml specs/002-f-10-fundacao/contracts/**/*.yaml",
     "openapi:diff": "contracts/scripts/oasdiff.sh",
     "openapi:generate": "pnpm exec openapi --input contracts/api.yaml --output frontend/src/shared/api/generated --client fetch --useOptions --exportCore true --exportServices true --exportModels true",
+    "openapi:generate:next": "pnpm exec openapi-ts --input \"$(pwd)/contracts/api.yaml\" --output frontend/src/shared/api/generated-next --client @hey-api/client-fetch",
     "openapi": "pnpm openapi:lint && pnpm openapi:diff && pnpm openapi:generate",
     "pact:verify": "pnpm exec vitest run tests/state/query-cache.pact.ts --root frontend",
     "contracts:verify": "pnpm openapi && pnpm pact:verify",
@@ -42,13 +43,15 @@
   },
   "devDependencies": {
     "@cyclonedx/cyclonedx-npm": "^1.9.0",
+    "@hey-api/client-fetch": "0.13.1",
+    "@hey-api/openapi-ts": "0.82.0",
     "@pact-foundation/pact": "^13.1.0",
     "@pact-foundation/pact-cli": "^16.1.4",
     "@stoplight/spectral-cli": "^6.11.0",
     "diff": "^5.2.0",
+    "openapi-typescript-codegen": "^0.29.0",
     "typescript": "^5.9.3",
     "vitest": "^2.0.5",
-    "yaml": "^2.6.0",
-    "openapi-typescript-codegen": "^0.29.0"
+    "yaml": "^2.6.0"
   }
 }
