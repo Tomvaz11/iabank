@@ -68,6 +68,14 @@ Nota operacional: esta seção foi ajustada apenas para validar o comportamento 
   - O diretório `artifacts/contracts` é publicado como artifact `contracts-diff` com `actions/upload-artifact@v4` (`if-no-files-found: ignore`).
   - Objetivo: auditoria de mudanças de OpenAPI em PRs e branch principal.
 
+### Nota — artifact de changelog (oasdiff)
+- Nome do artifact: `contracts-diff`; arquivo: `artifacts/contracts/changelog.txt`.
+- Sem diferenças entre `contracts/api.previous.yaml` e `contracts/api.yaml`, o arquivo pode vir vazio (0 bytes), conforme versão/comportamento do `oasdiff`.
+- Se a baseline (`contracts/api.previous.yaml`) não existir, o step registra aviso e o artifact pode não ser publicado (upload tolerante: `if-no-files-found: ignore`).
+- Para redefinir o delta, atualize a baseline quando “virar” a versão do contrato:
+  - `cp contracts/api.yaml contracts/api.previous.yaml` (commit sugerido: `chore(contracts): refresh baseline`).
+- Quando há mudanças, a saída lista severidade (`error|warning|info`), alvo (endpoint/componente) e contexto.
+
 ## Prova de TDD (Art. III)
 - PRs DEVEM evidenciar “vermelho → verde” para mudanças de código:
   - Inclua no corpo do PR os commits/links para: (1) estado vermelho (testes falhando) e (2) estado verde (após implementação).
