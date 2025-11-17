@@ -14,8 +14,8 @@ Institucionalizar a revisão trimestral do pin do `oasdiff` (pin atual `v1.11.7`
 - Atualizada documentação de CI para referenciar o ADR-013:
   - `docs/pipelines/ci-required-checks.md`
   - Complemento em `docs/runbooks/governanca-api.md` (link para o runbook específico)
-- Adicionado workflow agendado de lembrete trimestral:
-  - `.github/workflows/oasdiff-pin-review-reminder.yml` (cron trimestral + `workflow_dispatch`)
+- Lembrete trimestral (opcional): inicialmente adicionado via workflow `.github/workflows/oasdiff-pin-review-reminder.yml`.
+  - Atualização: workflow removido por decisão de manter lembrete manual (calendário/projeto). Ver PR de reversão correspondente.
 - Alinhamento de referências internas (ajuste existente no repo):
   - Wrapper de diff padronizado como `contracts/scripts/oasdiff.sh` com referências atualizadas em CI, docs e scripts de `package.json`.
 

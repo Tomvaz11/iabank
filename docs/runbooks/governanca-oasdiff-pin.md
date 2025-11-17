@@ -6,7 +6,8 @@ Implementa o **ADR-013** (Governança do pin do oasdiff).
 Padronizar a revisão trimestral do `oasdiff` (pin atual `v1.11.7`), garantindo estabilidade do gate e evolução controlada.
 
 ## Quando Rodar
-- Periodicidade: trimestral. Há um lembrete automatizado via workflow agendado.
+- Periodicidade: trimestral.
+- Lembrete automatizado é opcional. Atualmente, está desabilitado; use calendário/projeto para acompanhamento.
 
 ## Pré‑requisitos
 - Permissão para abrir PRs; `gh` autenticado para consultar releases.
