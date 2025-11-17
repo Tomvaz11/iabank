@@ -539,6 +539,24 @@ jobs:
         if: ${{ needs.changes.outputs.contracts == 'true' || needs.changes.outputs.frontend == 'true' }}
         run: pnpm pact:verify
 
+      - name: OpenAPI changelog (texto)
+        if: ${{ always() }}
+        run: |
+          mkdir -p artifacts/contracts
+          if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
+            oasdiff changelog contracts/api.previous.yaml contracts/api.yaml -f text > artifacts/contracts/changelog.txt || true
+          else
+            echo "::warning::OpenAPI baseline missing; skipping changelog text"
+          fi
+
+      - name: Upload artifacts (contracts)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: contracts-diff
+          path: artifacts/contracts
+          if-no-files-found: ignore
+
   visual-accessibility:
     name: Visual & Accessibility Gates
     runs-on: ubuntu-latest
