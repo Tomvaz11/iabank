@@ -14,7 +14,7 @@ Estabelecer a fundação frontend descrita em `/home/pizzaplanet/meus_projetos/i
 **Language/Version**: Python 3.11; Node.js 20; TypeScript 5.6.  
 **Primary Dependencies**: Django 4.2 LTS; Django REST Framework 3.15; Celery 5.3; Redis 7; React 18; Vite 5; TanStack Query 5; Zustand 4; Spectral; Pact; Terraform; Argo CD; OpenTelemetry SDK; Sentry.  
 **Storage**: PostgreSQL 15 (pgcrypto); Redis 7; Hashicorp Vault Transit.  
-**Testing**: Vitest; Testing Library; Playwright; Pact (Jest); Spectral/OpenAPI-diff; k6; Lighthouse Budgets; Django TestCase.  
+**Testing**: Vitest; Testing Library; Playwright; Pact (Jest); Spectral/oasdiff; k6; Lighthouse Budgets; Django TestCase.  
 **Target Platform**: SPA multi-tenant servida via CDN/Web; backend Django via API; GitHub Actions e Argo CD em clusters Kubernetes.  
 **Project Type**: web monorepo (pastas `backend/`, `frontend/`, `infra/`, `contracts/`, `docs/`, `observabilidade/`).  
 **Performance Goals**: LCP ≤ 2.5s p95; TTI ≤ 3.0s; CLS ≤ 0.1; DORA lead time p95 < 30 horas úteis; Change Failure Rate < 15%; k6 p95 < 500ms; Chromatic ≥95% por tenant.  
@@ -27,7 +27,7 @@ Estabelecer a fundação frontend descrita em `/home/pizzaplanet/meus_projetos/i
 **Frontend**: SPA React 18 + TypeScript 5.6 + Vite 5 em `/home/pizzaplanet/meus_projetos/iabank/frontend`, estrutura FSD (`app/pages/features/entities/shared`) conforme Blueprint §4; TanStack Query 5 para dados particionados por tenant, Zustand 4 para estado global, Hooks nativos para local (Art. I; adicoes_blueprint.md §13).  
 **Async/Infra**: Celery 5.3 + Redis 7 para fila de tarefas pact/Chromatic/lighthouse no CI e jobs de sincronização de tokens; provisionamento descrito em Terraform + Argo CD manifests (`infra/terraform`, `infra/argocd`) alinhados ao Art. I e XIV.  
 **Persistencia/Dados**: PostgreSQL 15 com pgcrypto habilitado para campos PII (CPF, email) e políticas RLS por tenant aplicadas nas views expostas ao frontend; managers garantem `tenant_id` automático (Art. I, X, XIII; adicoes_blueprint.md §4).  
-**Testing Detalhado**: TDD obrigatório com Vitest + Testing Library para UI, Playwright para scaffolding end-to-end e Jest Pact para consumidores; Spectral/OpenAPI-diff, k6 e Lighthouse gates integrados ao pipeline (Art. III, IX; ADR-011, clarificação Perf-Front).  
+**Testing Detalhado**: TDD obrigatório com Vitest + Testing Library para UI, Playwright para scaffolding end-to-end e Jest Pact para consumidores; Spectral/oasdiff, k6 e Lighthouse gates integrados ao pipeline (Art. III, IX; ADR-011, clarificação Perf-Front).  
 **Observabilidade**: OpenTelemetry JS SDK com W3C Trace Context e baggage de `tenant_id` propagada; integração com collector padronizado e Sentry para front/back; mascaramento de PII via allowlist/blocklist (Art. VII; ADR-012).  
 **Segurança/Compliance**: CSP nonce com `script-src 'strict-dynamic' 'nonce-{...}'` e política de Trusted Types (30 dias em Report-Only → enforce), sanitização de sinks, política de PII em URLs/telemetria, Vault para segredos front/back (Art. XII, XIII, XVI; adicoes_blueprint.md §13).  
 **Performance Targets**: SLO UX (LCP ≤ 2.5s p95, TTI ≤ 3.0s) monitorados por Lighthouse budgets; DORA lead time p95 < 30 horas úteis e Change Failure Rate < 15%; TanStack Query caches por criticidade (`meta.tags`) sustentam SC-001/SC-002 (Art. VI, VIII, IX).  
@@ -40,7 +40,7 @@ Estabelecer a fundação frontend descrita em `/home/pizzaplanet/meus_projetos/i
 
 - [ ] **Art. III - TDD**: Tests iniciarão com `frontend/tests/scaffolding/scaffolding.spec.ts`, `frontend/tests/state/query-cache.pact.ts` e `backend/apps/tenancy/tests/test_rls_enforcement.py`, assegurando falha controlada antes da implementação.  
 - [ ] **Art. VIII - Lançamento Seguro**: Feature flags `foundation.fsd` e `design-system.theming` gerenciadas via ConfigCat (fallback local) com canary por tenant e orçamento de erro vinculado aos SLOs SC-001/SC-002; rollback documentado em `docs/runbooks/frontend-foundation.md`. Diretrizes operacionais de CSP/Trusted Types detalhadas em "Observability & Security Implementation".  
-- [ ] **Art. IX - Pipeline CI**: Pipeline `ci/frontend-foundation.yml` executará Vitest (≥85% cobertura), ESLint FSD, Spectral, OpenAPI-diff, Pact, Chromatic (cobertura visual ≥95% por tenant com gate), Lighthouse (orçamentos), k6 smoke e geração/validação de SBOM CycloneDX; complexidade monitorada via Sonar/ESLint rules.  
+- [ ] **Art. IX - Pipeline CI**: Pipeline `ci/frontend-foundation.yml` executará Vitest (≥85% cobertura), ESLint FSD, Spectral, oasdiff, Pact, Chromatic (cobertura visual ≥95% por tenant com gate), Lighthouse (orçamentos), k6 smoke e geração/validação de SBOM CycloneDX; complexidade monitorada via Sonar/ESLint rules.  
 - [ ] **Art. XI - Governança de API**: OpenAPI 3.1 (`contracts/api.yaml`) atualizado contrato-primeiro, diffs validados antes de merge, codegen `frontend/scripts/gen-api-types.ts`, Pact consumer `frontend/contracts/pact/frontend-backend.json` com versionamento SemVer.  
 - [ ] **Art. XIII - Multi-tenant & LGPD**: Políticas RLS em `backend/apps/tenancy/migrations/` com testes de isolamento, managers enforce `tenant_id`, TanStack Query keys `['tenant', tenantId, ...]`, PII criptografada via pgcrypto; auditoria em `docs/lgpd/rls-evidence.md`.  
 - [ ] **Art. XVIII - Fluxo Spec-Driven**: `spec.md` e futura `tasks.md` manterão links cruzados; nenhuma pendência em `/clarify`; este plano atualiza `plan.md` e seguirá com geração de `research.md`, `data-model.md`, `quickstart.md` conforme fluxo oficial.
@@ -147,7 +147,7 @@ Estabelecer a fundação frontend descrita em `/home/pizzaplanet/meus_projetos/i
 - **CI Workflow**: `/.github/workflows/ci/frontend-foundation.yml` (owner: Plataforma/DevEx, reviewers: Frontend Foundation Guild + SRE) com jobs:
   1. `lint` (ESLint + lint-fsd rules).
   2. `test` (Vitest, Playwright, Pact, coverage ≥ 85%).
-  3. `contracts` (Spectral, OpenAPI-diff, Pact publish).
+  3. `contracts` (Spectral, oasdiff, Pact publish).
   4. `visual-accessibility` (Chromatic + axe) com gate de cobertura ≥95% por tenant.
   5. `performance` (Lighthouse budgets + k6).
   6. `security` (npm audit, verificação de alertas Renovate, Snyk opcional, SBOM CycloneDX geração/validação com gate por severidade alta).

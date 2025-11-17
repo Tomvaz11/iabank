@@ -5,7 +5,7 @@ Aplicação operacional do **ADR-011** e do Artigo XI da Constituição.
 ## Checklist por Entrega
 1. **Contratos OpenAPI**
    - Confirme que o arquivo em `/contracts/api.yaml` foi atualizado.
-   - Execute `pnpm run openapi:lint` (Spectral) e `pnpm run openapi:diff` (openapi-diff). Ambos DEVEM falhar o pipeline se houver erro.
+   - Execute `pnpm run openapi:lint` (Spectral) e `pnpm run openapi:diff` (oasdiff v1.11.7 no CI). Ambos DEVEM falhar o pipeline se houver erro.
    - Padrão suportado: utilize sempre `pnpm openapi:lint` (não use `spectral lint` direto sem `--ruleset=contracts/.spectral.yaml`).
 2. **Testes de contrato (Pact)**
    - Rode `pnpm run pact:verify` e verifique publicação do pacto no broker.
@@ -18,7 +18,7 @@ Aplicação operacional do **ADR-011** e do Artigo XI da Constituição.
    - Testes de integração devem cobrir status `428 Precondition Required`.
 
 ## Ações no Pipeline
-- Workflow `ci-contracts.yml` executa Spectral, openapi-diff e Pact (com degradação controlada quando ferramentas não estiverem instaladas).
+- Workflow `ci-contracts.yml` executa Spectral, oasdiff e Pact (com degradação controlada quando ferramentas não estiverem instaladas).
 - Pull requests só podem ser mergeadas após o gate `Contracts Passed`.
 
 ## Auditoria

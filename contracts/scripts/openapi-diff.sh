@@ -16,10 +16,10 @@ if [[ ! -f "$CURR_SPEC" ]]; then
   exit 2
 fi
 
-if ! command -v openapi-diff >/dev/null 2>&1; then
-  echo "openapi-diff não encontrado no PATH. Instale com pnpm add -D openapi-diff." >&2
+if ! command -v oasdiff >/dev/null 2>&1; then
+  echo "oasdiff não encontrado no PATH. Instale via Go: 'go install github.com/Tufin/oasdiff/v2/cmd/oasdiff@latest' (ou use o CI)." >&2
   exit 3
 fi
 
-echo "Comparando contratos: $PREV_SPEC -> $CURR_SPEC"
-openapi-diff "$PREV_SPEC" "$CURR_SPEC"
+echo "Comparando contratos (breaking): $PREV_SPEC -> $CURR_SPEC"
+oasdiff breaking "$PREV_SPEC" "$CURR_SPEC"

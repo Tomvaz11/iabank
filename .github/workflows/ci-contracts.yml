@@ -39,6 +39,21 @@ jobs:
         run: pnpm install --frozen-lockfile
         shell: bash
 
+      # Instala oasdiff (binário) sem depender do toolchain Go
+      - name: Install oasdiff (v1.11.7, linux_amd64)
+        run: |
+          set -euo pipefail
+          OASDIFF_VERSION="1.11.7"
+          OASDIFF_URL="https://github.com/Tufin/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          INSTALL_DIR="$RUNNER_TEMP/oasdiff-bin"
+          mkdir -p "$INSTALL_DIR"
+          echo "Baixando oasdiff de $OASDIFF_URL"
+          curl -sSL "$OASDIFF_URL" -o "$INSTALL_DIR/oasdiff.tar.gz"
+          tar -xzf "$INSTALL_DIR/oasdiff.tar.gz" -C "$INSTALL_DIR"
+          chmod +x "$INSTALL_DIR/oasdiff"
+          echo "$INSTALL_DIR" >> $GITHUB_PATH
+        shell: bash
+
       - name: Spectral lint (via pnpm openapi:lint)
         run: |
           if command -v pnpm >/dev/null 2>&1; then
@@ -53,16 +68,12 @@ jobs:
           fi
         shell: bash
 
-      - name: OpenAPI diff guard
+      - name: OpenAPI diff (oasdiff breaking)
         run: |
-          if command -v pnpm >/dev/null 2>&1; then
-            if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
-              pnpm exec openapi-diff contracts/api.previous.yaml contracts/api.yaml
-            else
-              echo "::warning::OpenAPI baseline missing; skipping diff"
-            fi
+          if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
+            oasdiff breaking contracts/api.previous.yaml contracts/api.yaml
           else
-            echo "::warning::pnpm not available; skipping openapi-diff"
+            echo "::warning::OpenAPI baseline missing; skipping diff"
           fi
         shell: bash
 

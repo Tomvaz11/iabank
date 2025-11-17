@@ -5,7 +5,7 @@
 **Contexto:** O Artigo XI (Governança de API) estabelece princípios contrato-primeiro, rate limiting, idempotência e controle de concorrência. As adições enterprise detalham práticas complementares (lint/diff, testes de contrato Pact, cabeçalhos RateLimit, status 428) que precisam ser institucionalizadas sem inflar a Constituição.
 
 **Decisão:**
-- **Lint e diff de OpenAPI:** Toda modificação de contrato REST deve passar por lint automático (`spectral`) e verificação de compatibilidade usando `openapi-diff` no pipeline de CI.
+- **Lint e diff de OpenAPI:** Toda modificação de contrato REST deve passar por lint automático (`spectral`) e verificação de compatibilidade usando `oasdiff` no pipeline de CI.
 - **Testes de contrato:** Produtores e consumidores de APIs REST implementam testes de contrato baseados em **Pact**. A execução ocorre no CI e bloqueia merges quando há incompatibilidade.
 - **Rate limiting e comunicação de limites:** Endpoints protegidos por rate limiting DEVEM retornar cabeçalhos `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` e usar `Retry-After` com `429 Too Many Requests`.
 - **Idempotência e concorrência:** Mutations sensíveis DEVEM aceitar `Idempotency-Key` com backoff exponencial + jitter e aplicar `ETag/If-Match` (ou `If-None-Match`) gerando `428 Precondition Required` quando o cabeçalho condicional estiver ausente em operações que exigem controle de concorrência.

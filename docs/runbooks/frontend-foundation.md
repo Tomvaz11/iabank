@@ -227,7 +227,7 @@ Estado: aceito. Todos os critérios foram atendidos, com exceção dos tópicos 
 Critérios comprovados (evidências):
 - [x] CI verde em PR (#12) com jobs principais em sucesso — run: https://github.com/Tomvaz11/iabank/actions/runs/19050934281
 - [x] Run manual (sanidade) em `main` — Run ID: https://github.com/Tomvaz11/iabank/actions/runs/19048561651 (Visual/Performance pulados por política)
-- [x] Contratos (Spectral, OpenAPI-diff, Pact) aprovados no PR (#12)
+- [x] Contratos (Spectral, oasdiff, Pact) aprovados no PR (#12)
 - [x] Política de segurança: fail‑closed em `main/releases/tags`, documentada e verificada em pipeline; PR/dispatch fail‑open com sumário consolidado
 - [x] Evidências consolidadas no pacote do release (`docs/runbooks/evidences/frontend-foundation/v1.0/README.md`) e no `RESUMO_F10_VALIDACAO_E_CI.md`
 
