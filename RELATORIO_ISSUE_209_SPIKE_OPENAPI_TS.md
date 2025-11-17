@@ -87,3 +87,6 @@ Critério de aceite atendido: diretório `generated-next` presente e toolchain (
 
 Este relatório cumpre o critério de aceite da issue #209 (cliente gerado em `generated-next` e toolchain verde), e descreve as diferenças técnicas e o plano de adoção.
 
+## Atualizações de CI
+- Lint do CI falhou inicialmente por incluir arquivos gerados (`generated-next`). Resolvido adicionando `frontend/.eslintignore` para ignorar `src/shared/api/generated-next/**` e `src/shared/api/generated/**`.
+- Validação do título do PR (Conventional Commits) ajustada para `feat(codegen): spike @hey-api/openapi-ts (OAS 3.1/2020-12) @SC-001`.
