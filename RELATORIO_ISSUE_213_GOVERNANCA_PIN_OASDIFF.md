@@ -23,6 +23,12 @@ Institucionalizar a revisão trimestral do pin do `oasdiff` (pin atual `v1.11.7`
 - docs(contracts): ADR-013 e runbook para revisão trimestral do pin do oasdiff — c949228
 - chore(contracts): alinhar referências ao wrapper oasdiff.sh (renomeado) — 73bd0fd
 - ci(governanca): lembrete trimestral para revisão do pin do oasdiff (ADR-013) — 98461e8
+- docs(relatorio): Issue #213 — governança do pin do oasdiff (ADR-013, runbook, lembrete) — e457fd4
+
+## Status final
+- PR #228 mergeado via auto‑merge (squash) em 2025‑11‑17 16:14 UTC — commit 47baf7e.
+- Branch `feat/213-governanca-pin-oasdiff` removida automaticamente no remoto e local.
+- Issue #213 fechada automaticamente pelo PR (Closes #213).
 
 ## Arquivos Alterados/Adicionados
 - A `docs/adr/013-governanca-pin-oasdiff.md`
@@ -46,4 +52,3 @@ Institucionalizar a revisão trimestral do pin do `oasdiff` (pin atual `v1.11.7`
 - Verificar presença dos arquivos acima e links cruzados (ADR ↔ runbook ↔ docs de CI).
 - Rodar `gh workflow view oasdiff-pin-review-reminder.yml` (ou aguardar o cron) para confirmar disponibilidade do workflow de lembrete.
 - Confirmar que PRs futuros que atualizem o pin seguirão o checklist do runbook.
-
