@@ -181,3 +181,9 @@ Notas de governança relacionadas:
   - variável `OPENAPI_BASELINE` (prioridade média),
   - fallback padrão `contracts/api.previous.yaml`.
 - O step de changelog também respeita o baseline selecionado (env `OPENAPI_BASELINE`).
+
+## Atualizações (2025-11-17) — Lote 8
+- Contracts: limpeza final da transição do required check (#208)
+  - Removido o job duplicado no workflow principal; mantido apenas o job `contracts` com `name: Contracts (Spectral, oasdiff, Pact)`.
+  - O contexto required permanece inalterado: "Contracts (Spectral, oasdiff, Pact)".
+  - Artifact padronizado: `contracts-diff`.
