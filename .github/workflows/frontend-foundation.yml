@@ -490,6 +490,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect baseline via PR label (contracts:baseline-3.1)
+        if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'contracts:baseline-3.1') }}
+        run: |
+          echo "OPENAPI_BASELINE=contracts/api.baseline-3.1.yaml" >> "$GITHUB_ENV"
+          echo "Usando baseline alternativo por label: $OPENAPI_BASELINE"
+        shell: bash
+
       - name: Resumo de mudanças (contracts)
         run: |
           echo "Contracts changed? -> ${{ needs.changes.outputs.contracts }}"
@@ -540,11 +547,16 @@ jobs:
         run: |
           set -euo pipefail
           echo "$HOME/.cache/oasdiff/1.11.7" >> $GITHUB_PATH
-          if ! command -v oasdiff >/dev/null 2>&1; then
-            echo "oasdiff não encontrado no PATH após setup" >&2
+          # Verifica diretamente pelo caminho absoluto (GITHUB_PATH só vale no próximo step)
+          if [ ! -x "$HOME/.cache/oasdiff/1.11.7/oasdiff" ]; then
+            echo "oasdiff não encontrado em $HOME/.cache/oasdiff/1.11.7" >&2
+            ls -la "$HOME/.cache/oasdiff/1.11.7" || true
             exit 1
           fi
-          oasdiff --version || true
+      - name: Verify oasdiff
+        if: ${{ needs.changes.outputs.contracts == 'true' }}
+        run: |
+          oasdiff --version || ~/.cache/oasdiff/1.11.7/oasdiff --version || true
 
       - name: Spectral lint (US1/US2/US3)
         if: ${{ needs.changes.outputs.contracts == 'true' }}
@@ -564,9 +576,10 @@ jobs:
           set +e
           mkdir -p artifacts/contracts
           OUT="artifacts/contracts/changelog.txt"
-          if [ -f contracts/api.yaml ] && [ -f contracts/api.previous.yaml ]; then
+          BASELINE_PATH="${OPENAPI_BASELINE:-contracts/api.previous.yaml}"
+          if [ -f contracts/api.yaml ] && [ -f "$BASELINE_PATH" ]; then
             if command -v oasdiff >/dev/null 2>&1; then
-              if ! oasdiff changelog contracts/api.previous.yaml contracts/api.yaml -f text > "$OUT"; then
+              if ! oasdiff changelog "$BASELINE_PATH" contracts/api.yaml -f text > "$OUT"; then
                 echo "Falha ao gerar changelog com oasdiff; verifique os logs do step de diff." > "$OUT"
               fi
             else
