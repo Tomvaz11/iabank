@@ -45,3 +45,4 @@ observabilidade/data/lighthouse-latest.json
 .pr_release_test.json
 .cache/
 .tmp/
+artifacts_check/
