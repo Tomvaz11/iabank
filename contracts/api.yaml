@@ -1,4 +1,5 @@
-openapi: 3.0.3
+openapi: 3.1.0
+jsonSchemaDialect: https://json-schema.org/draft/2020-12/schema
 info:
   title: IABANK Frontend Foundation API
   version: 0.1.0
@@ -539,9 +540,8 @@ components:
           type: string
           format: uuid
         tenantId:
-          type: string
+          type: [string, 'null']
           format: uuid
-          nullable: true
         componentId:
           type: string
         storyId:
