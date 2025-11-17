@@ -73,10 +73,19 @@ jobs:
       - name: Add oasdiff to PATH
         run: |
           set -euo pipefail
-          echo "$HOME/.cache/oasdiff/1.11.7" >> $GITHUB_PATH
+          INSTALL_DIR="$HOME/.cache/oasdiff/1.11.7"
+          echo "$INSTALL_DIR" >> "$GITHUB_PATH"
+          export PATH="$INSTALL_DIR:$PATH"
           if ! command -v oasdiff >/dev/null 2>&1; then
-            echo "oasdiff não encontrado no PATH após setup" >&2
-            exit 1
+            echo "oasdiff não encontrado no PATH após setup; realizando fallback de instalação" >&2
+            OASDIFF_VERSION="1.11.7"
+            OASDIFF_URL="https://github.com/oasdiff/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+            mkdir -p "$INSTALL_DIR"
+            curl -sSL "$OASDIFF_URL" -o "$INSTALL_DIR/oasdiff.tar.gz"
+            tar -xzf "$INSTALL_DIR/oasdiff.tar.gz" -C "$INSTALL_DIR"
+            rm -f "$INSTALL_DIR/oasdiff.tar.gz"
+            chmod +x "$INSTALL_DIR/oasdiff"
+            export PATH="$INSTALL_DIR:$PATH"
           fi
           oasdiff --version || true
         shell: bash
@@ -98,7 +107,7 @@ jobs:
       - name: OpenAPI diff (oasdiff breaking via script)
         run: |
           if [ -f contracts/api.yaml ]; then
-            contracts/scripts/openapi-diff.sh || exit 1
+            contracts/scripts/oasdiff.sh || exit 1
           else
             echo "::warning::Spec atual ausente; skipping diff"
           fi

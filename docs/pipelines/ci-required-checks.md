@@ -173,7 +173,7 @@ Notas de governança relacionadas:
 
 ## Atualizações (2025-11-17) — Baseline 3.1 (sombra)
 - Label `contracts:baseline-3.1` em PRs faz o workflow `ci-contracts.yml` usar um baseline alternativo em `contracts/api.baseline-3.1.yaml`.
-- Wrapper `contracts/scripts/openapi-diff.sh` agora aceita:
+- Wrapper `contracts/scripts/oasdiff.sh` agora aceita:
   - flag `--baseline PATH` (prioridade máxima),
   - variável `OPENAPI_BASELINE` (prioridade média),
   - fallback padrão `contracts/api.previous.yaml`.

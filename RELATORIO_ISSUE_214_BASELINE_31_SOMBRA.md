@@ -9,7 +9,7 @@ Permitir dry‑run do baseline 3.1 sem promover `contracts/api.previous.yaml`, u
 
 ## Ações Executadas
 - Atualizado o wrapper de diff:
-  - `contracts/scripts/openapi-diff.sh` agora aceita `--baseline PATH` e a variável `OPENAPI_BASELINE`, com precedência: CLI > env > default (`contracts/api.previous.yaml`).
+  - `contracts/scripts/oasdiff.sh` agora aceita `--baseline PATH` e a variável `OPENAPI_BASELINE`, com precedência: CLI > env > default (`contracts/api.previous.yaml`).
   - Loga explicitamente a origem e o caminho do baseline selecionado.
 - Ajustado o workflow de contratos:
   - `.github/workflows/ci-contracts.yml` passa a usar o wrapper para o diff.
@@ -30,7 +30,7 @@ Permitir dry‑run do baseline 3.1 sem promover `contracts/api.previous.yaml`, u
 
 ## Arquivos Alterados/Adicionados
 - M `.github/workflows/ci-contracts.yml`
-- M `contracts/scripts/openapi-diff.sh`
+- M `contracts/scripts/oasdiff.sh`
 - A `contracts/api.baseline-3.1.yaml`
 - M `docs/pipelines/ci-required-checks.md`
 - M `docs/runbooks/governanca-api.md`
@@ -53,4 +53,3 @@ Permitir dry‑run do baseline 3.1 sem promover `contracts/api.previous.yaml`, u
   - “Baseline selecionado (env): contracts/api.baseline-3.1.yaml”.
   - Execução do `oasdiff breaking <baseline 3.1> -> contracts/api.yaml`.
 - Sem o label, o baseline padrão permanece: `contracts/api.previous.yaml`.
-

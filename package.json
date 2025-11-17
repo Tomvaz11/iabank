@@ -21,7 +21,7 @@
     "format:write": "pnpm exec prettier --write \"frontend/**/*.{ts,tsx,js,jsx,mjs,cjs,json,css}\" \"scripts/**/*.{js,ts}\"",
     "storybook:test": "pnpm --filter @iabank/frontend-foundation storybook:test",
     "openapi:lint": "pnpm exec spectral lint --ruleset=contracts/.spectral.yaml contracts/api.yaml contracts/api.previous.yaml specs/002-f-10-fundacao/contracts/**/*.yaml",
-    "openapi:diff": "contracts/scripts/openapi-diff.sh",
+    "openapi:diff": "contracts/scripts/oasdiff.sh",
     "openapi:generate": "pnpm exec openapi --input contracts/api.yaml --output frontend/src/shared/api/generated --client fetch --useOptions --exportCore true --exportServices true --exportModels true",
     "openapi": "pnpm openapi:lint && pnpm openapi:diff && pnpm openapi:generate",
     "pact:verify": "pnpm exec vitest run tests/state/query-cache.pact.ts --root frontend",
