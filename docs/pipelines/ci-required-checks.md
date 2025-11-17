@@ -71,9 +71,10 @@ Nota operacional: esta seção foi ajustada apenas para validar o comportamento 
 ### Nota — artifact de changelog (oasdiff)
 - Nome do artifact: `contracts-diff`; arquivo: `artifacts/contracts/changelog.txt`.
 - Sem diferenças entre `contracts/api.previous.yaml` e `contracts/api.yaml`, o arquivo pode vir vazio (0 bytes), conforme versão/comportamento do `oasdiff`.
-- Se a baseline (`contracts/api.previous.yaml`) não existir, o step registra aviso e o artifact pode não ser publicado (upload tolerante: `if-no-files-found: ignore`).
+- Se a baseline (`contracts/api.previous.yaml`) não existir, o step grava mensagem informativa no arquivo (e o upload é tolerante com `if-no-files-found: ignore`).
 - Para redefinir o delta, atualize a baseline quando “virar” a versão do contrato:
   - `cp contracts/api.yaml contracts/api.previous.yaml` (commit sugerido: `chore(contracts): refresh baseline`).
+- Em runs onde o `oasdiff` não é instalado (ex.: PRs sem mudanças em `contracts/**` no workflow principal), o arquivo contém mensagem informativa em vez de ficar vazio.
 - Quando há mudanças, a saída lista severidade (`error|warning|info`), alvo (endpoint/componente) e contexto.
 
 ## Prova de TDD (Art. III)
