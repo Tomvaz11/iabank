@@ -128,7 +128,7 @@ Pontos de Contato
   - Vitest (na época incluía Pytest; hoje separado em “Vitest” e “Pytest + Radon”): https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406870319 (success)
     - Coverage Vitest: All files — Statements 95.17%, Lines 95.17%, Functions 88.88%, Branches 84.75.
     - Coverage Pytest: TOTAL 87%.
-  - Contracts (Spectral, OpenAPI Diff, Pact): https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406986661 (success)
+  - Contracts (Spectral, oasdiff, Pact): https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54406986661 (success)
   - Visual & Accessibility Gates: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407027880 (failure)
     - Motivo: Chromatic falhou por histórico git raso ("Found only one commit").
   - Performance Budgets: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407027840 (failure)

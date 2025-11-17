@@ -97,7 +97,7 @@ Estes são os contextos atualmente exigidos na proteção da branch `main` (Bran
 - Lint
 - Vitest
 - Pytest + Radon
-- Contracts (Spectral, OpenAPI Diff, Pact)
+- Contracts (Spectral, oasdiff, Pact)
 - Visual & Accessibility Gates
 - Performance Budgets
 - Security Checks
@@ -163,7 +163,7 @@ Notas de governança relacionadas:
 
 ## Atualizações (2025-11-17) — Lote 6
 - Contracts (workflow principal): cache do binário do oasdiff por versão para reduzir tempo de setup.
-  - Workflow: `.github/workflows/frontend-foundation.yml` (job "Contracts (Spectral, OpenAPI Diff, Pact)").
+  - Workflow: `.github/workflows/frontend-foundation.yml` (job "Contracts (Spectral, oasdiff, Pact)").
   - Versão pinada: `v1.11.7` (linux_amd64), conforme relatório da migração (#181).
   - Cache: `actions/cache@v4` com chave `oasdiff-${{ runner.os }}-v1.11.7`.
   - Instalação em cache miss: download/extract para `~/.cache/oasdiff/1.11.7` e `chmod +x`.
