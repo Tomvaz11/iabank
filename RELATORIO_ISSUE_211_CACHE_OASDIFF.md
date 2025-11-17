@@ -10,7 +10,7 @@ Responsável: Automação/Assistente (via gh CLI)
 
 ## Execução (passo a passo)
 1) Leitura da issue #211 com `gh issue view` para confirmar objetivo, passos e critérios de aceite.
-2) Inspeção dos workflows: `.github/workflows/frontend-foundation.yml` (job "Contracts (Spectral, OpenAPI Diff, Pact)").
+2) Inspeção dos workflows: `.github/workflows/frontend-foundation.yml` (job "Contracts (Spectral, oasdiff, Pact)").
 3) Implementação do cache no workflow principal (job Contracts):
    - Adicionado `actions/cache@v4` com chave `oasdiff-${{ runner.os }}-v1.11.7`.
    - Em cache miss: download/extract do binário oficial v1.11.7 para `~/.cache/oasdiff/1.11.7`, `chmod +x`.
