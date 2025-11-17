@@ -67,7 +67,7 @@ Estado geral: ACEITO, com exceções controladas.
 Comprovado com evidências:
 - [x] CI verde em PR (#12) — run: https://github.com/Tomvaz11/iabank/actions/runs/19050934281
 - [x] Run manual (sanidade) em `main` — https://github.com/Tomvaz11/iabank/actions/runs/19048561651
-- [x] Contratos (Spectral/OpenAPI-diff/Pact) aprovados no PR
+- [x] Contratos (Spectral/oasdiff/Pact) aprovados no PR
 - [x] Política de segurança fail‑closed aplicada em `main/releases/tags` (PR/dispatch = fail‑open documentado)
 - [x] Evidências consolidadas (runbook + pacote de evidências + resumo)
 

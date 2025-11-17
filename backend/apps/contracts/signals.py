@@ -28,7 +28,7 @@ def persist_contract_check(
     logged_at: Optional[datetime] = None,
     **kwargs,
 ):
-    """Persistir resultados de Spectral/OpenAPI-diff em ContractDiffReport."""
+    """Persistir resultados de Spectral/oasdiff em ContractDiffReport."""
     with transaction.atomic():
         artifact, _ = ApiContractArtifact.objects.get_or_create(
             type=artifact_type,

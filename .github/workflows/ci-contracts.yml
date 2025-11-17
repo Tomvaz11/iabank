@@ -39,15 +39,19 @@ jobs:
         run: pnpm install --frozen-lockfile
         shell: bash
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.22.x'
-
-      - name: Install oasdiff
+      # Instala oasdiff (binário) sem depender do toolchain Go
+      - name: Install oasdiff (v1.11.7, linux_amd64)
         run: |
-          go install github.com/oasdiff/oasdiff/cmd/oasdiff@v1.11.7
-          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+          set -euo pipefail
+          OASDIFF_VERSION="1.11.7"
+          OASDIFF_URL="https://github.com/Tufin/oasdiff/releases/download/v${OASDIFF_VERSION}/oasdiff_${OASDIFF_VERSION}_linux_amd64.tar.gz"
+          INSTALL_DIR="$RUNNER_TEMP/oasdiff-bin"
+          mkdir -p "$INSTALL_DIR"
+          echo "Baixando oasdiff de $OASDIFF_URL"
+          curl -sSL "$OASDIFF_URL" -o "$INSTALL_DIR/oasdiff.tar.gz"
+          tar -xzf "$INSTALL_DIR/oasdiff.tar.gz" -C "$INSTALL_DIR"
+          chmod +x "$INSTALL_DIR/oasdiff"
+          echo "$INSTALL_DIR" >> $GITHUB_PATH
         shell: bash
 
       - name: Spectral lint (via pnpm openapi:lint)
