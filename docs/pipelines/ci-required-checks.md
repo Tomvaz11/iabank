@@ -169,3 +169,11 @@ Notas de governança relacionadas:
   - Instalação em cache miss: download/extract para `~/.cache/oasdiff/1.11.7` e `chmod +x`.
   - PATH: adiciona `~/.cache/oasdiff/1.11.7` via `GITHUB_PATH`.
   - Motivação: eliminar download repetido do binário entre execuções e acelerar o job Contracts.
+
+## Atualizações (2025-11-17) — Baseline 3.1 (sombra)
+- Label `contracts:baseline-3.1` em PRs faz o workflow `ci-contracts.yml` usar um baseline alternativo em `contracts/api.baseline-3.1.yaml`.
+- Wrapper `contracts/scripts/openapi-diff.sh` agora aceita:
+  - flag `--baseline PATH` (prioridade máxima),
+  - variável `OPENAPI_BASELINE` (prioridade média),
+  - fallback padrão `contracts/api.previous.yaml`.
+- O step de changelog também respeita o baseline selecionado (env `OPENAPI_BASELINE`).

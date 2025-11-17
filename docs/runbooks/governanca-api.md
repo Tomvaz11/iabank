@@ -20,6 +20,7 @@ Aplicação operacional do **ADR-011** e do Artigo XI da Constituição.
 ## Ações no Pipeline
 - Workflow `ci-contracts.yml` executa Spectral, oasdiff e Pact (com degradação controlada quando ferramentas não estiverem instaladas).
 - Pull requests só podem ser mergeadas após o gate `Contracts Passed`.
+- Para dry‑run contra baseline alternativo: aplique o label `contracts:baseline-3.1` no PR. O workflow usará `contracts/api.baseline-3.1.yaml` sem promover `contracts/api.previous.yaml`.
 
 ## Auditoria
 - Armazene relatórios do diff e resultados do Pact no bucket WORM.
