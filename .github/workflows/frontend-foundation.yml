@@ -722,7 +722,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: contracts-diff
+          name: contracts-diff-oasdiff
           path: artifacts/contracts
           if-no-files-found: ignore
 
