@@ -1,6 +1,6 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-**Clarify #10**: Especificacao atualizada na decima rodada de esclarecimentos (2025-11-26).  
+**Clarify #11**: Especificacao atualizada na 11a rodada de esclarecimentos (2025-11-23).  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -19,6 +19,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Abordagem para mascaramento/anonimização de PII nas seeds/factories? → A: Mascaramento/anonimização determinístico por ambiente (hash + salt) garantindo consistência entre execuções, DR e integrações multi-tenant.
 - Q: Escopo mínimo obrigatório das seeds/factories? → A: Núcleo bancário: tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras e limites/contratos; demais domínios ficam fora do baseline.
 - Q: Onde armazenar e rotacionar sal/segredo para anonimização determinística de PII? → A: Em HashiCorp Vault (Transit ou KV com envelope via KMS), com políticas e chaves por ambiente/tenant, rotação automática e acesso só via tokens efêmeros; proibido guardar em código/vars estáticas.
+- Q: Como versionar/rotacionar o sal de anonimização determinística das seeds/factories? → A: Sal versionado por ambiente/tenant; rotação publica novo `salt_version` no Vault, `seed_data` valida versão em manifesto/checkpoint e falha (fail-closed) se divergente até limpeza/reseed coordenada; breakglass só em dev isolado.
 - Q: Estratégia de consistência/rollback das seeds/factories em caso de falha? (transação única vs lotes com checkpoints vs duas fases) → A: Processar em lotes por entidade/segmento com checkpoints idempotentes, reexecutando apenas o lote falho; evitar transações monolíticas longas e manter integridade multi-tenant, rate limits e SLOs.
 - Q: Onde persistir o estado de checkpoint/idempotência das execuções do `seed_data`? → A: Em tabela dedicada no PostgreSQL do app, segregada por ambiente/tenant com RLS, registrando checkpoints de lote, hashes e deduplicação/TTL para retomadas seguras.
 - Q: Como garantir identificadores/idempotência determinística nas seeds/factories sem expor PII? → A: Usar UUIDv5/hash determinístico namespaced por tenant+entidade (ou slug lógico) e persistir a chave para dedupe/TTL; proibir uso de PII como material de chave.
@@ -31,6 +32,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Fonte de dados para carga/DR? → A: Apenas dados sintéticos gerados por factories/seeds em todos os ambientes; vedado snapshot de produção mesmo mascarado.
 - Q: Modelo de catálogos referenciais nas seeds/factories (categorias, fornecedores, tipos de conta, limites)? → A: Catálogo materializado por tenant (clonado/seedado por tenant/ambiente), sem catálogo global compartilhado.
 - Q: Determinismo das seeds/factories (IDs e valores)? → A: Determinismo total por tenant/ambiente/manifesto; mesma entrada produz os mesmos IDs/valores em todas as execuções (CI/Argo/dev isolado).
+- Q: Estratégia para datasets de DR/carga (regenerar determinístico vs dump WORM vs réplica read-only)? → A: Regerar on-demand via `seed_data` determinístico consumindo manifestos; não manter dumps/export estáticos; DR operacional usa replicação/PITR + IaC do blueprint e o `seed_data` recompõe apenas os datasets sintéticos.
 
 ### Session 2025-11-24
 - Q: Onde versionar os manifestos de volumetria/seed (YAML/JSON) por ambiente/tenant? → A: No repositório de aplicação, em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), revisados via PR e consumidos por CI/Argo.
@@ -93,6 +95,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Datasets de carga/DR vencidos pelo TTL do manifesto devem ser expurgados automaticamente (job/cron); se a limpeza não rodar ou falhar, o `seed_data` deve bloquear novas execuções e registrar auditoria.
 - Indisponibilidade do Vault/salt de anonimização deve abortar a execução antes de escrever dados, gerar alerta/auditoria e proibir fallback de salt cacheado ou efêmero (exceto dev isolado sinalizado).
 - Datasets de carga/DR DEVEM ser apenas sintéticos; uso de snapshots de produção (mesmo mascarados) é proibido.
+- Armazenamento ou uso de dumps/exports de datasets sintéticos é proibido; toda execução de DR/carga deve regenerar via `seed_data --profile` determinístico, falhando e auditando se um dump for detectado.
 - Catálogos referenciais devem ser materializados por tenant/ambiente; não há catálogo global compartilhado.
 - Execuções não determinísticas (IDs/valores variando para mesma entrada tenant/ambiente/manifesto) devem ser bloqueadas; variação deve falhar com auditoria para evitar flakiness.
 
@@ -132,11 +135,12 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-016**: Limpeza/expurgo de datasets de carga/DR DEVE ocorrer automaticamente por ambiente/tenant seguindo o TTL definido no manifesto versionado, orquestrado por job/cron e validado em CI/Argo; execuções fora da janela/TTL devem falhar com auditoria.
 - **FR-017**: Execução regular do `seed_data`/factories DEVE ocorrer apenas via pipelines CI/CD/Argo com service account de menor privilégio e trilha WORM; execuções manuais ficam restritas a dev isolado ou fluxo de breakglass aprovado/auditado, vedando execuções locais fora de dev.
 - **FR-018**: Se o Vault (salt/chaves de anonimização) estiver indisponível ou a leitura falhar, o `seed_data` DEVE abortar antes de qualquer escrita, registrar auditoria/alerta e não usar salt cacheado ou efêmero; apenas dev isolado explicitamente sinalizado pode ter exceção controlada.
-- **FR-019**: Datasets de carga e DR DEVEM ser gerados exclusivamente com dados sintéticos via factories/seeds em todos os ambientes; é vedado usar snapshots de produção mesmo mascarados.
+- **FR-019**: Datasets de carga e DR DEVEM ser gerados exclusivamente com dados sintéticos via factories/seeds em todos os ambientes; é vedado usar snapshots de produção mesmo mascarados. Não manter dumps/export estáticos: execuções de DR/carga devem regenerar os dados on-demand via `seed_data --profile=<manifest>` determinístico, alinhado à replicação/PITR + IaC do blueprint para o dado operacional.
 - **FR-020**: Catálogos referenciais (categorias, fornecedores, tipos de conta, limites padrão etc.) DEVEM ser materializados por tenant/ambiente via seeds/factories; é proibido catálogo global compartilhado entre tenants.
 - **FR-021**: Seeds/factories DEVEM ser determinísticas por tenant/ambiente/manifesto, gerando os mesmos IDs e valores a cada execução (CI/Argo/dev isolado) para garantir idempotência, auditoria e ausência de flakiness.
 - **FR-022**: Relatórios e logs de execução do `seed_data`/factories DEVEM ser armazenados em repositório WORM (ex.: bucket S3 com Object Lock) com hash/assinatura e retenção governada; metadados indexados no Postgres para consulta/auditoria. Logs/OTEL/Sentry são complementares, não substitutos da cópia imutável.
 - **FR-023**: Se o repositório WORM estiver indisponível ou falhar na gravação, a execução do `seed_data`/factories DEVE operar fail-closed: abortar antes de qualquer escrita de dados, registrar alerta/auditoria e só prosseguir quando a evidência imutável for gravada com sucesso.
+- **FR-024**: Rotação de sal/segredo de anonimização DEVE ser versionada por ambiente/tenant no Vault; `seed_data` compara `salt_version` do manifesto/checkpoint com a versão ativa, falha (fail-closed) se houver divergência e exige limpeza/reseed coordenada ou expurgo conforme TTL antes de aceitar a nova versão; exceções apenas para dev isolado sinalizado.
 
 ### Non-Functional Requirements
 
