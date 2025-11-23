@@ -1,5 +1,6 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
+**Clarify #2**: Especificacao atualizada na segunda rodada de esclarecimentos (2025-11-23).  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -15,6 +16,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 
 ### Session 2025-11-23
 - Q: Abordagem de execução das seeds/factories (APIs `/api/v1`, ORM/BD direto ou híbrido)? → A: Usar comando `seed_data` via ORM/BD com factory-boy como caminho principal; APIs `/api/v1` apenas para smokes/validação de contrato e rate limit, sem inserção massiva.
+- Q: Abordagem para mascaramento/anonimização de PII nas seeds/factories? → A: Mascaramento/anonimização determinístico por ambiente (hash + salt) garantindo consistência entre execuções, DR e integrações multi-tenant.
 
 ## User Scenarios & Testing *(mandatorio)*
 
@@ -84,7 +86,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 
 - **FR-001**: Comando `seed_data` DEVE provisionar baseline completa por ambiente/tenant, parametrizando volumetria (Q11) e garantindo idempotencia.  
 - **FR-002**: Catalogo de factories baseado em factory-boy DEVE cobrir entidades principais e permitir sobreposicao de cenarios (happy/sad paths) com mascaramento automatico de PII.  
-- **FR-003**: Todo dado PII em seeds/factories DEVE ser anonimisado ou mascarado conforme catalogo de sensibilidade antes de gravacao ou uso em APIs de teste.  
+- **FR-003**: Todo dado PII em seeds/factories DEVE ser anonimisado ou mascarado de forma deterministica por ambiente (hash + salt) conforme catalogo de sensibilidade antes de gravacao ou uso em APIs de teste.  
 - **FR-004**: Validacao automatizada DEVE bloquear seeds que nao atendam contratos de API `/api/v1`, integridade referencial ou regras multi-tenant.  
 - **FR-005**: Pipeline de CI/CD DEVE executar `seed_data` e factories em modo dry-run e gerar relatorio de conformidade (PII, contratos, volumetria, idempotencia).  
 - **FR-006**: Deploys via Argo CD DEVEM acionar verificacao pos-deploy das seeds/factories e publicar resultado em canal de auditoria.  
@@ -102,7 +104,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 
 ### Dados Sensiveis & Compliance
 
-- Catalogo PII deve mapear campos sensiveis usados em seeds/factories (ex.: documentos, email, telefone, endereco) e aplicar mascaramento/anonimizacao antes de persistir.  
+- Catalogo PII deve mapear campos sensiveis usados em seeds/factories (ex.: documentos, email, telefone, endereco) e aplicar mascaramento/anonimizacao deterministica por ambiente (hash + salt) antes de persistir para manter integridade referencial e idempotencia.  
 - Retencao: datasets sinteticos devem seguir politicas do ambiente (limpeza automatica em ambientes de teste, expurgo em DR apos validacao).  
 - Direito ao esquecimento: comandos de limpeza por tenant devem remover dados sinteticos vinculados ao tenant sob solicitacao.  
 - Evidencias: relatórios de execucao com hash/assinatura, trilha de auditoria de quem disparou seeds, provas de mascaramento e conformidade com LGPD/RLS.
