@@ -1,6 +1,6 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-**Clarify #12**: Especificacao atualizada na 12a rodada de esclarecimentos (2025-11-28).  
+**Clarify #13**: Especificacao atualizada na 13a rodada de esclarecimentos (2025-11-23).  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -33,6 +33,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Modelo de catálogos referenciais nas seeds/factories (categorias, fornecedores, tipos de conta, limites)? → A: Catálogo materializado por tenant (clonado/seedado por tenant/ambiente), sem catálogo global compartilhado.
 - Q: Determinismo das seeds/factories (IDs e valores)? → A: Determinismo total por tenant/ambiente/manifesto; mesma entrada produz os mesmos IDs/valores em todas as execuções (CI/Argo/dev isolado).
 - Q: Estratégia para datasets de DR/carga (regenerar determinístico vs dump WORM vs réplica read-only)? → A: Regerar on-demand via `seed_data` determinístico consumindo manifestos; não manter dumps/export estáticos; DR operacional usa replicação/PITR + IaC do blueprint e o `seed_data` recompõe apenas os datasets sintéticos.
+- Q: Qual comportamento padrão do `seed_data --dry-run`? → A: Executar fluxo completo (factories, checagens de PII/contratos, rate limit) dentro de transação/snapshot com rollback no fim; telemetria/logs marcados como dry-run, sem alterar checkpoints nem publicar evidências WORM.
 
 ### Session 2025-11-24
 - Q: Onde versionar os manifestos de volumetria/seed (YAML/JSON) por ambiente/tenant? → A: No repositório de aplicação, em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), revisados via PR e consumidos por CI/Argo.
@@ -145,6 +146,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-023**: Se o repositório WORM estiver indisponível ou falhar na gravação, a execução do `seed_data`/factories DEVE operar fail-closed: abortar antes de qualquer escrita de dados, registrar alerta/auditoria e só prosseguir quando a evidência imutável for gravada com sucesso.
 - **FR-024**: Rotação de sal/segredo de anonimização DEVE ser versionada por ambiente/tenant no Vault; `seed_data` compara `salt_version` do manifesto/checkpoint com a versão ativa, falha (fail-closed) se houver divergência e exige limpeza/reseed coordenada ou expurgo conforme TTL antes de aceitar a nova versão; exceções apenas para dev isolado sinalizado.
 - **FR-025**: Orquestração do `seed_data`/factories DEVE usar Celery/Redis com filas por tenant/mode e limites de concorrência/rate limit/backoff centralizados; tarefas executam em lotes com checkpoints/idempotência, `acks_late` e retries, evitando saturar DB/API e alinhando-se aos SLOs e gates de CI/Argo.
+- **FR-026**: O modo `seed_data --dry-run` DEVE executar o fluxo completo (factories, checagens de PII/contratos, rate limit/backoff) em transação/snapshot com rollback no final, marcando telemetria/logs como dry-run, sem atualizar checkpoints/idempotência nem publicar evidências WORM; medir SLOs e falhar se qualquer gate bloquear.
 
 ### Non-Functional Requirements
 
