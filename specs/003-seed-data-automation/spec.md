@@ -1,8 +1,8 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-Rodada de clarificações #15 concluída em 2025-11-23.
+Rodada de clarificações #16 concluída em 2025-11-23.
 
-**Clarify #15**: Especificacao atualizada na 15a rodada de esclarecimentos (2025-11-23).  
+**Clarify #16**: Paralelismo de lotes alinhado ao blueprint/ADRs — baseline sequencial; carga/DR com 2–4 workers Celery sob rate limit/backoff e SLO.  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -38,6 +38,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Estratégia para datasets de DR/carga (regenerar determinístico vs dump WORM vs réplica read-only)? → A: Regerar on-demand via `seed_data` determinístico consumindo manifestos; não manter dumps/export estáticos; DR operacional usa replicação/PITR + IaC do blueprint e o `seed_data` recompõe apenas os datasets sintéticos.
 - Q: Qual comportamento padrão do `seed_data --dry-run`? → A: Executar fluxo completo (factories, checagens de PII/contratos, rate limit) dentro de transação/snapshot com rollback no fim; telemetria/logs marcados como dry-run, sem alterar checkpoints nem publicar evidências WORM.
 - Q: Política de reexecução dos datasets de carga/DR já existentes? → A: Reexecutar limpando o dataset existente do modo (carga/DR) e recriar tudo de forma determinística antes de validar/checkpoints, evitando inflação de volumetria e facilitando rollback/DR.
+- Q: Estratégia de paralelismo dos lotes do `seed_data`/factories por modo? → A: Baseline executa sequencialmente; modos de carga/DR podem paralelizar por entidade com limite curto (2–4 workers Celery) sob rate limit/backoff centralizado e janelas/SLO, mantendo checkpoints/idempotência.
 
 ### Session 2025-11-24
 - Q: Onde versionar os manifestos de volumetria/seed (YAML/JSON) por ambiente/tenant? → A: No repositório de aplicação, em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), revisados via PR e consumidos por CI/Argo.
@@ -137,7 +138,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-008**: Geração de datasets sinteticos para teste de carga DEVE respeitar limites de requisicoes por tempo, com configuracao de rate limit por tenant/ambiente e relatorio de uso.
 - **FR-009**: Seeds/factories DEVEM executar via comando `seed_data` usando ORM/BD e factory-boy; uso de APIs `/api/v1` fica restrito a smokes de contrato/rate limit, sem inserção massiva.
 - **FR-010**: Baseline e factories DEVEM cobrir apenas o núcleo bancário (tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras e limites/contratos); domínios acessórios permanecem fora do escopo inicial.
-- **FR-011**: Execução de `seed_data` DEVE ocorrer em lotes por entidade/segmento com checkpoints idempotentes, permitindo reexecutar apenas o lote falho (sem transações globais longas) e preservando integridade multi-tenant, idempotência e janelas de SLO/rate limit.
+- **FR-011**: Execução de `seed_data` DEVE ocorrer em lotes por entidade/segmento com checkpoints idempotentes, permitindo reexecutar apenas o lote falho (sem transações globais longas) e preservando integridade multi-tenant, idempotência e janelas de SLO/rate limit; baseline roda lotes sequenciais, enquanto modos carga/DR podem paralelizar por entidade com 2–4 workers Celery sob rate limit/backoff centralizado e respeito às janelas/SLO.
 - **FR-012**: Estado de checkpoint/idempotência do `seed_data` DEVE ser persistido em tabela dedicada no PostgreSQL do app, segregada por ambiente/tenant e protegida por RLS, armazenando checkpoints de lote, hashes e deduplicação/TTL para reexecuções seguras.
 - **FR-013**: Seeds/factories DEVEM gerar IDs determinísticos (UUIDv5 ou hash) namespaced por tenant+entidade/slug lógico, persistindo a chave para dedupe/TTL e bloqueando divergências; é proibido usar PII como material de geração ou log.
 - **FR-014**: Execuções do `seed_data` DEVEM ser serializadas por tenant/ambiente via lock/lease curto (ex.: advisory lock Postgres com TTL), enfileirando ou rejeitando novas chamadas enquanto houver execução ativa para evitar corridas e duplicidades.
