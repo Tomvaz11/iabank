@@ -1,6 +1,6 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-**Clarify #11**: Especificacao atualizada na 11a rodada de esclarecimentos (2025-11-23).  
+**Clarify #12**: Especificacao atualizada na 12a rodada de esclarecimentos (2025-11-28).  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -42,6 +42,9 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Comportamento em falha na verificação pós-deploy das seeds/factories via Argo CD? → A: Fail-closed com rollback automático via Argo CD para o commit anterior e bloqueio de promoção até a verificação passar, registrando auditoria.
 - Q: Onde e como auditar relatórios/logs de execução do `seed_data`/factories? → A: Em armazenamento WORM (ex.: bucket S3 Object Lock) com hash/assinatura e retenção governada, indexando metadados no Postgres para consulta/trilha; OTEL/Sentry complementam mas não substituem a cópia imutável.
 - Q: Comportamento quando o armazenamento WORM estiver indisponível ou falhar gravação? → A: Fail-closed: abortar antes de qualquer escrita de dados, registrar alerta/auditoria e não prosseguir sem a evidência imutável.
+
+### Session 2025-11-28
+- Q: Estratégia de orquestração/concorrência do `seed_data`/factories (Celery vs processo único vs threads locais vs jobs no DB)? → A: Orquestrar via Celery/Redis com filas por tenant/mode e limites de concorrência/rate limit/backoff centralizados, usando checkpoints/idempotência e `acks_late`/retries para não saturar DB/API; sem processos locais ad hoc.
 
 ## User Scenarios & Testing *(mandatorio)*
 
@@ -141,6 +144,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-022**: Relatórios e logs de execução do `seed_data`/factories DEVEM ser armazenados em repositório WORM (ex.: bucket S3 com Object Lock) com hash/assinatura e retenção governada; metadados indexados no Postgres para consulta/auditoria. Logs/OTEL/Sentry são complementares, não substitutos da cópia imutável.
 - **FR-023**: Se o repositório WORM estiver indisponível ou falhar na gravação, a execução do `seed_data`/factories DEVE operar fail-closed: abortar antes de qualquer escrita de dados, registrar alerta/auditoria e só prosseguir quando a evidência imutável for gravada com sucesso.
 - **FR-024**: Rotação de sal/segredo de anonimização DEVE ser versionada por ambiente/tenant no Vault; `seed_data` compara `salt_version` do manifesto/checkpoint com a versão ativa, falha (fail-closed) se houver divergência e exige limpeza/reseed coordenada ou expurgo conforme TTL antes de aceitar a nova versão; exceções apenas para dev isolado sinalizado.
+- **FR-025**: Orquestração do `seed_data`/factories DEVE usar Celery/Redis com filas por tenant/mode e limites de concorrência/rate limit/backoff centralizados; tarefas executam em lotes com checkpoints/idempotência, `acks_late` e retries, evitando saturar DB/API e alinhando-se aos SLOs e gates de CI/Argo.
 
 ### Non-Functional Requirements
 
