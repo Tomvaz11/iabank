@@ -11,6 +11,11 @@
 
 Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e evitando saturar APIs internas (`/api/v1`). Objetivo é oferecer comando unico (`seed_data`) e factories padronizadas (factory-boy) que gerem dados sinteticos seguros por tenant/ambiente, com validacao automatizada e integracao continua (CI/CD, Argo CD) inclusive para cenarios de DR e testes de carga. Atende diretrizes do blueprint arquitetural (autonomia de ambientes, isolamento multi-tenant, governanca de dados sensiveis) e Constituicao Art. III/IV.
 
+## Clarifications
+
+### Session 2025-11-23
+- Q: Abordagem de execução das seeds/factories (APIs `/api/v1`, ORM/BD direto ou híbrido)? → A: Usar comando `seed_data` via ORM/BD com factory-boy como caminho principal; APIs `/api/v1` apenas para smokes/validação de contrato e rate limit, sem inserção massiva.
+
 ## User Scenarios & Testing *(mandatorio)*
 
 *As historias DEVEM ser fatias verticais independentes (INVEST) e testaveis de forma isolada. Mantenha o foco na jornada do usuario/persona e descreva como cada cenario prova o valor entregue.*
@@ -85,6 +90,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-006**: Deploys via Argo CD DEVEM acionar verificacao pos-deploy das seeds/factories e publicar resultado em canal de auditoria.  
 - **FR-007**: Procedimentos de DR DEVEM conseguir restaurar ambiente alvo usando seeds/factories, mantendo mascaramento e respeitando RTO/RPO definidos no blueprint.  
 - **FR-008**: Geração de datasets sinteticos para teste de carga DEVE respeitar limites de requisicoes por tempo, com configuracao de rate limit por tenant/ambiente e relatorio de uso.
+- **FR-009**: Seeds/factories DEVEM executar via comando `seed_data` usando ORM/BD e factory-boy; uso de APIs `/api/v1` fica restrito a smokes de contrato/rate limit, sem inserção massiva.
 
 ### Non-Functional Requirements
 
