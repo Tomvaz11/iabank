@@ -64,6 +64,13 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 ### Session 2025-11-28
 - Q: Estratégia de orquestração/concorrência do `seed_data`/factories (Celery vs processo único vs threads locais vs jobs no DB)? → A: Orquestrar via Celery/Redis com filas por tenant/mode e limites de concorrência/rate limit/backoff centralizados, usando checkpoints/idempotência e `acks_late`/retries para não saturar DB/API; sem processos locais ad hoc.
 
+### Session 2025-11-23
+- Q: Qual teto global de execuções concorrentes do `seed_data`/factories por ambiente/cluster? → A: Limitar a 2–3 execuções concorrentes por ambiente/cluster com lease global e fila; bloquear acima do teto para proteger SLO/FinOps e evitar saturar DB/Redis/API, mantendo serialização por tenant.
+- Q: O que fazer com execuções acima do teto global enquanto aguardam vaga? → A: Enfileirar com TTL curto (5–10 min) sob lease global; expirar em fail-closed com auditoria se não iniciar, evitando fila longa e saturação de recursos/FinOps.
+- Q: Onde implementar o lock/lease global e a fila/TTL para controlar concorrência do `seed_data`/factories? → A: No PostgreSQL, usando advisory lock para o lease global e tabela de fila/TTL auditável, mantendo consistência transacional, RLS/auditoria e evitando dependência extra além de Redis/Celery.
+- Q: Como aplicar FinOps na execução do `seed_data`/factories (alerta/abort por budget)? → A: Combinar estimativa prévia pelo manifesto com medição em tempo real; alertar em 80% do budget e abortar/rollback em 100% (fail-closed), registrando auditoria e exigindo ajuste do manifesto.
+- Q: Como bloquear mutações concorrentes durante a janela do `seed_data`/factories por tenant? → A: Flag de manutenção por tenant no PostgreSQL (coluna/status + policy/RLS) com middleware/API gate bloqueando writes enquanto ativo; fail-closed se desrespeitado.
+
 ## User Scenarios & Testing *(mandatorio)*
 
 *As historias DEVEM ser fatias verticais independentes (INVEST) e testaveis de forma isolada. Mantenha o foco na jornada do usuario/persona e descreva como cada cenario prova o valor entregue.*
@@ -113,6 +120,11 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Seeds/factories nao podem bypassar regras de mascaramento/anonimizacao de PII mesmo em ambientes internos.  
 - Falhas em integracoes (banco, fila, cache) devem abortar apenas o lote atual e retomar do checkpoint idempotente, marcando estado inconsistente e acionando retry seguro sem refazer lotes já validados.
 - Execuções concorrentes do `seed_data` para o mesmo tenant/ambiente devem ser bloqueadas/serializadas via lock/lease (advisory lock + TTL), com fila curta ou rejeição explícita e log/auditoria da tentativa.
+- Execuções globais do `seed_data`/factories por ambiente/cluster devem respeitar teto de 2–3 concorrências sob lease/lock global; novas requisições acima do teto ficam em fila curta ou são bloqueadas com auditoria para evitar saturação de DB/Redis/API e proteger SLO/FinOps.
+- Requisições acima do teto global devem ser enfileiradas com TTL curto (5–10 min) sob o mesmo lease global e expirar em fail-closed com auditoria se não iniciarem a tempo, evitando filas longas, saturação de recursos ou custos excessivos.
+- Locks/leases globais e controle de fila/TTL devem residir no PostgreSQL (advisory lock + tabela auditável), alinhando-se a RLS, consistência transacional e trilha de auditoria sem introduzir dependência extra além de Redis/Celery.
+- FinOps para execuções do `seed_data`/factories deve combinar estimativa prévia (manifesto de volumetria/custos) com medição em tempo real; emitir alerta em 80% do budget e abortar/rollback em modo fail-closed ao atingir 100%, registrando auditoria e exigindo ajuste do manifesto antes de nova tentativa.
+- Bloqueio de mutações concorrentes durante a janela do `seed_data`/factories deve usar flag de manutenção por tenant no PostgreSQL (coluna/status + policy/RLS) aplicada via middleware/API gate para impedir writes enquanto ativo; violação resulta em fail-closed auditável.
 - Manifestos de volumetria (Q11) por ambiente/tenant são obrigatórios; execuções sem perfil versionado ou fora do cap definido devem falhar com auditoria e sugerir correção no manifesto.
 - Datasets de carga/DR vencidos pelo TTL do manifesto devem ser expurgados automaticamente (job/cron); se a limpeza não rodar ou falhar, o `seed_data` deve bloquear novas execuções e registrar auditoria.
 - Indisponibilidade do Vault/salt de anonimização deve abortar a execução antes de escrever dados, gerar alerta/auditoria e proibir fallback de salt cacheado ou efêmero (exceto dev isolado sinalizado).
@@ -179,8 +191,10 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-030**: Se forem detectados dados pré-existentes ou drift fora do manifesto/volumetria esperada, o `seed_data` DEVE falhar em modo fail-closed, registrar auditoria e exigir limpeza/reseed controlado antes de qualquer nova execução, proibindo mesclas automáticas ou drops silenciosos para tentar prosseguir.
 - **FR-031**: Se houver divergência de checkpoint ou hash de idempotência, o `seed_data` DEVE falhar em modo fail-closed, registrar auditoria e exigir saneamento/reseed coordenado antes de retomar, proibindo auto-merge, reset silencioso ou avanço parcial de lotes.
 - **FR-032**: Diante de 429/rate limit excedido, o `seed_data`/factories DEVE aplicar backoff+jitter com orçamento curto; se o 429 persistir ou o cap do manifesto for excedido, abortar em modo fail-closed com auditoria e reagendar na janela/off-peak configurada, proibindo continuar acima do orçamento de requisições.
-- **FR-033**: O `seed_data`/factories só DEVE executar dentro da janela off-peak declarada no manifesto; o tenant deve ser colocado em maintenance/bloqueio de mutações concorrentes, e a execução deve falhar em modo fail-closed se a janela não estiver ativa ou for desrespeitada.
+- **FR-033**: O `seed_data`/factories só DEVE executar dentro da janela off-peak declarada no manifesto; o tenant deve ser colocado em maintenance/bloqueio de mutações concorrentes via flag de manutenção no PostgreSQL (coluna/status + policy/RLS) aplicada por middleware/API gate, falhando em modo fail-closed se a janela não estiver ativa ou for desrespeitada.
 - **FR-034**: Evidências/logs do `seed_data`/factories DEVEM ser relatórios JSON assinados (hash) contendo trace/span IDs, manifesto/tenant/ambiente, custos/volumetria e status por lote; armazenados em repositório WORM (ex.: S3 Object Lock) e com metadados indexados no Postgres para consulta/auditoria.
+- **FR-035**: Execuções globais do `seed_data`/factories por ambiente/cluster DEVEM ser limitadas a 2–3 concorrentes sob lease/lock global no PostgreSQL (advisory lock + tabela auditável); chamadas acima do teto devem ser enfileiradas com TTL curto (5–10 min) e expirar em fail-closed com auditoria se não iniciarem, preservando SLO, budgets FinOps e evitando saturação de DB/Redis/API, mantendo a serialização por tenant.
+- **FR-036**: FinOps das execuções do `seed_data`/factories DEVE combinar estimativa pré-execução (manifesto de volumetria/custos) com medição em tempo real (DB/Redis/API/CPU), emitindo alerta em 80% do budget e abortando/rollback em 100% (fail-closed) com auditoria, exigindo ajuste do manifesto antes de reexecutar.
 
 ### Non-Functional Requirements
 
