@@ -1,6 +1,8 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-**Clarify #13**: Especificacao atualizada na 13a rodada de esclarecimentos (2025-11-23).  
+Rodada de clarificações #14 concluída em 2025-11-23.
+
+**Clarify #14**: Especificacao atualizada na 14a rodada de esclarecimentos (2025-11-23).  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -15,6 +17,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 ## Clarifications
 
 ### Session 2025-11-23
+- Q: Comportamento do `seed_data`/factories quando Celery/Redis estiverem indisponíveis? → A: Repetir poucas vezes com backoff curto e `acks_late`; se o broker permanecer indisponível, abortar fail-closed com alerta/auditoria, sem fallback local ou fora do orquestrador (exceto dev isolado).
 - Q: Abordagem de execução das seeds/factories (APIs `/api/v1`, ORM/BD direto ou híbrido)? → A: Usar comando `seed_data` via ORM/BD com factory-boy como caminho principal; APIs `/api/v1` apenas para smokes/validação de contrato e rate limit, sem inserção massiva.
 - Q: Abordagem para mascaramento/anonimização de PII nas seeds/factories? → A: Mascaramento/anonimização determinístico por ambiente (hash + salt) garantindo consistência entre execuções, DR e integrações multi-tenant.
 - Q: Escopo mínimo obrigatório das seeds/factories? → A: Núcleo bancário: tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras e limites/contratos; demais domínios ficam fora do baseline.
@@ -102,6 +105,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Armazenamento ou uso de dumps/exports de datasets sintéticos é proibido; toda execução de DR/carga deve regenerar via `seed_data --profile` determinístico, falhando e auditando se um dump for detectado.
 - Catálogos referenciais devem ser materializados por tenant/ambiente; não há catálogo global compartilhado.
 - Execuções não determinísticas (IDs/valores variando para mesma entrada tenant/ambiente/manifesto) devem ser bloqueadas; variação deve falhar com auditoria para evitar flakiness.
+- Indisponibilidade do Celery/Redis deve acionar retries curtos; se persistir, a execução deve abortar fail-closed com auditoria/alerta, sem fallback local ou fora do orquestrador (exceto dev isolado sinalizado).
 
 ## Requirements *(mandatorio)*
 
@@ -147,6 +151,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-024**: Rotação de sal/segredo de anonimização DEVE ser versionada por ambiente/tenant no Vault; `seed_data` compara `salt_version` do manifesto/checkpoint com a versão ativa, falha (fail-closed) se houver divergência e exige limpeza/reseed coordenada ou expurgo conforme TTL antes de aceitar a nova versão; exceções apenas para dev isolado sinalizado.
 - **FR-025**: Orquestração do `seed_data`/factories DEVE usar Celery/Redis com filas por tenant/mode e limites de concorrência/rate limit/backoff centralizados; tarefas executam em lotes com checkpoints/idempotência, `acks_late` e retries, evitando saturar DB/API e alinhando-se aos SLOs e gates de CI/Argo.
 - **FR-026**: O modo `seed_data --dry-run` DEVE executar o fluxo completo (factories, checagens de PII/contratos, rate limit/backoff) em transação/snapshot com rollback no final, marcando telemetria/logs como dry-run, sem atualizar checkpoints/idempotência nem publicar evidências WORM; medir SLOs e falhar se qualquer gate bloquear.
+- **FR-027**: Se o broker Celery/Redis estiver indisponível, o `seed_data`/factories DEVE aplicar poucas tentativas com backoff curto (`acks_late` ativos) e, persistindo a falha, abortar em modo fail-closed com alerta/auditoria, sem fallback para execução local ou fora do orquestrador (exceto dev isolado sinalizado).
 
 ### Non-Functional Requirements
 
