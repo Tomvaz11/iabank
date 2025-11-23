@@ -42,6 +42,11 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Comportamento quando a estimativa ou custo real da execução ultrapassar o budget do manifesto? → A: Fail-closed: abortar/rollback imediato ao estimar ou atingir gasto > budget; exigir ajuste do manifesto antes de prosseguir; sem breakglass.
 - Q: Qual retenção dos relatórios/logs WORM do `seed_data`/factories? → A: Retenção mínima de 1 ano (prod/homolog), alinhada ao blueprint (backups mensais retidos por 1 ano) e Art. XVI; governança e integridade via política WORM.
 - Q: Como tratar integrações externas (KYC, antifraude, pagamentos, notificações) nas execuções de seeds/carga/DR? → A: Simular via mocks/stubs com testes de contrato (Pact), sem chamadas reais; manter determinismo, evitar custos/latência e side effects; backoff/retries só nos mocks, preservando rate limits e PII mascarada.
+- Q: Comportamento do `seed_data` ao encontrar dados pré-existentes ou drift fora do manifesto? → A: Fail-closed: bloquear execução ao detectar drift/dados fora do manifesto, registrar auditoria e exigir limpeza/reseed controlado antes de prosseguir (sem mescla automática nem drop silencioso).
+- Q: O que fazer se os checkpoints/hashes de idempotência divergirem ou estiverem inconsistentes? → A: Fail-closed: bloquear execução, registrar auditoria e exigir saneamento/reseed coordenado antes de retomar; sem auto-merge, reset silencioso ou avanço parcial.
+- Q: Como tratar 429/rate limit excedido durante o `seed_data`/factories? → A: Aplicar backoff+jitter com orçamento curto; se 429 persistir ou o cap do manifesto for excedido, abortar fail-closed com auditoria e reagendar na janela/off-peak definida.
+- Q: Em que janela executar o `seed_data`/factories e como lidar com concorrência de mutações? → A: Executar apenas na janela off-peak declarada no manifesto; colocar tenant em maintenance/bloqueio de mutações concorrentes e abortar fail-closed se a janela não estiver ativa.
+- Q: Formato e armazenamento das evidências/logs do `seed_data`/factories? → A: Relatórios JSON assinados (hash), com trace/span IDs, manifesto/tenant/ambiente, custos/volumetria e status por lote; armazenar em WORM (ex.: S3 Object Lock) e indexar metadados no Postgres para consulta/auditoria.
 
 ### Session 2025-11-24
 - Q: Onde versionar os manifestos de volumetria/seed (YAML/JSON) por ambiente/tenant? → A: No repositório de aplicação, em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), revisados via PR e consumidos por CI/Argo.
@@ -113,6 +118,11 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Execuções não determinísticas (IDs/valores variando para mesma entrada tenant/ambiente/manifesto) devem ser bloqueadas; variação deve falhar com auditoria para evitar flakiness.
 - Indisponibilidade do Celery/Redis deve acionar retries curtos; se persistir, a execução deve abortar fail-closed com auditoria/alerta, sem fallback local ou fora do orquestrador (exceto dev isolado sinalizado).
 - Se a estimativa ou custo real da execução ultrapassar o budget do manifesto, o `seed_data` deve abortar/rollback em modo fail-closed e exigir ajuste do manifesto antes de nova tentativa; sem breakglass.
+- Ao detectar dados pré-existentes ou drift fora do manifesto, o `seed_data` deve falhar em modo fail-closed, registrar auditoria e exigir limpeza/reseed controlado antes de nova tentativa; mesclas automáticas ou drops silenciosos são proibidos.
+- Se houver divergência de checkpoint/hash de idempotência, a execução deve falhar em modo fail-closed, registrar auditoria e exigir saneamento/reseed coordenado antes de retomar; auto-merge, reset silencioso ou avanço parcial são proibidos.
+- Se ocorrer 429/rate limit excedido, aplicar backoff+jitter com orçamento curto; persistindo o 429 ou excedendo o cap do manifesto, abortar em modo fail-closed com auditoria e reagendar na janela/off-peak definida.
+- Execuções devem ocorrer apenas na janela off-peak declarada no manifesto; o tenant deve ser colocado em maintenance/bloqueio de mutações concorrentes e a execução deve falhar em modo fail-closed se a janela não estiver ativa.
+- Evidências/logs do `seed_data`/factories devem ser geradas como relatórios JSON assinados (hash) contendo trace/span IDs, manifesto/tenant/ambiente, custos/volumetria e status por lote; armazenar em WORM (ex.: S3 Object Lock) e indexar metadados no Postgres para consulta/auditoria.
 
 ## Requirements *(mandatorio)*
 
@@ -161,6 +171,11 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-027**: Se o broker Celery/Redis estiver indisponível, o `seed_data`/factories DEVE aplicar poucas tentativas com backoff curto (`acks_late` ativos) e, persistindo a falha, abortar em modo fail-closed com alerta/auditoria, sem fallback para execução local ou fora do orquestrador (exceto dev isolado sinalizado).
 - **FR-028**: Reexecuções do `seed_data` em modos de carga ou DR DEVEM apagar o dataset existente daquele modo antes de recriar tudo de forma determinística, preservando idempotência, caps de volumetria e facilitando rollback/DR sem inflação de dados.
 - **FR-029**: Integrações externas usadas por seeds/factories ou modos de carga/DR (KYC, antifraude, pagamentos, notificações) DEVEM ser simuladas via mocks/stubs com testes de contrato (Pact), sem chamadas reais; cenários de rate limit/falha são exercitados nos mocks com backoff controlado, mantendo determinismo, PII mascarada e evitando custos/side effects; exceções não são permitidas fora de dev isolado.
+- **FR-030**: Se forem detectados dados pré-existentes ou drift fora do manifesto/volumetria esperada, o `seed_data` DEVE falhar em modo fail-closed, registrar auditoria e exigir limpeza/reseed controlado antes de qualquer nova execução, proibindo mesclas automáticas ou drops silenciosos para tentar prosseguir.
+- **FR-031**: Se houver divergência de checkpoint ou hash de idempotência, o `seed_data` DEVE falhar em modo fail-closed, registrar auditoria e exigir saneamento/reseed coordenado antes de retomar, proibindo auto-merge, reset silencioso ou avanço parcial de lotes.
+- **FR-032**: Diante de 429/rate limit excedido, o `seed_data`/factories DEVE aplicar backoff+jitter com orçamento curto; se o 429 persistir ou o cap do manifesto for excedido, abortar em modo fail-closed com auditoria e reagendar na janela/off-peak configurada, proibindo continuar acima do orçamento de requisições.
+- **FR-033**: O `seed_data`/factories só DEVE executar dentro da janela off-peak declarada no manifesto; o tenant deve ser colocado em maintenance/bloqueio de mutações concorrentes, e a execução deve falhar em modo fail-closed se a janela não estiver ativa ou for desrespeitada.
+- **FR-034**: Evidências/logs do `seed_data`/factories DEVEM ser relatórios JSON assinados (hash) contendo trace/span IDs, manifesto/tenant/ambiente, custos/volumetria e status por lote; armazenados em repositório WORM (ex.: S3 Object Lock) e com metadados indexados no Postgres para consulta/auditoria.
 
 ### Non-Functional Requirements
 
