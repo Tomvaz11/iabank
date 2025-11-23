@@ -1,6 +1,6 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-Rodada de clarificações #18 concluída em 2025-11-23.
+Rodada de clarificações #19 concluída em 2025-11-23.
 
 **Clarify #17**: FinOps fail-closed: se a estimativa ou custo real da execução ultrapassar o budget do manifesto, abortar/rollback e exigir ajuste do manifesto antes de reexecutar; sem breakglass.  
 **Feature Branch**: `003-seed-data-automation`  
@@ -41,6 +41,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Estratégia de paralelismo dos lotes do `seed_data`/factories por modo? → A: Baseline executa sequencialmente; modos de carga/DR podem paralelizar por entidade com limite curto (2–4 workers Celery) sob rate limit/backoff centralizado e janelas/SLO, mantendo checkpoints/idempotência.
 - Q: Comportamento quando a estimativa ou custo real da execução ultrapassar o budget do manifesto? → A: Fail-closed: abortar/rollback imediato ao estimar ou atingir gasto > budget; exigir ajuste do manifesto antes de prosseguir; sem breakglass.
 - Q: Qual retenção dos relatórios/logs WORM do `seed_data`/factories? → A: Retenção mínima de 1 ano (prod/homolog), alinhada ao blueprint (backups mensais retidos por 1 ano) e Art. XVI; governança e integridade via política WORM.
+- Q: Como tratar integrações externas (KYC, antifraude, pagamentos, notificações) nas execuções de seeds/carga/DR? → A: Simular via mocks/stubs com testes de contrato (Pact), sem chamadas reais; manter determinismo, evitar custos/latência e side effects; backoff/retries só nos mocks, preservando rate limits e PII mascarada.
 
 ### Session 2025-11-24
 - Q: Onde versionar os manifestos de volumetria/seed (YAML/JSON) por ambiente/tenant? → A: No repositório de aplicação, em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), revisados via PR e consumidos por CI/Argo.
@@ -159,6 +160,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-026**: O modo `seed_data --dry-run` DEVE executar o fluxo completo (factories, checagens de PII/contratos, rate limit/backoff) em transação/snapshot com rollback no final, marcando telemetria/logs como dry-run, sem atualizar checkpoints/idempotência nem publicar evidências WORM; medir SLOs e falhar se qualquer gate bloquear.
 - **FR-027**: Se o broker Celery/Redis estiver indisponível, o `seed_data`/factories DEVE aplicar poucas tentativas com backoff curto (`acks_late` ativos) e, persistindo a falha, abortar em modo fail-closed com alerta/auditoria, sem fallback para execução local ou fora do orquestrador (exceto dev isolado sinalizado).
 - **FR-028**: Reexecuções do `seed_data` em modos de carga ou DR DEVEM apagar o dataset existente daquele modo antes de recriar tudo de forma determinística, preservando idempotência, caps de volumetria e facilitando rollback/DR sem inflação de dados.
+- **FR-029**: Integrações externas usadas por seeds/factories ou modos de carga/DR (KYC, antifraude, pagamentos, notificações) DEVEM ser simuladas via mocks/stubs com testes de contrato (Pact), sem chamadas reais; cenários de rate limit/falha são exercitados nos mocks com backoff controlado, mantendo determinismo, PII mascarada e evitando custos/side effects; exceções não são permitidas fora de dev isolado.
 
 ### Non-Functional Requirements
 
