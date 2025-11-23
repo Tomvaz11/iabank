@@ -1,8 +1,8 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-Rodada de clarificações #14 concluída em 2025-11-23.
+Rodada de clarificações #15 concluída em 2025-11-23.
 
-**Clarify #14**: Especificacao atualizada na 14a rodada de esclarecimentos (2025-11-23).  
+**Clarify #15**: Especificacao atualizada na 15a rodada de esclarecimentos (2025-11-23).  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -37,6 +37,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Determinismo das seeds/factories (IDs e valores)? → A: Determinismo total por tenant/ambiente/manifesto; mesma entrada produz os mesmos IDs/valores em todas as execuções (CI/Argo/dev isolado).
 - Q: Estratégia para datasets de DR/carga (regenerar determinístico vs dump WORM vs réplica read-only)? → A: Regerar on-demand via `seed_data` determinístico consumindo manifestos; não manter dumps/export estáticos; DR operacional usa replicação/PITR + IaC do blueprint e o `seed_data` recompõe apenas os datasets sintéticos.
 - Q: Qual comportamento padrão do `seed_data --dry-run`? → A: Executar fluxo completo (factories, checagens de PII/contratos, rate limit) dentro de transação/snapshot com rollback no fim; telemetria/logs marcados como dry-run, sem alterar checkpoints nem publicar evidências WORM.
+- Q: Política de reexecução dos datasets de carga/DR já existentes? → A: Reexecutar limpando o dataset existente do modo (carga/DR) e recriar tudo de forma determinística antes de validar/checkpoints, evitando inflação de volumetria e facilitando rollback/DR.
 
 ### Session 2025-11-24
 - Q: Onde versionar os manifestos de volumetria/seed (YAML/JSON) por ambiente/tenant? → A: No repositório de aplicação, em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), revisados via PR e consumidos por CI/Argo.
@@ -94,6 +95,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 
 - Execucao de `seed_data` sem `tenant_id` ou com tenant inexistente deve falhar com mensagem auditavel e sem criar dados parciais.  
 - Reexecucao de seeds deve ser idempotente e resolver conflitos de versao para evitar duplicidades ou violacao de unicidade.  
+- Reexecuções de modos de carga/DR devem limpar o dataset vigente daquele modo antes de recriar de forma determinística, evitando inflação de volumetria e mantendo checkpoints/coerência para rollback.  
 - Gatilhos de rate limit em `/api/v1` durante geracao de carga precisam de backoff e orcamento de requisicoes por tenant/ambiente.  
 - Seeds/factories nao podem bypassar regras de mascaramento/anonimizacao de PII mesmo em ambientes internos.  
 - Falhas em integracoes (banco, fila, cache) devem abortar apenas o lote atual e retomar do checkpoint idempotente, marcando estado inconsistente e acionando retry seguro sem refazer lotes já validados.
@@ -152,6 +154,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-025**: Orquestração do `seed_data`/factories DEVE usar Celery/Redis com filas por tenant/mode e limites de concorrência/rate limit/backoff centralizados; tarefas executam em lotes com checkpoints/idempotência, `acks_late` e retries, evitando saturar DB/API e alinhando-se aos SLOs e gates de CI/Argo.
 - **FR-026**: O modo `seed_data --dry-run` DEVE executar o fluxo completo (factories, checagens de PII/contratos, rate limit/backoff) em transação/snapshot com rollback no final, marcando telemetria/logs como dry-run, sem atualizar checkpoints/idempotência nem publicar evidências WORM; medir SLOs e falhar se qualquer gate bloquear.
 - **FR-027**: Se o broker Celery/Redis estiver indisponível, o `seed_data`/factories DEVE aplicar poucas tentativas com backoff curto (`acks_late` ativos) e, persistindo a falha, abortar em modo fail-closed com alerta/auditoria, sem fallback para execução local ou fora do orquestrador (exceto dev isolado sinalizado).
+- **FR-028**: Reexecuções do `seed_data` em modos de carga ou DR DEVEM apagar o dataset existente daquele modo antes de recriar tudo de forma determinística, preservando idempotência, caps de volumetria e facilitando rollback/DR sem inflação de dados.
 
 ### Non-Functional Requirements
 
