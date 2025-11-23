@@ -1,6 +1,6 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-**Clarify #3**: Especificacao atualizada na terceira rodada de esclarecimentos (2025-11-23).  
+**Clarify #4**: Especificacao atualizada na quarta rodada de esclarecimentos (2025-11-23).  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -18,6 +18,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Abordagem de execução das seeds/factories (APIs `/api/v1`, ORM/BD direto ou híbrido)? → A: Usar comando `seed_data` via ORM/BD com factory-boy como caminho principal; APIs `/api/v1` apenas para smokes/validação de contrato e rate limit, sem inserção massiva.
 - Q: Abordagem para mascaramento/anonimização de PII nas seeds/factories? → A: Mascaramento/anonimização determinístico por ambiente (hash + salt) garantindo consistência entre execuções, DR e integrações multi-tenant.
 - Q: Escopo mínimo obrigatório das seeds/factories? → A: Núcleo bancário: tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras e limites/contratos; demais domínios ficam fora do baseline.
+- Q: Onde armazenar e rotacionar sal/segredo para anonimização determinística de PII? → A: Em HashiCorp Vault (Transit ou KV com envelope via KMS), com políticas e chaves por ambiente/tenant, rotação automática e acesso só via tokens efêmeros; proibido guardar em código/vars estáticas.
 
 ## User Scenarios & Testing *(mandatorio)*
 
@@ -107,6 +108,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 ### Dados Sensiveis & Compliance
 
 - Catalogo PII deve mapear campos sensiveis usados em seeds/factories (ex.: documentos, email, telefone, endereco) e aplicar mascaramento/anonimizacao deterministica por ambiente (hash + salt) antes de persistir para manter integridade referencial e idempotencia.  
+- Salts/segredos de anonimização devem residir no HashiCorp Vault (Transit ou KV com envelope via KMS), com políticas e chaves segregadas por ambiente/tenant, rotação automática no pipeline `ci-vault-rotate` e acesso apenas via tokens efêmeros; é proibido persistir esses valores em código, configs ou variáveis estáticas.  
 - Retencao: datasets sinteticos devem seguir politicas do ambiente (limpeza automatica em ambientes de teste, expurgo em DR apos validacao).  
 - Direito ao esquecimento: comandos de limpeza por tenant devem remover dados sinteticos vinculados ao tenant sob solicitacao.  
 - Evidencias: relatórios de execucao com hash/assinatura, trilha de auditoria de quem disparou seeds, provas de mascaramento e conformidade com LGPD/RLS.
