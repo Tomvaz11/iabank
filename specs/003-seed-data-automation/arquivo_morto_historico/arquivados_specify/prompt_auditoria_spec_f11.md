@@ -12,9 +12,6 @@ Com base nos três documentos que fornecerei abaixo (Constituição, Prompt Orig
 2.  **Conformidade com a Constituição:** O `spec.md` gerado respeita e implementa TODAS as regras aplicáveis da `CONSTITUIÇÃO DO PROJETO`?
 3.  **Prontidão para a Próxima Fase:** A especificação está completa, clara, sem ambiguidades e pronta para a fase de planejamento técnico (`/speckit.plan`)?
 
-**Diretriz adicional (obrigatória para esta etapa):**
-- Alinhe estritamente à documentação oficial do Spec‑Kit para o comando `/speckit.specify` (pasta `documentacao_oficial_spec-kit`). Aplique somente o escopo permitido pela versão vigente; se meu pedido divergir desse escopo, ajuste para conformidade e registre a decisão na resposta.
-
 **Estrutura da Resposta:**
 
 Por favor, estruture sua resposta exatamente da seguinte forma:
@@ -23,7 +20,8 @@ Por favor, estruture sua resposta exatamente da seguinte forma:
 2.  **ANÁLISE DETALHADA:**
     *   **Pontos Fortes:** Liste os pontos onde a especificação se destaca por seu alinhamento e qualidade.
     *   **Pontos de Melhoria ou Riscos:** Liste quaisquer pontos, mesmo que pequenos, que poderiam ser melhorados, ou riscos que você identifica. Se não houver nenhum, declare "Nenhum ponto de melhoria ou risco crítico foi identificado.".
-3.  **RECOMENDAÇÃO FINAL:** Sua recomendação sobre o próximo passo. Ex: "Recomendo prosseguir para a fase de /speckit.plan." ou "Recomendo ajustar a especificação antes de prosseguir". Salve sua resposta na raiz, apenas isso. Não altere nada.
+3.  **RECOMENDAÇÃO FINAL:** Sua recomendação sobre o próximo passo. Ex: "Recomendo prosseguir para a fase de /speckit.plan." ou "Recomendo ajustar a especificação antes de prosseguir". 
+4.  Salve sua resposta (relatório desta auditoria) em `specs/003-seed-data-automation/arquivo_morto_historico/arquivados_specify`, apenas isso. Não altere nada.
 
 ---
 
