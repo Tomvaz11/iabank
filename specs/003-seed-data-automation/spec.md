@@ -1,6 +1,6 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-**Clarify #6**: Especificacao atualizada na sexta rodada de esclarecimentos (2025-11-23).  
+**Clarify #7**: Especificacao atualizada na setima rodada de esclarecimentos (2025-11-23).  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -21,6 +21,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Onde armazenar e rotacionar sal/segredo para anonimização determinística de PII? → A: Em HashiCorp Vault (Transit ou KV com envelope via KMS), com políticas e chaves por ambiente/tenant, rotação automática e acesso só via tokens efêmeros; proibido guardar em código/vars estáticas.
 - Q: Estratégia de consistência/rollback das seeds/factories em caso de falha? (transação única vs lotes com checkpoints vs duas fases) → A: Processar em lotes por entidade/segmento com checkpoints idempotentes, reexecutando apenas o lote falho; evitar transações monolíticas longas e manter integridade multi-tenant, rate limits e SLOs.
 - Q: Onde persistir o estado de checkpoint/idempotência das execuções do `seed_data`? → A: Em tabela dedicada no PostgreSQL do app, segregada por ambiente/tenant com RLS, registrando checkpoints de lote, hashes e deduplicação/TTL para retomadas seguras.
+- Q: Como garantir identificadores/idempotência determinística nas seeds/factories sem expor PII? → A: Usar UUIDv5/hash determinístico namespaced por tenant+entidade (ou slug lógico) e persistir a chave para dedupe/TTL; proibir uso de PII como material de chave.
 
 ## User Scenarios & Testing *(mandatorio)*
 
@@ -100,6 +101,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-010**: Baseline e factories DEVEM cobrir apenas o núcleo bancário (tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras e limites/contratos); domínios acessórios permanecem fora do escopo inicial.
 - **FR-011**: Execução de `seed_data` DEVE ocorrer em lotes por entidade/segmento com checkpoints idempotentes, permitindo reexecutar apenas o lote falho (sem transações globais longas) e preservando integridade multi-tenant, idempotência e janelas de SLO/rate limit.
 - **FR-012**: Estado de checkpoint/idempotência do `seed_data` DEVE ser persistido em tabela dedicada no PostgreSQL do app, segregada por ambiente/tenant e protegida por RLS, armazenando checkpoints de lote, hashes e deduplicação/TTL para reexecuções seguras.
+- **FR-013**: Seeds/factories DEVEM gerar IDs determinísticos (UUIDv5 ou hash) namespaced por tenant+entidade/slug lógico, persistindo a chave para dedupe/TTL e bloqueando divergências; é proibido usar PII como material de geração ou log.
 
 ### Non-Functional Requirements
 
