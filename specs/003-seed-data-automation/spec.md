@@ -1,6 +1,6 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-**Clarify #9**: Especificacao atualizada na nona rodada de esclarecimentos (2025-11-23).  
+**Clarify #10**: Especificacao atualizada na decima rodada de esclarecimentos (2025-11-26).  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -34,6 +34,12 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 
 ### Session 2025-11-24
 - Q: Onde versionar os manifestos de volumetria/seed (YAML/JSON) por ambiente/tenant? → A: No repositório de aplicação, em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), revisados via PR e consumidos por CI/Argo.
+- Q: Qual esquema mínimo devemos padronizar nos manifestos `configs/seed_profiles/<ambiente>/<tenant>.yaml`? → A: Incluir `metadata` (ambiente, tenant, versão/perfil), `mode` (baseline/carga/DR), `volumetry` por entidade com caps, `rate_limit` alvo/cap com `backoff`, `ttl` por modo, `budget` de custo máximo e `window` off-peak, versionados e auditáveis via GitOps.
+
+### Session 2025-11-26
+- Q: Comportamento em falha na verificação pós-deploy das seeds/factories via Argo CD? → A: Fail-closed com rollback automático via Argo CD para o commit anterior e bloqueio de promoção até a verificação passar, registrando auditoria.
+- Q: Onde e como auditar relatórios/logs de execução do `seed_data`/factories? → A: Em armazenamento WORM (ex.: bucket S3 Object Lock) com hash/assinatura e retenção governada, indexando metadados no Postgres para consulta/trilha; OTEL/Sentry complementam mas não substituem a cópia imutável.
+- Q: Comportamento quando o armazenamento WORM estiver indisponível ou falhar gravação? → A: Fail-closed: abortar antes de qualquer escrita de dados, registrar alerta/auditoria e não prosseguir sem a evidência imutável.
 
 ## User Scenarios & Testing *(mandatorio)*
 
@@ -113,7 +119,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-003**: Todo dado PII em seeds/factories DEVE ser anonimisado ou mascarado de forma deterministica por ambiente (hash + salt) conforme catalogo de sensibilidade antes de gravacao ou uso em APIs de teste.  
 - **FR-004**: Validacao automatizada DEVE bloquear seeds que nao atendam contratos de API `/api/v1`, integridade referencial ou regras multi-tenant.  
 - **FR-005**: Pipeline de CI/CD DEVE executar `seed_data` e factories em modo dry-run e gerar relatorio de conformidade (PII, contratos, volumetria, idempotencia).  
-- **FR-006**: Deploys via Argo CD DEVEM acionar verificacao pos-deploy das seeds/factories e publicar resultado em canal de auditoria.  
+- **FR-006**: Deploys via Argo CD DEVEM acionar verificacao pos-deploy das seeds/factories e publicar resultado em canal de auditoria; falhas devem operar em modo fail-closed, acionando rollback automático para o commit anterior e bloqueando promoção até a verificação passar.  
 - **FR-007**: Procedimentos de DR DEVEM conseguir restaurar ambiente alvo usando seeds/factories, mantendo mascaramento e respeitando RTO/RPO definidos no blueprint.  
 - **FR-008**: Geração de datasets sinteticos para teste de carga DEVE respeitar limites de requisicoes por tempo, com configuracao de rate limit por tenant/ambiente e relatorio de uso.
 - **FR-009**: Seeds/factories DEVEM executar via comando `seed_data` usando ORM/BD e factory-boy; uso de APIs `/api/v1` fica restrito a smokes de contrato/rate limit, sem inserção massiva.
@@ -122,13 +128,15 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-012**: Estado de checkpoint/idempotência do `seed_data` DEVE ser persistido em tabela dedicada no PostgreSQL do app, segregada por ambiente/tenant e protegida por RLS, armazenando checkpoints de lote, hashes e deduplicação/TTL para reexecuções seguras.
 - **FR-013**: Seeds/factories DEVEM gerar IDs determinísticos (UUIDv5 ou hash) namespaced por tenant+entidade/slug lógico, persistindo a chave para dedupe/TTL e bloqueando divergências; é proibido usar PII como material de geração ou log.
 - **FR-014**: Execuções do `seed_data` DEVEM ser serializadas por tenant/ambiente via lock/lease curto (ex.: advisory lock Postgres com TTL), enfileirando ou rejeitando novas chamadas enquanto houver execução ativa para evitar corridas e duplicidades.
-- **FR-015**: Parametrização de volumetria (Q11) DEVE ser feita via manifesto versionado (YAML/JSON) por ambiente/tenant com caps por entidade; os manifestos DEVEM residir no repositório de aplicação em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), revisados via PR e consumidos por CI/Argo; `seed_data --profile=<manifest>` é obrigatório e validado em CI/Argo para reprodutibilidade e auditoria.
+- **FR-015**: Parametrização de volumetria (Q11) DEVE ser feita via manifesto versionado (YAML/JSON) por ambiente/tenant com caps por entidade; os manifestos DEVEM residir no repositório de aplicação em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), revisados via PR e consumidos por CI/Argo; `seed_data --profile=<manifest>` é obrigatório e validado em CI/Argo para reprodutibilidade e auditoria. Cada manifesto DEVE conter `metadata` (ambiente, tenant, versão/perfil), `mode` (baseline/carga/DR), `volumetry` por entidade com caps, `rate_limit` alvo/cap com `backoff`, `ttl` por modo, `budget` máximo e `window` off-peak para execução segura/finops.
 - **FR-016**: Limpeza/expurgo de datasets de carga/DR DEVE ocorrer automaticamente por ambiente/tenant seguindo o TTL definido no manifesto versionado, orquestrado por job/cron e validado em CI/Argo; execuções fora da janela/TTL devem falhar com auditoria.
 - **FR-017**: Execução regular do `seed_data`/factories DEVE ocorrer apenas via pipelines CI/CD/Argo com service account de menor privilégio e trilha WORM; execuções manuais ficam restritas a dev isolado ou fluxo de breakglass aprovado/auditado, vedando execuções locais fora de dev.
 - **FR-018**: Se o Vault (salt/chaves de anonimização) estiver indisponível ou a leitura falhar, o `seed_data` DEVE abortar antes de qualquer escrita, registrar auditoria/alerta e não usar salt cacheado ou efêmero; apenas dev isolado explicitamente sinalizado pode ter exceção controlada.
 - **FR-019**: Datasets de carga e DR DEVEM ser gerados exclusivamente com dados sintéticos via factories/seeds em todos os ambientes; é vedado usar snapshots de produção mesmo mascarados.
 - **FR-020**: Catálogos referenciais (categorias, fornecedores, tipos de conta, limites padrão etc.) DEVEM ser materializados por tenant/ambiente via seeds/factories; é proibido catálogo global compartilhado entre tenants.
 - **FR-021**: Seeds/factories DEVEM ser determinísticas por tenant/ambiente/manifesto, gerando os mesmos IDs e valores a cada execução (CI/Argo/dev isolado) para garantir idempotência, auditoria e ausência de flakiness.
+- **FR-022**: Relatórios e logs de execução do `seed_data`/factories DEVEM ser armazenados em repositório WORM (ex.: bucket S3 com Object Lock) com hash/assinatura e retenção governada; metadados indexados no Postgres para consulta/auditoria. Logs/OTEL/Sentry são complementares, não substitutos da cópia imutável.
+- **FR-023**: Se o repositório WORM estiver indisponível ou falhar na gravação, a execução do `seed_data`/factories DEVE operar fail-closed: abortar antes de qualquer escrita de dados, registrar alerta/auditoria e só prosseguir quando a evidência imutável for gravada com sucesso.
 
 ### Non-Functional Requirements
 
