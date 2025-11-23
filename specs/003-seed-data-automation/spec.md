@@ -91,6 +91,11 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 
 ### Session 2025-11-30
 - Q: Anonimização determinística das seeds/factories deve preservar o formato sintático (CPF/CNPJ/telefone/email) ou pode ser hash opaco? → A: Preservar formato com FPE/máscara determinística compatível com regex/contratos `/api/v1`, garantindo consistência, testes e sem exposição de PII real.
+- Q: Como tratar emissão de eventos/notificações durante execuções do `seed_data`/factories? → A: Roteamento obrigatório para tópicos/filas/webhooks sandbox isolados com mocks/stubs e auditoria; nunca enviar para destinos reais, mantendo apenas telemetria/contratos exercitados.
+- Q: Como tratar outbox/CDC/replicação de eventos gerados pelo `seed_data`/factories? → A: Roteamento obrigatório do outbox/CDC para sink/sandbox isolado com mocks/stubs e auditoria, sem enviar para data lake/analytics reais; manter apenas validação de telemetria/contratos e rate limit.
+- Q: Onde validar integridade/idempotência pós-execução do `seed_data`/factories (primário vs réplica)? → A: Validar sempre no primário usando transação/snapshot para evitar falsos negativos por lag, mantendo determinismo, RLS e modo fail-closed.
+- Q: Como lidar com caches/índices/busca ao executar `seed_data`/factories? → A: Invalidar/limpar caches (ex.: Redis) e índices/busca em torno da execução, reconstruindo apenas em modos controlados (dry-run/staging/carga/DR) e bloqueando rebuild automático em produção para preservar determinismo/idempotência e evitar poluir tráfego real.
+- Q: Qual nível de isolamento transacional para os lotes do `seed_data`/factories? → A: Usar `SERIALIZABLE` por lote com os timeouts curtos já definidos, garantindo determinismo/idempotência e evitando leituras sujas/lag em ambiente multi-tenant sensível.
 
 ## User Scenarios & Testing *(mandatorio)*
 
@@ -225,6 +230,11 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-037**: Seeds/factories no baseline DEVEM conter apenas caminhos felizes determinísticos por tenant/ambiente; sad paths (ex.: estados bloqueados/atrasados) só entram nos modos carga/DR com percentuais/estados definidos no manifesto por entidade/tenant (`seed_data --profile`), mantendo reprodutibilidade, caps e auditoria.
 - **FR-038**: Em CI/PR, o `seed_data` DEVE rodar apenas em modo dry-run do baseline determinístico com manifesto obrigatório, validando PII/contratos/idempotência sem publicar evidência WORM; execuções completas de carga/DR DEVEM ocorrer em staging dedicado, agendadas em janela off-peak com manifestos versionados, caps de volumetria/budget, telemetria e evidência WORM.
 - **FR-039**: O `seed_data` DEVE validar o manifesto contra o schema/versão exigidos pelo código/checkpoint e falhar em modo fail-closed se houver campos obrigatórios novos ou versão divergente; é proibido auto-preencher ou seguir apenas com warning—o manifesto/checkpoint precisa ser atualizado antes da execução.
+- **FR-040**: Eventos/notificações gerados pelas execuções do `seed_data`/factories DEVEM ser roteados exclusivamente para tópicos/filas/webhooks sandbox isolados com mocks/stubs e auditoria, sem envio a destinos reais; a telemetria/contratos permanece exercitada para validar headers/rate limit/observabilidade.
+- **FR-041**: Outbox/CDC/replicação disparados pelo `seed_data`/factories DEVEM ser roteados apenas para sinks sandbox isolados com mocks/stubs e auditoria, sem publicar em data lakes/analytics reais; manter a validação de headers, rate limit e contratos, bloqueando efeitos colaterais externos.
+- **FR-042**: Validações de integridade/idempotência e pós-check do `seed_data`/factories DEVEM ocorrer no primário com transação/snapshot, não em réplicas sujeitas a lag, garantindo determinismo, RLS e comportamento fail-closed sem falsos negativos.
+- **FR-043**: Execuções do `seed_data`/factories DEVEM invalidar/limpar caches (ex.: Redis) e índices/busca associadas; rebuild de caches/índices só ocorre em modos controlados (dry-run/staging/carga/DR) e é proibido em produção para evitar poluir tráfego real e preservar determinismo/idempotência.
+- **FR-044**: Cada lote do `seed_data`/factories DEVE operar em nível de isolamento `SERIALIZABLE` com os timeouts curtos já definidos, para garantir determinismo/idempotência e evitar leituras sujas ou falsos negativos causados por lag em ambiente multi-tenant sensível.
 
 ### Non-Functional Requirements
 
