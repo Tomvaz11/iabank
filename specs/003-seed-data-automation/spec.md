@@ -71,6 +71,9 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Como aplicar FinOps na execução do `seed_data`/factories (alerta/abort por budget)? → A: Combinar estimativa prévia pelo manifesto com medição em tempo real; alertar em 80% do budget e abortar/rollback em 100% (fail-closed), registrando auditoria e exigindo ajuste do manifesto.
 - Q: Como bloquear mutações concorrentes durante a janela do `seed_data`/factories por tenant? → A: Flag de manutenção por tenant no PostgreSQL (coluna/status + policy/RLS) com middleware/API gate bloqueando writes enquanto ativo; fail-closed se desrespeitado.
 
+### Session 2025-11-30
+- Q: Anonimização determinística das seeds/factories deve preservar o formato sintático (CPF/CNPJ/telefone/email) ou pode ser hash opaco? → A: Preservar formato com FPE/máscara determinística compatível com regex/contratos `/api/v1`, garantindo consistência, testes e sem exposição de PII real.
+
 ## User Scenarios & Testing *(mandatorio)*
 
 *As historias DEVEM ser fatias verticais independentes (INVEST) e testaveis de forma isolada. Mantenha o foco na jornada do usuario/persona e descreva como cada cenario prova o valor entregue.*
@@ -160,7 +163,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 
 - **FR-001**: Comando `seed_data` DEVE provisionar baseline completa por ambiente/tenant, parametrizando volumetria (Q11) e garantindo idempotencia.  
 - **FR-002**: Catalogo de factories baseado em factory-boy DEVE cobrir entidades principais e permitir sobreposicao de cenarios (happy/sad paths) com mascaramento automatico de PII.  
-- **FR-003**: Todo dado PII em seeds/factories DEVE ser anonimisado ou mascarado de forma deterministica por ambiente (hash + salt) conforme catalogo de sensibilidade antes de gravacao ou uso em APIs de teste.  
+- **FR-003**: Todo dado PII em seeds/factories DEVE ser anonimisado ou mascarado de forma deterministica por ambiente (hash + salt) preservando formato sintático (FPE/máscara compatível com regex de CPF/CNPJ/telefone/email) conforme catalogo de sensibilidade antes de gravacao ou uso em APIs de teste.  
 - **FR-004**: Validacao automatizada DEVE bloquear seeds que nao atendam contratos de API `/api/v1`, integridade referencial ou regras multi-tenant.  
 - **FR-005**: Pipeline de CI/CD DEVE executar `seed_data` e factories em modo dry-run e gerar relatorio de conformidade (PII, contratos, volumetria, idempotencia).  
 - **FR-006**: Deploys via Argo CD DEVEM acionar verificacao pos-deploy das seeds/factories e publicar resultado em canal de auditoria; falhas devem operar em modo fail-closed, acionando rollback automático para o commit anterior e bloqueando promoção até a verificação passar.  
