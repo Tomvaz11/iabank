@@ -1,8 +1,8 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-Rodada de clarificações #16 concluída em 2025-11-23.
+Rodada de clarificações #17 concluída em 2025-11-23.
 
-**Clarify #16**: Paralelismo de lotes alinhado ao blueprint/ADRs — baseline sequencial; carga/DR com 2–4 workers Celery sob rate limit/backoff e SLO.  
+**Clarify #17**: FinOps fail-closed: se a estimativa ou custo real da execução ultrapassar o budget do manifesto, abortar/rollback e exigir ajuste do manifesto antes de reexecutar; sem breakglass.  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -39,6 +39,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Qual comportamento padrão do `seed_data --dry-run`? → A: Executar fluxo completo (factories, checagens de PII/contratos, rate limit) dentro de transação/snapshot com rollback no fim; telemetria/logs marcados como dry-run, sem alterar checkpoints nem publicar evidências WORM.
 - Q: Política de reexecução dos datasets de carga/DR já existentes? → A: Reexecutar limpando o dataset existente do modo (carga/DR) e recriar tudo de forma determinística antes de validar/checkpoints, evitando inflação de volumetria e facilitando rollback/DR.
 - Q: Estratégia de paralelismo dos lotes do `seed_data`/factories por modo? → A: Baseline executa sequencialmente; modos de carga/DR podem paralelizar por entidade com limite curto (2–4 workers Celery) sob rate limit/backoff centralizado e janelas/SLO, mantendo checkpoints/idempotência.
+- Q: Comportamento quando a estimativa ou custo real da execução ultrapassar o budget do manifesto? → A: Fail-closed: abortar/rollback imediato ao estimar ou atingir gasto > budget; exigir ajuste do manifesto antes de prosseguir; sem breakglass.
 
 ### Session 2025-11-24
 - Q: Onde versionar os manifestos de volumetria/seed (YAML/JSON) por ambiente/tenant? → A: No repositório de aplicação, em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), revisados via PR e consumidos por CI/Argo.
@@ -109,6 +110,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Catálogos referenciais devem ser materializados por tenant/ambiente; não há catálogo global compartilhado.
 - Execuções não determinísticas (IDs/valores variando para mesma entrada tenant/ambiente/manifesto) devem ser bloqueadas; variação deve falhar com auditoria para evitar flakiness.
 - Indisponibilidade do Celery/Redis deve acionar retries curtos; se persistir, a execução deve abortar fail-closed com auditoria/alerta, sem fallback local ou fora do orquestrador (exceto dev isolado sinalizado).
+- Se a estimativa ou custo real da execução ultrapassar o budget do manifesto, o `seed_data` deve abortar/rollback em modo fail-closed e exigir ajuste do manifesto antes de nova tentativa; sem breakglass.
 
 ## Requirements *(mandatorio)*
 
@@ -163,7 +165,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **NFR-002 (Performance)**: Testes de carga com datasets sinteticos nao devem acionar mais de 80% do limite configurado de requisicoes por minuto; variacao de tempo de resposta deve permanecer dentro do orcamento de SLO do blueprint.  
 - **NFR-003 (Observabilidade)**: Seeds/factories e cargas devem emitir logs JSON via `structlog`, métricas via `django-prometheus` e traces OpenTelemetry exportados ao collector central, propagando `traceparent`/`tracestate` e labels de tenant/ambiente/execução; Sentry gera alertas e o collector aplica redaction de PII; pipelines (CI/Argo) validam exportação/correlação e bloqueiam em caso de falha.  
 - **NFR-004 (Seguranca)**: Dados sensiveis devem permanecer mascarados em logs, dumps e exportacoes; acesso a configuracoes de seeds/factories deve seguir principio do menor privilegio.  
-- **NFR-005 (FinOps)**: Volume de dados gerados e custo estimado por execucao deve ser registrado; execucoes de carga devem respeitar budgets definidos por ambiente/tenant.
+- **NFR-005 (FinOps)**: Volume de dados gerados e custo estimado por execucao deve ser registrado; execucoes de carga devem respeitar budgets definidos por ambiente/tenant, alertando ao atingir 80% e, se a estimativa ou custo real ultrapassar o budget, abortando/rollback em modo fail-closed e exigindo ajuste do manifesto antes de reexecutar (sem breakglass).
 
 ### Dados Sensiveis & Compliance
 
