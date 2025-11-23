@@ -1,6 +1,6 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-**Clarify #2**: Especificacao atualizada na segunda rodada de esclarecimentos (2025-11-23).  
+**Clarify #3**: Especificacao atualizada na terceira rodada de esclarecimentos (2025-11-23).  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -17,6 +17,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 ### Session 2025-11-23
 - Q: Abordagem de execução das seeds/factories (APIs `/api/v1`, ORM/BD direto ou híbrido)? → A: Usar comando `seed_data` via ORM/BD com factory-boy como caminho principal; APIs `/api/v1` apenas para smokes/validação de contrato e rate limit, sem inserção massiva.
 - Q: Abordagem para mascaramento/anonimização de PII nas seeds/factories? → A: Mascaramento/anonimização determinístico por ambiente (hash + salt) garantindo consistência entre execuções, DR e integrações multi-tenant.
+- Q: Escopo mínimo obrigatório das seeds/factories? → A: Núcleo bancário: tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras e limites/contratos; demais domínios ficam fora do baseline.
 
 ## User Scenarios & Testing *(mandatorio)*
 
@@ -93,6 +94,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-007**: Procedimentos de DR DEVEM conseguir restaurar ambiente alvo usando seeds/factories, mantendo mascaramento e respeitando RTO/RPO definidos no blueprint.  
 - **FR-008**: Geração de datasets sinteticos para teste de carga DEVE respeitar limites de requisicoes por tempo, com configuracao de rate limit por tenant/ambiente e relatorio de uso.
 - **FR-009**: Seeds/factories DEVEM executar via comando `seed_data` usando ORM/BD e factory-boy; uso de APIs `/api/v1` fica restrito a smokes de contrato/rate limit, sem inserção massiva.
+- **FR-010**: Baseline e factories DEVEM cobrir apenas o núcleo bancário (tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras e limites/contratos); domínios acessórios permanecem fora do escopo inicial.
 
 ### Non-Functional Requirements
 
