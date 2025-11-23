@@ -1,6 +1,6 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-**Clarify #7**: Especificacao atualizada na setima rodada de esclarecimentos (2025-11-23).  
+**Clarify #8**: Especificacao atualizada na oitava rodada de esclarecimentos (2025-11-23).  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -22,6 +22,10 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Estratégia de consistência/rollback das seeds/factories em caso de falha? (transação única vs lotes com checkpoints vs duas fases) → A: Processar em lotes por entidade/segmento com checkpoints idempotentes, reexecutando apenas o lote falho; evitar transações monolíticas longas e manter integridade multi-tenant, rate limits e SLOs.
 - Q: Onde persistir o estado de checkpoint/idempotência das execuções do `seed_data`? → A: Em tabela dedicada no PostgreSQL do app, segregada por ambiente/tenant com RLS, registrando checkpoints de lote, hashes e deduplicação/TTL para retomadas seguras.
 - Q: Como garantir identificadores/idempotência determinística nas seeds/factories sem expor PII? → A: Usar UUIDv5/hash determinístico namespaced por tenant+entidade (ou slug lógico) e persistir a chave para dedupe/TTL; proibir uso de PII como material de chave.
+- Q: Estratégia de observabilidade/telemetria para execuções do `seed_data`/factories e cargas? → A: Instrumentar com OpenTelemetry (traces/métricas/logs JSON `structlog`), `django-prometheus` e Sentry; exportar para o collector central com correlação `traceparent`/`tracestate` e labels de tenant/ambiente/execução, validando em CI/Argo; redaction de PII obrigatória no collector.
+- Q: Como tratar concorrência de execuções do `seed_data` por tenant/ambiente? → A: Serializar por tenant/ambiente com lock/lease curto (ex.: advisory lock Postgres + TTL), enfileirando/rejeitando uma segunda execução até liberação do lock.
+- Q: Como parametrizar e versionar volumetria (Q11) por ambiente/tenant? → A: Manifesto versionado (YAML/JSON) por ambiente/tenant com volumetria/caps por entidade, consumido por `seed_data --profile=<manifest>` e validado em CI/Argo.
+- Q: Qual política de limpeza/expurgo dos datasets de carga/DR? → A: Limpeza automática pós-carga/DR guiada por TTL definido no manifesto versionado por ambiente/tenant, executada por job/cron e validada em CI/Argo.
 
 ## User Scenarios & Testing *(mandatorio)*
 
@@ -70,6 +74,9 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Gatilhos de rate limit em `/api/v1` durante geracao de carga precisam de backoff e orcamento de requisicoes por tenant/ambiente.  
 - Seeds/factories nao podem bypassar regras de mascaramento/anonimizacao de PII mesmo em ambientes internos.  
 - Falhas em integracoes (banco, fila, cache) devem abortar apenas o lote atual e retomar do checkpoint idempotente, marcando estado inconsistente e acionando retry seguro sem refazer lotes já validados.
+- Execuções concorrentes do `seed_data` para o mesmo tenant/ambiente devem ser bloqueadas/serializadas via lock/lease (advisory lock + TTL), com fila curta ou rejeição explícita e log/auditoria da tentativa.
+- Manifestos de volumetria (Q11) por ambiente/tenant são obrigatórios; execuções sem perfil versionado ou fora do cap definido devem falhar com auditoria e sugerir correção no manifesto.
+- Datasets de carga/DR vencidos pelo TTL do manifesto devem ser expurgados automaticamente (job/cron); se a limpeza não rodar ou falhar, o `seed_data` deve bloquear novas execuções e registrar auditoria.
 
 ## Requirements *(mandatorio)*
 
@@ -102,12 +109,15 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-011**: Execução de `seed_data` DEVE ocorrer em lotes por entidade/segmento com checkpoints idempotentes, permitindo reexecutar apenas o lote falho (sem transações globais longas) e preservando integridade multi-tenant, idempotência e janelas de SLO/rate limit.
 - **FR-012**: Estado de checkpoint/idempotência do `seed_data` DEVE ser persistido em tabela dedicada no PostgreSQL do app, segregada por ambiente/tenant e protegida por RLS, armazenando checkpoints de lote, hashes e deduplicação/TTL para reexecuções seguras.
 - **FR-013**: Seeds/factories DEVEM gerar IDs determinísticos (UUIDv5 ou hash) namespaced por tenant+entidade/slug lógico, persistindo a chave para dedupe/TTL e bloqueando divergências; é proibido usar PII como material de geração ou log.
+- **FR-014**: Execuções do `seed_data` DEVEM ser serializadas por tenant/ambiente via lock/lease curto (ex.: advisory lock Postgres com TTL), enfileirando ou rejeitando novas chamadas enquanto houver execução ativa para evitar corridas e duplicidades.
+- **FR-015**: Parametrização de volumetria (Q11) DEVE ser feita via manifesto versionado (YAML/JSON) por ambiente/tenant com caps por entidade; `seed_data --profile=<manifest>` é obrigatório e validado em CI/Argo para reprodutibilidade e auditoria.
+- **FR-016**: Limpeza/expurgo de datasets de carga/DR DEVE ocorrer automaticamente por ambiente/tenant seguindo o TTL definido no manifesto versionado, orquestrado por job/cron e validado em CI/Argo; execuções fora da janela/TTL devem falhar com auditoria.
 
 ### Non-Functional Requirements
 
 - **NFR-001 (SLO)**: Execucoes de `seed_data` devem completar dentro de janelas definidas por ambiente (dev <5 min, homolog <10 min, producao controlada <20 min); exceder +20% aciona abort/rollback auditado.  
 - **NFR-002 (Performance)**: Testes de carga com datasets sinteticos nao devem acionar mais de 80% do limite configurado de requisicoes por minuto; variacao de tempo de resposta deve permanecer dentro do orcamento de SLO do blueprint.  
-- **NFR-003 (Observabilidade)**: Seeds/factories devem emitir logs e metricas de execucao, incluindo contagem de registros gerados por entidade, deteccao de PII mascarada e alertas de falha.  
+- **NFR-003 (Observabilidade)**: Seeds/factories e cargas devem emitir logs JSON via `structlog`, métricas via `django-prometheus` e traces OpenTelemetry exportados ao collector central, propagando `traceparent`/`tracestate` e labels de tenant/ambiente/execução; Sentry gera alertas e o collector aplica redaction de PII; pipelines (CI/Argo) validam exportação/correlação e bloqueiam em caso de falha.  
 - **NFR-004 (Seguranca)**: Dados sensiveis devem permanecer mascarados em logs, dumps e exportacoes; acesso a configuracoes de seeds/factories deve seguir principio do menor privilegio.  
 - **NFR-005 (FinOps)**: Volume de dados gerados e custo estimado por execucao deve ser registrado; execucoes de carga devem respeitar budgets definidos por ambiente/tenant.
 
