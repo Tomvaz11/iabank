@@ -1,6 +1,6 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-**Clarify #4**: Especificacao atualizada na quarta rodada de esclarecimentos (2025-11-23).  
+**Clarify #5**: Especificacao atualizada na quinta rodada de esclarecimentos (2025-11-23).  
 **Feature Branch**: `003-seed-data-automation`  
 **Created**: 2025-11-22  
 **Status**: Draft  
@@ -19,6 +19,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Abordagem para mascaramento/anonimização de PII nas seeds/factories? → A: Mascaramento/anonimização determinístico por ambiente (hash + salt) garantindo consistência entre execuções, DR e integrações multi-tenant.
 - Q: Escopo mínimo obrigatório das seeds/factories? → A: Núcleo bancário: tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras e limites/contratos; demais domínios ficam fora do baseline.
 - Q: Onde armazenar e rotacionar sal/segredo para anonimização determinística de PII? → A: Em HashiCorp Vault (Transit ou KV com envelope via KMS), com políticas e chaves por ambiente/tenant, rotação automática e acesso só via tokens efêmeros; proibido guardar em código/vars estáticas.
+- Q: Estratégia de consistência/rollback das seeds/factories em caso de falha? (transação única vs lotes com checkpoints vs duas fases) → A: Processar em lotes por entidade/segmento com checkpoints idempotentes, reexecutando apenas o lote falho; evitar transações monolíticas longas e manter integridade multi-tenant, rate limits e SLOs.
 
 ## User Scenarios & Testing *(mandatorio)*
 
@@ -66,7 +67,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Reexecucao de seeds deve ser idempotente e resolver conflitos de versao para evitar duplicidades ou violacao de unicidade.  
 - Gatilhos de rate limit em `/api/v1` durante geracao de carga precisam de backoff e orcamento de requisicoes por tenant/ambiente.  
 - Seeds/factories nao podem bypassar regras de mascaramento/anonimizacao de PII mesmo em ambientes internos.  
-- Falhas em integracoes (banco, fila, cache) devem abortar seeds de forma transacional ou marcar estado inconsistente com mecanismo de retry seguro.
+- Falhas em integracoes (banco, fila, cache) devem abortar apenas o lote atual e retomar do checkpoint idempotente, marcando estado inconsistente e acionando retry seguro sem refazer lotes já validados.
 
 ## Requirements *(mandatorio)*
 
@@ -96,6 +97,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-008**: Geração de datasets sinteticos para teste de carga DEVE respeitar limites de requisicoes por tempo, com configuracao de rate limit por tenant/ambiente e relatorio de uso.
 - **FR-009**: Seeds/factories DEVEM executar via comando `seed_data` usando ORM/BD e factory-boy; uso de APIs `/api/v1` fica restrito a smokes de contrato/rate limit, sem inserção massiva.
 - **FR-010**: Baseline e factories DEVEM cobrir apenas o núcleo bancário (tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras e limites/contratos); domínios acessórios permanecem fora do escopo inicial.
+- **FR-011**: Execução de `seed_data` DEVE ocorrer em lotes por entidade/segmento com checkpoints idempotentes, permitindo reexecutar apenas o lote falho (sem transações globais longas) e preservando integridade multi-tenant, idempotência e janelas de SLO/rate limit.
 
 ### Non-Functional Requirements
 
