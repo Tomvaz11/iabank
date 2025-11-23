@@ -1,6 +1,6 @@
 # Feature Specification: Automacao de seeds, dados de teste e factories
 
-Rodada de clarificações #17 concluída em 2025-11-23.
+Rodada de clarificações #18 concluída em 2025-11-23.
 
 **Clarify #17**: FinOps fail-closed: se a estimativa ou custo real da execução ultrapassar o budget do manifesto, abortar/rollback e exigir ajuste do manifesto antes de reexecutar; sem breakglass.  
 **Feature Branch**: `003-seed-data-automation`  
@@ -40,6 +40,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - Q: Política de reexecução dos datasets de carga/DR já existentes? → A: Reexecutar limpando o dataset existente do modo (carga/DR) e recriar tudo de forma determinística antes de validar/checkpoints, evitando inflação de volumetria e facilitando rollback/DR.
 - Q: Estratégia de paralelismo dos lotes do `seed_data`/factories por modo? → A: Baseline executa sequencialmente; modos de carga/DR podem paralelizar por entidade com limite curto (2–4 workers Celery) sob rate limit/backoff centralizado e janelas/SLO, mantendo checkpoints/idempotência.
 - Q: Comportamento quando a estimativa ou custo real da execução ultrapassar o budget do manifesto? → A: Fail-closed: abortar/rollback imediato ao estimar ou atingir gasto > budget; exigir ajuste do manifesto antes de prosseguir; sem breakglass.
+- Q: Qual retenção dos relatórios/logs WORM do `seed_data`/factories? → A: Retenção mínima de 1 ano (prod/homolog), alinhada ao blueprint (backups mensais retidos por 1 ano) e Art. XVI; governança e integridade via política WORM.
 
 ### Session 2025-11-24
 - Q: Onde versionar os manifestos de volumetria/seed (YAML/JSON) por ambiente/tenant? → A: No repositório de aplicação, em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), revisados via PR e consumidos por CI/Argo.
@@ -151,7 +152,7 @@ Time precisa automatizar seeds e datasets de teste, mantendo compliance de PII e
 - **FR-019**: Datasets de carga e DR DEVEM ser gerados exclusivamente com dados sintéticos via factories/seeds em todos os ambientes; é vedado usar snapshots de produção mesmo mascarados. Não manter dumps/export estáticos: execuções de DR/carga devem regenerar os dados on-demand via `seed_data --profile=<manifest>` determinístico, alinhado à replicação/PITR + IaC do blueprint para o dado operacional.
 - **FR-020**: Catálogos referenciais (categorias, fornecedores, tipos de conta, limites padrão etc.) DEVEM ser materializados por tenant/ambiente via seeds/factories; é proibido catálogo global compartilhado entre tenants.
 - **FR-021**: Seeds/factories DEVEM ser determinísticas por tenant/ambiente/manifesto, gerando os mesmos IDs e valores a cada execução (CI/Argo/dev isolado) para garantir idempotência, auditoria e ausência de flakiness.
-- **FR-022**: Relatórios e logs de execução do `seed_data`/factories DEVEM ser armazenados em repositório WORM (ex.: bucket S3 com Object Lock) com hash/assinatura e retenção governada; metadados indexados no Postgres para consulta/auditoria. Logs/OTEL/Sentry são complementares, não substitutos da cópia imutável.
+- **FR-022**: Relatórios e logs de execução do `seed_data`/factories DEVEM ser armazenados em repositório WORM (ex.: bucket S3 com Object Lock) com hash/assinatura, retenção mínima de 1 ano (prod/homolog) conforme blueprint 6.1 e Art. XVI, e metadados indexados no Postgres para consulta/auditoria. Logs/OTEL/Sentry são complementares, não substitutos da cópia imutável.
 - **FR-023**: Se o repositório WORM estiver indisponível ou falhar na gravação, a execução do `seed_data`/factories DEVE operar fail-closed: abortar antes de qualquer escrita de dados, registrar alerta/auditoria e só prosseguir quando a evidência imutável for gravada com sucesso.
 - **FR-024**: Rotação de sal/segredo de anonimização DEVE ser versionada por ambiente/tenant no Vault; `seed_data` compara `salt_version` do manifesto/checkpoint com a versão ativa, falha (fail-closed) se houver divergência e exige limpeza/reseed coordenada ou expurgo conforme TTL antes de aceitar a nova versão; exceções apenas para dev isolado sinalizado.
 - **FR-025**: Orquestração do `seed_data`/factories DEVE usar Celery/Redis com filas por tenant/mode e limites de concorrência/rate limit/backoff centralizados; tarefas executam em lotes com checkpoints/idempotência, `acks_late` e retries, evitando saturar DB/API e alinhando-se aos SLOs e gates de CI/Argo.
