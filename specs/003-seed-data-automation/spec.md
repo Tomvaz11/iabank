@@ -102,8 +102,11 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 | Art. VII (Observabilidade) | OTEL + W3C Trace Context, Sentry, logs estruturados com redaction | Traces/métricas/logs por tenant/execução; bloqueia promoção se export falhar ou PII não mascarada. |
 | Art. VIII (Entrega) | Release seguro (flag/canary/rollback) | `seed_data` gated por manifestos/flags e validação pós-deploy em Argo CD. |
 | Art. IX (CI) | Cobertura mínima e validações | CI roda dry-run do baseline com checagens de PII/contratos/volumetria. |
+| Art. V (Documentação/Versão) | Contrato-primeiro OpenAPI 3.1, SemVer e governança de diffs | Seeds/factories que tocam `/api/v1` obedecem contrato versionado e checagens de compatibilidade. |
 | Art. XI (API) | Contratos e resiliência (RateLimit, Idempotency-Key, ETag) | Seeds/factories respeitam contratos `/api/v1`, idempotência, RateLimit headers e Problem Details. |
+| Art. XII (Security by Design) | Privilégio mínimo, testes de autorização, proteção de segredos/PII | Execução de seeds exige contas/roles mínimas por ambiente/tenant e testes automatizados de permissão. |
 | Art. XIII (LGPD/RLS) | RLS e proteção de PII | Mascaramento determinístico, PII cifrada em repouso, RLS obrigatório. |
+| Art. XVII (Resiliência/Threat Modeling) | Threat modeling recorrente, runbooks e GameDays | Seeds/carga/DR têm threat modeling dedicado e runbooks testados para falhas/rate limit/PII. |
 | Art. XVI (FinOps) | Budgets e custos rastreados | Caps/budget em manifestos; alertas/abortos em caso de estouro. |
 | Blueprint §3.1/6/26 | Isolamento, DR, PII, filas idempotentes | Manifestos por tenant, RPO/RTO definidos, seeds/factories idempotentes e auditáveis. |
 | Adições 1/3/8/11 | DORA/flags, carga/gate perf, expand/contract, FinOps | Manifestos versionados via GitOps/Argo; gate de performance, expand/contract e caps/alertas. |
@@ -129,6 +132,9 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-017**: Modo carga/DR DEVE exercitar testes de performance/capacidade com orçamentos de volumetria/rate limit definidos em manifesto e gate de aprovação antes da promoção.  
 - **FR-018**: Operações que acionam `/api/v1` DEVEM respeitar governança de API (Idempotency-Key com TTL/auditoria, Problem Details RFC 9457, RateLimit-* e ETag/If-Match); descumprimento bloqueia a execução.  
 - **FR-019**: Evoluções de schema ligadas às seeds DEVEM seguir padrão expand/contract e índices `CONCURRENTLY`, com checkpoints e rollback seguros.
+- **FR-020**: Qualquer uso de `/api/v1` por seeds/factories DEVE estar coberto por contrato OpenAPI 3.1 versionado (SemVer) e checagens de compatibilidade (lint/diff/contrato) antes da execução/promoção.  
+- **FR-021**: Execução de `seed_data` DEVE exigir autorização explícita por ambiente/tenant (RBAC/ABAC com privilégio mínimo) e testes automatizados que neguem execuções fora do perfil autorizado.  
+- **FR-022**: A automação de seeds/carga/DR DEVE passar por threat modeling dedicado (STRIDE/LINDDUN) e manter runbooks/GameDays para falhas de rate limit, PII/anonimização e DR.
 
 ### Non-Functional Requirements
 
@@ -173,3 +179,4 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **SC-006**: Observabilidade ativa (traces/logs/métricas OTEL+W3C) sem PII exposta e sem falhas de export/redaction; violações bloqueiam promoção.  
 - **SC-007**: Fluxo GitOps/Argo CD promove apenas com manifesto válido, sem drift detectado e com rollback testado; relatórios WORM vinculam commit/tenant/ambiente.  
 - **SC-008**: Orçamento de erro (SLO) não estourado durante campanhas de seeds/carga; exceder orçamento implica abort e reagendamento off-peak com evidência.
+- **SC-009**: Governança de API e autorização validadas: contratos `/api/v1` aprovados sem diffs incompatíveis e execuções `seed_data` bloqueiam identidades não autorizadas, com evidências nos relatórios. 
