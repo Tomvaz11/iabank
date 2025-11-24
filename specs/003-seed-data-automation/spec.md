@@ -13,11 +13,14 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 
 ## Clarifications
 
+### Session 2025-11-23 (1)
 - Q1: Serialização por tenant/ambiente → A: Advisory lock Postgres com lease curto e fail-closed para evitar concorrência.  
 - Q2: Concorrência global → A: Teto de execuções simultâneas por ambiente/cluster com fila curta e expiração fail-closed para proteger SLO/FinOps.  
 - Q3: PII/anonimização → A: FPE determinística via Vault Transit por ambiente/tenant, preservando formato; PII em repouso cifrada; fallback só em dev isolado.  
 - Q4: Manifestos obrigatórios → A: `seed_data --profile` consome manifestos YAML/JSON versionados por ambiente/tenant com mode, volumetria/caps, rate limit/backoff, TTL, budget e janela off-peak em UTC; validar schema/versão e falhar fail-closed se divergir.  
-- Q5: Execução em pipelines → A: CI/PR roda dry-run determinístico do baseline; cargas/DR completas só em staging dedicado em janela off-peak com evidência WORM.  
+- Q5: Execução em pipelines → A: CI/PR roda dry-run determinístico do baseline; cargas/DR completas só em staging dedicado em janela off-peak com evidência WORM.
+
+### Session 2025-11-23 (2)
 - Q6: RLS e privilégio → A: Sempre com RLS habilitado e service account de menor privilégio; preflight de RLS falha se enforcement ausente.  
 - Q7: Rate limit/backoff → A: Orçamento por tenant/ambiente; em 429 usar backoff+jitter curto; se persistir ou exceder cap do manifesto, abortar e reagendar off-peak.  
 - Q8: Determinismo/datas → A: IDs/valores determinísticos por tenant/ambiente/manifesto; `reference_datetime` obrigatório em ISO 8601 UTC, mudança é breaking e exige reseed coordenado.  
