@@ -106,8 +106,10 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 | Art. XI (API) | Contratos e resiliência (RateLimit, Idempotency-Key, ETag) | Seeds/factories respeitam contratos `/api/v1`, idempotência, RateLimit headers e Problem Details. |
 | Art. XII (Security by Design) | Privilégio mínimo, testes de autorização, proteção de segredos/PII | Execução de seeds exige contas/roles mínimas por ambiente/tenant e testes automatizados de permissão. |
 | Art. XIII (LGPD/RLS) | RLS e proteção de PII | Mascaramento determinístico, PII cifrada em repouso, RLS obrigatório. |
+| Art. XIV (IaC + GitOps + OPA) | Infra como código com validação policy-as-code | Recursos de seeds (WORM, Vault, filas, pipelines) versionados em Terraform, validados por OPA e promovidos via GitOps/Argo. |
+| Art. XV (Dependências) | Gestão contínua de dependências (ADR-008) | Seeds/factories/perf libs entram no ciclo de verificação/atualização automática e bloqueiam CI se desatualizadas/risco alto. |
 | Art. XVII (Resiliência/Threat Modeling) | Threat modeling recorrente, runbooks e GameDays | Seeds/carga/DR têm threat modeling dedicado e runbooks testados para falhas/rate limit/PII. |
-| Art. XVI (FinOps) | Budgets e custos rastreados | Caps/budget em manifestos; alertas/abortos em caso de estouro. |
+| Art. XVI (Auditoria/FinOps) | WORM íntegro e FinOps | Caps/budget em manifestos; trilha WORM com integridade verificada e acesso governado; alertas/abortos em caso de estouro. |
 | Blueprint §3.1/6/26 | Isolamento, DR, PII, filas idempotentes | Manifestos por tenant, RPO/RTO definidos, seeds/factories idempotentes e auditáveis. |
 | Adições 1/3/8/11 | DORA/flags, carga/gate perf, expand/contract, FinOps | Manifestos versionados via GitOps/Argo; gate de performance, expand/contract e caps/alertas. |
 
@@ -138,6 +140,9 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-023**: Pipeline de CI/CD DEVE aplicar gates de qualidade: cobertura mínima de 85%, complexidade máxima 10, SAST/DAST/SCA e geração de SBOM obrigatórias, além de testes de carga/performance como bloqueadores de promoção; qualquer falha impede promoção de seeds/factories.  
 - **FR-024**: Promoções e execuções de `seed_data` DEVEM seguir Trunk-Based + feature flags/canary com rollback ensaiado e rastreio de métricas DORA; ausência dessas evidências bloqueia promoção.  
 - **FR-025**: Seeds/factories DEVEM evitar poluição da trilha de auditoria (incluindo WORM) com rotulagem por execução/tenant e preservação de RLS/índices multi-tenant; execuções que gerem drift ou falsos positivos de auditoria devem falhar.  
+- **FR-026**: Infraestrutura e artefatos necessários para seeds/factories (WORM, Vault, filas/assíncrono, pipelines CI/CD) DEVEM ser gerenciados como código (Terraform) com validação OPA/policy-as-code e fluxo GitOps/Argo CD; ausência de validação bloqueia promoção.  
+- **FR-027**: A gestão de dependências para bibliotecas de seeds/factories/performance e para o cliente de Vault Transit DEVE seguir automação contínua (ADR-008), com checagem/atualização em CI e bloqueio por CVEs críticos ou versões defasadas.  
+- **FR-028**: Relatórios/evidências WORM DEVEM ter integridade verificável (hash/assinatura) e política de acesso governada; falha em verificar integridade ou em aplicar retenção/governança deve bloquear a execução/promoção.  
 
 ### Non-Functional Requirements
 
