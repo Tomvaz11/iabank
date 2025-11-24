@@ -91,6 +91,49 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Observabilidade**: OTEL + Sentry com labels `tenant_id`, `environment`, `manifest_version`, `reference_datetime`, marcando chamadas inválidas como `error` e emitindo métricas de taxa de rejeição (Art. VII/ADR-012).  
 - **Stubs/Tests**: Stubs Pact/Prism gerados do contrato; teste de integração em `backend/apps/tenancy/tests/test_seed_profile_validate_api.py` cobre happy path e 422, incluindo headers obrigatórios e Problem Details.
 
+### Fluxo operacional do comando `seed_data`
+
+- **Preflight**: Checar migrations pendentes; validar enforcement de RLS (Art. XIII), flags/canary do domínio e disponibilidade do Vault/WORM; abortar fail-closed se qualquer pré-condição falhar.  
+- **Validação de manifesto**: Carregar manifesto YAML/JSON (GitOps) e validar contra JSON Schema v1 (JSON Schema 2020-12). Campos obrigatórios: `metadata` (tenant, ambiente, profile/version, salt_version), `mode` (baseline/carga/dr), `reference_datetime` ISO 8601 UTC, `window.start_utc/end_utc` (única, pode cruzar meia-noite), `volumetry` por entidade (caps Q11), `rate_limit` (limit/window) + `backoff` (base/jitter/max_retries), `budget` (cost/error budget), `ttl` por modo, `slo` (p95/p99 alvo), `caps_override` opcional para dev. Versão divergente ou ausência de campos → fail-closed.  
+- **Concorrência/locks**: Adquirir lock global (teto 2 execuções por ambiente/cluster, TTL fila 5 min) e lock por tenant/ambiente via advisory lock (TTL 60s) no Postgres; fila curta auditável no DB; liberação em finally; se lock expirar, reagendar.  
+- **Criação de SeedRun/SeedBatch**: Persistir `SeedRun` com `idempotency_key`, status `queued` e manifesto referenciado; para cada entidade/caps gerar `SeedBatch` inicial com attempt=0 e status `pending`.  
+- **Execução (Celery/Redis)**: Disparar lotes Celery com `acks_late`, backoff com jitter em 429/erro transitório, DLQ com teto de tentativas definido no manifesto; baseline sequencial, carga/DR com paralelismo controlado (2–4 workers) respeitando rate limit centralizado.  
+- **Checkpoints/idempotência**: Cada lote grava `Checkpoint` (hash_estado, resume_token criptografado via pgcrypto) e atualiza `SeedRun`/`BudgetRateLimit`; divergência de hash ou checkpoint vencido → abort e exigir limpeza/reseed. TTL de checkpoint até próximo reseed do modo, máx. 30 dias.  
+- **Observabilidade**: OTEL (traces/metrics/logs JSON) com labels tenant/ambiente/seed_run_id/manifest_version; redaction PII (ADR-010); spans de lote e de validação de manifesto; erro no export marca run como failed.  
+- **Relatório WORM**: Ao final (ou falha), gerar relatório JSON assinado (hash/assinatura) com manifest/tenant/ambiente, trace/span IDs, volumetria prevista/real, uso de rate limit/budget, SLO atingidos, erros Problem Details; armazenar em WORM (ex.: S3 Object Lock) com retenção mínima 1 ano e integridade verificada; indisponibilidade de WORM → abort antes de escrever dados.  
+- **Limpeza/expurgo**: Modos carga/DR limpam dataset do modo antes de recriar; TTL de datasets de carga/DR executado via Argo CronJob; dry-run não persiste checkpoints nem WORM.
+
+### Manifesto `seed_profile` — schema v1
+
+- **Fonte**: Manifestos versionados em `configs/seed_profiles/<ambiente>/<tenant>.yaml` (GitOps/Argo CD). JSON Schema v1 a publicar em `specs/003-seed-data-automation/contracts/seed-profile.schema.json` (JSON Schema 2020-12) e usado pelo endpoint `/api/v1/seed-profiles/validate`.  
+- **Campos obrigatórios**:  
+  - `metadata`: `tenant`, `environment`, `profile`, `version` (SemVer), `schema_version`, `salt_version`, `reference_datetime` (ISO 8601 UTC).  
+  - `mode`: `baseline|carga|dr`; `window.start_utc/end_utc` (par único, UTC, pode cruzar meia-noite).  
+  - `volumetry`: caps Q11 por entidade; `rate_limit` (`limit`, `window_seconds`), `backoff` (`base_seconds`, `jitter`, `max_retries`), `budget` (`cost_cap`, `error_budget`), `ttl` por modo.  
+  - `slo`: `p95_target_ms`, `p99_target_ms`, `throughput_target`.  
+  - `canary`: escopo obrigatório para modo canary (percentual ou tenants-alvo).  
+- **Regras**: Versão nova de `reference_datetime` é breaking e exige reseed/limpeza de checkpoints; schema_version divergente → fail-closed; overrides só permitidos em dev isolado.  
+- **Evidência**: Manifesto e hash de integridade referenciados no relatório WORM e no `SeedRun.profile_version`.
+
+### Alinhamento CLI x API
+
+- **CLI (`manage.py seed_data`)**: Caminho primário para execuções controladas (CI/PR dry-run, staging carga/DR). Orquestra locks, criação de `SeedRun/SeedBatch`, chamadas Celery e relatório WORM.  
+- **API `/api/v1/seed-runs*`**: Usada para agendar/cancelar/consultar execuções de forma remota (Argo/CD/portais internos); retorna RateLimit-*, Idempotency-Key e ETag/If-Match; reutiliza mesma camada de serviço da CLI.  
+- **Contrato/serviço único**: Serviços de aplicação em `backend/apps/tenancy/services/seed_runs.py` (a criar) expostos tanto via CLI quanto via API para evitar divergência; checkpoints/idempotência persistidos sempre no banco com RLS.
+
+### Observabilidade, FinOps e rate limit
+
+- **Rate limit/FinOps**: Manifesto define caps; calcular consumo e alertar em 80% do budget; abort/rollback em 100% (fail-closed). Propagar cabeçalhos `RateLimit-*`/`Retry-After` em API e logs de CLI; registrar consumo no relatório WORM.  
+- **SLO**: Medir p95/p99 de execução por manifesto e throughput por lote; violação consome error budget e pode abortar.  
+- **Telemetria**: Conformidade com ADR-012 (OTEL + Sentry) e ADR-010 (redação PII). Falha de export → marca SeedRun como failed e bloqueia promoção (Art. VII).  
+- **PII**: FPE determinística via Vault Transit (FF3-1/FF1), chaves/salts por ambiente/tenant com rotação trimestral; fallback apenas em dev isolado; pgcrypto em repouso; catálogo PII aplicado nas factories.
+
+### Cobertura de entidades e factories
+
+- **Escopo mínimo**: tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras, limites/contratos (conforme clarificações).  
+- **Factories**: factory-boy determinísticas (seed derivado de tenant/ambiente/manifesto), mascaramento PII obrigatório, compatíveis com serializers `/api/v1`; validam CET/IOF/parcelas contra serviços oficiais.  
+- **Baseline vs carga/DR**: Baseline somente happy paths/estados ativos; carga/DR incluem estados bloqueado/inadimplente/cancelado com percentuais por entidade no manifesto; reexecução limpa datasets do modo antes de recriar.
+
 ## Complexity Tracking
 
 *Preencha somente quando algum item da Constitution Check estiver marcado como N/A/violado. Cada linha deve citar explicitamente o artigo impactado e o ADR/clarify que respalda a excecao.*

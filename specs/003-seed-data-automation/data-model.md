@@ -1,55 +1,62 @@
 # Data Model (Fase 1)
 
 ## Tenant
-- Campos principais: `tenant_id` (UUID), `slug`, `ambiente`, `rls_policy_version`, `budget_caps`, `off_peak_window_utc`.  
-- Relacoes: 1:N com `SeedProfile` e `SeedRun`; referencia politicas RLS versionadas.  
-- Validacoes: `tenant_id` obrigatorio em toda query; bloqueio se RLS desativado ou `rls_policy_version` desatualizado.  
-- Transicoes de estado: N/A (metadados estaveis; apenas versao de RLS pode ser promovida via GitOps).
+- **Tabela**: `tenancy_tenant` (já existente).  
+- **Campos**: `id` (UUID PK), `slug` (unique), `environment` (`dev|staging|perf|dr|prod`), `rls_policy_version` (SemVer), `budget_caps` (JSONB), `off_peak_window_utc` (intervalo HH:MM-HH:MM).  
+- **Índices/RLS**: índice composto iniciando por `id`; RLS obrigatória em todas as consultas; managers aplicam `tenant_id` por padrão.  
+- **Uso**: FK obrigatório em todas as novas tabelas abaixo.
 
 ## SeedProfile (Manifesto)
-- Campos principais: `profile_id` (tenant+ambiente+nome), `schema_version`, `mode` (baseline|carga|dr), `reference_datetime` (ISO 8601 UTC), `volumetria_caps`, `rate_limit` (policy, limit, window), `backoff` (base, jitter, max_retries), `budget` (error_budget, cost_cap), `off_peak_window_utc`, `ttl`, `integrity_hash`, `version` (SemVer).  
-- Relacoes: pertence a `Tenant`; referenciado por `SeedRun` e `Checkpoint`.  
-- Validacoes: schema valido (v1), `reference_datetime` obrigatorio, caps/rate limit non-null, off-peak presente, `integrity_hash` consistente; versao incompatível falha fail-closed.  
-- Transicoes: novas versoes promovidas via GitOps/Argo; mudanca de `reference_datetime` exige reseed/limpeza de checkpoints.
+- **Tabela**: `tenancy_seed_profile`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `profile` (texto), `schema_version` (ex.: `v1`), `version` (SemVer), `mode` (`baseline|carga|dr`), `reference_datetime` (timestamptz UTC), `volumetry` (JSONB caps Q11), `rate_limit` (JSONB limit/window), `backoff` (JSONB base/jitter/max_retries), `budget` (JSONB cost/error_budget), `window_start_utc`/`window_end_utc` (time), `ttl_days` (int), `slo_p95_ms`/`slo_p99_ms` (int), `integrity_hash` (texto), `salt_version` (texto).  
+- **Constraints**: `unique(tenant_id, profile, version)`; check `window_start_utc != window_end_utc`; `reference_datetime` not null.  
+- **Índices**: `index(tenant_id, profile)`, `index(tenant_id, mode)`.  
+- **RLS**: policy `tenant_id = current_setting('app.tenant_id')::uuid`.
 
 ## SeedRun
-- Campos principais: `seed_run_id` (UUID), `profile_id`, `mode`, `status` (queued|running|succeeded|failed|aborted|retry_scheduled|blocked), `requested_by` (subject/service-account), `idempotency_key`, `trace_id/span_id`, `rate_limit_usage`, `error_budget_consumed`, `started_at`, `finished_at`, `reason` (Problem Details).  
-- Relacoes: 1:N com `SeedBatch` e `Checkpoint`; 1:1 com `EvidenceWORM`.  
-- Validacoes: sempre referenciar `profile_id` ativo; `idempotency_key` unica com TTL; nao inicia se fora do off-peak ou sem RLS; aborta se orcamento/caps estourar.  
-- Transicoes: queued -> running -> succeeded|failed|aborted; running -> retry_scheduled -> running; blocked (RLS/manifest) -> abort; cancel -> aborted.
+- **Tabela**: `tenancy_seed_run`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_profile_id` (FK), `mode`, `status` (`queued|running|succeeded|failed|aborted|retry_scheduled|blocked`), `requested_by` (texto/RBAC subject), `idempotency_key` (texto), `trace_id`/`span_id` (texto), `rate_limit_usage` (JSONB: consumed/remaining), `error_budget_consumed` (numeric), `started_at`/`finished_at` (timestamptz), `reason` (JSONB Problem Details), `profile_version` (SemVer).  
+- **Constraints**: `unique(tenant_id, seed_profile_id, idempotency_key)` com TTL (limpeza via job); status check; `idempotency_key` not null.  
+- **Índices**: `index(tenant_id, status)`, `index(tenant_id, seed_profile_id)`, `index(tenant_id, started_at)`.  
+- **RLS**: mesma política de tenant.
 
-## SeedBatch (Execucao Celery)
-- Campos principais: `batch_id` (UUID), `seed_run_id`, `entity` (nome da entidade), `batch_size`, `attempt`, `dlq_attempts`, `status`, `last_retry_at`, `next_retry_at`.  
-- Relacoes: pertence a `SeedRun`; gera `Checkpoint` e eventos OTEL.  
-- Validacoes: `batch_size` respeita caps Q11 e rate limit; `attempt` controlado via DLQ/backoff; acks tardios habilitados; aborta se `dlq_attempts` exceder teto.  
-- Transicoes: pending -> processing -> completed|failed|dlq; dlq -> retry_scheduled -> processing; fail-closed se exceder caps/429 persistente.
+## SeedBatch (Execução Celery)
+- **Tabela**: `tenancy_seed_batch`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_run_id` (FK), `entity` (texto), `batch_size` (int), `attempt` (smallint), `dlq_attempts` (smallint), `status` (`pending|processing|completed|failed|dlq`), `last_retry_at`/`next_retry_at` (timestamptz), `caps_snapshot` (JSONB).  
+- **Constraints**: check `batch_size > 0`; `attempt`/`dlq_attempts` >= 0; status enum.  
+- **Índices**: `index(tenant_id, seed_run_id, entity)`, `index(tenant_id, status)`.  
+- **RLS**: por tenant; `acks_late` exige idempotência no consumidor.
 
 ## Checkpoint
-- Campos principais: `checkpoint_id` (UUID), `seed_run_id`, `entity`, `hash_estado`, `resume_token`, `percentual_concluido`, `created_at`.  
-- Relacoes: 1:N por `SeedRun`/`SeedBatch`; usado para replays idempotentes.  
-- Validacoes: `hash_estado` deve casar com manifest/version; `resume_token` criptografado/pgcrypto; invalida se manifest version divergir.  
-- Transicoes: pending -> recorded -> sealed; sealed bloqueia reexecucao sem limpeza autorizada.
+- **Tabela**: `tenancy_seed_checkpoint`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_run_id` (FK), `entity` (texto), `hash_estado` (texto), `resume_token` (bytea criptografado via pgcrypto), `percentual_concluido` (numeric 0–100), `created_at` (timestamptz), `sealed` (bool).  
+- **Constraints**: check `percentual_concluido between 0 and 100`; `sealed` impede reuso sem limpeza.  
+- **Índices**: `index(tenant_id, seed_run_id, entity)`, `index(tenant_id, created_at)`. TTL de limpeza até próximo reseed do modo (máx. 30 dias).  
+- **RLS**: por tenant; validar hash/manifest version antes de retomar.
 
 ## DatasetSintetico
-- Campos principais: `dataset_id`, `seed_run_id`, `entity`, `volumetria_prevista`, `volumetria_real`, `slo_target_p95`, `slo_target_p99`.  
-- Relacoes: 1:N com `SeedRun`; consumido por testes/perf.  
-- Validacoes: volumetria <= caps manifesto; p95/p99 medidos; drift entre previsto/real > tolerancia implica abort/rollback.  
-- Transicoes: planned -> generated -> validated; validated -> published (apenas se WORM e contratos OK).
+- **Tabela**: `tenancy_seed_dataset`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_run_id` (FK), `entity`, `volumetria_prevista`/`volumetria_real` (int), `slo_target_p95`/`slo_target_p99` (int ms), `drift_percentual` (numeric).  
+- **Constraints**: volumetria_real <= caps; drift > tolerância → marca run para abort.  
+- **Índices**: `index(tenant_id, seed_run_id, entity)`.  
+- **RLS**: por tenant; usado em gates de perf (k6).
 
 ## FactoryTemplate
-- Campos principais: `factory_name`, `entity`, `version`, `deterministic_seed` (derivado de tenant/ambiente/manifesto), `pii_fields`, `masking_strategy` (Vault Transit FPE), `supported_modes`.  
-- Relacoes: compartilhado por testes e `SeedBatch`.  
-- Validacoes: `pii_fields` catalogados; mascaramento obrigatorio; falha se depender de dados reais; compatibilidade com serializers `/api/v1`.  
-- Transicoes: draft -> approved (pact/lint) -> deprecated; versao nova exige compat sem quebrar contrato.
+- **Tabela**: `tenancy_factory_template`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK opcional se shareable), `factory_name`, `entity`, `version` (SemVer), `deterministic_seed` (texto), `pii_fields` (JSONB catálogo), `masking_strategy` (texto, ex.: `vault_transit_ff3-1`), `supported_modes` (array).  
+- **Constraints**: `unique(factory_name, version, tenant_id nulls first)`; `pii_fields` não vazio para entidades com PII.  
+- **Índices**: `index(factory_name, version)`.  
+- **RLS**: se tenant-specific; factories globais só para dados não PII.
 
 ## EvidenceWORM
-- Campos principais: `evidence_id`, `seed_run_id`, `report_url`, `signature_hash`, `worm_retention`, `integrity_status`, `created_at`.  
-- Relacoes: 1:1 com `SeedRun`; vinculo com commit/manifesto.  
-- Validacoes: assinatura/hashes verificados; WORM acessivel; falha se integridade quebrar ou storage indisponivel.  
-- Transicoes: pending -> stored -> verified; verified -> archived (respeitando retention).
+- **Tabela**: `tenancy_seed_evidence`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_run_id` (FK uniq), `report_url` (URI WORM), `signature_hash` (texto), `worm_retention_days` (int ≥ 365), `integrity_status` (`pending|stored|verified|invalid`), `created_at` (timestamptz).  
+- **Constraints**: `unique(seed_run_id)`, check retenção mínima; integridade obrigatória.  
+- **RLS**: por tenant; WORM verificado antes de marcar `verified`.
 
 ## BudgetRateLimit
-- Campos principais: `profile_id`, `rate_limit_limit`, `rate_limit_window`, `budget_cost_cap`, `error_budget`, `rate_limit_remaining`, `reset_at`.  
-- Relacoes: agregado do manifesto consumido por `SeedRun`/`SeedBatch`.  
-- Validacoes: nao pode iniciar execucao se `rate_limit_remaining` ou `error_budget` < 0; atualiza por retry/ack; 429 persistente aciona abort/reagendamento.  
-- Transicoes: active -> exhausted (gatilha abort) -> reset (janela/manifesto novo).
+- **Tabela**: `tenancy_seed_budget_ratelimit`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_profile_id` (FK), `rate_limit_limit` (int), `rate_limit_window_seconds` (int), `budget_cost_cap` (numeric), `error_budget` (numeric), `rate_limit_remaining` (int), `reset_at` (timestamptz), `consumed_at` (timestamptz).  
+- **Constraints**: valores não negativos; abort se `rate_limit_remaining` < 0 ou `error_budget` < 0.  
+- **Índices**: `index(tenant_id, seed_profile_id)`, `index(tenant_id, reset_at)`.  
+- **RLS**: por tenant; atualizado em cada lote/ack.
