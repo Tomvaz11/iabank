@@ -1,0 +1,14 @@
+1. VEREDITO: Não; a especificação ainda precisa ajustes nesta fase de especificação (WHAT/WHY) para alinhar com o prompt, a Constituição e o blueprint antes do /speckit.plan.
+
+2. ANÁLISE DETALHADA:
+   - Pontos Fortes:
+     - Cobertura sólida de seeds baseline/carga/DR multi-tenant com manifestos obrigatórios, fail-closed, PII mascarada determinística via Vault e evidências WORM; proíbe dados de produção e reforça RLS (specs/003-seed-data-automation/spec.md).
+     - Integração CI/PR com dry-run determinístico e checagens de PII/contratos; trata rate limit/backoff, volumetria Q11 por tenant/ambiente e aborta em indisponibilidade de Vault/WORM ou estouro de caps FinOps.
+     - DR com dados sintéticos, janelas off-peak e RPO/RTO herdados do blueprint, além de listas claras de edge cases de isolamento multi-tenant.
+   - Pontos de Melhoria ou Riscos:
+     - Prompt: faltam saídas claras de integração com Argo CD/GitOps (onde vivem manifestos, ganchos de promoção/rollback) e faltam critérios explícitos de testes de carga/performance solicitados no prompt (gate esperado, ambientes elegíveis). Critérios de validação automatizada das seeds/factories não estão mensuráveis (ex.: checklist/percentuais de PII/RLS/contrato/idempotência e formato do relatório WORM).
+     - Constituição: Art. III/IV (TDD + integração-primeiro) não aparecem como obrigações no fluxo da feature; Art. VI (SLOs p95/p99, error budget) e Art. VII (OTEL+W3C, Sentry/structlog/django-prometheus com redaction de PII) ausentes nas NFRs; Art. XI (governança de API) sem requisitos de idempotência (`Idempotency-Key`), Problem Details RFC 9457 e RateLimit/ETag/If-Match para usos de `/api/v1`.
+     - Blueprint §6/§26 e adições 1/3/8/11: falta exigir (em nível de requisito, não de implementação) execução/coordenação assíncrona e idempotente para seeds/factories conforme a estratégia de filas; plano de carga/gate de performance (k6/Gatling ou equivalente) e modelo de capacidade; critérios de release seguro (feature flags/rollback) e métricas DORA; menção a expand/contract/`CONCURRENTLY` para evoluções de schema ligadas às seeds.
+     - Sucesso/NFR: success criteria e NFRs carecem de números-alvo (ex.: latência/p95, limites de rate limit/capacidade, metas de dry-run no CI) e de evidências objetivas para passagem de etapa, dificultando o gate do /speckit.plan conforme o checklist do spec-kit (documentacao_oficial_spec-kit/spec-driven.md orienta medir e evitar “como”).
+
+3. RECOMENDAÇÃO FINAL: Ajustar a especificação para incluir essas obrigações em nível de requisito (o que/por que), mantendo-a tech-agnostic conforme o spec-kit, antes de seguir para o /speckit.plan.

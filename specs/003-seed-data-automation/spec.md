@@ -97,14 +97,16 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 | Artigo/ADR | Obrigacao | Evidencia nesta feature |
 |------------|-----------|-------------------------|
 | Art. III (TDD) | Testes antes do código, trajetórias felizes/tristes | Seeds/factories só aprovam com testes automatizados e dry-run em CI/PR. |
-| Art. IV (Qualidade Dados) | Integridade e rastreabilidade | Relatórios assinados, manifestos versionados e checkpoints/idempotência. |
+| Art. IV (Teste de Integração-Primeiro) | Fluxo integração-primeiro com factories | Dry-run/integração falham antes de código; factories alimentam testes de integração. |
+| Art. VI (SLO/Error Budget) | SLOs explícitos (p95/p99, throughput, saturação) e orçamento de erro | Manifestos trazem metas por ambiente/tenant; execuções que rompem metas abortam. |
+| Art. VII (Observabilidade) | OTEL + W3C Trace Context, Sentry, logs estruturados com redaction | Traces/métricas/logs por tenant/execução; bloqueia promoção se export falhar ou PII não mascarada. |
 | Art. VIII (Entrega) | Release seguro (flag/canary/rollback) | `seed_data` gated por manifestos/flags e validação pós-deploy em Argo CD. |
 | Art. IX (CI) | Cobertura mínima e validações | CI roda dry-run do baseline com checagens de PII/contratos/volumetria. |
-| Art. XI (API) | Contratos atualizados/resilientes | Seeds/factories respeitam contratos `/api/v1` e testes de contrato. |
+| Art. XI (API) | Contratos e resiliência (RateLimit, Idempotency-Key, ETag) | Seeds/factories respeitam contratos `/api/v1`, idempotência, RateLimit headers e Problem Details. |
 | Art. XIII (LGPD/RLS) | RLS e proteção de PII | Mascaramento determinístico, PII cifrada em repouso, RLS obrigatório. |
 | Art. XVI (FinOps) | Budgets e custos rastreados | Caps/budget em manifestos; alertas/abortos em caso de estouro. |
-| Blueprint §3.1/6/26 | Isolamento, DR, PII | Manifestos por tenant, RPO/RTO definidos, dados sintéticos e trilha WORM. |
-| Adições 1/3/8/11 | Determinismo, volumetria Q11, GitOps | Manifestos versionados, Argo CD/Cron e expurgo automático por TTL. |
+| Blueprint §3.1/6/26 | Isolamento, DR, PII, filas idempotentes | Manifestos por tenant, RPO/RTO definidos, seeds/factories idempotentes e auditáveis. |
+| Adições 1/3/8/11 | DORA/flags, carga/gate perf, expand/contract, FinOps | Manifestos versionados via GitOps/Argo; gate de performance, expand/contract e caps/alertas. |
 
 ### Functional Requirements
 
@@ -121,14 +123,20 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-011**: Relatórios de execução DEVEM ser assinados e armazenados em WORM; indisponibilidade do WORM bloqueia execução.  
 - **FR-012**: `reference_datetime` em ISO 8601 UTC é obrigatório no manifesto; mudanças exigem reseed coordenado e limpeza de checkpoints.  
 - **FR-013**: Dados sintéticos são exclusivos; uso de snapshots/dumps de produção é proibido em qualquer ambiente.
+- **FR-014**: Seeds/factories DEVEM suportar coordenação assíncrona/idempotente (fila curta, acks tardios, backoff/DLQ) alinhada à estratégia de tarefas do blueprint para evitar perda/duplicidade.  
+- **FR-015**: Manifestos e execuções DEVEM seguir fluxo GitOps/Argo CD (promoção/rollback auditados, janelas off-peak, evidência anexada) e falhar sem aprovação ou drift detectado.  
+- **FR-016**: Execuções DEVEM expor validação automatizada e mensurável (checklist PII/RLS/contrato/idempotência/rate limit), produzindo relatório WORM com percentuais e itens reprovados.  
+- **FR-017**: Modo carga/DR DEVE exercitar testes de performance/capacidade com orçamentos de volumetria/rate limit definidos em manifesto e gate de aprovação antes da promoção.  
+- **FR-018**: Operações que acionam `/api/v1` DEVEM respeitar governança de API (Idempotency-Key com TTL/auditoria, Problem Details RFC 9457, RateLimit-* e ETag/If-Match); descumprimento bloqueia a execução.  
+- **FR-019**: Evoluções de schema ligadas às seeds DEVEM seguir padrão expand/contract e índices `CONCURRENTLY`, com checkpoints e rollback seguros.
 
 ### Non-Functional Requirements
 
-- **NFR-001 (SLO)**: Execuções devem respeitar janelas por ambiente e completar dentro de tempos-alvo definidos em manifesto; violações acionam abort/rollback auditado.  
-- **NFR-002 (Performance/Rate Limit)**: Carga usa até o orçamento de rate limit/volumetria definido; ao exceder, aborta e reagenda off-peak.  
-- **NFR-003 (Observabilidade)**: Logs estruturados, métricas e traces OTEL com correlação por tenant/ambiente/execução; falhas de exportação bloqueiam promoção.  
-- **NFR-004 (Segurança/PII)**: Mascaramento e redaction em logs/eventos; acesso às chaves/manifestos segue menor privilégio.  
-- **NFR-005 (FinOps)**: Caps e budgets por ambiente/tenant medidos em tempo real; alerta em aproximação e abort em estouro.
+- **NFR-001 (SLO)**: Execuções devem respeitar janelas por ambiente e metas de SLO (p95/p99 de duração/throughput/saturação) definidas em manifesto; violações consomem orçamento de erro e acionam abort/rollback auditado.  
+- **NFR-002 (Performance/Rate Limit)**: Carga usa até o orçamento de rate limit/volumetria definido; ao exceder, aborta e reagenda off-peak; gate de performance impede promoção se thresholds não forem atingidos.  
+- **NFR-003 (Observabilidade)**: Logs estruturados (redação de PII), métricas e traces OTEL com W3C Trace Context por tenant/ambiente/execução; falhas de exportação ou redaction bloqueiam promoção.  
+- **NFR-004 (Segurança/PII)**: Mascaramento e redaction em logs/eventos; acesso às chaves/manifestos segue menor privilégio e audita usos.  
+- **NFR-005 (FinOps)**: Caps e budgets por ambiente/tenant medidos em tempo real; alerta em aproximação e abort em estouro, com evidência no relatório.
 
 ### Dados Sensiveis & Compliance
 
@@ -153,11 +161,15 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - Manifestos vivem no repositório de aplicação em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), versionados via PR/GitOps.  
 - Baseline cobre apenas domínios core; estados “sad path” ficam restritos aos modos carga/DR conforme manifesto.  
 - Off-peak é declarado em UTC no manifesto (par único start/end); execuções fora da janela falham.
+- Promoção/rollback das execuções ocorre via Argo CD/GitOps, vinculando cada execução a um commit e impedindo drift.
 
 ## Success Criteria *(mandatorio)*
 
-- **SC-001**: `seed_data` conclui por ambiente dentro dos tempos-alvo definidos nos manifestos, com 0 erros de validação/PII/RLS.  
-- **SC-002**: Factories cobrem 100% das entidades core e passam nas checagens automáticas de PII e contratos `/api/v1`.  
-- **SC-003**: CI/PR mantém taxa de sucesso ≥99% no dry-run do baseline e publica relatório de conformidade.  
-- **SC-004**: Carga/DR respeitam caps de rate limit/volumetria e produzem evidência WORM; restauração cumpre RPO ≤ 5 minutos e RTO ≤ 60 minutos definidos no blueprint.  
-- **SC-005**: Budgets/FinOps respeitados por ambiente/tenant, com alertas antes do teto e bloqueio em estouro auditado.
+- **SC-001**: `seed_data` conclui por ambiente dentro dos tempos-alvo de manifesto, p95/p99 dentro das metas e 0 erros de validação/PII/RLS.  
+- **SC-002**: Factories cobrem 100% das entidades core e passam nas checagens automáticas de PII, contratos `/api/v1`, RateLimit e idempotência.  
+- **SC-003**: CI/PR mantém taxa de sucesso ≥99% no dry-run do baseline, publica relatório de conformidade e falha antes de qualquer código se testes de integração caírem.  
+- **SC-004**: Carga/DR respeitam caps de rate limit/volumetria, passam no gate de performance/capacidade e produzem evidência WORM; restauração cumpre RPO ≤ 5 minutos e RTO ≤ 60 minutos definidos no blueprint.  
+- **SC-005**: Budgets/FinOps respeitados por ambiente/tenant, com alertas antes do teto e bloqueio em estouro auditado.  
+- **SC-006**: Observabilidade ativa (traces/logs/métricas OTEL+W3C) sem PII exposta e sem falhas de export/redaction; violações bloqueiam promoção.  
+- **SC-007**: Fluxo GitOps/Argo CD promove apenas com manifesto válido, sem drift detectado e com rollback testado; relatórios WORM vinculam commit/tenant/ambiente.  
+- **SC-008**: Orçamento de erro (SLO) não estourado durante campanhas de seeds/carga; exceder orçamento implica abort e reagendamento off-peak com evidência.
