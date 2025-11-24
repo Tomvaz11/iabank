@@ -27,6 +27,8 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - Q9: DR e dados sintéticos → A: Apenas dados sintéticos (vedado snapshot de prod), com RPO/RTO do blueprint; restauração/validação em staging de carga/DR isolado.  
 - Q10: Evidências WORM → A: Relatórios JSON assinados (trace/span, manifesto/tenant/ambiente, custos/volumetria/status por lote) em repositório WORM; se indisponível, falhar antes de escrever dados.
 
+> Decisões adicionais detalhadas permanecem registradas em `clarifications-archive.md` e valem como referência normativa para o plano/implementação.
+
 ## User Scenarios & Testing *(mandatorio)*
 
 ### User Story 1 - Seeds baseline multi-tenant (Prioridade: P1)
@@ -120,6 +122,17 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - Chaves/salts residem no Vault (segregação por ambiente/tenant, rotação automática); proibido guardar em código/config estática.  
 - Evidências imutáveis (WORM) para execuções e restaurações; direito ao esquecimento atendido por limpeza por tenant.  
 - DR e carga só com dados sintéticos; RLS obrigatório em todas as execuções.
+
+## Key Entities & Relationships
+
+- **Tenant**: identificador e políticas de RLS; relaciona com manifestos, datasets e evidências.  
+- **Manifesto (seed_profile)**: por ambiente/tenant; contém metadata, mode (baseline/carga/DR), volumetria/caps, rate limit/backoff, TTL, budget, `reference_datetime`, janela off-peak e versão/schema.  
+- **Mode/Profile**: baseline vs carga vs DR, definindo escopo de entidades/estados e caps.  
+- **Dataset sintético**: conjunto de registros gerados por mode/tenant; vinculado ao manifesto e ao checkpoint.  
+- **Checkpoint/Idempotência**: estado de execução por lote/tenant/mode; guarda hashes/versão para retomada/limpeza.  
+- **PII/Keys**: catálogo de campos sensíveis e chaves/salts de anonimização por ambiente/tenant.  
+- **Budget/RateLimit**: limites financeiros e de throughput do manifesto, aplicados por tenant/mode.  
+- **Evidência WORM**: relatórios assinados com trace/span, manifesto/tenant/ambiente, custos/volumetria/status por lote; armazenados imutavelmente e indexados.
 
 ## Assumptions & Defaults
 

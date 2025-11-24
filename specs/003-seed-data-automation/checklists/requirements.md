@@ -6,7 +6,8 @@
 
 ## Content Quality
 
-- [x] No implementação detalhada; requisitos descritos como WHAT/WHY com referências normativas
+- [ ] No implementação detalhada; requisitos descritos como WHAT/WHY com referências normativas  
+  Nota: inclui tecnologias/processos mandatórios (Vault/FPE, factory-boy, Argo CD, Celery/Redis, WORM); manter por exigência normativa.
 - [x] Focused on user value and business needs
 - [x] Written for non-technical stakeholders
 - [x] All mandatory sections completed
@@ -14,7 +15,7 @@
 ## Requirement Completeness
 
 - [x] No [NEEDS CLARIFICATION] markers remain
-- [x] Requirements are testable and unambiguous (determinismo, PII, RLS, manifestos)
+- [x] Requirements are testable and unambiguous (determinismo, PII, RLS, manifestos, caps/limites)
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
 - [x] All acceptance scenarios are defined
