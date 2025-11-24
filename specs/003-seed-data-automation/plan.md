@@ -115,11 +115,32 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Regras**: Versão nova de `reference_datetime` é breaking e exige reseed/limpeza de checkpoints; schema_version divergente → fail-closed; overrides só permitidos em dev isolado.  
 - **Evidência**: Manifesto e hash de integridade referenciados no relatório WORM e no `SeedRun.profile_version`.
 
+#### Detalhamento normativo do JSON Schema v1 (para remover ambiguidades)
+- **Dialeto**: JSON Schema 2020-12 com `jsonSchemaDialect` declarado; validação fail-closed (sem defaults implícitos).  
+- **`volumetry`**: objeto de entidades (`<entity>` → `{cap: integer >=1, target_pct: number 0-100 opcional}`); rejeitar chaves fora do catálogo suportado; unidades sempre em contagem de registros.  
+- **`rate_limit`**: `{limit: integer >=1, window_seconds: integer >=1, burst: integer >= limit opcional}`; `RateLimit-Reset` deriva de `window_seconds`.  
+- **`backoff`**: `{base_seconds: integer >=1, jitter_factor: number 0.0-1.0, max_retries: integer >=0, max_interval_seconds: integer >= base_seconds}`; fórmula: `sleep = min(max_interval_seconds, base_seconds * 2^attempt) * random(1 - jitter_factor, 1 + jitter_factor)`.  
+- **`budget`**: `{cost_cap_brl: number >=0 com 2 casas, error_budget_pct: number 0-100}`; alerta em 80% e abort em 100%.  
+- **`slo`**: `{p95_target_ms: integer >=1, p99_target_ms: integer >=1, throughput_target_rps: number >=0.1}`.  
+- **`ttl`**: `{baseline_days: integer >=0, carga_days: integer >=0, dr_days: integer >=0}`.  
+- **`canary`**: `{percentage: number 0-100} ou {tenants: array string unique, minItems=1}`; obrigatório quando `mode=canary`.  
+- **`reference_datetime`**: ISO 8601 UTC obrigatório; mudança é breaking.  
+- **`integrity`**: campos `manifest_hash` (sha256 hex) e `schema_version` devem coincidir com o schema publicado; divergência falha.  
+- **Exemplos**: incluir exemplos canônicos por modo no schema para servir de goldens de lint/diff.  
+- **Contrato**: publicar em `specs/003-seed-data-automation/contracts/seed-profile.schema.json` e referenciar em `/api/v1/seed-profiles/validate` e CI (Spectral + oasdiff).
+
 ### Alinhamento CLI x API
 
 - **CLI (`manage.py seed_data`)**: Caminho primário para execuções controladas (CI/PR dry-run, staging carga/DR). Orquestra locks, criação de `SeedRun/SeedBatch`, chamadas Celery e relatório WORM.  
 - **API `/api/v1/seed-runs*`**: Usada para agendar/cancelar/consultar execuções de forma remota (Argo/CD/portais internos); retorna RateLimit-*, Idempotency-Key e ETag/If-Match; reutiliza mesma camada de serviço da CLI.  
 - **Contrato/serviço único**: Serviços de aplicação em `backend/apps/tenancy/services/seed_runs.py` (a criar) expostos tanto via CLI quanto via API para evitar divergência; checkpoints/idempotência persistidos sempre no banco com RLS.
+
+#### Contrato mínimo para `/api/v1/seed-runs*` (alinhado ao ADR-011)
+- **POST `/api/v1/seed-runs`**: cria execução. Payload: `{manifest_path, mode, dry_run?, idempotency_key, canary?}`; headers obrigatórios: `Idempotency-Key`, `X-Tenant-ID`, `X-Environment`; resposta `201` com `Location`, `ETag`, `RateLimit-*`, body com `seed_run_id`, `status`, `manifest_hash`. Erros: `401/403`, `409` se lock ativo, `422` Problem Details (schema/manifest), `429` com `Retry-After`.  
+- **GET `/api/v1/seed-runs/{id}`**: consulta status. Headers: `If-None-Match` opcional; respostas `200` com estado completo + checkpoints, ou `304` quando ETag casar.  
+- **POST `/api/v1/seed-runs/{id}/cancel`**: requer `If-Match` + `Idempotency-Key`; respostas `202` (cancel agendado) ou `409` se status terminal.  
+- **Errors**: Problem Details com `type`, `title`, `detail`, `instance`, `status`, `violations[]`; sempre enviar `RateLimit-*` e `Retry-After` em `429`.  
+- **Pact/OpenAPI**: paths acima devem constar em `specs/003-seed-data-automation/contracts/seed-data.openapi.yaml` com exemplos e schemas referenciando `seed-profile.schema.json`.
 
 ### Observabilidade, FinOps e rate limit
 
@@ -128,11 +149,25 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Telemetria**: Conformidade com ADR-012 (OTEL + Sentry) e ADR-010 (redação PII). Falha de export → marca SeedRun como failed e bloqueia promoção (Art. VII).  
 - **PII**: FPE determinística via Vault Transit (FF3-1/FF1), chaves/salts por ambiente/tenant com rotação trimestral; fallback apenas em dev isolado; pgcrypto em repouso; catálogo PII aplicado nas factories.
 
+#### Parâmetros operacionais adicionais
+- **Celery/Redis**: filas dedicadas `seed_data.default` (baseline) e `seed_data.load_dr` (carga/DR); DLQ `seed_data.dlq`. Prefetch 1, `acks_late=True`, `visibility_timeout` = `max_interval_seconds * 2`. Paralelismo por worker: baseline 1, carga/DR até 4.  
+- **Backoff/jitter**: usar `retry_backoff=True`, `retry_backoff_max = max_interval_seconds` e jitter multiplicativo `random(1 - jitter_factor, 1 + jitter_factor)`; aplicar também para 429.  
+- **Locks**: advisory lock global = `hashtext('seed_data:global:'||environment)`; por tenant = `hashtext('seed_data:'||tenant||':'||environment)`, com lease 60s; fila auditável em tabela `tenancy_seed_queue` com TTL 5 min.  
+- **Relatório WORM**: payload JSON com campos obrigatórios `{run_id, tenant, environment, manifest_path, manifest_hash_sha256, schema_version, mode, reference_datetime, caps, rate_limit_usage, budget_usage, batches[], checkpoints[], errors[], otel_trace_id, otel_span_id, started_at, finished_at, outcome}`; `signature_hash` = `sha256` do payload; assinatura PSS armazenada em `signature`. Destino: bucket S3 Object Lock `worm/seeds/<env>/<tenant>/<run_id>.json`, retenção mínima 365 dias; verificação de integridade antes de marcar `integrity_status=verified`.  
+- **Observabilidade mínima**: spans nomeados `seed.run`, `seed.batch`, `seed.manifest.validate`; atributos obrigatórios `tenant_id`, `environment`, `seed_run_id`, `manifest_version`, `mode`, `dry_run`; métricas `seed_run_duration_ms` (histogram), `seed_batch_latency_ms` (histogram), `seed_rate_limit_remaining`, `seed_budget_remaining`; logs JSON com `level`, `event`, `tenant_id`, `seed_run_id`, `pii_redacted=true`. Export falho → status `failed` com Problem Details `telemetry_unavailable`.
+
 ### Cobertura de entidades e factories
 
 - **Escopo mínimo**: tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras, limites/contratos (conforme clarificações).  
 - **Factories**: factory-boy determinísticas (seed derivado de tenant/ambiente/manifesto), mascaramento PII obrigatório, compatíveis com serializers `/api/v1`; validam CET/IOF/parcelas contra serviços oficiais.  
 - **Baseline vs carga/DR**: Baseline somente happy paths/estados ativos; carga/DR incluem estados bloqueado/inadimplente/cancelado com percentuais por entidade no manifesto; reexecução limpa datasets do modo antes de recriar.
+
+#### Catálogo PII e seed determinístico
+- **PII por entidade**: `Customer` (document_number, name, email, phone, address fields), `Consultant` (name, phone, email), `Supplier` (name, document_number), `FinancialTransaction` (description se contiver PII, reference), `Loan`/`Installment` (customer-linked identifiers).  
+- **Máscara/anonimização**: usar `vault_transit_ff3-1` preservando formato (CPF/CNPJ/telefone/email) para todos os campos acima; pgcrypto em repouso.  
+- **Seed determinístico**: `factory_seed = sha256(tenant_id || environment || manifest_version || salt_version)` truncado para inteiro; todas as factories usam esse seed via helper central.  
+- **Cálculo CET/IOF/parcelas**: sempre chamar serviços/domínio oficiais; validar igualdade arredondada a 2 casas; divergência falha o lote.  
+- **Ambientes**: fallback de FPE somente em dev isolado com chave em `.env.local`; CI/staging/prod falham se fallback ativo.
 
 ## Complexity Tracking
 
