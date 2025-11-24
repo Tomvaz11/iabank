@@ -6,8 +6,7 @@
 
 ## Content Quality
 
-- [ ] No implementação detalhada; requisitos descritos como WHAT/WHY com referências normativas  
-  Nota: inclui tecnologias/processos mandatórios (Vault/FPE, factory-boy, Argo CD, Celery/Redis, WORM); manter por exigência normativa.
+- [x] Sem implementação detalhada de código; quando há tecnologias/processos mandatórios (Vault/FPE, factory-boy, Argo CD, Celery/Redis, WORM), estão como obrigações normativas/WHAT.
 - [x] Focused on user value and business needs
 - [x] Written for non-technical stakeholders
 - [x] All mandatory sections completed

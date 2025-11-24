@@ -29,6 +29,20 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 
 > Decisões adicionais detalhadas permanecem registradas em `clarifications-archive.md` e valem como referência normativa para o plano/implementação.
 
+### Clarifications Coverage Summary
+
+| Categoria                           | Status      | Notas                                                     |
+|-------------------------------------|-------------|-----------------------------------------------------------|
+| Escopo funcional & comportamento    | Resolved    | Seeds baseline/carga/DR, manifestos obrigatórios          |
+| Domínio & dados                     | Resolved    | Tenants, manifestos, datasets, checkpoints, PII/keys      |
+| UX/fluxos                           | Clear       | Fluxos de seed_data e uso de factories cobertos nas US    |
+| NFR (perf/observabilidade/segurança)| Resolved    | Rate limit/backoff, OTEL/Sentry, PII/vault, WORM          |
+| Integrações externas                | Resolved    | Mocks/stubs Pact, sem chamadas reais                      |
+| Edge cases & falhas                 | Resolved    | Fail-closed, 429, drift, indisponibilidade de vault/WORM  |
+| FinOps                              | Resolved    | Budgets/caps por manifesto, abort em estouro              |
+| DR/RPO/RTO                          | Resolved    | RPO ≤5 min, RTO ≤60 min, staging dedicado                 |
+| Cobertura clarify                   | Clear       | 10 Qs no spec + archive referenciado; sem pendências      |
+
 ## User Scenarios & Testing *(mandatorio)*
 
 ### User Story 1 - Seeds baseline multi-tenant (Prioridade: P1)
