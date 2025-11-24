@@ -82,6 +82,15 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 
 **Structure Decision**: Reutiliza apps existentes (`tenancy` para isolamento/locks/RLS, `foundation` para idempotencia/observabilidade) evitando novo modulo desnecessario. Contratos ficam em `contracts/` conforme Art. XI. Infra permanece em `infra/` com Terraform/OPA (Art. XIV). Esta distribuicao preserva separacao de responsabilidades em camadas e facilita testes/observabilidade centralizados.
 
+### Endpoint de validacao de manifestos
+
+- **Contrato**: `/api/v1/seed-profiles/validate` ja descrito em `specs/003-seed-data-automation/contracts/seed-data.openapi.yaml` (OpenAPI 3.1, Problem Details, RateLimit-*, Idempotency-Key).  
+- **Handler**: `backend/apps/tenancy/views.py:SeedProfileValidateView` registrado em `backend/apps/tenancy/urls.py` sob `path("api/v1/seed-profiles/validate", ...)`, respeitando middleware de RLS/tenant e ABAC.  
+- **Regras**: Valida schema v1 do manifesto (JSON Schema 2020-12) incluindo `mode` (baseline/carga/dr), `reference_datetime` ISO 8601 UTC, janela off-peak `start_utc/end_utc` (única, pode cruzar meia-noite), caps Q11 por entidade, rate limit/backoff+jitter, budget/TTL e `salt_version`. Falha fail-closed em: versão incompatível, drift de campos obrigatórios, janela fora do formato ou caps ausentes.  
+- **Respostas**: `200` com `valid=true`, `issues=[]`, `normalized_version` e `caps` extraídos; `422` Problem Details com lista de issues; `429` aplica backoff curto; `401/403` em ausência de autorização/RLS. Sempre retorna `RateLimit-*`, `Retry-After` e exige `Idempotency-Key`.  
+- **Observabilidade**: OTEL + Sentry com labels `tenant_id`, `environment`, `manifest_version`, `reference_datetime`, marcando chamadas inválidas como `error` e emitindo métricas de taxa de rejeição (Art. VII/ADR-012).  
+- **Stubs/Tests**: Stubs Pact/Prism gerados do contrato; teste de integração em `backend/apps/tenancy/tests/test_seed_profile_validate_api.py` cobre happy path e 422, incluindo headers obrigatórios e Problem Details.
+
 ## Complexity Tracking
 
 *Preencha somente quando algum item da Constitution Check estiver marcado como N/A/violado. Cada linha deve citar explicitamente o artigo impactado e o ADR/clarify que respalda a excecao.*

@@ -14,8 +14,9 @@ curl -X POST https://api.iabank.local/api/v1/seed-profiles/validate \
   -H "X-Tenant-ID: tenant-a" \
   -H "X-Environment: staging" \
   -H "Idempotency-Key: validate-$(uuidgen)" \
-  -d @configs/seed_profiles/staging/tenant-a.yaml
+  -d "$(yq -o=json < configs/seed_profiles/staging/tenant-a.yaml)"
 ```
+Resposta esperada: `200` com `valid=true` e `issues=[]`; falhas retornam Problem Details (`422`) com lista de campos/versoes incompatíveis. Cabeçalhos `RateLimit-*` e `Retry-After` sempre presentes.
 
 ## Dry-run deterministico (CI/PR)
 ```bash
