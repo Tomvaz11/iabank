@@ -116,7 +116,7 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-001**: `seed_data --profile` DEVE provisionar baseline determinística por ambiente/tenant com idempotência e isolamento RLS.  
 - **FR-002**: Factories (factory-boy) DEVEM cobrir entidades core e gerar dados sintéticos mascarados, prontos para contratos `/api/v1`.  
 - **FR-003**: PII DEVEM ser mascaradas/anonimizadas de forma determinística por ambiente/tenant via Vault; PII em repouso permanece cifrada.  
-- **FR-004**: Manifestos versionados por ambiente/tenant são obrigatórios (mode, volumetria/caps, rate limit/backoff, TTL, budget, janela off-peak em UTC); divergência de schema/versão falha em fail-closed.  
+- **FR-004**: Manifestos versionados por ambiente/tenant são obrigatórios e DEVEM seguir schema explícito (ex.: v1) com campos mínimos: version/schema, mode (baseline/carga/DR), volumetria/caps, rate limit/backoff com jitter, TTL, budgets/error budget, `reference_datetime` em UTC, janela off-peak em UTC e thresholds de SLO/performance; ausência ou versão incompatível falha em fail-closed.  
 - **FR-005**: Execuções DEVEM ser serializadas por tenant/ambiente; concorrência global limitada por ambiente/cluster com fila curta e fail-closed.  
 - **FR-006**: CI/PR DEVE rodar dry-run determinístico do baseline (tenant canônico ou lista curta), validando PII, contratos e idempotência; sem publicar evidência WORM.  
 - **FR-007**: Carga e DR DEVEM rodar em staging dedicado, na janela off-peak e com evidência WORM; restauração deve cumprir RPO/RTO do blueprint.  
@@ -135,6 +135,9 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-020**: Qualquer uso de `/api/v1` por seeds/factories DEVE estar coberto por contrato OpenAPI 3.1 versionado (SemVer) e checagens de compatibilidade (lint/diff/contrato) antes da execução/promoção.  
 - **FR-021**: Execução de `seed_data` DEVE exigir autorização explícita por ambiente/tenant (RBAC/ABAC com privilégio mínimo) e testes automatizados que neguem execuções fora do perfil autorizado.  
 - **FR-022**: A automação de seeds/carga/DR DEVE passar por threat modeling dedicado (STRIDE/LINDDUN) e manter runbooks/GameDays para falhas de rate limit, PII/anonimização e DR.
+- **FR-023**: Pipeline de CI/CD DEVE aplicar gates de qualidade: cobertura mínima de 85%, complexidade máxima 10, SAST/DAST/SCA e geração de SBOM obrigatórias, além de testes de carga/performance como bloqueadores de promoção; qualquer falha impede promoção de seeds/factories.  
+- **FR-024**: Promoções e execuções de `seed_data` DEVEM seguir Trunk-Based + feature flags/canary com rollback ensaiado e rastreio de métricas DORA; ausência dessas evidências bloqueia promoção.  
+- **FR-025**: Seeds/factories DEVEM evitar poluição da trilha de auditoria (incluindo WORM) com rotulagem por execução/tenant e preservação de RLS/índices multi-tenant; execuções que gerem drift ou falsos positivos de auditoria devem falhar.  
 
 ### Non-Functional Requirements
 
@@ -165,6 +168,7 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 ## Assumptions & Defaults
 
 - Manifestos vivem no repositório de aplicação em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), versionados via PR/GitOps.  
+- Schema de manifesto presume versão explícita (ex.: v1) com campos obrigatórios (mode, volumetria/caps, rate limit/backoff+jitter, budgets/error budget, janela off-peak UTC, `reference_datetime`, thresholds de SLO/performance) e defaults declarados no próprio manifesto; lacunas ou versões não suportadas devem falhar em fail-closed.  
 - Baseline cobre apenas domínios core; estados “sad path” ficam restritos aos modos carga/DR conforme manifesto.  
 - Off-peak é declarado em UTC no manifesto (par único start/end); execuções fora da janela falham.
 - Promoção/rollback das execuções ocorre via Argo CD/GitOps, vinculando cada execução a um commit e impedindo drift.
@@ -173,10 +177,11 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 
 - **SC-001**: `seed_data` conclui por ambiente dentro dos tempos-alvo de manifesto, p95/p99 dentro das metas e 0 erros de validação/PII/RLS.  
 - **SC-002**: Factories cobrem 100% das entidades core e passam nas checagens automáticas de PII, contratos `/api/v1`, RateLimit e idempotência.  
-- **SC-003**: CI/PR mantém taxa de sucesso ≥99% no dry-run do baseline, publica relatório de conformidade e falha antes de qualquer código se testes de integração caírem.  
+- **SC-003**: CI/PR mantém taxa de sucesso ≥99% no dry-run do baseline, com cobertura ≥85%, complexidade ≤10, SAST/DAST/SCA/SBOM verdes, gate de carga/performance aprovado e falha antecipada se qualquer checagem ou teste de integração cair.  
 - **SC-004**: Carga/DR respeitam caps de rate limit/volumetria, passam no gate de performance/capacidade e produzem evidência WORM; restauração cumpre RPO ≤ 5 minutos e RTO ≤ 60 minutos definidos no blueprint.  
 - **SC-005**: Budgets/FinOps respeitados por ambiente/tenant, com alertas antes do teto e bloqueio em estouro auditado.  
 - **SC-006**: Observabilidade ativa (traces/logs/métricas OTEL+W3C) sem PII exposta e sem falhas de export/redaction; violações bloqueiam promoção.  
 - **SC-007**: Fluxo GitOps/Argo CD promove apenas com manifesto válido, sem drift detectado e com rollback testado; relatórios WORM vinculam commit/tenant/ambiente.  
 - **SC-008**: Orçamento de erro (SLO) não estourado durante campanhas de seeds/carga; exceder orçamento implica abort e reagendamento off-peak com evidência.
 - **SC-009**: Governança de API e autorização validadas: contratos `/api/v1` aprovados sem diffs incompatíveis e execuções `seed_data` bloqueiam identidades não autorizadas, com evidências nos relatórios. 
+- **SC-010**: Promoções/execuções de `seed_data` ocorrem via flags/canary com rollback ensaiado e métricas DORA visíveis; ausência dessas evidências bloqueia promoção.
