@@ -154,6 +154,17 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Telemetria**: Conformidade com ADR-012 (OTEL + Sentry) e ADR-010 (redação PII). Falha de export → marca SeedRun como failed e bloqueia promoção (Art. VII).  
 - **PII**: FPE determinística via Vault Transit (FF3-1/FF1), chaves/salts por ambiente/tenant com rotação trimestral; fallback apenas em dev isolado; pgcrypto em repouso; catálogo PII aplicado nas factories.
 
+#### FinOps — fonte de preços e fórmula
+- **Catálogo de preços**: versionar em `configs/finops/seed-data.cost-model.yaml` com `cost_model_version` SemVer e origem (AWS/GCP preço on-demand). Itens mínimos: `cpu_second_brl`, `db_io_gb_brl`, `redis_cmd_1k_brl`, `api_request_brl`.  
+- **Estimativa**: `cost_estimated_brl = cpu_seconds*cpu_second_brl + db_io_gb*db_io_gb_brl + redis_cmd_1k*redis_cmd_1k_brl + api_requests*api_request_brl`; `db_io_gb = (pg_read_bytes + pg_write_bytes)/1e9`.  
+- **Métricas fonte**: Prometheus `celery_task_cpu_seconds_total`, `postgresql_io_bytes_total`, `redis_commands_processed_total`, `seed_api_requests_total` exportada pelo serviço. Janela por `SeedRun` + agregação diária (`cost_window_started_at/cost_window_ends_at`). Alertas em ≥80% e abort em ≥100% (fail-closed) conforme `docs/pipelines/ci-required-checks.md`.  
+- **Registro**: persistir `cost_model_version`, `cost_estimated_brl`, `cost_actual_brl` em `BudgetRateLimit` e relatório WORM; CI dry-run grava artifact em `artifacts/perf/seed-finops.json`.
+
+#### Perf/gate k6
+- **Script**: `observabilidade/k6/seed-data-smoke.js` com cenários `validate_manifest`, `create_seed_run`, `poll_seed_run`.  
+- **Cargas**: baseline 5 VUs/30s, carga 20 VUs/60s (somente staging/perf), respeitando headers `X-Tenant-ID`/`X-Environment` e `Idempotency-Key` randômica.  
+- **Thresholds**: `p95<800ms` para `/seed-profiles/validate`, `p95<1200ms` para `POST /seed-runs`, taxa de erro <1%, `http_req_failed==0`; aborta pipeline se violado. Artefato JSON salvo em `artifacts/perf/k6-seed-smoke.json` e enviado a WORM com assinatura (ADR-011/Art. XVI).
+
 #### Regras operacionais de FinOps/Rate Limit
 - **Fontes de custo**: estimativa usa catálogo de preços versionado (`cost_model_version`) e métricas OTEL/Prometheus (`seed_run_duration_ms`, `seed_batch_latency_ms`, `celery_task_cpu_seconds_total`, `postgresql_table_size_bytes`); custo real coleta CPU/memória/IO via Prometheus e requests API via `seed_rate_limit_remaining`.  
 - **Janela**: cálculo por `SeedRun` e janela diária (`cost_window_started_at/ends_at` em `BudgetRateLimit`). Reset de rate-limit segue `rate_limit.window_seconds`; cabeçalho `RateLimit-Reset` deriva desse campo.  
@@ -167,6 +178,12 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Relatório WORM**: payload JSON com campos obrigatórios `{run_id, tenant, environment, manifest_path, manifest_hash_sha256, schema_version, mode, reference_datetime, caps, rate_limit_usage, budget_usage, batches[], checkpoints[], errors[], otel_trace_id, otel_span_id, started_at, finished_at, outcome, cost_model_version, cost_estimated_brl, cost_actual_brl}`; `signature_hash` = `sha256` do payload; assinatura assimétrica via KMS/Vault (`signature_algo` = `RSA-PSS-SHA256` ou `Ed25519`) armazenada em `signature` com `key_id`/`key_version`. Destino: bucket S3 Object Lock `worm/seeds/<env>/<tenant>/<run_id>.json`, retenção mínima 365 dias; verificar assinatura após upload e antes de marcar `integrity_status=verified`, com retry exponencial (máx. 3) em upload/verify.
 - **Observabilidade mínima**: spans nomeados `seed.run`, `seed.batch`, `seed.manifest.validate`; atributos obrigatórios `tenant_id`, `environment`, `seed_run_id`, `manifest_version`, `mode`, `dry_run`; métricas `seed_run_duration_ms` (histogram), `seed_batch_latency_ms` (histogram), `seed_rate_limit_remaining`, `seed_budget_remaining`; logs JSON com `level`, `event`, `tenant_id`, `seed_run_id`, `pii_redacted=true`. Export falho → status `failed` com Problem Details `telemetry_unavailable`.
 - **Assinatura/WORM operacional**: cliente Python `boto3` com `ObjectLockMode=COMPLIANCE` e `RetainUntilDate` ≥ 365 dias; assinatura via Vault Transit path `transit/sign/seeds-worm` (key `seed-worm-report`) ou KMS equivalente por ambiente (`arn:aws:kms:...:key/seeds-worm`). Passos: (1) calcular `signature_hash`; (2) `vault write transit/sign/seeds-worm hash=<signature_hash>`; (3) upload com metadados `x-seeds-signature`, `x-seeds-key-id`; (4) verificar via `transit/verify` após upload. Falha em qualquer passo → abortar `SeedRun`.  
+
+#### Operacional WORM/OTEL (ambientes e fallback)
+- **Buckets e segredos**: variáveis `SEEDS_WORM_BUCKET`, `SEEDS_WORM_ROLE_ARN`, `SEEDS_WORM_KMS_KEY_ID`, `SEEDS_WORM_RETENTION_DAYS` (>=365) por ambiente; tempo limite de upload/verificação 10s, payload máximo 5 MB. Dev/CI usam stub local em `artifacts/worm/seed-data/<run_id>.json` com assinatura fake `dev-stub` e não marcam `integrity_status=verified`.  
+- **OTEL**: `OTEL_EXPORTER_OTLP_ENDPOINT` obrigatório; headers `x-otlp-tenant`/`x-otlp-environment` configurados; `OTEL_TRACES_SAMPLER=parentbased_always_on` em prod/staging, `parentbased_traceidratio(0.05)` em CI. Timeout export 5s; falha de export marca run como `failed` (Problem Details `telemetry_unavailable`) conforme ADR-012/runbook `docs/runbooks/observabilidade.md`.  
+- **Sentry**: DSN por ambiente e `traces_sample_rate` alinhada ao sampler OTEL; captura de PII desabilitada.  
+- **Fallback**: qualquer indisponibilidade de Vault/KMS/WORM/OTEL fora de dev-isolado aborta antes de escrever dados (Art. XVI, ADR-010/012).
 
 #### Fila global e GC (`SeedQueue`)
 - Inserção em `tenancy_seed_queue` ocorre antes do lock global; registros `pending` expiram em 5 min (`expires_at`).  
@@ -185,6 +202,13 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Caches/índices/busca**: invalidar caches Redis e rebuild de busca/índices em torno da execução; rebuild só em modos controlados (dry-run/staging/carga/DR), proibido em produção fora da janela aprovada para preservar determinismo/idempotência.
 - **Eventos/outbox/CDC**: sempre roteados para sinks sandbox com mocks/stubs e auditoria; nunca publicar em destinos reais durante seeds/factories/carga/DR.
 - **Enforcement de janela off-peak**: preflight do CLI/API valida `now() AT TIME ZONE 'UTC'` contra `SeedProfile.window` e `tenancy_tenant.off_peak_window_utc`; fora da janela marca `SeedRun` como `blocked` com Problem Details `offpeak_window_closed`. Middleware DRF adicional impede POST/PUT de domínios afetados quando `maintenance_mode` ativo ou janela fechada, registrando auditoria.
+
+#### RBAC/ABAC e gate RLS/off-peak
+- **Policies**: versionar matriz em `configs/rbac/seed-data.yaml` com perfis `seed-runner` (execução), `seed-admin` (cancel/reprocess), `seed-read` (consulta). Binding por `tenant`, `environment` e `subject` (service account). Registrar cópia no banco (`tenancy_seed_rbac`) para auditoria e aplicar via permission class DRF `SeedDataPermission`.  
+- **ABAC**: regras mínimas: ambiente permitido, janela off-peak ativa, tenant com `maintenance_mode=true` para domínios afetados, flag/canary habilitado; negar se qualquer regra falhar.  
+- **RLS gate**: middleware DRF `RLSPreflightMiddleware` confirma `SET app.tenant_id` aplicado e policies de `backend/apps/tenancy/sql/rls_policies.sql` carregadas; CLI reusa o mesmo serviço e aborta com código 6 (quickstart) se falhar.  
+- **Headers obrigatórios**: `X-Tenant-ID`, `X-Environment`, `Idempotency-Key`, `If-Match` nos cancelamentos; ausência de condicional em mutações retorna `428` (ADR-011/runbook governança de API).  
+- **Auditoria**: cada decisão de RBAC/ABAC e bloqueio off-peak registra `Problem Details` e span OTEL com `auth.result` (`allow|deny`) e `auth.policy_version`.
 
 ### Cobertura de entidades e factories
 
@@ -207,11 +231,28 @@ docs/                                        # runbooks, checklists PII/RLS, rel
   - `financial_transactions`: descrições sintéticas sem PII; 5% reversões em carga/DR.  
   - `limits/contracts`: contratos simulados assinados com ETag derivado do payload e PII mascarada em identificadores.
 
+#### Mapeamento para models/serializers reais (novo app de domínio)
+- **App**: criar `backend/apps/banking/` com models + serializers DRF, managers com `TenantManager` e RLS ativa (Art. XIII). Factories em `backend/apps/banking/tests/factories.py` reutilizam os serializers para validar contratos `/api/v1`.  
+- **Customer**: campos `id (UUID)`, `tenant_id`, `name`, `document_number` (CPF/CNPJ pgcrypto+FPE), `email`, `phone`, `birth_date`, `status` enum `active|blocked|delinquent|canceled`, FK `address`. Serializer `CustomerSerializer` aplica redaction e valida status; baseline = `active`, carga/DR seguem percentuais do catálogo.  
+- **Address**: `street`, `number`, `city`, `state`, `postal_code`, `country`, `complement`; FK para `Customer`. Serializer `AddressSerializer` valida CEP/UF.  
+- **BankAccount**: `account_number`/`branch` (FPE), `type` enum `checking|savings`, `status` `active|blocked`, `balance`, FK `customer`. Serializer `BankAccountSerializer` exige unicidade por tenant.  
+- **AccountCategory**: catálogo por tenant (`code`, `description`, `is_default`).  
+- **Supplier**: `name`, `document_number` (FPE), `status` `active|blocked`.  
+- **Loan**: `principal_amount`, `annual_rate_pct`, `installments_total`, `status` `active|delinquent|canceled`, `start_date`, `maturity_date`, FK `customer` e opcional `bank_account`; serializer valida CET/IOF contra serviço oficial.  
+- **Installment**: `sequence`, `due_date`, `principal_amount`, `interest_amount`, `fees_iof`, `status` `pending|paid|delinquent|canceled`, FK `loan`; datas derivadas de `reference_datetime`.  
+- **FinancialTransaction**: `amount`, `currency`, `direction` `credit|debit`, `description`, `reference`, FK `bank_account`; 5% reversões em carga/DR.  
+- **Limit/Contract**: `credit_limit` vinculado à conta (`current_limit`, `used_amount`, `status`), `Contract` com `etag_payload` (hash SHA-256 do corpo) para ETag/If-Match e PII mascarada em identificadores.
+
 #### Checkpoints e idempotência — detalhamento
 - **hash_estado**: `sha256` de JSON canônico ordenado `{entity, batch_seq, manifest_hash_sha256, last_pk, caps_snapshot}`.  
 - **resume_token**: JSON `{entity, batch_seq, last_pk, factory_seed}` criptografado via `pgp_sym_encrypt` com chave `seed_resume_key` provisionada via Vault (envelope) e armazenado em `bytea`.  
 - **Retomada**: na retomada, descriptografar `resume_token`, validar `hash_estado` contra manifesto/`SeedBatch`; divergência → abortar e exigir limpeza de checkpoints.  
 - **Persistência determinística**: IDs gerados via UUIDv5 namespaced (`tenant|entity|batch_seq|manifest_version`) para dedupe sem expor PII.
+
+#### Idempotency-Key, ETag e locks → HTTP
+- **Store de idempotência**: criar tabela `tenancy_seed_idempotency` (RLS) com `(tenant_id, environment, idempotency_key, manifest_hash_sha256, mode, seed_run_id, expires_at)` e TTL padrão 24h (GC via Argo Cron). CLI e API compartilham serviço único (`backend/apps/tenancy/services/seed_idempotency.py`); conflito de chave com `manifest_hash` divergente retorna `409` Problem Details `idempotency_conflict`, mesma chave/manifesto devolve run existente.  
+- **ETag/versão**: `SeedRun` recebe coluna `row_version` (bigint) incrementada a cada mudança; ETag = `W/"<row_version>"`. `POST /seed-runs/{id}/cancel` e demais mutações exigem `If-Match`; ausência → `428 Precondition Required` (ADR-011/runbook governança de API).  
+- **Locks → HTTP**: lock/advisory ativo ou fila acima do teto global respondem `409` (`seed_run_locked`), rate-limit/budget `429` com `Retry-After`, dependência (Vault/WORM/fila) `503` com `Retry-After`. Middleware/permission DRF aplica esses códigos antes de enfileirar; CLI usa os mesmos códigos de saída mapeados (3 para lock, 4 para WORM/telemetria, 5 para rate-limit/budget).
 
 ## Complexity Tracking
 

@@ -83,3 +83,19 @@
 - **Índices**: `index(tenant_id, seed_profile_id)`, `index(tenant_id, reset_at)`, `index(environment, reset_at)`, `index(environment, cost_window_ends_at)`.  
 - **RLS**: por tenant; atualizado em cada lote/ack.
 - **Forma dos JSONB/numéricos**: `budget_cost_cap` em BRL `numeric(14,2)`; `error_budget` percentual `numeric(5,2)` consumido conforme SLO/erros; `throughput_target_rps` alinhado ao manifesto. Reset calculado por `rate_limit_window_seconds`; alertar em 80%, abortar em 100%; janela de custo definida por `cost_window_started_at`/`cost_window_ends_at`.
+
+## SeedIdempotency
+- **Tabela**: `tenancy_seed_idempotency`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `environment` (`dev|staging|perf|dr|prod`), `idempotency_key` (texto), `manifest_hash_sha256` (texto), `mode` (`baseline|carga|dr|canary`), `seed_run_id` (FK opcional para reutilização), `expires_at` (timestamptz), `created_at` (timestamptz default now).  
+- **Constraints**: `unique(tenant_id, environment, idempotency_key)` com TTL (GC 24h via Argo Cron); `expires_at > created_at`; se `seed_run_id` presente, `manifest_hash_sha256` deve casar com o run.  
+- **Índices**: `index(tenant_id, environment, expires_at)`, `index(manifest_hash_sha256)` para reuso rápido.  
+- **RLS**: por tenant; bloqueia acesso cruzado e evita dedupe entre tenants.  
+- **Uso**: deduplicação de CLI/API compartilhada; conflito de chave com manifesto divergente → Problem Details `idempotency_conflict` (`409`); igual → retorna run existente.
+
+## SeedRBAC
+- **Tabela**: `tenancy_seed_rbac`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `environment` (`dev|staging|perf|dr|prod`), `subject` (texto; service account ou user id), `role` enum (`seed-runner`, `seed-admin`, `seed-read`), `policy_version` (SemVer), `created_at` (timestamptz).  
+- **Constraints**: `unique(tenant_id, environment, subject)`; role enum fechada; `policy_version` obrigatório.  
+- **Índices**: `index(tenant_id, environment, role)`, `index(tenant_id, subject)`.  
+- **RLS**: por tenant; leitura/escrita restrita ao admin de tenant.  
+- **Uso**: permission class DRF `SeedDataPermission` e CLI consultam esta tabela para RBAC/ABAC (bindings por tenant/ambiente), vinculando `policy_version` ao span OTEL/auditoria.
