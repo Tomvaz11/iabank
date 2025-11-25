@@ -72,14 +72,14 @@
 
 ## EvidenceWORM
 - **Tabela**: `tenancy_seed_evidence`.  
-- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_run_id` (FK uniq), `report_url` (URI WORM), `signature_hash` (texto), `worm_retention_days` (int ≥ 365), `integrity_status` (`pending|stored|verified|invalid`), `created_at` (timestamptz).  
-- **Constraints**: `unique(seed_run_id)`, check retenção mínima; integridade obrigatória.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_run_id` (FK uniq), `report_url` (URI WORM), `signature_hash` (texto), `signature_algo` (texto, ex.: `RSA-PSS-SHA256` ou `Ed25519`), `key_id` (texto), `key_version` (texto), `worm_retention_days` (int ≥ 365), `integrity_status` (`pending|stored|verified|invalid`), `integrity_verified_at` (timestamptz opcional), `cost_model_version` (texto), `cost_estimated_brl` (numeric(14,2)), `cost_actual_brl` (numeric(14,2)), `created_at` (timestamptz).  
+- **Constraints**: `unique(seed_run_id)`, check retenção mínima; integridade obrigatória; custos ≥ 0.  
 - **RLS**: por tenant; WORM verificado antes de marcar `verified`.
 
 ## BudgetRateLimit
 - **Tabela**: `tenancy_seed_budget_ratelimit`.  
-- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_profile_id` (FK), `environment` (`dev|staging|perf|dr|prod`), `rate_limit_limit` (int), `rate_limit_window_seconds` (int), `budget_cost_cap` (numeric(14,2)), `error_budget` (numeric(5,2)), `rate_limit_remaining` (int), `reset_at` (timestamptz), `consumed_at` (timestamptz), `throughput_target_rps` (numeric), `budget_alert_at_pct` (numeric default 80.00).  
-- **Constraints**: valores não negativos; alertar em `budget_alert_at_pct`, abort se `rate_limit_remaining` < 0 ou `error_budget` >= 100.  
-- **Índices**: `index(tenant_id, seed_profile_id)`, `index(tenant_id, reset_at)`, `index(environment, reset_at)`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_profile_id` (FK), `environment` (`dev|staging|perf|dr|prod`), `rate_limit_limit` (int), `rate_limit_window_seconds` (int), `budget_cost_cap` (numeric(14,2)), `budget_cost_estimated` (numeric(14,2)), `budget_cost_actual` (numeric(14,2)), `error_budget` (numeric(5,2)), `rate_limit_remaining` (int), `reset_at` (timestamptz), `consumed_at` (timestamptz), `throughput_target_rps` (numeric), `budget_alert_at_pct` (numeric default 80.00), `cost_model_version` (texto), `cost_window_started_at` (timestamptz), `cost_window_ends_at` (timestamptz).  
+- **Constraints**: valores não negativos; alertar em `budget_alert_at_pct`, abort se `rate_limit_remaining` < 0 ou `error_budget` >= 100; `budget_cost_actual`/`budget_cost_estimated` >= 0.  
+- **Índices**: `index(tenant_id, seed_profile_id)`, `index(tenant_id, reset_at)`, `index(environment, reset_at)`, `index(environment, cost_window_ends_at)`.  
 - **RLS**: por tenant; atualizado em cada lote/ack.
-- **Forma dos JSONB/numéricos**: `budget_cost_cap` em BRL `numeric(14,2)`; `error_budget` percentual `numeric(5,2)` consumido conforme SLO/erros; `throughput_target_rps` alinhado ao manifesto. Reset calculado por `rate_limit_window_seconds`; alertar em 80%, abortar em 100%.
+- **Forma dos JSONB/numéricos**: `budget_cost_cap` em BRL `numeric(14,2)`; `error_budget` percentual `numeric(5,2)` consumido conforme SLO/erros; `throughput_target_rps` alinhado ao manifesto. Reset calculado por `rate_limit_window_seconds`; alertar em 80%, abortar em 100%; janela de custo definida por `cost_window_started_at`/`cost_window_ends_at`.

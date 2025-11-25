@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: IABank Seed Data API
-  version: 0.1.0
+  version: 0.1.1
   description: >
     Contratos REST para orquestrar execucoes deterministicas de seeds/factories
     multi-tenant. Operacoes respeitam RateLimit-*, Idempotency-Key, ETag/If-Match
@@ -26,9 +26,13 @@ paths:
             schema:
               $ref: '#/components/schemas/SeedRunCreateRequest'
       responses:
-        '202':
-          description: Execucao aceita e enfileirada
+        '201':
+          description: Execucao criada/enfileirada
           headers:
+            Location:
+              schema:
+                type: string
+              description: URL do recurso `SeedRun`
             RateLimit-Limit:
               $ref: '#/components/headers/RateLimit-Limit'
             RateLimit-Remaining:
@@ -150,6 +154,13 @@ paths:
       responses:
         '200':
           description: Manifesto valido
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
           content:
             application/json:
               schema:
@@ -186,7 +197,7 @@ components:
       required: true
       schema:
         type: string
-        enum: [dev, staging, perf, dr]
+        enum: [dev, staging, perf, dr, prod]
       description: Ambiente alvo da execucao.
     IdempotencyKey:
       name: Idempotency-Key
@@ -232,6 +243,9 @@ components:
         type: integer
 
   schemas:
+    SeedProfileManifest:
+      description: Manifesto v1 validado segundo JSON Schema 2020-12.
+      $ref: './seed-profile.schema.json'
     SeedRunCreateRequest:
       type: object
       required: [manifest_ref, mode, reference_datetime]
@@ -241,7 +255,7 @@ components:
           description: Caminho ou URL GitOps do manifesto (YAML/JSON) versionado.
         mode:
           type: string
-          enum: [baseline, carga, dr]
+          enum: [baseline, carga, dr, canary]
         reference_datetime:
           type: string
           format: date-time
@@ -262,6 +276,25 @@ components:
           items:
             type: string
           description: Labels para auditoria/FinOps/WORM.
+        canary_scope:
+          description: Escopo canary quando mode=canary.
+          oneOf:
+            - type: object
+              required: [percentage]
+              properties:
+                percentage:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+            - type: object
+              required: [tenants]
+              properties:
+                tenants:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  uniqueItems: true
     SeedRunResponse:
       type: object
       required: [seed_run_id, status, profile_version, mode, reference_datetime]
@@ -271,14 +304,24 @@ components:
           format: uuid
         status:
           $ref: '#/components/schemas/SeedRunStatus'
+        environment:
+          type: string
+          enum: [dev, staging, perf, dr, prod]
         profile_version:
           type: string
         mode:
           type: string
-          enum: [baseline, carga, dr]
+          enum: [baseline, carga, dr, canary]
         reference_datetime:
           type: string
           format: date-time
+        manifest_ref:
+          type: string
+        manifest_hash_sha256:
+          type: string
+          pattern: "^[a-fA-F0-9]{64}$"
+        dry_run:
+          type: boolean
         queued_at:
           type: string
           format: date-time
@@ -293,10 +336,13 @@ components:
         rate_limit_usage:
           type: object
           properties:
-            consumed:
-              type: integer
             remaining:
               type: integer
+            limit:
+              type: integer
+            reset_at:
+              type: string
+              format: date-time
         checkpoints:
           type: array
           items:
@@ -309,6 +355,23 @@ components:
               format: uri
             signature_hash:
               type: string
+        canary_scope:
+          description: Escopo efetivo usado na execução.
+          oneOf:
+            - type: object
+              required: [percentage]
+              properties:
+                percentage:
+                  type: number
+            - type: object
+              required: [tenants]
+              properties:
+                tenants:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  uniqueItems: true
         problem:
           $ref: '#/components/schemas/Problem'
     SeedRunStatus:
@@ -332,7 +395,7 @@ components:
       required: [manifest]
       properties:
         manifest:
-          type: object
+          $ref: '#/components/schemas/SeedProfileManifest'
           description: Conteudo do manifesto seed profile (v1).
         strict_version:
           type: boolean
@@ -357,6 +420,9 @@ components:
           description: Caps de volumetria/rate limit extraidos do manifesto.
           additionalProperties:
             type: integer
+        manifest_hash:
+          type: string
+          pattern: "^[a-fA-F0-9]{64}$"
     Problem:
       type: object
       required: [type, title, status]
@@ -376,6 +442,18 @@ components:
           type: array
           items:
             type: string
+        violations:
+          type: array
+          description: Lista de violações específicas de campo/regra.
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+              code:
+                type: string
 
   responses:
     BadRequest:

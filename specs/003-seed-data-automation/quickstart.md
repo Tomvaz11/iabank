@@ -55,6 +55,19 @@ def test_factory_mascaramento(vault_stub):
 - Factories cobrem entidades core e validam contra serializers/contratos `/api/v1`.  
 - Seeds de factory derivam de tenant/ambiente/manifesto para reproducao idempotente.
 
+## Flags do CLI `seed_data`
+- `--profile <path>`: obrigatório. Caminho YAML/JSON GitOps do manifesto v1.  
+- `--mode <baseline|carga|dr|canary>`: default = do manifesto; override opcional.  
+- `--reference-datetime <ISO8601 UTC>`: default = do manifesto; override falha se divergente.  
+- `--concurrency <int>`: default baseline=1; carga/DR/canary aceita 1–4 sob rate-limit/backoff do manifesto.  
+- `--acks-late`: default `true`.  
+- `--backoff <jittered|none>`: default `jittered` obedecendo manifesto (base/jitter/max_retries/max_interval).  
+- `--dlq/--no-dlq`: default `--dlq`.  
+- `--allow-offpeak-override`: default `false`; só permitido em dev isolado.  
+- `--dry-run`: default `false`; roda em transação/snapshot e não grava checkpoints/WORM.  
+- `--idempotency-key <str>`: obrigatório; falha se ausente.  
+- Códigos de saída: `0` sucesso; `2` validação de manifesto/schema/contrato; `3` lock/concorrência; `4` WORM/telemetria indisponível; `5` rate-limit/budget; `6` RLS/tenant ausente.
+
 ## Observabilidade e relatorios
 - Traces/metricas/logs OTEL (W3C) com labels de tenant/ambiente/seed_run_id; PII sempre mascarada/redact.  
 - Relatorio JSON assinado armazenado em WORM com `trace_id`, manifesto, volumetria, rate-limit usage, erros (Problem Details) e integridade verificada.  
