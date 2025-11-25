@@ -200,13 +200,15 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 #### Perf/gate k6
 - **Script**: `observabilidade/k6/seed-data-smoke.js` com cenários `validate_manifest`, `create_seed_run`, `poll_seed_run`.  
 - **Cargas**: baseline 5 VUs/30s, carga 20 VUs/60s (somente staging/perf), respeitando headers `X-Tenant-ID`/`X-Environment` e `Idempotency-Key` randômica.  
-- **Thresholds**: `p95<800ms` para `/seed-profiles/validate`, `p95<1200ms` para `POST /seed-runs`, taxa de erro <1%, `http_req_failed==0`; valores alinhados aos SLOs publicados em `docs/slo/seed-data.md`. Aborta pipeline se violado. Artefato JSON salvo em `artifacts/perf/k6-seed-smoke.json` e enviado a WORM com assinatura (ADR-011/Art. XVI).
+- **Load/DR real**: cenário adicional `seed_load_dr` em `observabilidade/k6/seed-data-load.js` exercita criação/poll de runs e geração de batches com caps Q11/rate-limit e throughput-alvo; aplica thresholds de p95/p99/erro e consumo de budget.  
+- **Thresholds**: `p95<800ms` para `/seed-profiles/validate`, `p95<1200ms` para `POST /seed-runs`, taxa de erro <1%, `http_req_failed==0`; para `seed_load_dr`, `p95<1500ms`, erro <1% e respeito a 80% do rate-limit/budget. Valores alinhados aos SLOs publicados em `docs/slo/seed-data.md`. Aborta pipeline se violado. Artefatos JSON: `artifacts/perf/k6-seed-smoke.json` e `artifacts/perf/k6-seed-load.json`, enviados a WORM com assinatura (ADR-011/Art. XVI).
 
 #### Regras operacionais de FinOps/Rate Limit
 - **Fontes de custo**: estimativa usa catálogo de preços versionado (`cost_model_version`) e métricas OTEL/Prometheus (`seed_run_duration_ms`, `seed_batch_latency_ms`, `celery_task_cpu_seconds_total`, `postgresql_table_size_bytes`); custo real coleta CPU/memória/IO via Prometheus e requests API via `seed_rate_limit_remaining`.  
 - **Janela**: cálculo por `SeedRun` e janela diária (`cost_window_started_at/ends_at` em `BudgetRateLimit`). Reset de rate-limit segue `rate_limit.window_seconds`; cabeçalho `RateLimit-Reset` deriva desse campo.  
 - **Alertas/abortos**: alerta ao atingir 80% (`budget_alert_at_pct`), aborta em 100% ou `rate_limit_remaining < 0` (fail-closed) com Problem Details `finops_budget_exceeded`.  
 - **Logs/relatório**: registrar `cost_model_version`, `cost_estimated_brl`, `cost_actual_brl` e fontes (`prometheus://...`) no relatório WORM e em `BudgetRateLimit`.
+- **Catálogo e schema de custo**: publicar `configs/finops/seed-data.cost-model.yaml` e `contracts/finops/seed-data.cost-model.schema.json` (JSON Schema 2020-12); CI valida ambos e falha fail-closed se ausentes ou com versão incompatível. FinOps em SeedRun/SeedBatch exige `cost_model_version` obrigatório antes de iniciar carga/DR.
 
 #### Parâmetros operacionais adicionais
 - **Celery/Redis**: filas dedicadas `seed_data.default` (baseline) e `seed_data.load_dr` (carga/DR); DLQ `seed_data.dlq`. Prefetch 1, `acks_late=True`, `visibility_timeout` = `max_interval_seconds * 2`. Paralelismo por worker: baseline 1, carga/DR até 4.  
@@ -234,6 +236,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Tempos-alvo por ambiente**: dev <5 min, homolog <10 min, produção controlada <20 min; exceder +20% aborta/rollback auditado.
 - **Budget por execução (FinOps)**: dev/homolog até US$5, staging/carga até US$25, produção controlada até US$50; alertar em 80%, abortar em 100% (fail-closed) e exigir ajuste do manifesto.
 - **Dry-run em CI/PR**: apenas baseline determinístico para um tenant canônico (ou lista curta declarada), sem WORM, validando PII/contrato/idempotência/rate-limit.
+- **RPO/RTO**: campanhas carga/DR devem comprovar RPO ≤5 min e RTO ≤60 min em staging/perf com manifesto canônico; execuções fora de staging ou sem evidência WORM assinada falham em fail-closed e não são promovidas.
 
 #### Bloqueio de mutações e caches
 - **Maintenance flag**: durante a janela off-peak, aplicar flag de manutenção por tenant (coluna/status + policy/RLS) para bloquear writes concorrentes; se faltarem flags ou se forem desrespeitadas, abortar em fail-closed e auditar.
@@ -247,6 +250,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **RLS gate**: middleware DRF `RLSPreflightMiddleware` confirma `SET app.tenant_id` aplicado e policies de `backend/apps/tenancy/sql/rls_policies.sql` carregadas; CLI reusa o mesmo serviço e aborta com código 6 (quickstart) se falhar.  
 - **Headers obrigatórios**: `X-Tenant-ID`, `X-Environment`, `Idempotency-Key`, `If-Match` nos cancelamentos; ausência de condicional em mutações retorna `428` (ADR-011/runbook governança de API).  
 - **Auditoria**: cada decisão de RBAC/ABAC e bloqueio off-peak registra `Problem Details` e span OTEL com `auth.result` (`allow|deny`) e `auth.policy_version`.
+- **Testes negativos**: suites CLI/API devem negar perfis seed-read/fora do escopo, tenants/ambientes proibidos e janela off-peak fechada, com evidência automatizada no CI.
 - **Matriz de permissões (estável)**:  
   - `seed-runner`: cria `SeedRun` (CLI/API), executa dry-run, lê status do próprio tenant/ambiente; não cancela execuções nem toca DLQ.  
   - `seed-admin`: inclui permissões de runner + cancelar (`POST /seed-runs/{id}/cancel`), reprocessar batches DLQ, ajustar `maintenance_mode` do tenant durante janela off-peak.  
@@ -312,6 +316,12 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - Rodadas STRIDE/LINDDUN específicas para seeds/carga/DR com backlog mitigável e owners em `docs/runbooks/seed-data.md`.  
 - GameDay semestral simula 429 persistente, falha de WORM e drift de manifesto; sucesso = RPO ≤ 5 min, RTO ≤ 60 min, zero vazamento cross-tenant e checklist PII/RLS/contratos aprovado.  
 - Runbooks incluem bloqueios off-peak, rate-limit, Vault/PII e DR; métricas DORA/SLO exportadas para dashboards e vinculadas aos relatórios WORM.
+
+## Observabilidade e fail-close (Art. VII, ADR-012)
+
+- Exportadores OTEL/Sentry são gating: falha de export ou redaction reprova SeedRun e pipelines CI/Argo; dry-run em CI injeta falha sintética para provar fail-close.  
+- Logs/WORM devem incluir labels obrigatórios (`tenant_id`, `environment`, `seed_run_id`, `manifest_version`, `mode`) e ausência de PII; ausência de labels ou PII detectada reprova checklist WORM/logs.  
+- Evidências de falha/sucesso são armazenadas em WORM com assinatura e integridade verificada antes de marcar `integrity_status=verified`.
 
 ## Complexity Tracking
 
