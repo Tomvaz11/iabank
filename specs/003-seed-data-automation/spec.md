@@ -94,6 +94,19 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 2. **Dado** um `seed_run` ativo, **Quando** chamo `POST /api/v1/seed-runs/{id}/cancel` com `If-Match`, **Entao** recebo `202` e o run é finalizado como `aborted` após dreno dos batches.  
 3. **Dado** limite de rate/budget excedido ou lock ativo, **Quando** chamo `POST /api/v1/seed-runs`, **Entao** recebo `429` ou `409` com Problem Details e `Retry-After`, sem criar novo run.
 
+### User Story 5 - Validar manifestos via API (Prioridade: P1)
+
+- **Persona & Objetivo**: QA/SRE valida manifestos v1 via API antes de qualquer execução, garantindo schema/versão e governança de headers.  
+- **Valor de Negocio**: Evita drift ou schema inválido chegar à execução, reduzindo falhas e retrabalho.  
+- **Contexto Tecnico**: `/api/v1/seed-profiles/validate`, JSON Schema 2020-12, RateLimit-*, Idempotency-Key, Problem Details.
+
+**Independent Test**: `POST /api/v1/seed-profiles/validate` retorna 200 para manifesto v1 válido e 422/429 com Problem Details, mantendo RateLimit-* e Idempotency-Key.
+
+**Acceptance Scenarios (BDD)**:
+1. **Dado** um manifesto v1 válido com headers `Idempotency-Key`, `X-Tenant-ID`, `X-Environment`, **Quando** chamo `POST /api/v1/seed-profiles/validate`, **Entao** recebo `200` com `valid=true`, `issues=[]`, `RateLimit-*`, `Retry-After` e versão normalizada.  
+2. **Dado** um manifesto com schema/versão divergente ou campos obrigatórios ausentes, **Quando** chamo o endpoint, **Entao** recebo `422` Problem Details com lista de issues e RateLimit-* preservado.  
+3. **Dado** um cenário de limite excedido ou retry/backoff ativo, **Quando** chamo o endpoint, **Entao** recebo `429` com `Retry-After` e não inicia execução.
+
 ### Edge Cases & Riscos Multi-Tenant
 
 - Execução sem `tenant_id` ou com tenant inexistente falha em modo fail-closed, sem dados parciais.  
@@ -157,6 +170,7 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-027**: A gestão de dependências para bibliotecas de seeds/factories/performance e para o cliente de Vault Transit DEVE seguir automação contínua (ADR-008), com checagem/atualização em CI e bloqueio por CVEs críticos ou versões defasadas.  
 - **FR-028**: Relatórios/evidências WORM DEVEM ter integridade verificável (hash/assinatura) e política de acesso governada; falha em verificar integridade ou em aplicar retenção/governança deve bloquear a execução/promoção.  
 - **FR-029**: A API/CLI de seed runs (`/api/v1/seed-runs*`) DEVE suportar criar/consultar/cancelar execuções com RateLimit-*, `Idempotency-Key`, `ETag/If-Match` e Problem Details RFC 9457; ausência de headers ou conflito de lock/rate/budget deve retornar 4xx previsível sem criar execuções.
+- **FR-030**: O endpoint `/api/v1/seed-profiles/validate` DEVE validar manifestos v1 (JSON Schema 2020-12), aplicar RateLimit-* e `Retry-After`, exigir `Idempotency-Key`, retornar Problem Details previsível em 4xx (incluindo 422 para schema/versão incompatível, 429 para rate-limit/backoff) e nunca iniciar execução em caso de falha.
 
 ### Non-Functional Requirements
 

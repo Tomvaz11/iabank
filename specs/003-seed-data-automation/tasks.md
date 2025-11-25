@@ -15,7 +15,7 @@ Objetivo: Publicar artefatos de contrato/manifesto e comandos base para permitir
 Critério de teste independente: contratos e manifestos canônicos passam lint/diff e podem ser usados pelo comando `seed_data` em modo dry-run.
 
 - [ ] T001 Publicar contratos seed-data e schema para lint/diff (`contracts/seed-data.openapi.yaml`, `contracts/seed-profile.schema.json`)
-- [ ] T002 Criar manifestos canônicos baseline/carga/DR para testes/dry-run (`configs/seed_profiles/staging/tenant-a.yaml`, `configs/seed_profiles/dr/tenant-a.yaml`)
+- [ ] T002 Criar manifestos canônicos baseline/carga/DR por ambiente/tenant (dev/homolog/staging/perf/prod-controlada) validados contra schema v1 (`configs/seed_profiles/<env>/<tenant>.yaml`)
 - [ ] T003 Adicionar alvo CI/Makefile para `seed_data` validate/dry-run com idempotency key (`Makefile`, `scripts/ci/seed-data.sh`)
 
 ## Fase 2: Fundacional (bloqueios compartilhados)
@@ -41,14 +41,14 @@ Objetivo da história: Executar `seed_data --profile` para baseline deterministi
 Critério de teste independente: baseline roda em dry-run com manifesto v1 valido, respeita RLS e devolve Problem Details auditavel ao violar regras.
 
 ### Testes (executar antes da implementacao)
-- [ ] T012 [P] [US1] Cobrir 200/422/429 do endpoint `/api/v1/seed-profiles/validate` com headers obrigatorios e Problem Details (`backend/apps/tenancy/tests/test_seed_profile_validate_api.py`)
+- [ ] T012 [P] [US5] Cobrir 200/422/429 do endpoint `/api/v1/seed-profiles/validate` com headers obrigatorios e Problem Details (`backend/apps/tenancy/tests/test_seed_profile_validate_api.py`)
 - [ ] T013 [P] [US1] Cobrir comando `seed_data` baseline com dry-run, RLS/off-peak e idempotency_key (sucesso e bloqueios cross-tenant) (`backend/apps/tenancy/tests/test_seed_data_command.py`)
 - [ ] T053 [P] [US1] Testes negativos de autorização (CLI/API) para perfis seed-runner/admin/read, janela off-peak e tenants/ambientes não permitidos (`backend/apps/tenancy/tests/test_seed_auth.py`)
 - [ ] T057 [P] [US1] Bloquear runs quando `reference_datetime` divergir do checkpoint e exigir limpeza/reseed controlado (`backend/apps/tenancy/tests/test_seed_reference_datetime_drift.py`)
 
 ### Implementacao
-- [ ] T014 [US1] Implementar validador JSON Schema v1 + preflight de manifesto (versao/schema/hash/off-peak) (`backend/apps/tenancy/services/seed_manifest_validator.py`)
-- [ ] T015 [US1] Expor `/api/v1/seed-profiles/validate` com RateLimit-*, Idempotency-Key e Problem Details (`backend/apps/tenancy/views.py`, `backend/apps/tenancy/urls.py`)
+- [ ] T014 [US5] Implementar validador JSON Schema v1 + preflight de manifesto (versao/schema/hash/off-peak) (`backend/apps/tenancy/services/seed_manifest_validator.py`)
+- [ ] T015 [US5] Expor `/api/v1/seed-profiles/validate` com RateLimit-*, Idempotency-Key e Problem Details (`backend/apps/tenancy/views.py`, `backend/apps/tenancy/urls.py`)
 - [ ] T016 [US1] Implementar SeedRunService para criar SeedRun/SeedBatch com advisory lock e store de idempotencia (`backend/apps/tenancy/services/seed_runs.py`)
 - [ ] T017 [US1] Criar management command `seed_data` baseline (carrega manifesto, preflight RLS, dry-run, checkpoints iniciais) (`backend/apps/tenancy/management/commands/seed_data.py`)
 - [ ] T018 [US1] Atualizar quickstart com fluxo baseline, codigos de saida e exemplos de manifesto (`specs/003-seed-data-automation/quickstart.md`)
@@ -110,7 +110,7 @@ Critério de teste independente: pipelines com lint/tests/perf e docs gate verde
 - [ ] T055 Checklist anti-poluição: reprovar se logs/WORM faltarem labels obrigatórios ou conterem PII, com validação automática no CI/Argo (`backend/apps/tenancy/services/seed_worm.py`, `scripts/ci/check-audit-cleanliness.sh`)
 
 ## Dependencias e ordem de historias
-- Fundacional (T004–T011, T056) + guardrails base (T034–T036) precedem US1; FinOps (T049) pode ser preparado em paralelo na fundação.
+- Fundacional (T004–T011, T056) + guardrails base (T034–T036) precedem US1; Fase 1 inclui manifestos multi-ambiente (T002) e FinOps (T049) pode ser preparado em paralelo na fundação.
 - US1 (baseline) → US2 (factories) → US3 (carga/DR). Fundacional completa antes de US1; US1 inclui drift de `reference_datetime` e cleanup (T057, T058). US3 depende também de T037 (stubs externos), gates T038–T043/T046 e dos itens de RPO/RTO/perf/FinOps/observabilidade (T047, T048, T050, T052, T051, T055) mais o gate runtime de SLO/error budget (T059, T060).
 - Fase Final depende das histórias completas e dos gates/documentação, incluindo checklists anti-poluição (T055) e fail-close de observabilidade (T051).
 

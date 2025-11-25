@@ -3,8 +3,8 @@
 ## Pre-requisitos
 - RLS habilitado e politicas atualizadas para o tenant/ambiente alvo.  
 - Acesso ao Vault Transit (paths segregados por ambiente/tenant) e variaveis de ambiente configuradas para client.  
-- Manifesto YAML/JSON versionado em GitOps no padrao v1 (mode, volumetria/caps Q11, rate limit/backoff+jitter, budgets, TTL, off-peak UTC, reference_datetime ISO 8601, thresholds SLO/perf).  
-  Exemplos canônicos: `configs/seed_profiles/staging/tenant-a.yaml` (baseline) e `configs/seed_profiles/dr/tenant-a.yaml` (DR).  
+- Manifesto YAML/JSON versionado em GitOps no padrao v1 (mode, volumetria/caps Q11, rate limit/backoff+jitter, budgets, TTL, off-peak UTC, reference_datetime ISO 8601, thresholds SLO/perf), validado pelo JSON Schema 2020-12.  
+  Exemplos canônicos: `configs/seed_profiles/dev/tenant-a.yaml`, `configs/seed_profiles/homolog/tenant-a.yaml`, `configs/seed_profiles/staging/tenant-a.yaml` (baseline) e `configs/seed_profiles/perf/tenant-a.yaml` / `configs/seed_profiles/dr/tenant-a.yaml` (carga/DR).  
 - WORM acessivel para persistir relatorios assinados; se indisponivel, nao executar.  
 - Pipelines CI/PR com cobertura≥85%, ruff, SAST/DAST/SCA/SBOM e k6 habilitados.
 
@@ -17,7 +17,7 @@ curl -X POST https://api.iabank.local/api/v1/seed-profiles/validate \
   -H "Idempotency-Key: validate-$(uuidgen)" \
   -d "$(yq -o=json < configs/seed_profiles/staging/tenant-a.yaml)"
 ```
-Resposta esperada: `200` com `valid=true` e `issues=[]`; falhas retornam Problem Details (`422`) com lista de campos/versoes incompatíveis. Cabeçalhos `RateLimit-*` e `Retry-After` sempre presentes.
+Resposta esperada: `200` com `valid=true` e `issues=[]`; falhas retornam Problem Details (`422`) com lista de campos/versoes incompatíveis ou `429` com `Retry-After` em caso de rate-limit/backoff. Cabeçalhos `RateLimit-*` e `Retry-After` sempre presentes; `Idempotency-Key` é obrigatório.
 
 ## Dry-run deterministico (CI/PR)
 ```bash
