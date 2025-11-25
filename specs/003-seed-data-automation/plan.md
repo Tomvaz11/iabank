@@ -130,6 +130,24 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Exemplos**: incluir exemplos canônicos por modo no schema para servir de goldens de lint/diff.  
 - **Contrato**: publicar em `specs/003-seed-data-automation/contracts/seed-profile.schema.json` e referenciar em `/api/v1/seed-profiles/validate` e CI (Spectral + oasdiff).
 
+### Catálogo de volumetria → modelos/serializers
+- **Chaves válidas** (alinhar com `seed-profile.schema.json`): `tenant_users`, `customers`, `addresses`, `consultants`, `bank_accounts`, `account_categories`, `suppliers`, `loans`, `installments`, `financial_transactions`, `limits`, `contracts`. Nenhuma outra chave é aceita.  
+- **Mapeamento**:  
+  - `tenant_users` → `backend/apps/tenancy/models/user.py` (AbstractUser com FK `tenant_id`; username/email únicos por tenant; seeds geram service accounts para RBAC).  
+  - `customers` → `backend/apps/banking/models/customer.py` (DDL detalhado abaixo; `document_number` pgcrypto+FPE, único por tenant).  
+  - `addresses` → `backend/apps/banking/models/address.py` (FK para `Customer`, campos CEP/UF; `is_primary` bool).  
+  - `consultants` → `backend/apps/banking/models/consultant.py` (OneToOne `User`, `balance` decimal(10,2)).  
+  - `bank_accounts` → `backend/apps/banking/models/bank_account.py` (campos `name`, `agency`, `account_number`, `initial_balance` decimal(15,2); status/type definidos neste plano).  
+  - `account_categories` → `backend/apps/banking/models/account_category.py` (catálogo `code`/`description` por tenant, derivado de `PaymentCategory` do blueprint).  
+  - `suppliers` → `backend/apps/banking/models/supplier.py` (`document_number` FPE, unicidade opcional por tenant).  
+  - `loans` → `backend/apps/banking/models/loan.py` (status enum `IN_PROGRESS|PAID_OFF|IN_COLLECTION|CANCELED`, campos regulatórios CET/IOF).  
+  - `installments` → `backend/apps/banking/models/installment.py` (status enum `PENDING|PAID|OVERDUE|PARTIALLY_PAID`, FK `loan`).  
+  - `financial_transactions` → `backend/apps/banking/models/financial_transaction.py` (enum `INCOME|EXPENSE`, FKs opcionais para category/cost_center/supplier/installment).  
+  - `limits` → `backend/apps/banking/models/credit_limit.py` (DDL abaixo; vinculado a `BankAccount`).  
+  - `contracts` → `backend/apps/banking/models/contract.py` (ETag/If-Match, PII mascarada).  
+- **Ordem/dag** (batches): `tenant_users -> customers -> addresses -> consultants -> bank_accounts -> account_categories -> suppliers -> loans -> installments -> financial_transactions -> limits -> contracts`.  
+- **Serializers**: DRF serializers nos mesmos paths validam tipos/enums/precisão decimal e são reutilizados pelas factories.
+
 ### Alinhamento CLI x API
 
 - **CLI (`manage.py seed_data`)**: Caminho primário para execuções controladas (CI/PR dry-run, staging carga/DR). Orquestra locks, criação de `SeedRun/SeedBatch`, chamadas Celery e relatório WORM.  
@@ -159,6 +177,19 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Estimativa**: `cost_estimated_brl = cpu_seconds*cpu_second_brl + db_io_gb*db_io_gb_brl + redis_cmd_1k*redis_cmd_1k_brl + api_requests*api_request_brl`; `db_io_gb = (pg_read_bytes + pg_write_bytes)/1e9`.  
 - **Métricas fonte**: Prometheus `celery_task_cpu_seconds_total`, `postgresql_io_bytes_total`, `redis_commands_processed_total`, `seed_api_requests_total` exportada pelo serviço. Janela por `SeedRun` + agregação diária (`cost_window_started_at/cost_window_ends_at`). Alertas em ≥80% e abort em ≥100% (fail-closed) conforme `docs/pipelines/ci-required-checks.md`.  
 - **Registro**: persistir `cost_model_version`, `cost_estimated_brl`, `cost_actual_brl` em `BudgetRateLimit` e relatório WORM; CI dry-run grava artifact em `artifacts/perf/seed-finops.json`.
+- **Schema YAML (cost-model)**:  
+  ```yaml
+  cost_model_version: "1.0.0"        # SemVer obrigatório
+  provider: aws                      # enum: aws|gcp|azure
+  region: sa-east-1                  # string obrigatória
+  currency: BRL                      # default BRL; múltiplos de 0.01
+  cpu_second_brl: 0.0008             # número >=0, 4 casas
+  db_io_gb_brl: 0.12                 # número >=0, 2 casas
+  redis_cmd_1k_brl: 0.003            # número >=0, 3 casas
+  api_request_brl: 0.0004            # número >=0, 4 casas
+  notes: "on-demand baseline nov/2025" # opcional
+  ```  
+  Falhar fail-closed se campo obrigatório estiver ausente/negativo ou precisão fora do dialeto acima. CI valida via JSON Schema em `contracts/finops/seed-data.cost-model.schema.json` (artefato desta feature) e referência é incluída no relatório WORM.
 
 #### Perf/gate k6
 - **Script**: `observabilidade/k6/seed-data-smoke.js` com cenários `validate_manifest`, `create_seed_run`, `poll_seed_run`.  
@@ -209,6 +240,12 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **RLS gate**: middleware DRF `RLSPreflightMiddleware` confirma `SET app.tenant_id` aplicado e policies de `backend/apps/tenancy/sql/rls_policies.sql` carregadas; CLI reusa o mesmo serviço e aborta com código 6 (quickstart) se falhar.  
 - **Headers obrigatórios**: `X-Tenant-ID`, `X-Environment`, `Idempotency-Key`, `If-Match` nos cancelamentos; ausência de condicional em mutações retorna `428` (ADR-011/runbook governança de API).  
 - **Auditoria**: cada decisão de RBAC/ABAC e bloqueio off-peak registra `Problem Details` e span OTEL com `auth.result` (`allow|deny`) e `auth.policy_version`.
+- **Matriz de permissões (estável)**:  
+  - `seed-runner`: cria `SeedRun` (CLI/API), executa dry-run, lê status do próprio tenant/ambiente; não cancela execuções nem toca DLQ.  
+  - `seed-admin`: inclui permissões de runner + cancelar (`POST /seed-runs/{id}/cancel`), reprocessar batches DLQ, ajustar `maintenance_mode` do tenant durante janela off-peak.  
+  - `seed-read`: somente leitura (`GET /seed-runs/{id}`, `GET /seed-profiles/validate` dry-run).  
+  - Binding obrigatório em `configs/rbac/seed-data.yaml` por `tenant`+`environment`; ausência ou mismatch → `403` fail-closed.  
+  - Todas as tabelas novas (`tenancy_seed_*` e `banking_*`) recebem `POLICY tenant_id = current_setting('app.tenant_id')::uuid` com managers aplicando `tenant_id` por padrão, seguindo `BaseTenantModel` do blueprint.
 
 ### Cobertura de entidades e factories
 
@@ -224,24 +261,33 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Ambientes**: fallback de FPE somente em dev isolado com chave em `.env.local`; CI/staging/prod falham se fallback ativo.
 - **Vault Transit PII**: paths `transit/seeds/<environment>/<tenant>/ff3` para FPE e `transit/seeds/<environment>/<tenant>/ff1` para formatos legados; role `seed-data` com política de mínimo privilégio. Helper `get_fpe_client(env, tenant, salt_version)` retorna callable injetado nas factories; falha de autorização → fail-closed.  
 - **Catálogo de campos/estados (baseline/carga/DR)**:  
-  - `customers`: baseline 100% ativos; carga/DR adicionam 10% bloqueado, 10% inadimplente, 5% cancelado. PII mascarada em `document_number`, `email`, `phone`, `address.*`.  
-  - `bank_accounts`: baseline ativa; carga/DR com 5% bloqueada. Campos sensíveis: `account_number`, `branch`.  
-  - `loans`: baseline status `active`; carga/DR com `delinquent` 20%, `canceled` 10%.  
+  - `customers`: baseline 100% `ACTIVE`; carga/DR adicionam 10% `BLOCKED`, 10% `DELINQUENT`, 5% `CANCELED`. PII mascarada em `document_number`, `email`, `phone`, `address.*`.  
+  - `bank_accounts`: baseline `ACTIVE`; carga/DR com 5% `BLOCKED`. Campos sensíveis: `account_number`, `branch/agency`.  
+  - `loans`: baseline status `IN_PROGRESS`; carga/DR com `IN_COLLECTION` 20% e `CANCELED` 10%.  
   - `installments`: derivadas de loans, datas fixadas a partir de `reference_datetime` para determinismo.  
   - `financial_transactions`: descrições sintéticas sem PII; 5% reversões em carga/DR.  
   - `limits/contracts`: contratos simulados assinados com ETag derivado do payload e PII mascarada em identificadores.
 
+#### Serviço de cálculo CET/IOF/parcelas (contrato único)
+- **Implementação**: serviço puro em `backend/apps/banking/services/financial_calculations.py` com funções `calculate_iof(request: LoanInput) -> Decimal`, `calculate_cet(request: LoanInput) -> CETBreakdown`, `generate_installments(request: LoanInput) -> list[InstallmentInput]`.  
+- **Entrada (`LoanInput`)**: `{principal_amount: Decimal(12,2), annual_rate_pct: Decimal(5,2), number_of_installments: int>0, contract_date: date, first_installment_date: date, tenor_months opcional}`; datas derivam de `reference_datetime` do manifesto.  
+- **Saída (`CETBreakdown`)**: `{cet_annual_rate: Decimal(7,4), cet_monthly_rate: Decimal(7,4), iof_amount: Decimal(10,2), installments: list[InstallmentInput]}`.  
+- **Stubs de teste**: Pact stubs em `contracts/pact/financial-calculator.json` (a criar) com exemplos determinísticos; usados por factories e testes de integração dos endpoints de seeds.  
+- **Fail-closed**: divergência entre retorno do serviço e cálculo esperado (duas casas para valores, quatro casas para taxas) aborta o lote. Fallback local permitido apenas em dev isolado com fixtures do stub.
+
 #### Mapeamento para models/serializers reais (novo app de domínio)
 - **App**: criar `backend/apps/banking/` com models + serializers DRF, managers com `TenantManager` e RLS ativa (Art. XIII). Factories em `backend/apps/banking/tests/factories.py` reutilizam os serializers para validar contratos `/api/v1`.  
-- **Customer**: campos `id (UUID)`, `tenant_id`, `name`, `document_number` (CPF/CNPJ pgcrypto+FPE), `email`, `phone`, `birth_date`, `status` enum `active|blocked|delinquent|canceled`, FK `address`. Serializer `CustomerSerializer` aplica redaction e valida status; baseline = `active`, carga/DR seguem percentuais do catálogo.  
-- **Address**: `street`, `number`, `city`, `state`, `postal_code`, `country`, `complement`; FK para `Customer`. Serializer `AddressSerializer` valida CEP/UF.  
-- **BankAccount**: `account_number`/`branch` (FPE), `type` enum `checking|savings`, `status` `active|blocked`, `balance`, FK `customer`. Serializer `BankAccountSerializer` exige unicidade por tenant.  
-- **AccountCategory**: catálogo por tenant (`code`, `description`, `is_default`).  
-- **Supplier**: `name`, `document_number` (FPE), `status` `active|blocked`.  
-- **Loan**: `principal_amount`, `annual_rate_pct`, `installments_total`, `status` `active|delinquent|canceled`, `start_date`, `maturity_date`, FK `customer` e opcional `bank_account`; serializer valida CET/IOF contra serviço oficial.  
-- **Installment**: `sequence`, `due_date`, `principal_amount`, `interest_amount`, `fees_iof`, `status` `pending|paid|delinquent|canceled`, FK `loan`; datas derivadas de `reference_datetime`.  
-- **FinancialTransaction**: `amount`, `currency`, `direction` `credit|debit`, `description`, `reference`, FK `bank_account`; 5% reversões em carga/DR.  
-- **Limit/Contract**: `credit_limit` vinculado à conta (`current_limit`, `used_amount`, `status`), `Contract` com `etag_payload` (hash SHA-256 do corpo) para ETag/If-Match e PII mascarada em identificadores.
+- **Customer**: `id UUID PK`, `tenant_id` FK, `name` varchar(255), `document_number` char(20) com pgcrypto+FPE, `birth_date` date null, `email` EmailField null, `phone` char(20) null, `status` enum `ACTIVE|BLOCKED|DELINQUENT|CANCELED` (default `ACTIVE`), `created_at/updated_at` audit. `unique(tenant_id, document_number)`. Serializer redige PII e aplica status conforme catálogo.  
+- **Address**: `customer_id` FK, `zip_code` char(10), `street` varchar(255), `number` varchar(20), `complement` varchar(100) opcional, `neighborhood` varchar(100), `city` varchar(100), `state` char(2), `is_primary` bool default false. Index `unique(customer_id, is_primary WHERE is_primary)` opcional para garantir um endereço principal.  
+- **Consultant**: `user` OneToOne `tenancy_user`, `balance` decimal(10,2) default 0.00; herdado de BaseTenantModel.  
+- **BankAccount**: `name` varchar(100), `agency` char(10) (FPE), `account_number` char(20) (FPE), `initial_balance` decimal(15,2) default 0.00, `type` enum `CHECKING|SAVINGS`, `status` enum `ACTIVE|BLOCKED` default `ACTIVE`, FK `customer`. `unique(tenant_id, account_number)` e `unique(tenant_id, agency, account_number)` (ver blueprint).  
+- **AccountCategory**: catálogo por tenant (`code` varchar(40), `description` varchar(255), `is_default` bool); `unique(tenant_id, code)`; deriva de `PaymentCategory` do blueprint, sem PII.  
+- **Supplier**: `name` varchar(255), `document_number` char(20) FPE (null/blank permitido), `status` enum `ACTIVE|BLOCKED` default `ACTIVE`; índice `unique(tenant_id, document_number)` quando não nulo.  
+- **Loan**: `customer_id` FK (PROTECT), `consultant_id` FK (PROTECT), `principal_amount` decimal(12,2), `interest_rate` decimal(5,2) (taxa mensal), `number_of_installments` smallint, `contract_date` date, `first_installment_date` date, `status` enum `IN_PROGRESS|PAID_OFF|IN_COLLECTION|CANCELED` (default `IN_PROGRESS`), `iof_amount` decimal(10,2), `cet_annual_rate` decimal(7,4), `cet_monthly_rate` decimal(7,4). Índice `index(tenant_id, status)` e `index(tenant_id, customer_id)`.  
+- **Installment**: `loan_id` FK (CASCADE), `installment_number` smallint, `due_date` date, `amount_due` decimal(10,2), `amount_paid` decimal(10,2) default 0.00, `payment_date` date null, `status` enum `PENDING|PAID|OVERDUE|PARTIALLY_PAID` (default `PENDING`). Índice `unique(loan_id, installment_number)`.  
+- **FinancialTransaction**: `description` varchar(255), `amount` decimal(12,2), `transaction_date` date, `is_paid` bool default false, `payment_date` date null, `type` enum `INCOME|EXPENSE`, FKs opcionais `bank_account` (PROTECT), `category` (SET NULL), `cost_center` (SET NULL), `supplier` (SET NULL), `installment` (SET NULL, related_name payments).  
+- **CreditLimit** (`limits`): `bank_account_id` FK, `current_limit` decimal(12,2), `used_amount` decimal(12,2) default 0.00, `status` enum `ACTIVE|FROZEN|CANCELED` (default `ACTIVE`), `effective_from/through` daterange opcional; `unique(tenant_id, bank_account_id)`.  
+- **Contract** (`contracts`): `bank_account_id` FK opcional, `customer_id` FK opcional, `body` JSONB (payload assinado), `etag_payload` sha256 hex (usada em ETag/If-Match), `version` SemVer, `signed_at` timestamptz, `status` enum `ACTIVE|REVOKED|EXPIRED`, PII mascarada antes de assinar. `unique(tenant_id, etag_payload)`.
 
 #### Checkpoints e idempotência — detalhamento
 - **hash_estado**: `sha256` de JSON canônico ordenado `{entity, batch_seq, manifest_hash_sha256, last_pk, caps_snapshot}`.  

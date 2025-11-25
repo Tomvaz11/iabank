@@ -99,3 +99,88 @@
 - **Índices**: `index(tenant_id, environment, role)`, `index(tenant_id, subject)`.  
 - **RLS**: por tenant; leitura/escrita restrita ao admin de tenant.  
 - **Uso**: permission class DRF `SeedDataPermission` e CLI consultam esta tabela para RBAC/ABAC (bindings por tenant/ambiente), vinculando `policy_version` ao span OTEL/auditoria.
+
+## Banking Domain (entidades seedadas)
+
+### TenantUser (service accounts para seeds)
+- **Tabela**: `tenancy_user` (ou `auth_user` custom com FK `tenant_id`).  
+- **Campos**: `id` (PK int ou UUID conforme base), `tenant_id` (FK), `username` (unique por tenant), `email` (unique por tenant), `password` (hash), flags de staff/superuser (`false` por padrão).  
+- **Constraints**: `unique(tenant_id, username)`, `unique(tenant_id, email)`; service accounts criadas para `seed-runner/admin/read`.  
+- **RLS**: `tenant_id = current_setting('app.tenant_id')::uuid`.  
+- **Uso**: satisfazer `tenant_users` no manifesto; provisionar apenas contas técnicas com roles do RBAC.
+
+### Customer
+- **Tabela**: `banking_customer`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `name` (varchar 255), `document_number` (char 20, pgcrypto+FPE), `birth_date` (date null), `email` (EmailField null), `phone` (char 20 null), `status` enum (`ACTIVE|BLOCKED|DELINQUENT|CANCELED`), `created_at/updated_at`.  
+- **Constraints**: `unique(tenant_id, document_number)`, status default `ACTIVE`.  
+- **Índices**: `index(tenant_id, status)`.  
+- **RLS**: por tenant, managers aplicam `tenant_id`.  
+- **PII**: `document_number`, `email`, `phone` cifrados com pgcrypto + mascaramento FPE.
+
+### Address
+- **Tabela**: `banking_address`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `customer_id` (FK), `zip_code` (char 10), `street` (varchar 255), `number` (varchar 20), `complement` (varchar 100 opcional), `neighborhood` (varchar 100), `city` (varchar 100), `state` (char 2), `is_primary` (bool default false).  
+- **Constraints**: `CHECK (state ~ '^[A-Z]{2}$')`; opcional `unique(customer_id) WHERE is_primary`.  
+- **Índices**: `index(customer_id, is_primary)`.  
+- **RLS**: por tenant via FK + policy.
+
+### Consultant
+- **Tabela**: `banking_consultant`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `user_id` (FK → `tenancy_user`), `balance` (decimal(10,2) default 0.00), `created_at/updated_at`.  
+- **Constraints**: `unique(user_id)`; saldo não negativo (`balance >= 0`).  
+- **RLS**: por tenant.
+
+### BankAccount
+- **Tabela**: `banking_bank_account`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `customer_id` (FK PROTECT), `name` (varchar 100), `agency` (char 10, FPE), `account_number` (char 20, FPE), `initial_balance` (decimal(15,2) default 0.00), `type` enum (`CHECKING|SAVINGS`), `status` enum (`ACTIVE|BLOCKED`), `created_at/updated_at`.  
+- **Constraints**: `unique(tenant_id, account_number)`, `unique(tenant_id, agency, account_number)`; status default `ACTIVE`.  
+- **Índices**: `index(tenant_id, status)`, `index(customer_id)`.  
+- **RLS/PII**: por tenant; `agency/account_number` com pgcrypto+FPE.
+
+### AccountCategory
+- **Tabela**: `banking_account_category`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `code` (varchar 40), `description` (varchar 255), `is_default` (bool default false).  
+- **Constraints**: `unique(tenant_id, code)`; apenas um `is_default=true` por tenant (check parcial).  
+- **Índices**: `index(tenant_id, is_default)`.  
+- **RLS**: por tenant.
+
+### Supplier
+- **Tabela**: `banking_supplier`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `name` (varchar 255), `document_number` (char 20, FPE, null permitido), `status` enum (`ACTIVE|BLOCKED`), `created_at/updated_at`.  
+- **Constraints**: `unique(tenant_id, document_number)` quando não nulo; status default `ACTIVE`.  
+- **RLS/PII**: por tenant; `document_number` com pgcrypto+FPE.
+
+### Loan
+- **Tabela**: `banking_loan`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `customer_id` (FK PROTECT), `consultant_id` (FK PROTECT), `principal_amount` (decimal(12,2)), `interest_rate` (decimal(5,2)), `number_of_installments` (smallint), `contract_date` (date), `first_installment_date` (date), `status` enum (`IN_PROGRESS|PAID_OFF|IN_COLLECTION|CANCELED`), `iof_amount` (decimal(10,2)), `cet_annual_rate` (decimal(7,4)), `cet_monthly_rate` (decimal(7,4)), `created_at/updated_at`.  
+- **Constraints**: `number_of_installments > 0`; status default `IN_PROGRESS`.  
+- **Índices**: `index(tenant_id, status)`, `index(customer_id)`, `index(consultant_id)`.  
+- **RLS**: por tenant.
+
+### Installment
+- **Tabela**: `banking_installment`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `loan_id` (FK CASCADE), `installment_number` (smallint), `due_date` (date), `amount_due` (decimal(10,2)), `amount_paid` (decimal(10,2) default 0.00), `payment_date` (date null), `status` enum (`PENDING|PAID|OVERDUE|PARTIALLY_PAID`), `created_at/updated_at`.  
+- **Constraints**: `unique(loan_id, installment_number)`; `amount_due >= 0`; status default `PENDING`.  
+- **Índices**: `index(tenant_id, status)`, `index(loan_id, due_date)`.  
+- **RLS**: por tenant.
+
+### FinancialTransaction
+- **Tabela**: `banking_financial_transaction`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `description` (varchar 255), `amount` (decimal(12,2)), `transaction_date` (date), `is_paid` (bool default false), `payment_date` (date null), `type` enum (`INCOME|EXPENSE`), FKs opcionais `bank_account_id` (PROTECT), `category_id` (SET NULL), `cost_center_id` (SET NULL), `supplier_id` (SET NULL), `installment_id` (SET NULL), `created_at/updated_at`.  
+- **Constraints**: `amount >= 0`; `payment_date` não nulo quando `is_paid=true` (check).  
+- **Índices**: `index(tenant_id, type)`, `index(bank_account_id)`.  
+- **RLS/PII**: por tenant; campos de referência mascarados onde aplicável.
+
+### CreditLimit
+- **Tabela**: `banking_credit_limit`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `bank_account_id` (FK), `current_limit` (decimal(12,2)), `used_amount` (decimal(12,2) default 0.00), `status` enum (`ACTIVE|FROZEN|CANCELED`), `effective_from`/`effective_through` (date null).  
+- **Constraints**: `current_limit >= 0`, `used_amount >= 0`, `unique(tenant_id, bank_account_id)`; status default `ACTIVE`.  
+- **Índices**: `index(tenant_id, status)`, `index(bank_account_id)`.  
+- **RLS**: por tenant.
+
+### Contract
+- **Tabela**: `banking_contract`.  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `bank_account_id` (FK opcional), `customer_id` (FK opcional), `body` (JSONB), `etag_payload` (char 64 sha256), `version` (SemVer), `status` enum (`ACTIVE|REVOKED|EXPIRED`), `signed_at` (timestamptz), `pii_redacted` (bool default true), `created_at/updated_at`.  
+- **Constraints**: `unique(tenant_id, etag_payload)`; `body` não nulo; status default `ACTIVE`.  
+- **Índices**: `index(tenant_id, status)`.  
+- **RLS/PII**: por tenant; PII já mascarada antes de persistir/assinar.
