@@ -24,3 +24,4 @@ Executa o **ADR-012** alinhado ao Artigo VII da Constituição.
 ## Incidentes
 - Quando alertas DORA/SLO dispararem, siga `docs/runbooks/incident-response.md`.
 - Registre post-mortem com os spans relevantes.
+- Para evidências WORM ligadas a observabilidade, assine o payload (hash SHA-256 + assinatura assimétrica via KMS/Vault, ex.: RSA-PSS-SHA256 ou Ed25519) e valide a assinatura após upload antes de marcar como verificada.
