@@ -151,15 +151,27 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 
 #### Parâmetros operacionais adicionais
 - **Celery/Redis**: filas dedicadas `seed_data.default` (baseline) e `seed_data.load_dr` (carga/DR); DLQ `seed_data.dlq`. Prefetch 1, `acks_late=True`, `visibility_timeout` = `max_interval_seconds * 2`. Paralelismo por worker: baseline 1, carga/DR até 4.  
-- **Backoff/jitter**: usar `retry_backoff=True`, `retry_backoff_max = max_interval_seconds` e jitter multiplicativo `random(1 - jitter_factor, 1 + jitter_factor)`; aplicar também para 429.  
-- **Locks**: advisory lock global = `hashtext('seed_data:global:'||environment)`; por tenant = `hashtext('seed_data:'||tenant||':'||environment)`, com lease 60s; fila auditável em tabela `tenancy_seed_queue` com TTL 5 min.  
-- **Relatório WORM**: payload JSON com campos obrigatórios `{run_id, tenant, environment, manifest_path, manifest_hash_sha256, schema_version, mode, reference_datetime, caps, rate_limit_usage, budget_usage, batches[], checkpoints[], errors[], otel_trace_id, otel_span_id, started_at, finished_at, outcome}`; `signature_hash` = `sha256` do payload; assinatura PSS armazenada em `signature`. Destino: bucket S3 Object Lock `worm/seeds/<env>/<tenant>/<run_id>.json`, retenção mínima 365 dias; verificação de integridade antes de marcar `integrity_status=verified`.  
+- **Backoff/jitter**: usar `retry_backoff=True`, `retry_backoff_max = max_interval_seconds` e jitter multiplicativo `random(1 - jitter_factor, 1 + jitter_factor)`; aplicar também para 429.
+- **Locks**: advisory lock global = `hashtext('seed_data:global:'||environment)`; por tenant = `hashtext('seed_data:'||tenant||':'||environment)`, com lease 60s; fila auditável em tabela `tenancy_seed_queue` com TTL 5 min.
+- **Relatório WORM**: payload JSON com campos obrigatórios `{run_id, tenant, environment, manifest_path, manifest_hash_sha256, schema_version, mode, reference_datetime, caps, rate_limit_usage, budget_usage, batches[], checkpoints[], errors[], otel_trace_id, otel_span_id, started_at, finished_at, outcome}`; `signature_hash` = `sha256` do payload; assinatura PSS armazenada em `signature`. Destino: bucket S3 Object Lock `worm/seeds/<env>/<tenant>/<run_id>.json`, retenção mínima 365 dias; verificação de integridade antes de marcar `integrity_status=verified`.
 - **Observabilidade mínima**: spans nomeados `seed.run`, `seed.batch`, `seed.manifest.validate`; atributos obrigatórios `tenant_id`, `environment`, `seed_run_id`, `manifest_version`, `mode`, `dry_run`; métricas `seed_run_duration_ms` (histogram), `seed_batch_latency_ms` (histogram), `seed_rate_limit_remaining`, `seed_budget_remaining`; logs JSON com `level`, `event`, `tenant_id`, `seed_run_id`, `pii_redacted=true`. Export falho → status `failed` com Problem Details `telemetry_unavailable`.
+
+#### Parâmetros por ambiente e FinOps (assunções consolidadas do clarify)
+- **Volumetria Q11 por ambiente**: dev 1x baseline, homolog 3x, staging/carga 5x, produção controlada 1x (mínimo); caps por entidade versionados no manifesto.
+- **Rate limit alvo (RPM)**: dev 300, homolog 600, staging/carga 1.200, produção controlada 300; usar no máximo 80% do limite e aplicar backoff+jitter ao se aproximar do cap.
+- **Tempos-alvo por ambiente**: dev <5 min, homolog <10 min, produção controlada <20 min; exceder +20% aborta/rollback auditado.
+- **Budget por execução (FinOps)**: dev/homolog até US$5, staging/carga até US$25, produção controlada até US$50; alertar em 80%, abortar em 100% (fail-closed) e exigir ajuste do manifesto.
+- **Dry-run em CI/PR**: apenas baseline determinístico para um tenant canônico (ou lista curta declarada), sem WORM, validando PII/contrato/idempotência/rate-limit.
+
+#### Bloqueio de mutações e caches
+- **Maintenance flag**: durante a janela off-peak, aplicar flag de manutenção por tenant (coluna/status + policy/RLS) para bloquear writes concorrentes; se faltarem flags ou se forem desrespeitadas, abortar em fail-closed e auditar.
+- **Caches/índices/busca**: invalidar caches Redis e rebuild de busca/índices em torno da execução; rebuild só em modos controlados (dry-run/staging/carga/DR), proibido em produção fora da janela aprovada para preservar determinismo/idempotência.
+- **Eventos/outbox/CDC**: sempre roteados para sinks sandbox com mocks/stubs e auditoria; nunca publicar em destinos reais durante seeds/factories/carga/DR.
 
 ### Cobertura de entidades e factories
 
-- **Escopo mínimo**: tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras, limites/contratos (conforme clarificações).  
-- **Factories**: factory-boy determinísticas (seed derivado de tenant/ambiente/manifesto), mascaramento PII obrigatório, compatíveis com serializers `/api/v1`; validam CET/IOF/parcelas contra serviços oficiais.  
+- **Escopo mínimo**: tenants/usuários, clientes/endereços, consultores, contas bancárias/categorias/fornecedores, empréstimos/parcelas, transações financeiras, limites/contratos (conforme clarificações).
+- **Factories**: factory-boy determinísticas (seed derivado de tenant/ambiente/manifesto), mascaramento PII obrigatório, compatíveis com serializers `/api/v1`; validam CET/IOF/parcelas contra serviços oficiais.
 - **Baseline vs carga/DR**: Baseline somente happy paths/estados ativos; carga/DR incluem estados bloqueado/inadimplente/cancelado com percentuais por entidade no manifesto; reexecução limpa datasets do modo antes de recriar.
 
 #### Catálogo PII e seed determinístico
