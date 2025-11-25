@@ -1,0 +1,49 @@
+metadata:
+  tenant: tenant-a
+  environment: dr
+  profile: dr-recovery
+  version: 2.0.0
+  schema_version: v1
+  salt_version: 2025-q1
+
+mode: dr
+reference_datetime: "2025-02-01T00:00:00Z"
+
+window:
+  start_utc: "23:00"
+  end_utc: "04:00"
+
+volumetry:
+  customers:
+    cap: 10000
+  loans:
+    cap: 3000
+  installments:
+    cap: 12000
+
+rate_limit:
+  limit: 600
+  window_seconds: 60
+
+backoff:
+  base_seconds: 1
+  jitter_factor: 0.4
+  max_retries: 5
+  max_interval_seconds: 45
+
+budget:
+  cost_cap_brl: 25.0
+  error_budget_pct: 8.0
+
+ttl:
+  baseline_days: 30
+  carga_days: 7
+  dr_days: 3
+
+slo:
+  p95_target_ms: 6000
+  p99_target_ms: 9000
+  throughput_target_rps: 8.0
+
+integrity:
+  manifest_hash: "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd"

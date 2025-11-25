@@ -1,0 +1,49 @@
+metadata:
+  tenant: tenant-a
+  environment: staging
+  profile: default
+  version: 1.0.0
+  schema_version: v1
+  salt_version: 2025-q1
+
+mode: baseline
+reference_datetime: "2025-01-01T00:00:00Z"
+
+window:
+  start_utc: "22:00"
+  end_utc: "06:00"
+
+volumetry:
+  customers:
+    cap: 5000
+  bank_accounts:
+    cap: 5000
+  financial_transactions:
+    cap: 50000
+
+rate_limit:
+  limit: 600
+  window_seconds: 60
+
+backoff:
+  base_seconds: 1
+  jitter_factor: 0.3
+  max_retries: 5
+  max_interval_seconds: 30
+
+budget:
+  cost_cap_brl: 25.0
+  error_budget_pct: 5.0
+
+ttl:
+  baseline_days: 30
+  carga_days: 7
+  dr_days: 3
+
+slo:
+  p95_target_ms: 5000
+  p99_target_ms: 8000
+  throughput_target_rps: 5.0
+
+integrity:
+  manifest_hash: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"

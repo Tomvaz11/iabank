@@ -98,6 +98,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Concorrência/locks**: Adquirir lock global (teto 2 execuções por ambiente/cluster, TTL fila 5 min) e lock por tenant/ambiente via advisory lock (TTL 60s) no Postgres; fila curta auditável no DB; liberação em finally; se lock expirar, reagendar.  
 - **Criação de SeedRun/SeedBatch**: Persistir `SeedRun` com `idempotency_key`, status `queued` e manifesto referenciado; para cada entidade/caps gerar `SeedBatch` inicial com attempt=0 e status `pending`.  
 - **Execução (Celery/Redis)**: Disparar lotes Celery com `acks_late`, backoff com jitter em 429/erro transitório, DLQ com teto de tentativas definido no manifesto; baseline sequencial, carga/DR com paralelismo controlado (2–4 workers) respeitando rate limit centralizado.  
+- **Formação/ordenação de batches**: Ordenar entidades respeitando FKs/dependências: `tenant_users -> customers -> addresses -> bank_accounts -> account_categories -> suppliers -> loans -> installments -> financial_transactions -> limits -> contracts`. `batch_size` determinístico: `baseline` usa `min(cap, 200)`, `carga/dr` usa `min(cap, 1000)` limitado por rate limit; dividir usando `factory_seed` para ordenação (sha256 do tenant+environment+manifest_version+salt_version) garantindo reprodutibilidade. Batches que excederem cap ou quebrarem ordem de dependência falham em fail-closed.  
 - **Checkpoints/idempotência**: Cada lote grava `Checkpoint` (hash_estado, resume_token criptografado via pgcrypto) e atualiza `SeedRun`/`BudgetRateLimit`; divergência de hash ou checkpoint vencido → abort e exigir limpeza/reseed. TTL de checkpoint até próximo reseed do modo, máx. 30 dias.  
 - **Observabilidade**: OTEL (traces/metrics/logs JSON) com labels tenant/ambiente/seed_run_id/manifest_version; redaction PII (ADR-010); spans de lote e de validação de manifesto; erro no export marca run como failed.  
 - **Relatório WORM**: Ao final (ou falha), gerar relatório JSON assinado (hash/assinatura) com manifest/tenant/ambiente, trace/span IDs, volumetria prevista/real, uso de rate limit/budget, SLO atingidos, erros Problem Details; armazenar em WORM (ex.: S3 Object Lock) com retenção mínima 1 ano e integridade verificada; indisponibilidade de WORM → abort antes de escrever dados.  
@@ -142,6 +143,10 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Errors**: Problem Details com `type`, `title`, `detail`, `instance`, `status`, `violations[]`; sempre enviar `RateLimit-*` e `Retry-After` em `429`.  
 - **Pact/OpenAPI**: paths acima devem constar em `specs/003-seed-data-automation/contracts/seed-data.openapi.yaml` com exemplos e schemas referenciando `seed-profile.schema.json`.
 
+#### Máquina de estados (SeedRun/SeedBatch)
+- **SeedRun**: `queued -> running -> {succeeded | failed | aborted}`; `running -> retry_scheduled` em erro transitório e retorna a `running` após backoff; `running -> blocked` (lock/maintenance/off-peak fechada) e encerra em `aborted` após timeout; cancelamento via endpoint (`If-Match`) seta flag `cancel_requested` e finaliza como `aborted` após drenar/parar os batches. `retry_scheduled` não avança para `succeeded` sem novo `ETag`.  
+- **SeedBatch**: `pending -> processing -> {completed | failed}`; `processing -> retry_scheduled` em 429/erro transitório com jitter; `retry_scheduled -> processing` até `max_retries`; excedeu → `dlq`; `dlq` só volta a `processing` por ação operacional (Argo/CD) registrada em auditoria. Status `failed/dlq` bloqueiam `SeedRun` se não houver batch subsequente aberto.
+
 ### Observabilidade, FinOps e rate limit
 
 - **Rate limit/FinOps**: Manifesto define caps; calcular consumo e alertar em 80% do budget; abort/rollback em 100% (fail-closed). Propagar cabeçalhos `RateLimit-*`/`Retry-After` em API e logs de CLI; registrar consumo no relatório WORM. Cálculo de custo: estimativa = (requests API * custo_unit_request + CPU_s * custo_unit_CPU + GB_s Redis/DB * custo_unit_storage); custo real = amostragem Prometheus/CloudWatch por SeedRun. Janela de apuração = por SeedRun + agregação diária por ambiente/tenant; registrar `cost_model_version` e fonte de preços/metas no relatório e tabela de budget.  
@@ -149,12 +154,24 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Telemetria**: Conformidade com ADR-012 (OTEL + Sentry) e ADR-010 (redação PII). Falha de export → marca SeedRun como failed e bloqueia promoção (Art. VII).  
 - **PII**: FPE determinística via Vault Transit (FF3-1/FF1), chaves/salts por ambiente/tenant com rotação trimestral; fallback apenas em dev isolado; pgcrypto em repouso; catálogo PII aplicado nas factories.
 
+#### Regras operacionais de FinOps/Rate Limit
+- **Fontes de custo**: estimativa usa catálogo de preços versionado (`cost_model_version`) e métricas OTEL/Prometheus (`seed_run_duration_ms`, `seed_batch_latency_ms`, `celery_task_cpu_seconds_total`, `postgresql_table_size_bytes`); custo real coleta CPU/memória/IO via Prometheus e requests API via `seed_rate_limit_remaining`.  
+- **Janela**: cálculo por `SeedRun` e janela diária (`cost_window_started_at/ends_at` em `BudgetRateLimit`). Reset de rate-limit segue `rate_limit.window_seconds`; cabeçalho `RateLimit-Reset` deriva desse campo.  
+- **Alertas/abortos**: alerta ao atingir 80% (`budget_alert_at_pct`), aborta em 100% ou `rate_limit_remaining < 0` (fail-closed) com Problem Details `finops_budget_exceeded`.  
+- **Logs/relatório**: registrar `cost_model_version`, `cost_estimated_brl`, `cost_actual_brl` e fontes (`prometheus://...`) no relatório WORM e em `BudgetRateLimit`.
+
 #### Parâmetros operacionais adicionais
 - **Celery/Redis**: filas dedicadas `seed_data.default` (baseline) e `seed_data.load_dr` (carga/DR); DLQ `seed_data.dlq`. Prefetch 1, `acks_late=True`, `visibility_timeout` = `max_interval_seconds * 2`. Paralelismo por worker: baseline 1, carga/DR até 4.  
 - **Backoff/jitter**: usar `retry_backoff=True`, `retry_backoff_max = max_interval_seconds` e jitter multiplicativo `random(1 - jitter_factor, 1 + jitter_factor)`; aplicar também para 429.
 - **Locks**: advisory lock global = `hashtext('seed_data:global:'||environment)`; por tenant = `hashtext('seed_data:'||tenant||':'||environment)`, com lease 60s; fila auditável em tabela `tenancy_seed_queue` com TTL 5 min.
 - **Relatório WORM**: payload JSON com campos obrigatórios `{run_id, tenant, environment, manifest_path, manifest_hash_sha256, schema_version, mode, reference_datetime, caps, rate_limit_usage, budget_usage, batches[], checkpoints[], errors[], otel_trace_id, otel_span_id, started_at, finished_at, outcome, cost_model_version, cost_estimated_brl, cost_actual_brl}`; `signature_hash` = `sha256` do payload; assinatura assimétrica via KMS/Vault (`signature_algo` = `RSA-PSS-SHA256` ou `Ed25519`) armazenada em `signature` com `key_id`/`key_version`. Destino: bucket S3 Object Lock `worm/seeds/<env>/<tenant>/<run_id>.json`, retenção mínima 365 dias; verificar assinatura após upload e antes de marcar `integrity_status=verified`, com retry exponencial (máx. 3) em upload/verify.
 - **Observabilidade mínima**: spans nomeados `seed.run`, `seed.batch`, `seed.manifest.validate`; atributos obrigatórios `tenant_id`, `environment`, `seed_run_id`, `manifest_version`, `mode`, `dry_run`; métricas `seed_run_duration_ms` (histogram), `seed_batch_latency_ms` (histogram), `seed_rate_limit_remaining`, `seed_budget_remaining`; logs JSON com `level`, `event`, `tenant_id`, `seed_run_id`, `pii_redacted=true`. Export falho → status `failed` com Problem Details `telemetry_unavailable`.
+- **Assinatura/WORM operacional**: cliente Python `boto3` com `ObjectLockMode=COMPLIANCE` e `RetainUntilDate` ≥ 365 dias; assinatura via Vault Transit path `transit/sign/seeds-worm` (key `seed-worm-report`) ou KMS equivalente por ambiente (`arn:aws:kms:...:key/seeds-worm`). Passos: (1) calcular `signature_hash`; (2) `vault write transit/sign/seeds-worm hash=<signature_hash>`; (3) upload com metadados `x-seeds-signature`, `x-seeds-key-id`; (4) verificar via `transit/verify` após upload. Falha em qualquer passo → abortar `SeedRun`.  
+
+#### Fila global e GC (`SeedQueue`)
+- Inserção em `tenancy_seed_queue` ocorre antes do lock global; registros `pending` expiram em 5 min (`expires_at`).  
+- Job Argo Cron (`seed-queue-gc`, a cada 1 min) limpa `status=expired` e audita; se ambiente tiver >2 execuções ativas, marca excedentes como `expired` e retorna `Problem Details global_concurrency_cap`.  
+- `lease_lock_key` deve bater com o advisory lock vigente; mismatch entre lock e fila → fail-closed e reaplica lock antes de reprocessar.
 
 #### Parâmetros por ambiente e FinOps (assunções consolidadas do clarify)
 - **Volumetria Q11 por ambiente**: dev 1x baseline, homolog 3x, staging/carga 5x, produção controlada 1x (mínimo); caps por entidade versionados no manifesto.
@@ -167,6 +184,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Maintenance flag**: durante a janela off-peak, aplicar flag de manutenção por tenant (coluna/status + policy/RLS) para bloquear writes concorrentes; se faltarem flags ou se forem desrespeitadas, abortar em fail-closed e auditar.
 - **Caches/índices/busca**: invalidar caches Redis e rebuild de busca/índices em torno da execução; rebuild só em modos controlados (dry-run/staging/carga/DR), proibido em produção fora da janela aprovada para preservar determinismo/idempotência.
 - **Eventos/outbox/CDC**: sempre roteados para sinks sandbox com mocks/stubs e auditoria; nunca publicar em destinos reais durante seeds/factories/carga/DR.
+- **Enforcement de janela off-peak**: preflight do CLI/API valida `now() AT TIME ZONE 'UTC'` contra `SeedProfile.window` e `tenancy_tenant.off_peak_window_utc`; fora da janela marca `SeedRun` como `blocked` com Problem Details `offpeak_window_closed`. Middleware DRF adicional impede POST/PUT de domínios afetados quando `maintenance_mode` ativo ou janela fechada, registrando auditoria.
 
 ### Cobertura de entidades e factories
 
@@ -180,6 +198,20 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Seed determinístico**: `factory_seed = sha256(tenant_id || environment || manifest_version || salt_version)` truncado para inteiro; todas as factories usam esse seed via helper central.  
 - **Cálculo CET/IOF/parcelas**: sempre chamar serviços/domínio oficiais; validar igualdade arredondada a 2 casas; divergência falha o lote.  
 - **Ambientes**: fallback de FPE somente em dev isolado com chave em `.env.local`; CI/staging/prod falham se fallback ativo.
+- **Vault Transit PII**: paths `transit/seeds/<environment>/<tenant>/ff3` para FPE e `transit/seeds/<environment>/<tenant>/ff1` para formatos legados; role `seed-data` com política de mínimo privilégio. Helper `get_fpe_client(env, tenant, salt_version)` retorna callable injetado nas factories; falha de autorização → fail-closed.  
+- **Catálogo de campos/estados (baseline/carga/DR)**:  
+  - `customers`: baseline 100% ativos; carga/DR adicionam 10% bloqueado, 10% inadimplente, 5% cancelado. PII mascarada em `document_number`, `email`, `phone`, `address.*`.  
+  - `bank_accounts`: baseline ativa; carga/DR com 5% bloqueada. Campos sensíveis: `account_number`, `branch`.  
+  - `loans`: baseline status `active`; carga/DR com `delinquent` 20%, `canceled` 10%.  
+  - `installments`: derivadas de loans, datas fixadas a partir de `reference_datetime` para determinismo.  
+  - `financial_transactions`: descrições sintéticas sem PII; 5% reversões em carga/DR.  
+  - `limits/contracts`: contratos simulados assinados com ETag derivado do payload e PII mascarada em identificadores.
+
+#### Checkpoints e idempotência — detalhamento
+- **hash_estado**: `sha256` de JSON canônico ordenado `{entity, batch_seq, manifest_hash_sha256, last_pk, caps_snapshot}`.  
+- **resume_token**: JSON `{entity, batch_seq, last_pk, factory_seed}` criptografado via `pgp_sym_encrypt` com chave `seed_resume_key` provisionada via Vault (envelope) e armazenado em `bytea`.  
+- **Retomada**: na retomada, descriptografar `resume_token`, validar `hash_estado` contra manifesto/`SeedBatch`; divergência → abortar e exigir limpeza de checkpoints.  
+- **Persistência determinística**: IDs gerados via UUIDv5 namespaced (`tenant|entity|batch_seq|manifest_version`) para dedupe sem expor PII.
 
 ## Complexity Tracking
 

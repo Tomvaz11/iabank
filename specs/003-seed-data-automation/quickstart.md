@@ -4,6 +4,7 @@
 - RLS habilitado e politicas atualizadas para o tenant/ambiente alvo.  
 - Acesso ao Vault Transit (paths segregados por ambiente/tenant) e variaveis de ambiente configuradas para client.  
 - Manifesto YAML/JSON versionado em GitOps no padrao v1 (mode, volumetria/caps Q11, rate limit/backoff+jitter, budgets, TTL, off-peak UTC, reference_datetime ISO 8601, thresholds SLO/perf).  
+  Exemplos canônicos: `configs/seed_profiles/staging/tenant-a.yaml` (baseline) e `configs/seed_profiles/dr/tenant-a.yaml` (DR).  
 - WORM acessivel para persistir relatorios assinados; se indisponivel, nao executar.  
 - Pipelines CI/PR com cobertura≥85%, ruff, SAST/DAST/SCA/SBOM e k6 habilitados.
 
