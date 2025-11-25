@@ -89,8 +89,11 @@ Nota operacional: esta seção foi ajustada apenas para validar o comportamento 
 - Localmente, rode: `poetry run python scripts/ci/check_python_complexity.py`.
 
 ## Saídas
-- Artefatos devem ser enviados para armazenamento WORM.
+- Artefatos devem ser enviados para armazenamento WORM, assinados (hash SHA-256 + assinatura assimétrica via KMS/Vault, ex.: RSA-PSS-SHA256 ou Ed25519) e verificados pós-upload antes de marcar como válidos.
 - Resultados agregados alimentam os dashboards DORA/SLO.
+
+## FinOps (seeds/carga/DR)
+- Registrar em artifacts (ou no relatório WORM gerado pela feature) os campos `cost_model_version`, `cost_estimated_brl` e `cost_actual_brl`, com fonte de preços e janela de apuração por run + agregado diário. Alertar em ≥80% do budget e falhar em 100% (fail-closed).
 
 ## Contextos de proteção (GitHub Required Checks)
 Estes são os contextos atualmente exigidos na proteção da branch `main` (Branch protection rules). Mantemos a lista aqui para referência rápida e auditoria:

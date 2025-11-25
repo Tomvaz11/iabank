@@ -2,6 +2,9 @@ openapi: 3.1.0
 info:
   title: IABank Seed Data API
   version: 0.1.1
+  contact:
+    name: IABank Seeds
+    email: seeds@iabank.local
   description: >
     Contratos REST para orquestrar execucoes deterministicas de seeds/factories
     multi-tenant. Operacoes respeitam RateLimit-*, Idempotency-Key, ETag/If-Match
@@ -9,10 +12,16 @@ info:
     operacoes de staging (baseline/carga/DR) conforme spec 003-seed-data-automation.
 servers:
   - url: https://api.iabank.local
+tags:
+  - name: SeedRuns
+    description: Operacoes para criar, consultar e cancelar execucoes de seeds.
+  - name: SeedProfiles
+    description: Operacoes para validar manifestos de seeds.
 paths:
   /api/v1/seed-runs:
     post:
       summary: Inicia execucao de seeds/factories por manifesto
+      description: Cria/enfileira uma execução de seeds determinística com base em um manifesto versionado.
       operationId: createSeedRun
       tags: [SeedRuns]
       parameters:
@@ -70,6 +79,7 @@ paths:
   /api/v1/seed-runs/{seed_run_id}:
     get:
       summary: Consulta status e checkpoints de uma execucao
+      description: Retorna o estado atual de uma execução de seeds, incluindo checkpoints e evidências.
       operationId: getSeedRun
       tags: [SeedRuns]
       parameters:
@@ -105,6 +115,7 @@ paths:
   /api/v1/seed-runs/{seed_run_id}/cancel:
     post:
       summary: Solicita cancelamento seguro de uma execucao
+      description: Solicita cancelamento idempotente de uma execução enfileirada/em andamento usando ETag/If-Match.
       operationId: cancelSeedRun
       tags: [SeedRuns]
       parameters:
@@ -139,6 +150,7 @@ paths:
   /api/v1/seed-profiles/validate:
     post:
       summary: Valida manifesto seed profile (schema e caps)
+      description: Valida um manifesto v1 de seeds (JSON Schema 2020-12), retornando issues normalizadas.
       operationId: validateSeedProfile
       tags: [SeedProfiles]
       parameters:
@@ -265,7 +277,7 @@ components:
           default: false
         allow_offpeak_override:
           type: boolean
-          description: Permite execucao fora da janela off-peak apenas em ambientes permitidos (ex.: dev).
+          description: "Permite execucao fora da janela off-peak apenas em ambientes permitidos (ex.: dev)."
         caps_override:
           type: object
           description: Overrides de volumetria para ambientes de teste controlados.
@@ -497,7 +509,7 @@ components:
           schema:
             $ref: '#/components/schemas/Problem'
     ServiceUnavailable:
-      description: Dependencia indisponivel (ex.: Vault/WORM/fila)
+      description: "Dependencia indisponivel (ex.: Vault/WORM/fila)"
       headers:
         Retry-After:
           schema:

@@ -31,4 +31,4 @@ Assegurar que PII esteja criptografada em nível de campo e que todos os segredo
 
 ## Evidências
 - Anexe logs dos scripts e snapshots dos dashboards de mascaramento.
-- Armazene relatórios no bucket WORM conforme Artigo XVI.
+- Armazene relatórios no bucket WORM conforme Artigo XVI, assinando o payload (hash SHA-256 + assinatura assimétrica via KMS/Vault, ex.: RSA-PSS-SHA256 ou Ed25519) e verificando a assinatura após o upload.
