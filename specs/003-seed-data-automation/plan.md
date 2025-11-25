@@ -30,10 +30,10 @@ Preencha cada item com o plano concreto para a feature. Use `[NEEDS CLARIFICATIO
 **Async/Infra**: Celery 5.3 + Redis 7 (broker/fila curta) com acks tardios, backoff/jitter e DLQ (Blueprint §26); locks via advisory lock Postgres; pipelines Argo CD/GitOps; Terraform+OPA para Vault/WORM/filas (Art. XIV).  
 **Persistência/Dados**: PostgreSQL 15 com RLS ativo, pgcrypto; politicas `CREATE POLICY` versionadas; schemas evoluem por expand/contract com `CONCURRENTLY`; PII cifrada via Vault Transit; WORM para relatorios assinados.  
 **Testing Detalhado**: TDD com pytest/pytest-django, factories factory-boy deterministicas por tenant/ambiente/manifesto, testes de integracao `/api/v1` com RateLimit/Idempotency-Key/ETag e Problem Details, contract tests (OpenAPI lint/diff + Pact stubs), k6 para gate de perf, dry-run deterministico no CI (Art. III, IV, IX, XI).  
-**Observabilidade**: OTEL com W3C Trace Context, structlog/django-prometheus/Sentry (ADR-012); traces/metricas/logs etiquetados por tenant/ambiente/execucao; redacao de PII obrigatoria; export falho bloqueia.  
+**Observabilidade**: OTEL com W3C Trace Context, structlog/django-prometheus/Sentry (ADR-012); traces/metricas/logs etiquetados por tenant/ambiente/execucao; redacao de PII obrigatoria; export falho bloqueia. SLOs/SLIs (p95/p99/throughput/error budget) vivem em `docs/slo/seed-data.md` e alimentam k6 e o relatório WORM.  
 **Segurança/Compliance**: RBAC/ABAC minimo para `seed_data`, RLS enforced, mascaramento PII deterministico (Vault Transit FPE), FinOps budgets/caps por manifesto, evidencias WORM assinadas, mocks para integrações externas (OWASP/NIST; Art. XII, XIII, XVI).  
 **Performance Targets**: p95/p99 de execucao por manifesto dentro do budget; throughput alinhado a RateLimit-* e idempotencia; DR cumpre RPO≤5 min/RTO≤60 min; error budget consumido/abortado conforme manifesto.  
-**Restrições Operacionais**: TDD/integ-primeiro, execucao apenas em janela off-peak declarada, bloqueio sem RLS ou drift de manifesto, RLS check preflight, somente dados sinteticos, GitOps/Argo CD com flags/canary/rollback; expand/contract para schema.  
+**Restrições Operacionais**: TDD/integ-primeiro, execucao apenas em janela off-peak declarada, bloqueio sem RLS ou drift de manifesto, RLS check preflight, somente dados sinteticos (proibido snapshot/dump de producao), GitOps/Argo CD com flags/canary/rollback e deteccao de drift/off-peak; expand/contract para schema.  
 **Escopo/Impacto**: Tenants/ambientes multi-tenant, modos baseline/carga/DR, APIs `/api/v1` consumidas/testadas, pipelines CI/CD, infra de Vault/WORM/filas/Terraform; sem dependencias externas reais (stubs Pact).
 
 ## Constitution Check
@@ -165,12 +165,18 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **SeedRun**: `queued -> running -> {succeeded | failed | aborted}`; `running -> retry_scheduled` em erro transitório e retorna a `running` após backoff; `running -> blocked` (lock/maintenance/off-peak fechada) e encerra em `aborted` após timeout; cancelamento via endpoint (`If-Match`) seta flag `cancel_requested` e finaliza como `aborted` após drenar/parar os batches. `retry_scheduled` não avança para `succeeded` sem novo `ETag`.  
 - **SeedBatch**: `pending -> processing -> {completed | failed}`; `processing -> retry_scheduled` em 429/erro transitório com jitter; `retry_scheduled -> processing` até `max_retries`; excedeu → `dlq`; `dlq` só volta a `processing` por ação operacional (Argo/CD) registrada em auditoria. Status `failed/dlq` bloqueiam `SeedRun` se não houver batch subsequente aberto.
 
+### IaC, GitOps e OPA (Art. XIV)
+- Recursos de seeds/factories (Vault Transit keys/roles, filas Celery/Redis, buckets WORM com Object Lock, roles seed-runner e pipelines Argo CD) são versionados em `infra/` via Terraform.  
+- Policies OPA/Gatekeeper validam naming/tagging, RLS habilitado, Object Lock ativo e ausência de snapshots/dumps de produção; pipelines de `terraform plan` + `opa test` são gates de CI.  
+- Argo CD aplica drift detection e rollback automatizado; promoções respeitam janela off-peak do manifesto e bloqueiam se drift, policy ou checklist de aprovação falhar.
+
 ### Observabilidade, FinOps e rate limit
 
 - **Rate limit/FinOps**: Manifesto define caps; calcular consumo e alertar em 80% do budget; abort/rollback em 100% (fail-closed). Propagar cabeçalhos `RateLimit-*`/`Retry-After` em API e logs de CLI; registrar consumo no relatório WORM. Cálculo de custo: estimativa = (requests API * custo_unit_request + CPU_s * custo_unit_CPU + GB_s Redis/DB * custo_unit_storage); custo real = amostragem Prometheus/CloudWatch por SeedRun. Janela de apuração = por SeedRun + agregação diária por ambiente/tenant; registrar `cost_model_version` e fonte de preços/metas no relatório e tabela de budget.  
 - **SLO**: Medir p95/p99 de execução por manifesto e throughput por lote; violação consome error budget e pode abortar.  
 - **Telemetria**: Conformidade com ADR-012 (OTEL + Sentry) e ADR-010 (redação PII). Falha de export → marca SeedRun como failed e bloqueia promoção (Art. VII).  
 - **PII**: FPE determinística via Vault Transit (FF3-1/FF1), chaves/salts por ambiente/tenant com rotação trimestral; fallback apenas em dev isolado; pgcrypto em repouso; catálogo PII aplicado nas factories.
+- **DORA/flags**: métricas DORA (lead time, MTTR, frequency) coletadas no pipeline; feature flags/canary são obrigatórios e testados em rollback antes da promoção.
 
 #### FinOps — fonte de preços e fórmula
 - **Catálogo de preços**: versionar em `configs/finops/seed-data.cost-model.yaml` com `cost_model_version` SemVer e origem (AWS/GCP preço on-demand). Itens mínimos: `cpu_second_brl`, `db_io_gb_brl`, `redis_cmd_1k_brl`, `api_request_brl`.  
@@ -194,7 +200,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 #### Perf/gate k6
 - **Script**: `observabilidade/k6/seed-data-smoke.js` com cenários `validate_manifest`, `create_seed_run`, `poll_seed_run`.  
 - **Cargas**: baseline 5 VUs/30s, carga 20 VUs/60s (somente staging/perf), respeitando headers `X-Tenant-ID`/`X-Environment` e `Idempotency-Key` randômica.  
-- **Thresholds**: `p95<800ms` para `/seed-profiles/validate`, `p95<1200ms` para `POST /seed-runs`, taxa de erro <1%, `http_req_failed==0`; aborta pipeline se violado. Artefato JSON salvo em `artifacts/perf/k6-seed-smoke.json` e enviado a WORM com assinatura (ADR-011/Art. XVI).
+- **Thresholds**: `p95<800ms` para `/seed-profiles/validate`, `p95<1200ms` para `POST /seed-runs`, taxa de erro <1%, `http_req_failed==0`; valores alinhados aos SLOs publicados em `docs/slo/seed-data.md`. Aborta pipeline se violado. Artefato JSON salvo em `artifacts/perf/k6-seed-smoke.json` e enviado a WORM com assinatura (ADR-011/Art. XVI).
 
 #### Regras operacionais de FinOps/Rate Limit
 - **Fontes de custo**: estimativa usa catálogo de preços versionado (`cost_model_version`) e métricas OTEL/Prometheus (`seed_run_duration_ms`, `seed_batch_latency_ms`, `celery_task_cpu_seconds_total`, `postgresql_table_size_bytes`); custo real coleta CPU/memória/IO via Prometheus e requests API via `seed_rate_limit_remaining`.  
@@ -209,6 +215,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Relatório WORM**: payload JSON com campos obrigatórios `{run_id, tenant, environment, manifest_path, manifest_hash_sha256, schema_version, mode, reference_datetime, caps, rate_limit_usage, budget_usage, batches[], checkpoints[], errors[], otel_trace_id, otel_span_id, started_at, finished_at, outcome, cost_model_version, cost_estimated_brl, cost_actual_brl}`; `signature_hash` = `sha256` do payload; assinatura assimétrica via KMS/Vault (`signature_algo` = `RSA-PSS-SHA256` ou `Ed25519`) armazenada em `signature` com `key_id`/`key_version`. Destino: bucket S3 Object Lock `worm/seeds/<env>/<tenant>/<run_id>.json`, retenção mínima 365 dias; verificar assinatura após upload e antes de marcar `integrity_status=verified`, com retry exponencial (máx. 3) em upload/verify.
 - **Observabilidade mínima**: spans nomeados `seed.run`, `seed.batch`, `seed.manifest.validate`; atributos obrigatórios `tenant_id`, `environment`, `seed_run_id`, `manifest_version`, `mode`, `dry_run`; métricas `seed_run_duration_ms` (histogram), `seed_batch_latency_ms` (histogram), `seed_rate_limit_remaining`, `seed_budget_remaining`; logs JSON com `level`, `event`, `tenant_id`, `seed_run_id`, `pii_redacted=true`. Export falho → status `failed` com Problem Details `telemetry_unavailable`.
 - **Assinatura/WORM operacional**: cliente Python `boto3` com `ObjectLockMode=COMPLIANCE` e `RetainUntilDate` ≥ 365 dias; assinatura via Vault Transit path `transit/sign/seeds-worm` (key `seed-worm-report`) ou KMS equivalente por ambiente (`arn:aws:kms:...:key/seeds-worm`). Passos: (1) calcular `signature_hash`; (2) `vault write transit/sign/seeds-worm hash=<signature_hash>`; (3) upload com metadados `x-seeds-signature`, `x-seeds-key-id`; (4) verificar via `transit/verify` após upload. Falha em qualquer passo → abortar `SeedRun`.  
+- **Checklist automatizado**: relatório WORM inclui percentuais e resultados de checklist PII/RLS/contratos/idempotência/rate-limit/SLO; qualquer reprovação marca o run como `failed` e bloqueia promoção/Argo CD.
 
 #### Operacional WORM/OTEL (ambientes e fallback)
 - **Buckets e segredos**: variáveis `SEEDS_WORM_BUCKET`, `SEEDS_WORM_ROLE_ARN`, `SEEDS_WORM_KMS_KEY_ID`, `SEEDS_WORM_RETENTION_DAYS` (>=365) por ambiente; tempo limite de upload/verificação 10s, payload máximo 5 MB. Dev/CI usam stub local em `artifacts/worm/seed-data/<run_id>.json` com assinatura fake `dev-stub` e não marcam `integrity_status=verified`.  
@@ -299,6 +306,12 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Store de idempotência**: criar tabela `tenancy_seed_idempotency` (RLS) com `(tenant_id, environment, idempotency_key, manifest_hash_sha256, mode, seed_run_id, expires_at)` e TTL padrão 24h (GC via Argo Cron). CLI e API compartilham serviço único (`backend/apps/tenancy/services/seed_idempotency.py`); conflito de chave com `manifest_hash` divergente retorna `409` Problem Details `idempotency_conflict`, mesma chave/manifesto devolve run existente.  
 - **ETag/versão**: `SeedRun` recebe coluna `row_version` (bigint) incrementada a cada mudança; ETag = `W/"<row_version>"`. `POST /seed-runs/{id}/cancel` e demais mutações exigem `If-Match`; ausência → `428 Precondition Required` (ADR-011/runbook governança de API).  
 - **Locks → HTTP**: lock/advisory ativo ou fila acima do teto global respondem `409` (`seed_run_locked`), rate-limit/budget `429` com `Retry-After`, dependência (Vault/WORM/fila) `503` com `Retry-After`. Middleware/permission DRF aplica esses códigos antes de enfileirar; CLI usa os mesmos códigos de saída mapeados (3 para lock, 4 para WORM/telemetria, 5 para rate-limit/budget).
+
+## Threat modeling, runbooks e GameDays (Art. XVII)
+
+- Rodadas STRIDE/LINDDUN específicas para seeds/carga/DR com backlog mitigável e owners em `docs/runbooks/seed-data.md`.  
+- GameDay semestral simula 429 persistente, falha de WORM e drift de manifesto; sucesso = RPO ≤ 5 min, RTO ≤ 60 min, zero vazamento cross-tenant e checklist PII/RLS/contratos aprovado.  
+- Runbooks incluem bloqueios off-peak, rate-limit, Vault/PII e DR; métricas DORA/SLO exportadas para dashboards e vinculadas aos relatórios WORM.
 
 ## Complexity Tracking
 
