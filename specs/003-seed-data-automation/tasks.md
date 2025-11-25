@@ -76,14 +76,15 @@ Critério de teste independente: API/CLI criam seed runs carga/DR respeitando Ra
 - [ ] T027 [US3] Expor views/serializers `/api/v1/seed-runs` create/poll/cancel com RBAC/ABAC e headers governanca (RateLimit-*, Idempotency-Key, ETag) (`backend/apps/tenancy/views.py`, `backend/apps/tenancy/serializers/seed_runs.py`, `backend/apps/tenancy/urls.py`)
 - [ ] T028 [US3] Implementar tasks Celery de seeds com backoff+jitter, ordenacao de entidades e DLQ (`backend/apps/tenancy/tasks.py`, `backend/apps/tenancy/services/seed_batches.py`)
 - [ ] T029 [US3] Integrar BudgetRateLimit/FinOps (caps, reset, abort em estouro) e retorno de RateLimit-* (`backend/apps/tenancy/services/budget.py`)
-- [ ] T030 [US3] Gerar relatorio WORM assinado (hash/assinatura/verificacao) com fallback dev e integracao S3/Vault (`backend/apps/tenancy/services/seed_worm.py`, `docs/runbooks/worm/seed-data.md`)
+- [ ] T030 [US3] Gerar relatorio WORM assinado (hash/assinatura/verificacao) sem fallback (fail-closed se indisponível) e com verificação pós-upload (`backend/apps/tenancy/services/seed_worm.py`, `docs/runbooks/worm/seed-data.md`)
 - [ ] T031 [US3] Ajustar `seed_data` e GC da fila para modos carga/DR (TTL, off-peak enforcement, cancelamento seguro) (`backend/apps/tenancy/management/commands/seed_data.py`, `backend/apps/tenancy/services/seed_queue_gc.py`)
-- [ ] T038 [US3] Incluir checklist automatizado PII/RLS/contratos/idempotencia/rate-limit/SLO no relatório WORM e bloquear promoções em reprovação (`backend/apps/tenancy/services/seed_worm.py`)
+- [ ] T038 [US3] Incluir checklist automatizado PII/RLS/contratos/idempotencia/rate-limit/SLO no relatório WORM com verificação de integridade/assinatura e bloquear promoções em reprovação (`backend/apps/tenancy/services/seed_worm.py`)
 - [ ] T039 [US3] Roteamento de outbox/CDC para sinks sandbox e testes de isolamento (sem side effects reais) (`backend/apps/tenancy/services/seed_batches.py`)
 - [ ] T040 [US3] Guardrail anti-snapshot/dump de producao para seeds/factories (fail-closed no CI) (`scripts/ci/seed-guardrails.sh`)
 - [ ] T041 [US3] Instrumentar flags/canary e métricas DORA para seed_data (rollback ensaiado) (`backend/apps/tenancy/feature_flags.py`, `docs/runbooks/observabilidade.md`)
 - [ ] T042 [US3] Automatizar dependências de seeds/factories/Vault/perf com bloqueio de CVEs críticos (renovate, SCA) (`renovate.json`, `scripts/ci/deps-seed.sh`)
 - [ ] T043 [US3] Gate GitOps/Argo CD: drift detection, janela off-peak e rollback validado para seed_data (`configs/seed_profiles/`, `.github/workflows/ci-*.yml`)
+- [ ] T046 [US3] Garantir rotulagem/auditoria anti-poluição (WORM/logs) por execução/tenant com testes e gates em CI/Argo CD (`backend/apps/tenancy/services/seed_worm.py`, `observabilidade/`, `.github/workflows/`)
 
 ## Fase Final: Polish & Cross-Cutting
 Objetivo: Encerrar observabilidade/compliance e amarrar docs/runbooks.  
@@ -96,20 +97,20 @@ Critério de teste independente: pipelines com lint/tests/perf e docs gate verde
 
 ## Dependencias e ordem de historias
 - Fundacional (T004–T011) + guardrails base (T034–T036) precedem US1.
-- US1 (baseline) → US2 (factories) → US3 (carga/DR). Foundacional completa antes de US1; US3 depende também de T037 (stubs externos) e dos gates T038–T043.
+- US1 (baseline) → US2 (factories) → US3 (carga/DR). Foundacional completa antes de US1; US3 depende também de T037 (stubs externos) e dos gates T038–T043/T046.
 - Fase Final depende das histórias completas e dos gates/documentação.
 
 ## Paralelizacao sugerida
 - Fundacional: T004–T011 em paralelo com T034–T036 (SLO/SLI, Terraform/OPA/Argo, expand/contract) após definição de modelos.
 - US1: T012/T013 em paralelo após migrations; T014–T017 em ordem; T037 pode seguir após T010 (stubs/contratos prontos).
 - US2: T019/T020 em paralelo após helpers (T021); T022/T023 em paralelo com T020 se serializers fechados.
-- US3: T024–T026 em paralelo após T009/T010; T027 com T028 pode rodar em paralelo a T029/T030 quando contratos fechados; gates T038–T043 alinham antes de finalizar US3.
+- US3: T024–T026 em paralelo após T009/T010; T027 com T028 pode rodar em paralelo a T029/T030 quando contratos fechados; gates T038–T043/T046 alinham antes de finalizar US3.
 
 ## Estrategia de implementacao (MVP primeiro)
 1) Entregar MVP com Fase 1 + Fundacional + guardrails SLO/SLI + expand/contract (T034–T036) + US1 (baseline CLI/API validate) para habilitar dry-run determinístico.  
 2) Expandir com US2 adicionando factories mascaradas para suportar testes/contratos e reutilizar no comando.  
-3) Finalizar com US3 para modos carga/DR, perf gate, WORM, checklist WORM (T038) e guardrails (T039–T043).  
+3) Finalizar com US3 para modos carga/DR, perf gate, WORM, checklist WORM (T038), guardrails (T039–T043) e rotulagem/auditoria anti-poluição (T046).  
 4) Encerrar com Polish para observabilidade, docs e governance.
 
 ## Validação de completude
-Todas as user stories possuem testes dedicados (contrato/CLI/factories/Celery/perf), tarefas de implementacao e paths claros. Novos gates: SLO/SLI/error budget (T034), IaC/OPA/Argo (T035), expand/contract (T036), stubs externos (T037), checklist WORM (T038), outbox/CDC sandbox (T039), guardrail anti-snapshot (T040), flags/canary/DORA (T041), dependências/SCA (T042), drift/off-peak GitOps (T043). Cada fase entrega incremento testavel e independente, cobrindo contratos, RLS/ABAC, PII, FinOps, WORM e governança conforme spec/plan.
+Todas as user stories possuem testes dedicados (contrato/CLI/factories/Celery/perf), tarefas de implementacao e paths claros. Novos gates: SLO/SLI/error budget (T034), IaC/OPA/Argo (T035), expand/contract (T036), stubs externos (T037), checklist WORM (T038), rotulagem/auditoria anti-poluição WORM/logs (T046), outbox/CDC sandbox (T039), guardrail anti-snapshot (T040), flags/canary/DORA (T041), dependências/SCA (T042), drift/off-peak GitOps (T043). Cada fase entrega incremento testavel e independente, cobrindo contratos, RLS/ABAC, PII, FinOps, WORM e governança conforme spec/plan.

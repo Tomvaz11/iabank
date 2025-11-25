@@ -81,6 +81,19 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 1. **Dado** volumetria por ambiente/tenant no manifesto, **Quando** gero dataset sintético em modo carga, **Entao** respeito rate limits e concluo na janela off-peak com relatório de volumetria.  
 2. **Dado** um cenário de DR simulado, **Quando** restauro a partir das seeds/factories, **Entao** o ambiente volta ao estado consistente dentro de RPO/RTO definidos, com logs que comprovam anonimização.
 
+### User Story 4 - Orquestrar seed runs via API/CLI (Prioridade: P2)
+
+- **Persona & Objetivo**: SRE/QA agenda, consulta ou cancela execuções via API/CLI com governança de RateLimit/Idempotency/ETag.  
+- **Valor de Negocio**: Automação segura e auditável do ciclo de seeds/carga/DR.  
+- **Contexto Tecnico**: `/api/v1/seed-runs*`, Argo CD/GitOps, headers obrigatórios e Problem Details.
+
+**Independent Test**: POST/GET/POST cancel em `/api/v1/seed-runs*` retornam cabeçalhos RateLimit-*, Idempotency-Key e ETag/If-Match corretos, com Problem Details previsíveis em 4xx/5xx.
+
+**Acceptance Scenarios (BDD)**:
+1. **Dado** manifesto válido e headers `Idempotency-Key`, `X-Tenant-ID`, `X-Environment`, **Quando** chamo `POST /api/v1/seed-runs`, **Entao** recebo `201` com `seed_run_id`, `ETag` e `RateLimit-*`, e a execução inicia com estado `queued/running`.  
+2. **Dado** um `seed_run` ativo, **Quando** chamo `POST /api/v1/seed-runs/{id}/cancel` com `If-Match`, **Entao** recebo `202` e o run é finalizado como `aborted` após dreno dos batches.  
+3. **Dado** limite de rate/budget excedido ou lock ativo, **Quando** chamo `POST /api/v1/seed-runs`, **Entao** recebo `429` ou `409` com Problem Details e `Retry-After`, sem criar novo run.
+
 ### Edge Cases & Riscos Multi-Tenant
 
 - Execução sem `tenant_id` ou com tenant inexistente falha em modo fail-closed, sem dados parciais.  
@@ -143,6 +156,7 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-026**: Infraestrutura e artefatos necessários para seeds/factories (WORM, Vault, filas/assíncrono, pipelines CI/CD) DEVEM ser gerenciados como código (Terraform) com validação OPA/policy-as-code e fluxo GitOps/Argo CD; ausência de validação bloqueia promoção.  
 - **FR-027**: A gestão de dependências para bibliotecas de seeds/factories/performance e para o cliente de Vault Transit DEVE seguir automação contínua (ADR-008), com checagem/atualização em CI e bloqueio por CVEs críticos ou versões defasadas.  
 - **FR-028**: Relatórios/evidências WORM DEVEM ter integridade verificável (hash/assinatura) e política de acesso governada; falha em verificar integridade ou em aplicar retenção/governança deve bloquear a execução/promoção.  
+- **FR-029**: A API/CLI de seed runs (`/api/v1/seed-runs*`) DEVE suportar criar/consultar/cancelar execuções com RateLimit-*, `Idempotency-Key`, `ETag/If-Match` e Problem Details RFC 9457; ausência de headers ou conflito de lock/rate/budget deve retornar 4xx previsível sem criar execuções.
 
 ### Non-Functional Requirements
 
@@ -169,6 +183,7 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **PII/Keys**: catálogo de campos sensíveis e chaves/salts de anonimização por ambiente/tenant.  
 - **Budget/RateLimit**: limites financeiros e de throughput do manifesto, aplicados por tenant/mode.  
 - **Evidência WORM**: relatórios assinados com trace/span, manifesto/tenant/ambiente, custos/volumetria/status por lote; armazenados imutavelmente e indexados.
+- **Entidades bancárias (Blueprint §3.1)**: Customer/Address/Consultant/BankAccount/AccountCategory/Supplier/Loan/Installment/FinancialTransaction/CreditLimit/Contract com `tenant_id`, estados enumerados (ex.: Loan `IN_PROGRESS/PAID_OFF/IN_COLLECTION/CANCELED`, Installment `PENDING/PAID/OVERDUE/PARTIALLY_PAID`, BankAccount `ACTIVE/BLOCKED`, CreditLimit `ACTIVE/FROZEN/CANCELED`), campos PII (document_number/email/phone/address/account_number/agency) protegidos por FPE+pgcrypto e unicidades por tenant. Factories e serializers DEVEM respeitar esses estados e contratos `/api/v1`.
 
 ## Assumptions & Defaults
 
