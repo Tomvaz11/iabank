@@ -30,6 +30,7 @@ Critério de teste independente: migrations e politicas passam testes de modelo/
 - [ ] T009 Configurar filas Celery/Redis (default, load_dr, dlq) e roteamento para seed_data com acks tardios (`backend/config/settings.py`, `backend/apps/tenancy/tasks.py`, `backend/celery.py`)
 - [ ] T010 Configurar lint/diff de contratos seed-data e JSON Schema no CI (Spectral/oasdiff) (`scripts/ci/validate-seed-contracts.sh`, `package.json`)
 - [ ] T011 Criar testes basicos de migracoes/RLS para tabelas banking e seeds (`backend/apps/banking/tests/test_models.py`, `backend/apps/tenancy/tests/test_seed_models.py`)
+- [ ] T056 Implementar preflight de disponibilidade Vault/WORM (CLI/API) com fail-close e Problem Details (`backend/apps/tenancy/services/seed_preflight.py`, `backend/apps/tenancy/tests/test_seed_preflight.py`)
 - [ ] T034 Publicar SLO/SLI/error budget para seed_data e alinhar thresholds do k6 (docs/slo/seed-data.md, observabilidade/k6/seed-data-smoke.js)
 - [ ] T035 Terraform/OPA para Vault/WORM/filas e pipeline Argo CD com drift/rollback e janela off-peak (`infra/`, `scripts/ci/validate-opa.sh`)
 - [ ] T036 Garantir migrações expand/contract com índices CONCURRENTLY e testes de rollback (`backend/apps/**/migrations/`, `scripts/ci/check-migrations.sh`)
@@ -43,6 +44,7 @@ Critério de teste independente: baseline roda em dry-run com manifesto v1 valid
 - [ ] T012 [P] [US1] Cobrir 200/422/429 do endpoint `/api/v1/seed-profiles/validate` com headers obrigatorios e Problem Details (`backend/apps/tenancy/tests/test_seed_profile_validate_api.py`)
 - [ ] T013 [P] [US1] Cobrir comando `seed_data` baseline com dry-run, RLS/off-peak e idempotency_key (sucesso e bloqueios cross-tenant) (`backend/apps/tenancy/tests/test_seed_data_command.py`)
 - [ ] T053 [P] [US1] Testes negativos de autorização (CLI/API) para perfis seed-runner/admin/read, janela off-peak e tenants/ambientes não permitidos (`backend/apps/tenancy/tests/test_seed_auth.py`)
+- [ ] T057 [P] [US1] Bloquear runs quando `reference_datetime` divergir do checkpoint e exigir limpeza/reseed controlado (`backend/apps/tenancy/tests/test_seed_reference_datetime_drift.py`)
 
 ### Implementacao
 - [ ] T014 [US1] Implementar validador JSON Schema v1 + preflight de manifesto (versao/schema/hash/off-peak) (`backend/apps/tenancy/services/seed_manifest_validator.py`)
@@ -51,6 +53,7 @@ Critério de teste independente: baseline roda em dry-run com manifesto v1 valid
 - [ ] T017 [US1] Criar management command `seed_data` baseline (carrega manifesto, preflight RLS, dry-run, checkpoints iniciais) (`backend/apps/tenancy/management/commands/seed_data.py`)
 - [ ] T018 [US1] Atualizar quickstart com fluxo baseline, codigos de saida e exemplos de manifesto (`specs/003-seed-data-automation/quickstart.md`)
 - [ ] T037 [US1] Configurar mocks/stubs Pact/Prism para integrações externas e validar bloqueio de chamadas reais (`contracts/pacts/*.json`, `scripts/ci/validate-seed-contracts.sh`)
+- [ ] T058 [US1] Implementar limpeza/forçar reseed ao detectar drift de `reference_datetime` em manifesto e checkpoints (`backend/apps/tenancy/services/seed_runs.py`, `backend/apps/tenancy/management/commands/seed_data.py`)
 
 ## Fase 4: User Story 2 - Factories com PII mascarada (Prioridade P2)
 Objetivo da história: Produzir factories factory-boy deterministicas com PII mascarada via Vault Transit, reutilizaveis em testes e contratos.  
@@ -76,6 +79,7 @@ Critério de teste independente: API/CLI criam seed runs carga/DR respeitando Ra
 - [ ] T047 [P] [US3] Validar RPO≤5min/RTO≤60min em execuções carga/DR com manifesto canônico em staging (inclui janela off-peak e evidência WORM) (`backend/apps/tenancy/tests/test_seed_rpo_rto.py`)
 - [ ] T052 [P] [US3] k6 carga/DR exercitando geração de batches (caps Q11, rate-limit, throughput) com thresholds de p95/p99/erro e consumo de budget (`observabilidade/k6/seed-data-load.js`)
 - [ ] T054 [P] [US3] Testes negativos de RBAC/ABAC para create/poll/cancel seed runs (perfis seed-runner/admin/read, If-Match/Idempotency-Key, tenants/ambientes proibidos) (`backend/apps/tenancy/tests/test_seed_runs_auth.py`)
+- [ ] T059 [P] [US3] Gate de SLO/error budget em runtime abortando/reagendando runs quando p95/p99/throughput excedem manifesto (`backend/apps/tenancy/tests/test_seed_error_budget_gate.py`)
 
 ### Implementacao
 - [ ] T027 [US3] Expor views/serializers `/api/v1/seed-runs` create/poll/cancel com RBAC/ABAC e headers governanca (RateLimit-*, Idempotency-Key, ETag) (`backend/apps/tenancy/views.py`, `backend/apps/tenancy/serializers/seed_runs.py`, `backend/apps/tenancy/urls.py`)
@@ -92,6 +96,7 @@ Critério de teste independente: API/CLI criam seed runs carga/DR respeitando Ra
 - [ ] T046 [US3] Garantir rotulagem/auditoria anti-poluição (WORM/logs) por execução/tenant com testes e gates em CI/Argo CD (`backend/apps/tenancy/services/seed_worm.py`, `observabilidade/`, `.github/workflows/`)
 - [ ] T048 [US3] Gate de ambiente/off-peak: bloquear carga/DR fora de staging ou sem evidência WORM válida antes da promoção (`backend/apps/tenancy/services/seed_runs.py`, `.github/workflows/`, `configs/seed_profiles/`)
 - [ ] T050 [US3] Integrar cost-model a BudgetRateLimit e relatório WORM (fail-close se ausente ou versão incompatível) (`backend/apps/tenancy/services/budget.py`, `backend/apps/tenancy/services/seed_worm.py`)
+- [ ] T060 [US3] Implementar monitor/gate de SLO/error budget em runtime (p95/p99/throughput) abortando/reagendando runs e registrando Problem Details/relatório WORM (`backend/apps/tenancy/services/seed_observability.py`, `backend/apps/tenancy/services/seed_runs.py`)
 
 ## Fase Final: Polish & Cross-Cutting
 Objetivo: Encerrar observabilidade/compliance e amarrar docs/runbooks.  
@@ -105,22 +110,22 @@ Critério de teste independente: pipelines com lint/tests/perf e docs gate verde
 - [ ] T055 Checklist anti-poluição: reprovar se logs/WORM faltarem labels obrigatórios ou conterem PII, com validação automática no CI/Argo (`backend/apps/tenancy/services/seed_worm.py`, `scripts/ci/check-audit-cleanliness.sh`)
 
 ## Dependencias e ordem de historias
-- Fundacional (T004–T011) + guardrails base (T034–T036) precedem US1; FinOps (T049) pode ser preparado em paralelo na fundação.
-- US1 (baseline) → US2 (factories) → US3 (carga/DR). Fundacional completa antes de US1; US3 depende também de T037 (stubs externos), gates T038–T043/T046 e dos novos itens de RPO/RTO/perf/FinOps/observabilidade (T047, T048, T050, T052, T051, T055).
+- Fundacional (T004–T011, T056) + guardrails base (T034–T036) precedem US1; FinOps (T049) pode ser preparado em paralelo na fundação.
+- US1 (baseline) → US2 (factories) → US3 (carga/DR). Fundacional completa antes de US1; US1 inclui drift de `reference_datetime` e cleanup (T057, T058). US3 depende também de T037 (stubs externos), gates T038–T043/T046 e dos itens de RPO/RTO/perf/FinOps/observabilidade (T047, T048, T050, T052, T051, T055) mais o gate runtime de SLO/error budget (T059, T060).
 - Fase Final depende das histórias completas e dos gates/documentação, incluindo checklists anti-poluição (T055) e fail-close de observabilidade (T051).
 
 ## Paralelizacao sugerida
-- Fundacional: T004–T011 em paralelo com T034–T036 (SLO/SLI, Terraform/OPA/Argo, expand/contract) após definição de modelos; T049 pode avançar junto para viabilizar FinOps.
-- US1: T012/T013 em paralelo após migrations; T014–T017 em ordem; T037 pode seguir após T010 (stubs/contratos prontos); testes negativos de autorização (T053) podem rodar após RBAC/ABAC inicial (T007).
+- Fundacional: T004–T011 em paralelo com T034–T036 (SLO/SLI, Terraform/OPA/Argo, expand/contract) após definição de modelos; incluir T056 cedo (preflight Vault/WORM) e T049 pode avançar junto para viabilizar FinOps.
+- US1: T012/T013 em paralelo após migrations; T014–T017 em ordem; T037 pode seguir após T010 (stubs/contratos prontos); testes negativos de autorização (T053) após RBAC/ABAC inicial (T007); drift `reference_datetime` (T057) e cleanup/reseed (T058) após checkpoints iniciais.
 - US2: T019/T020 em paralelo após helpers (T021); T022/T023 em paralelo com T020 se serializers fechados.
-- US3: T024–T026 em paralelo após T009/T010; T027 com T028 pode rodar em paralelo a T029/T030 quando contratos fechados; perf/load (T052), RPO/RTO (T047), gates de ambiente/WORM (T048) e FinOps/WORM (T050) devem fechar antes da promoção; T054 complementa auth negativa.
+- US3: T024–T026 em paralelo após T009/T010; T027 com T028 pode rodar em paralelo a T029/T030 quando contratos fechados; perf/load (T052), RPO/RTO (T047), gates de ambiente/WORM (T048) e FinOps/WORM (T050) devem fechar antes da promoção; gate runtime SLO/error budget (T059, T060) precisa estar pronto antes de execuções de carga/DR; T054 complementa auth negativa.
 - Polish: T032, T033, T044, T045, T051, T055 amarram observabilidade, docs e checklists finais.
 
 ## Estrategia de implementacao (MVP primeiro)
-1) Entregar MVP com Fase 1 + Fundacional + guardrails SLO/SLI + expand/contract (T034–T036) + US1 (baseline CLI/API validate) + FinOps cost-model (T049) e auth negativa básica (T053) para habilitar dry-run determinístico com governança mínima.  
+1) Entregar MVP com Fase 1 + Fundacional + preflight Vault/WORM (T056) + guardrails SLO/SLI + expand/contract (T034–T036) + US1 (baseline CLI/API validate) incluindo detecção de drift `reference_datetime`/cleanup (T057, T058) + FinOps cost-model (T049) e auth negativa básica (T053) para habilitar dry-run determinístico com governança mínima.  
 2) Expandir com US2 adicionando factories mascaradas para suportar testes/contratos e reutilizar no comando.  
-3) Finalizar com US3 para modos carga/DR incluindo perf gate real (T052), RPO/RTO e ambiente/off-peak/WORM (T047, T048), FinOps/WORM (T050), checklist WORM (T038), guardrails (T039–T043) e rotulagem/auditoria anti-poluição (T046).  
+3) Finalizar com US3 para modos carga/DR incluindo perf gate real (T052), RPO/RTO e ambiente/off-peak/WORM (T047, T048), FinOps/WORM (T050), checklist WORM (T038), guardrails (T039–T043), rotulagem/auditoria anti-poluição (T046) e gate runtime SLO/error budget (T059, T060).  
 4) Encerrar com Polish para observabilidade (T032, T051), docs/gov (T033, T044, T045) e checklist anti-poluição (T055).
 
 ## Validação de completude
-Todas as user stories possuem testes dedicados (contrato/CLI/factories/Celery/perf), tarefas de implementacao e paths claros. Gates adicionais agora incluídos: SLO/SLI/error budget (T034), IaC/OPA/Argo (T035), expand/contract (T036), stubs externos (T037), checklist WORM (T038), rotulagem/auditoria anti-poluição WORM/logs (T046, T055), outbox/CDC sandbox (T039), guardrail anti-snapshot (T040), flags/canary/DORA (T041), dependências/SCA (T042), drift/off-peak GitOps (T043), cost-model FinOps + schema + integração WORM (T049, T050), perf gate carga/DR (T052), RPO/RTO e ambiente/off-peak/WORM (T047, T048), fail-close observabilidade (T051) e testes negativos de RBAC/ABAC (T053, T054). Cada fase continua entregando incremento testável e governado conforme spec/plan.
+Todas as user stories possuem testes dedicados (contrato/CLI/factories/Celery/perf), tarefas de implementacao e paths claros. Gates adicionais agora incluídos: preflight Vault/WORM (T056), SLO/SLI/error budget (T034) e gate runtime (T059, T060), IaC/OPA/Argo (T035), expand/contract (T036), stubs externos (T037), checklist WORM (T038), rotulagem/auditoria anti-poluição WORM/logs (T046, T055), outbox/CDC sandbox (T039), guardrail anti-snapshot (T040), flags/canary/DORA (T041), dependências/SCA (T042), drift/off-peak GitOps (T043), cost-model FinOps + schema + integração WORM (T049, T050), perf gate carga/DR (T052), RPO/RTO e ambiente/off-peak/WORM (T047, T048), fail-close observabilidade (T051), drift `reference_datetime`/cleanup (T057, T058) e testes negativos de RBAC/ABAC (T053, T054). Cada fase continua entregando incremento testável e governado conforme spec/plan.
