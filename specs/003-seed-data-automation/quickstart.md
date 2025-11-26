@@ -18,6 +18,7 @@ curl -X POST https://api.iabank.local/api/v1/seed-profiles/validate \
   -d "$(yq -o=json < configs/seed_profiles/staging/tenant-a.yaml)"
 ```
 Resposta esperada: `200` com `valid=true` e `issues=[]`; falhas retornam Problem Details (`422`) com lista de campos/versoes incompatíveis ou `429` com `Retry-After` em caso de rate-limit/backoff. Cabeçalhos `RateLimit-*` e `Retry-After` sempre presentes; `Idempotency-Key` é obrigatório.
+Idempotência: replays com a mesma `Idempotency-Key` (TTL 24h) retornam a mesma resposta (200/422/429); se o manifesto/hash divergir, retorna `409 idempotency_conflict`. Chaves são armazenadas no mesmo serviço de deduplicação usado pelo CLI/API de seed runs.
 
 ## Dry-run deterministico (CI/PR)
 ```bash
