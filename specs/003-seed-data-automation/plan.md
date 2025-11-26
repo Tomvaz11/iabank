@@ -7,7 +7,7 @@
 
 ## Summary
 
-Implementar automacao de seeds/factories deterministicas e 100% sinteticas para baseline, carga e DR multi-tenant, governadas por manifestos versionados e contratos `/api/v1` (spec.md, clarifications-archive.md, ADR-008/010/011/012 citados no spec). A solucao usa monolito Django/DRF sobre PostgreSQL com RLS/pgcrypto, Celery/Redis para execucoes idempotentes com backoff/jitter, acks tardios e DLQ (Blueprint §26) e evidencia WORM assinada (Art. I, XI, XIII, XVI). Fluxo segue Test-First (Art. III), release seguro com flags/canary e GitOps/Argo CD (Art. VIII, XVIII), bloqueando execucao fora de off-peak, rate limit/budget ou sem mascaramento PII via Vault Transit.
+Implementar automacao de seeds/factories deterministicas e 100% sinteticas para baseline, carga e DR multi-tenant, governadas por manifestos versionados e contratos `/api/v1` (spec.md, clarifications-archive.md, ADR-008/010/011/012 citados no spec). A solucao usa monolito Django/DRF sobre PostgreSQL com RLS/pgcrypto, Celery/Redis para execucoes idempotentes com backoff/jitter, acks tardios e DLQ (Blueprint §26) e evidencia WORM assinada (Art. I, XI, XIII, XVI). Fluxo segue Test-First (Art. III), release seguro com flags (canary apenas quando adotado) e GitOps/Argo CD (Art. VIII, XVIII), bloqueando execucao fora de off-peak, rate limit/budget ou sem mascaramento PII via Vault Transit.
 
 ## Technical Context
 
@@ -33,7 +33,7 @@ Preencha cada item com o plano concreto para a feature. Use `[NEEDS CLARIFICATIO
 **Observabilidade**: OTEL com W3C Trace Context, structlog/django-prometheus/Sentry (ADR-012); traces/metricas/logs etiquetados por tenant/ambiente/execucao; redacao de PII obrigatoria; export falho bloqueia. SLOs/SLIs (p95/p99/throughput/error budget) vivem em `docs/slo/seed-data.md` e alimentam k6 e o relatório WORM.  
 **Segurança/Compliance**: RBAC/ABAC minimo para `seed_data`, RLS enforced, mascaramento PII deterministico (Vault Transit FPE), FinOps budgets/caps por manifesto, evidencias WORM assinadas, mocks para integrações externas (OWASP/NIST; Art. XII, XIII, XVI).  
 **Performance Targets**: p95/p99 de execucao por manifesto (fonte = manifesto por ambiente/tenant) dentro do budget; throughput alinhado a RateLimit-* e idempotencia; DR cumpre RPO≤5 min/RTO≤60 min; error budget consumido/abortado conforme manifesto.  
-**Restrições Operacionais**: TDD/integ-primeiro, execucao apenas em janela off-peak declarada, bloqueio sem RLS ou drift de manifesto, RLS check preflight, somente dados sinteticos (proibido snapshot/dump de producao), GitOps/Argo CD com flags/canary/rollback e deteccao de drift/off-peak; expand/contract para schema; pipeline/Argo falha se não cumprir Trunk-Based (branches curtas, histórico linear, squash-only) ou rollback ensaiado (Art. VIII, adicoes_blueprint §1). Canary é opcional (apenas se modo canary for adotado).
+**Restrições Operacionais**: TDD/integ-primeiro, execucao apenas em janela off-peak declarada, bloqueio sem RLS ou drift de manifesto, RLS check preflight, somente dados sinteticos (proibido snapshot/dump de producao), GitOps/Argo CD com flags (canary só quando `mode=canary`) e deteccao de drift/off-peak; expand/contract para schema; pipeline/Argo falha se não cumprir Trunk-Based (branches curtas, histórico linear, squash-only) ou rollback ensaiado (Art. VIII, adicoes_blueprint §1).
 **Escopo/Impacto**: Tenants/ambientes multi-tenant, modos baseline/carga/DR, APIs `/api/v1` consumidas/testadas, pipelines CI/CD, infra de Vault/WORM/filas/Terraform; sem dependencias externas reais (stubs Pact).
 
 ## Constitution Check
@@ -41,7 +41,7 @@ Preencha cada item com o plano concreto para a feature. Use `[NEEDS CLARIFICATIO
 *GATE: Validar antes da Fase 0 e reconfirmar apos o desenho de Fase 1.*
 
 - [x] **Art. III - TDD**: Suites pytest/pytest-django planejadas para `seed_data` (baseline/carga/DR), factories com mascaramento e checagens de idempotencia/rate-limit; iniciar em `/home/pizzaplanet/meus_projetos/iabank/backend/apps/**/tests/` com falha antes de codigo.  
-- [x] **Art. VIII - Lancamento Seguro**: Flags/canary por ambiente/tenant, rollback via Argo CD, budget de erro por manifesto e relatorio WORM vinculado; documentado neste plano e quickstart.  
+- [x] **Art. VIII - Lancamento Seguro**: Flags (canary apenas quando `mode=canary`), rollback via Argo CD, budget de erro por manifesto e relatorio WORM vinculado; documentado neste plano e quickstart.  
 - [x] **Art. IX - Pipeline CI**: Cobertura≥85%, complexidade≤10, SAST/DAST/SCA/SBOM, k6 perf gate e dry-run deterministico mapeados; falha bloqueia promocao (ver spec/quickstart).  
 - [x] **Art. XI - Governanca de API**: Contratos OpenAPI 3.1 em `contracts/seed-data.openapi.yaml` e alinhamento a `contracts/api.yaml`; lint/diff/Pact previstos e versionamento SemVer.  
 - [x] **Art. XIII - Multi-tenant & LGPD**: RLS obrigatório com managers aplicando tenant_id, testes anti-cross-tenant, mascaramento Vault Transit FPE e PII cifrada; fail-closed sem RLS.  
@@ -93,7 +93,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 
 ### Fluxo operacional do comando `seed_data`
 
-- **Preflight**: Checar migrations pendentes; validar enforcement de RLS (Art. XIII), flags/canary do domínio e disponibilidade do Vault/WORM (bucket, role/KMS, retenção, chave FPE ativa no Vault); reforçar RBAC/ABAC mínimo para acesso a chaves/manifestos e registrar auditoria com redaction; abortar fail-closed se qualquer pré-condição falhar, retornando Problem Details e sem enfileirar lotes.  
+- **Preflight**: Checar migrations pendentes; validar enforcement de RLS (Art. XIII), flags do domínio (canary apenas quando `mode=canary`) e disponibilidade do Vault/WORM (bucket, role/KMS, retenção, chave FPE ativa no Vault); reforçar RBAC/ABAC mínimo para acesso a chaves/manifestos e registrar auditoria com redaction; abortar fail-closed se qualquer pré-condição falhar, retornando Problem Details e sem enfileirar lotes.  
 - **Validação de manifesto**: Carregar manifesto YAML/JSON (GitOps) e validar contra JSON Schema v1 (JSON Schema 2020-12). Campos obrigatórios: `metadata` (tenant, ambiente, profile/version, salt_version), `mode` (baseline/carga/dr), `reference_datetime` ISO 8601 UTC, `window.start_utc/end_utc` (única, pode cruzar meia-noite), `volumetry` por entidade (caps Q11), `rate_limit` (limit/window) + `backoff` (base/jitter/max_retries), `budget` (cost/error budget), `ttl` por modo, `slo` (p95/p99 alvo), `caps_override` opcional para dev. Versão divergente ou ausência de campos → fail-closed.  
 - **Concorrência/locks**: Adquirir lock global (teto 2 execuções por ambiente/cluster, TTL fila 5 min) e lock por tenant/ambiente via advisory lock (TTL 60s) no Postgres; fila curta auditável no DB; liberação em finally; se lock expirar, reagendar.  
 - **Criação de SeedRun/SeedBatch**: Persistir `SeedRun` com `idempotency_key`, status `queued` e manifesto referenciado; para cada entidade/caps gerar `SeedBatch` inicial com attempt=0 e status `pending`.  
@@ -163,7 +163,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Idempotência (Art. XI / ADR-011 / runbook de governança)**: `Idempotency-Key` persiste em `tenancy_seed_idempotency` com deduplicação por `key_hash+payload_hash+tenant+environment`, TTL mínimo de 24h (configurável por modo via manifesto) e `response_snapshot`; replays retornam a mesma resposta e são auditados (OTEL + relatório WORM). Limpeza periódica (cron/Celery beat) remove expirados.
 
 #### Máquina de estados (SeedRun/SeedBatch)
-- **SeedRun**: `queued -> running -> {succeeded | failed | aborted}`; `running -> retry_scheduled` em erro transitório e retorna a `running` após backoff; `running -> blocked` (lock/maintenance/off-peak fechada) e encerra em `aborted` após timeout; cancelamento via endpoint (`If-Match`) seta flag `cancel_requested` e finaliza como `aborted` após drenar/parar os batches. `retry_scheduled` não avança para `succeeded` sem novo `ETag`.  
+- **SeedRun**: `queued -> running -> {succeeded | failed | aborted}`; `running -> retry_scheduled` em erro transitório e retorna a `running` após backoff; `running -> blocked` (lock/off-peak fechada) e encerra em `aborted` após timeout; cancelamento via endpoint (`If-Match`) seta flag `cancel_requested` e finaliza como `aborted` após drenar/parar os batches. `retry_scheduled` não avança para `succeeded` sem novo `ETag`.  
 - **SeedBatch**: `pending -> processing -> {completed | failed}`; `processing -> retry_scheduled` em 429/erro transitório com jitter; `retry_scheduled -> processing` até `max_retries`; excedeu → `dlq`; `dlq` só volta a `processing` por ação operacional (Argo/CD) registrada em auditoria. Status `failed/dlq` bloqueiam `SeedRun` se não houver batch subsequente aberto.
 
 ### IaC, GitOps e OPA (Art. XIV)
@@ -177,7 +177,8 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **SLO**: Medir p95/p99 de execução por manifesto e throughput por lote; violação consome error budget e pode abortar.  
 - **Telemetria**: Conformidade com ADR-012 (OTEL + Sentry) e ADR-010 (redação PII). Falha de export → marca SeedRun como failed e bloqueia promoção (Art. VII).  
 - **PII**: FPE determinística via Vault Transit (FF3-1/FF1), chaves/salts por ambiente/tenant com rotação trimestral; fallback apenas em dev isolado; pgcrypto em repouso; catálogo PII aplicado nas factories.
-- **DORA/flags**: métricas DORA (lead time, MTTR, frequency) coletadas no pipeline; feature flags/canary são obrigatórios e testados em rollback antes da promoção.
+- **Integrações externas simuladas (FR-008)**: KYC/antifraude/pagamentos/notificações sempre via stubs Pact/Prism (sem outbound real). CLI/API/batches falham fail-close se outbound real ocorrer. Simular rate-limit/backoff nesses stubs e validar que seeds/factories reagem corretamente (Problem Details, Retry-After, sem side effects). Contract tests dessas integrações entram no mesmo gate de contratos/lint/diff.
+- **DORA/flags**: métricas DORA (lead time, MTTR, frequency) coletadas no pipeline; feature flags (canary apenas quando `mode=canary`) são testadas em rollback antes da promoção.
 
 #### FinOps — fonte de preços e fórmula
 - **Catálogo de preços**: versionar em `configs/finops/seed-data.cost-model.yaml` com `cost_model_version` SemVer e origem (AWS/GCP preço on-demand). Itens mínimos: `cpu_second_brl`, `db_io_gb_brl`, `redis_cmd_1k_brl`, `api_request_brl`.  
@@ -265,14 +266,14 @@ Multiplicadores por ambiente (aplicados sobre a tabela acima): dev = 1x, homolog
 
 #### RBAC/ABAC e gate RLS/off-peak
 - **Policies**: versionar matriz em `configs/rbac/seed-data.yaml` com perfis `seed-runner` (execução), `seed-admin` (cancel/reprocess), `seed-read` (consulta). Binding por `tenant`, `environment` e `subject` (service account). Registrar cópia no banco (`tenancy_seed_rbac`) para auditoria e aplicar via permission class DRF `SeedDataPermission`.  
-- **ABAC**: regras mínimas: ambiente permitido, janela off-peak ativa, tenant com `maintenance_mode=true` para domínios afetados, flag/canary habilitado; negar se qualquer regra falhar.  
+- **ABAC**: regras mínimas: ambiente permitido e janela off-peak ativa; negar se qualquer regra falhar.  
 - **RLS gate**: middleware DRF `RLSPreflightMiddleware` confirma `SET app.tenant_id` aplicado e policies de `backend/apps/tenancy/sql/rls_policies.sql` carregadas; CLI reusa o mesmo serviço e aborta com código 6 (quickstart) se falhar.  
 - **Headers obrigatórios**: `X-Tenant-ID`, `X-Environment`, `Idempotency-Key`, `If-Match` nos cancelamentos; ausência de condicional em mutações retorna `428` (ADR-011/runbook governança de API).  
 - **Auditoria**: cada decisão de RBAC/ABAC e bloqueio off-peak registra `Problem Details` e span OTEL com `auth.result` (`allow|deny`) e `auth.policy_version`.
 - **Testes negativos**: suites CLI/API devem negar perfis seed-read/fora do escopo, tenants/ambientes proibidos e janela off-peak fechada, com evidência automatizada no CI.
 - **Matriz de permissões (estável)**:  
   - `seed-runner`: cria `SeedRun` (CLI/API), executa dry-run, lê status do próprio tenant/ambiente; não cancela execuções nem toca DLQ.  
-  - `seed-admin`: inclui permissões de runner + cancelar (`POST /seed-runs/{id}/cancel`), reprocessar batches DLQ, ajustar `maintenance_mode` do tenant durante janela off-peak.  
+  - `seed-admin`: inclui permissões de runner + cancelar (`POST /seed-runs/{id}/cancel`) e reprocessar batches DLQ.  
   - `seed-read`: somente leitura (`GET /seed-runs/{id}`, `GET /seed-profiles/validate` dry-run).  
   - Binding obrigatório em `configs/rbac/seed-data.yaml` por `tenant`+`environment`; ausência ou mismatch → `403` fail-closed.  
   - Todas as tabelas novas (`tenancy_seed_*` e `banking_*`) recebem `POLICY tenant_id = current_setting('app.tenant_id')::uuid` com managers aplicando `tenant_id` por padrão, seguindo `BaseTenantModel` do blueprint.

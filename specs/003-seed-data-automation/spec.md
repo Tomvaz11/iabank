@@ -45,6 +45,19 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 
 ## User Scenarios & Testing *(mandatorio)*
 
+### User Story 5 - Validar manifestos via API (Prioridade: P1)
+
+- **Persona & Objetivo**: QA/SRE valida manifestos v1 via API antes de qualquer execução, garantindo schema/versão e governança de headers.  
+- **Valor de Negocio**: Evita drift ou schema inválido chegar à execução, reduzindo falhas e retrabalho.  
+- **Contexto Tecnico**: `/api/v1/seed-profiles/validate`, JSON Schema 2020-12, RateLimit-*, Idempotency-Key, Problem Details.
+
+**Independent Test**: `POST /api/v1/seed-profiles/validate` retorna 200 para manifesto v1 válido e 422/429 com Problem Details, mantendo RateLimit-* e Idempotency-Key.
+
+**Acceptance Scenarios (BDD)**:
+1. **Dado** um manifesto v1 válido com headers `Idempotency-Key`, `X-Tenant-ID`, `X-Environment`, **Quando** chamo `POST /api/v1/seed-profiles/validate`, **Entao** recebo `200` com `valid=true`, `issues=[]`, `RateLimit-*`, `Retry-After` e versão normalizada.  
+2. **Dado** um manifesto com schema/versão divergente ou campos obrigatórios ausentes, **Quando** chamo o endpoint, **Entao** recebo `422` Problem Details com lista de issues e RateLimit-* preservado.  
+3. **Dado** um cenário de limite excedido ou retry/backoff ativo, **Quando** chamo o endpoint, **Entao** recebo `429` com `Retry-After` e não inicia execução.
+
 ### User Story 1 - Seeds baseline multi-tenant (Prioridade: P1)
 
 - **Persona & Objetivo**: Engenheira de QA provisiona baseline consistente por tenant/ambiente com um comando.  
@@ -69,18 +82,6 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 1. **Dado** uma factory com campos PII, **Quando** gero registros em série, **Entao** todos os campos sensíveis são mascarados e validados.  
 2. **Dado** uma chamada `/api/v1/...` usando dados da factory, **Quando** submeto no ambiente de teste, **Entao** o contrato é respeitado e o rate limit não é violado.
 
-### User Story 3 - Carga e DR com dados sintéticos (Prioridade: P3)
-
-- **Persona & Objetivo**: SRE gera volumetria (Q11) configurável para carga e DR sem afetar limites de API.  
-- **Valor de Negocio**: Garante previsibilidade de performance e prontidão de DR sem risco a produção.  
-- **Contexto Tecnico**: Staging de carga/DR, rate limits, RPO/RTO do blueprint.
-
-**Independent Test**: Execução de carga usa manifestos, respeita caps/rate limit e entrega evidência WORM de restauração dentro de RPO/RTO.
-
-**Acceptance Scenarios (BDD)**:
-1. **Dado** volumetria por ambiente/tenant no manifesto, **Quando** gero dataset sintético em modo carga, **Entao** respeito rate limits e concluo na janela off-peak com relatório de volumetria.  
-2. **Dado** um cenário de DR simulado, **Quando** restauro a partir das seeds/factories, **Entao** o ambiente volta ao estado consistente dentro de RPO/RTO definidos, com logs que comprovam anonimização.
-
 ### User Story 4 - Orquestrar seed runs via API/CLI (Prioridade: P2)
 
 - **Persona & Objetivo**: SRE/QA agenda, consulta ou cancela execuções via API/CLI com governança de RateLimit/Idempotency/ETag.  
@@ -94,18 +95,17 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 2. **Dado** um `seed_run` ativo, **Quando** chamo `POST /api/v1/seed-runs/{id}/cancel` com `If-Match`, **Entao** recebo `202` e o run é finalizado como `aborted` após dreno dos batches.  
 3. **Dado** limite de rate/budget excedido ou lock ativo, **Quando** chamo `POST /api/v1/seed-runs`, **Entao** recebo `429` ou `409` com Problem Details e `Retry-After`, sem criar novo run.
 
-### User Story 5 - Validar manifestos via API (Prioridade: P1)
+### User Story 3 - Carga e DR com dados sintéticos (Prioridade: P3)
 
-- **Persona & Objetivo**: QA/SRE valida manifestos v1 via API antes de qualquer execução, garantindo schema/versão e governança de headers.  
-- **Valor de Negocio**: Evita drift ou schema inválido chegar à execução, reduzindo falhas e retrabalho.  
-- **Contexto Tecnico**: `/api/v1/seed-profiles/validate`, JSON Schema 2020-12, RateLimit-*, Idempotency-Key, Problem Details.
+- **Persona & Objetivo**: SRE gera volumetria (Q11) configurável para carga e DR sem afetar limites de API.  
+- **Valor de Negocio**: Garante previsibilidade de performance e prontidão de DR sem risco a produção.  
+- **Contexto Tecnico**: Staging de carga/DR, rate limits, RPO/RTO do blueprint.
 
-**Independent Test**: `POST /api/v1/seed-profiles/validate` retorna 200 para manifesto v1 válido e 422/429 com Problem Details, mantendo RateLimit-* e Idempotency-Key.
+**Independent Test**: Execução de carga usa manifestos, respeita caps/rate limit e entrega evidência WORM de restauração dentro de RPO/RTO.
 
 **Acceptance Scenarios (BDD)**:
-1. **Dado** um manifesto v1 válido com headers `Idempotency-Key`, `X-Tenant-ID`, `X-Environment`, **Quando** chamo `POST /api/v1/seed-profiles/validate`, **Entao** recebo `200` com `valid=true`, `issues=[]`, `RateLimit-*`, `Retry-After` e versão normalizada.  
-2. **Dado** um manifesto com schema/versão divergente ou campos obrigatórios ausentes, **Quando** chamo o endpoint, **Entao** recebo `422` Problem Details com lista de issues e RateLimit-* preservado.  
-3. **Dado** um cenário de limite excedido ou retry/backoff ativo, **Quando** chamo o endpoint, **Entao** recebo `429` com `Retry-After` e não inicia execução.
+1. **Dado** volumetria por ambiente/tenant no manifesto, **Quando** gero dataset sintético em modo carga, **Entao** respeito rate limits e concluo na janela off-peak com relatório de volumetria.  
+2. **Dado** um cenário de DR simulado, **Quando** restauro a partir das seeds/factories, **Entao** o ambiente volta ao estado consistente dentro de RPO/RTO definidos, com logs que comprovam anonimização.
 
 ### Edge Cases & Riscos Multi-Tenant
 
@@ -126,7 +126,7 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 | Art. IV (Teste de Integração-Primeiro) | Fluxo integração-primeiro com factories | Dry-run/integração falham antes de código; factories alimentam testes de integração. |
 | Art. VI (SLO/Error Budget) | SLOs explícitos (p95/p99, throughput, saturação) e orçamento de erro | Manifestos trazem metas por ambiente/tenant; execuções que rompem metas abortam. |
 | Art. VII (Observabilidade) | OTEL + W3C Trace Context, Sentry, logs estruturados com redaction | Traces/métricas/logs por tenant/execução; bloqueia promoção se export falhar ou PII não mascarada. |
-| Art. VIII (Entrega) | Release seguro (flag/canary/rollback) | `seed_data` gated por manifestos/flags e validação pós-deploy em Argo CD. |
+| Art. VIII (Entrega) | Release seguro (flags; canary só quando modo=canary) | `seed_data` gated por manifestos/flags e validação pós-deploy em Argo CD. |
 | Art. IX (CI) | Cobertura mínima e validações | CI roda dry-run do baseline com checagens de PII/contratos/volumetria. |
 | Art. V (Documentação/Versão) | Contrato-primeiro OpenAPI 3.1, SemVer e governança de diffs | Seeds/factories que tocam `/api/v1` obedecem contrato versionado e checagens de compatibilidade. |
 | Art. XI (API) | Contratos e resiliência (RateLimit, Idempotency-Key, ETag) | Seeds/factories respeitam contratos `/api/v1`, idempotência, RateLimit headers e Problem Details. |
@@ -164,7 +164,7 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-021**: Execução de `seed_data` DEVE exigir autorização explícita por ambiente/tenant (RBAC/ABAC com privilégio mínimo) e testes automatizados que neguem execuções fora do perfil autorizado.  
 - **FR-022**: A automação de seeds/carga/DR DEVE passar por threat modeling dedicado (STRIDE/LINDDUN) e manter runbooks/GameDays para falhas de rate limit, PII/anonimização e DR.
 - **FR-023**: Pipeline de CI/CD DEVE aplicar gates de qualidade: cobertura mínima de 85%, complexidade máxima 10, SAST/DAST/SCA e geração de SBOM obrigatórias, além de testes de carga/performance como bloqueadores de promoção; qualquer falha impede promoção de seeds/factories.  
-- **FR-024**: Promoções e execuções de `seed_data` DEVEM seguir Trunk-Based (histórico linear, branches curtas, squash-only) + feature flags/canary com rollback ensaiado e rastreio de métricas DORA; pipeline/Argo DEVEM falhar se o fluxo não cumprir essas condições.  
+- **FR-024**: Promoções e execuções de `seed_data` DEVEM seguir Trunk-Based (histórico linear, branches curtas, squash-only) + feature flags (canary apenas quando `mode=canary`) com rollback ensaiado e rastreio de métricas DORA; pipeline/Argo DEVEM falhar se o fluxo não cumprir essas condições.  
 - **FR-025**: Seeds/factories DEVEM evitar poluição da trilha de auditoria (incluindo WORM) com rotulagem por execução/tenant e preservação de RLS/índices multi-tenant; execuções que gerem drift ou falsos positivos de auditoria devem falhar.  
 - **FR-026**: Infraestrutura e artefatos necessários para seeds/factories (WORM, Vault, filas/assíncrono, pipelines CI/CD) DEVEM ser gerenciados como código (Terraform) com validação OPA/policy-as-code e fluxo GitOps/Argo CD; ausência de validação bloqueia promoção.  
 - **FR-027**: A gestão de dependências para bibliotecas de seeds/factories/performance e para o cliente de Vault Transit DEVE seguir automação contínua (ADR-008), com checagem/atualização em CI e bloqueio por CVEs críticos ou versões defasadas.  
@@ -226,4 +226,4 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **SC-007**: Fluxo GitOps/Argo CD promove apenas com manifesto válido, sem drift detectado e com rollback testado; relatórios WORM vinculam commit/tenant/ambiente.  
 - **SC-008**: Orçamento de erro (SLO) não estourado durante campanhas de seeds/carga; exceder orçamento implica abort e reagendamento off-peak com evidência.
 - **SC-009**: Governança de API e autorização validadas: contratos `/api/v1` aprovados sem diffs incompatíveis e execuções `seed_data` bloqueiam identidades não autorizadas, com evidências nos relatórios. 
-- **SC-010**: Promoções/execuções de `seed_data` ocorrem via flags/canary com rollback ensaiado e métricas DORA visíveis; ausência dessas evidências bloqueia promoção.
+- **SC-010**: Promoções/execuções de `seed_data` ocorrem via flags (canary apenas quando `mode=canary`) com rollback ensaiado e métricas DORA visíveis; ausência dessas evidências bloqueia promoção.
