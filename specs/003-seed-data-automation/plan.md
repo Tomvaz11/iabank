@@ -43,7 +43,7 @@ Preencha cada item com o plano concreto para a feature. Use `[NEEDS CLARIFICATIO
 - [x] **Art. III - TDD**: Suites pytest/pytest-django planejadas para `seed_data` (baseline/carga/DR), factories com mascaramento e checagens de idempotencia/rate-limit; iniciar em `/home/pizzaplanet/meus_projetos/iabank/backend/apps/**/tests/` com falha antes de codigo.  
 - [x] **Art. VIII - Lancamento Seguro**: Flags/canary por ambiente/tenant, rollback via Argo CD, budget de erro por manifesto e relatorio WORM vinculado; documentado neste plano e quickstart.  
 - [x] **Art. IX - Pipeline CI**: Cobertura≥85%, complexidade≤10, SAST/DAST/SCA/SBOM, k6 perf gate e dry-run deterministico mapeados; falha bloqueia promocao (ver spec/quickstart).  
-- [x] **Art. XI - Governanca de API**: Contratos OpenAPI 3.1 em `/home/pizzaplanet/meus_projetos/iabank/specs/003-seed-data-automation/contracts/seed-data.openapi.yaml` e alinhamento a `contracts/api.yaml`; lint/diff/Pact previstos e versionamento SemVer.  
+- [x] **Art. XI - Governanca de API**: Contratos OpenAPI 3.1 em `contracts/seed-data.openapi.yaml` e alinhamento a `contracts/api.yaml`; lint/diff/Pact previstos e versionamento SemVer.  
 - [x] **Art. XIII - Multi-tenant & LGPD**: RLS obrigatório com managers aplicando tenant_id, testes anti-cross-tenant, mascaramento Vault Transit FPE e PII cifrada; fail-closed sem RLS.  
 - [x] **Art. XVIII - Fluxo Spec-Driven**: Artefatos atualizados (`spec.md`, `clarifications-archive.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/`); `tasks.md` sera gerado na proxima fase via `/speckit.tasks`.
 
@@ -84,7 +84,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 
 ### Endpoint de validacao de manifestos
 
-- **Contrato**: `/api/v1/seed-profiles/validate` ja descrito em `specs/003-seed-data-automation/contracts/seed-data.openapi.yaml` (OpenAPI 3.1, Problem Details, RateLimit-*, Idempotency-Key).  
+- **Contrato**: `/api/v1/seed-profiles/validate` ja descrito em `contracts/seed-data.openapi.yaml` (OpenAPI 3.1, Problem Details, RateLimit-*, Idempotency-Key).  
 - **Handler**: `backend/apps/tenancy/views.py:SeedProfileValidateView` registrado em `backend/apps/tenancy/urls.py` sob `path("api/v1/seed-profiles/validate", ...)`, respeitando middleware de RLS/tenant e ABAC.  
 - **Regras**: Valida schema v1 do manifesto (JSON Schema 2020-12) incluindo `mode` (baseline/carga/dr), `reference_datetime` ISO 8601 UTC, janela off-peak `start_utc/end_utc` (única, pode cruzar meia-noite), caps Q11 por entidade, rate limit/backoff+jitter, budget/TTL e `salt_version`. Falha fail-closed em: versão incompatível, drift de campos obrigatórios, janela fora do formato ou caps ausentes.  
 - **Respostas**: `200` com `valid=true`, `issues=[]`, `normalized_version` e `caps` extraídos; `422` Problem Details com lista de issues; `429` aplica backoff curto; `401/403` em ausência de autorização/RLS. Sempre retorna `RateLimit-*`, `Retry-After` e exige `Idempotency-Key`.  
@@ -106,7 +106,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 
 ### Manifesto `seed_profile` — schema v1
 
-- **Fonte**: Manifestos versionados em `configs/seed_profiles/<ambiente>/<tenant>.yaml` (GitOps/Argo CD). JSON Schema v1 a publicar em `specs/003-seed-data-automation/contracts/seed-profile.schema.json` (JSON Schema 2020-12) e usado pelo endpoint `/api/v1/seed-profiles/validate`.  
+- **Fonte**: Manifestos versionados em `configs/seed_profiles/<ambiente>/<tenant>.yaml` (GitOps/Argo CD). JSON Schema v1 a publicar em `contracts/seed-profile.schema.json` (JSON Schema 2020-12) e usado pelo endpoint `/api/v1/seed-profiles/validate`.  
 - **Campos obrigatórios**:  
   - `metadata`: `tenant`, `environment`, `profile`, `version` (SemVer), `schema_version`, `salt_version`, `reference_datetime` (ISO 8601 UTC).  
   - `mode`: `baseline|carga|dr`; `window.start_utc/end_utc` (par único, UTC, pode cruzar meia-noite).  
@@ -128,7 +128,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **`reference_datetime`**: ISO 8601 UTC obrigatório; mudança é breaking.  
 - **`integrity`**: campos `manifest_hash` (sha256 hex) e `schema_version` devem coincidir com o schema publicado; divergência falha.  
 - **Exemplos**: incluir exemplos canônicos por modo no schema para servir de goldens de lint/diff.  
-- **Contrato**: publicar em `specs/003-seed-data-automation/contracts/seed-profile.schema.json` e referenciar em `/api/v1/seed-profiles/validate` e CI (Spectral + oasdiff).
+- **Contrato**: publicar em `contracts/seed-profile.schema.json` e referenciar em `/api/v1/seed-profiles/validate` e CI (Spectral + oasdiff).  
 
 ### Catálogo de volumetria → modelos/serializers
 - **Chaves válidas** (alinhar com `seed-profile.schema.json`): `tenant_users`, `customers`, `addresses`, `consultants`, `bank_accounts`, `account_categories`, `suppliers`, `loans`, `installments`, `financial_transactions`, `limits`, `contracts`. Nenhuma outra chave é aceita.  
@@ -159,7 +159,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **GET `/api/v1/seed-runs/{id}`**: consulta status. Headers: `If-None-Match` opcional; respostas `200` com estado completo + checkpoints, ou `304` quando ETag casar.  
 - **POST `/api/v1/seed-runs/{id}/cancel`**: requer `If-Match` + `Idempotency-Key`; respostas `202` (cancel agendado) ou `409` se status terminal.  
 - **Errors**: Problem Details com `type`, `title`, `detail`, `instance`, `status`, `violations[]`; sempre enviar `RateLimit-*` e `Retry-After` em `429`.  
-- **Pact/OpenAPI**: paths acima devem constar em `specs/003-seed-data-automation/contracts/seed-data.openapi.yaml` com exemplos e schemas referenciando `seed-profile.schema.json`.
+- **Pact/OpenAPI**: paths acima devem constar em `contracts/seed-data.openapi.yaml` com exemplos e schemas referenciando `seed-profile.schema.json`.
 
 #### Máquina de estados (SeedRun/SeedBatch)
 - **SeedRun**: `queued -> running -> {succeeded | failed | aborted}`; `running -> retry_scheduled` em erro transitório e retorna a `running` após backoff; `running -> blocked` (lock/maintenance/off-peak fechada) e encerra em `aborted` após timeout; cancelamento via endpoint (`If-Match`) seta flag `cancel_requested` e finaliza como `aborted` após drenar/parar os batches. `retry_scheduled` não avança para `succeeded` sem novo `ETag`.  
@@ -283,7 +283,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Implementação**: serviço puro em `backend/apps/banking/services/financial_calculations.py` com funções `calculate_iof(request: LoanInput) -> Decimal`, `calculate_cet(request: LoanInput) -> CETBreakdown`, `generate_installments(request: LoanInput) -> list[InstallmentInput]`.  
 - **Entrada (`LoanInput`)**: `{principal_amount: Decimal(12,2), annual_rate_pct: Decimal(5,2), number_of_installments: int>0, contract_date: date, first_installment_date: date, tenor_months opcional}`; datas derivam de `reference_datetime` do manifesto.  
 - **Saída (`CETBreakdown`)**: `{cet_annual_rate: Decimal(7,4), cet_monthly_rate: Decimal(7,4), iof_amount: Decimal(10,2), installments: list[InstallmentInput]}`.  
-- **Stubs de teste**: Pact stubs em `contracts/pact/financial-calculator.json` (a criar) com exemplos determinísticos; usados por factories e testes de integração dos endpoints de seeds.  
+- **Stubs de teste**: Pact stubs em `contracts/pacts/financial-calculator.json` (a criar) com exemplos determinísticos; usados por factories e testes de integração dos endpoints de seeds.  
 - **Fail-closed**: divergência entre retorno do serviço e cálculo esperado (duas casas para valores, quatro casas para taxas) aborta o lote. Fallback local permitido apenas em dev isolado com fixtures do stub.
 
 #### Mapeamento para models/serializers reais (novo app de domínio)
