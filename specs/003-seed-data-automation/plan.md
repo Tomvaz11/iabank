@@ -48,7 +48,7 @@ Preencha cada item com o plano concreto para a feature. Use `[NEEDS CLARIFICATIO
 - [x] **Art. X - Migracoes Zero-Downtime**: Expand/contract + indices CONCURRENTLY e testes de rollback (T019).  
 - [x] **Art. XI - Governanca de API**: Contratos OpenAPI 3.1 em `contracts/seed-data.openapi.yaml` e alinhamento a `contracts/api.yaml`; lint/diff/Pact previstos e versionamento SemVer.  
 - [x] **Art. XIII - Multi-tenant & LGPD**: RLS obrigatório com managers aplicando tenant_id, testes anti-cross-tenant, mascaramento Vault Transit FPE e PII cifrada; fail-closed sem RLS.  
-- [x] **Art. XIV - IaC/GitOps/OPA**: Terraform/OPA para Vault/WORM/filas e pipeline Argo CD com drift/rollback/off-peak (T018, T059/T060).  
+- [x] **Art. XIV - IaC/GitOps/OPA**: Terraform/OPA para Vault/WORM/filas e pipeline Argo CD com drift/rollback/off-peak (T083/T084, T059/T060).  
 - [x] **Art. XV - Dependencias**: Automacao/SCA para libs de seeds/factories/Vault/perf com bloqueio de CVEs criticos (T058).  
 - [x] **Art. XVI - Auditoria/FinOps**: Relatórios WORM assinados/validados, caps/budgets monitorados e gates de custo (T053/T054/T061).  
 - [x] **Art. XVIII - Fluxo Spec-Driven**: Artefatos atualizados (`spec.md`, `clarifications-archive.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/`); `tasks.md` sera gerado na proxima fase via `/speckit.tasks`.
