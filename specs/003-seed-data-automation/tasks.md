@@ -129,6 +129,7 @@ Critério de teste independente: CLI/API criam seed runs carga/DR respeitando Ra
 - [ ] T075 [US3] Propagar rate-limit/backoff simulados das integrações para o fluxo de seeds/factories e Problem Details (`backend/apps/tenancy/services/seed_runs.py`, `backend/apps/tenancy/services/seed_batches.py`)
 - [ ] T076 [US3] Adicionar contract tests para os stubs externos (KYC/antifraude/pagamentos/notificações) no CI único de contratos (`scripts/ci/validate-seed-contracts.sh`, `.github/workflows/ci-contracts.yml`)
 - [ ] T077 [US3] Documentar e versionar os stubs/mocks externos e políticas de bloqueio outbound em quickstart/runbooks (`specs/003-seed-data-automation/quickstart.md`, `docs/runbooks/`)
+- [ ] T078 [US3] GC/cleanup de datasets de carga/DR por modo/tenant antes de reexecuções, aplicando TTL e evitando inflação; testes CLI/API comprovando limpeza, expiração de TTL e rollback/abort sem resíduos (`backend/apps/tenancy/services/seed_runs.py`, `backend/apps/tenancy/services/seed_dataset_gc.py`, `backend/apps/tenancy/tests/test_seed_dataset_gc.py`)
 
 ## Fase Final: Polish & Cross-Cutting
 Objetivo: Encerrar observabilidade/compliance e amarrar docs/runbooks.  
@@ -154,7 +155,7 @@ Critério de teste independente: pipelines com lint/tests/perf e docs gate verde
 - US1: T027–T029 em paralelo após Fundacional; T030–T031–T032–T033–T034 em ordem (serviço → comando → quickstart → stubs → cleanup).
 - US2: T035/T036 em paralelo após helpers; T037–T039 após serializers/helpers prontos.
 - US4: T040–T043 em paralelo após Fundacional; T044–T046 em ordem (API → GC → idempotência persistida).
-- US3: T047–T050 + T070–T073 primeiro (TDD), em paralelo após Fundacional e contratos; implementações T051–T062 + T074–T077 seguem os testes, com FinOps/WORM/observabilidade avançando em paralelo respeitando dependências.
+ - US3: T047–T050 + T070–T073 primeiro (TDD), em paralelo após Fundacional e contratos; implementações T051–T062 + T074–T078 seguem os testes, com FinOps/WORM/observabilidade avançando em paralelo respeitando dependências.
 - Polish: T063–T069 após histórias concluídas.
 
 ## Estrategia de implementacao (MVP primeiro)
@@ -165,4 +166,4 @@ Critério de teste independente: pipelines com lint/tests/perf e docs gate verde
 5) Finalizar com Polish (observabilidade fail-close, docs/ADRs, threat model/GameDay, CI gates, checklist anti-poluição).
 
 ## Validação de completude
-Todas as user stories possuem testes dedicados (contrato/CLI/factories/API/CLI/Celery/perf), tarefas de implementacao e paths claros. Gates adicionais incluídos: preflight Vault/WORM (T016), SLO/SLI/error budget (T017/T050/T062), cap global/TTL fila (T012–T013), IaC/OPA/Argo (T018), expand/contract (T019), stubs externos (T033), checklist WORM e rotulagem/auditoria (T054/T069), outbox/CDC sandbox (T055), guardrail anti-snapshot (T056), flags (canary só quando `mode=canary`)/DORA (T057), dependências/SCA (T058), drift/off-peak/GitOps (T059–T060), cost-model FinOps (T020/T061), perf gate carga/DR (T048), RPO/RTO (T049), fail-close observabilidade (T067), drift `reference_datetime`/cleanup (T029/T034), dedupe/TTL de Idempotency-Key (T022/T026/T042/T046), k6 lendo thresholds do manifesto (T043/T048) e gate Trunk-Based/rollback (T068). Dry-run sem WORM/checkpoints e com falha OTEL/Sentry simulada está coberto em T003/T027.
+Todas as user stories possuem testes dedicados (contrato/CLI/factories/API/CLI/Celery/perf), tarefas de implementacao e paths claros. Gates adicionais incluídos: preflight Vault/WORM (T016), SLO/SLI/error budget (T017/T050/T062), cap global/TTL fila (T012–T013), IaC/OPA/Argo (T018), expand/contract (T019), stubs externos (T033), checklist WORM e rotulagem/auditoria (T054/T069), outbox/CDC sandbox (T055), guardrail anti-snapshot (T056), flags (canary só quando `mode=canary`)/DORA (T057), dependências/SCA (T058), drift/off-peak/GitOps (T059–T060), cost-model FinOps (T020/T061), perf gate carga/DR (T048), RPO/RTO (T049), fail-close observabilidade (T067), drift `reference_datetime`/cleanup (T029/T034), dedupe/TTL de Idempotency-Key (T022/T026/T042/T046), k6 lendo thresholds do manifesto (T043/T048), cleanup/TTL de datasets carga/DR (T078) e gate Trunk-Based/rollback (T068). Dry-run sem WORM/checkpoints e com falha OTEL/Sentry simulada está coberto em T003/T027.
