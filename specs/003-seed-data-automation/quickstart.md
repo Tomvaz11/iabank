@@ -30,7 +30,8 @@ poetry run python backend/manage.py seed_data \
   --idempotency-key ci-$(uuidgen)
 ```
 - Fail-closed se manifesto versao/schema divergirem, se RLS ausente ou fora da janela off-peak.  
-- Usa factories factory-boy deterministicas (seed derivado de tenant/ambiente/manifesto) e stubs Pact para integrações externas.
+- Usa factories factory-boy deterministicas (seed derivado de tenant/ambiente/manifesto) e stubs Pact para integrações externas.  
+- Reprova se PII não estiver mascarada, se payloads divergirem dos contratos `/api/v1` (Spectral/oasdiff) ou se caps Q11 do manifesto forem violados (fail-close).
 
 ## Execucao em staging/perf (carga/DR)
 ```bash

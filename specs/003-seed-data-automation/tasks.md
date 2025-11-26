@@ -12,11 +12,11 @@ description: "Tasks para Automacao de seeds, dados de teste e factories"
 
 ## Fase 1: Setup
 Objetivo: Publicar artefatos de contrato/manifesto e comandos base para permitir lint/dry-run desde o inicio.  
-Critério de teste independente: contratos e manifestos canônicos passam lint/diff e podem ser usados pelo comando `seed_data` em modo dry-run sem gravação de WORM/checkpoints e com falha OTEL/Sentry forçada sendo bloqueadora.
+Critério de teste independente: contratos e manifestos canônicos passam lint/diff e podem ser usados pelo comando `seed_data` em modo dry-run sem gravação de WORM/checkpoints, falhando se mascaramento PII/contratos/caps Q11 estiverem inválidos e com falha OTEL/Sentry forçada sendo bloqueadora.
 
 - [ ] T001 Publicar contratos seed-data e schema para lint/diff (`contracts/seed-data.openapi.yaml`, `contracts/seed-profile.schema.json`)
 - [ ] T002 Criar manifestos canônicos baseline/carga/DR por ambiente/tenant (dev/homolog/staging/perf; carga/DR apenas em staging/perf dedicados) validados contra schema v1 (`configs/seed_profiles/<env>/<tenant>.yaml`)
-- [ ] T003 Adicionar alvo CI/Makefile para `seed_data` validate/dry-run com Idempotency-Key, sem gravar WORM/checkpoints e falhando em export OTEL/Sentry simulada (`Makefile`, `scripts/ci/seed-data.sh`)
+- [ ] T003 Adicionar alvo CI/Makefile para `seed_data` validate/dry-run com Idempotency-Key, sem gravar WORM/checkpoints, validando mascaramento PII, contratos `/api/v1` (Spectral/oasdiff) e caps Q11 do manifesto, e falhando em export OTEL/Sentry simulada (`Makefile`, `scripts/ci/seed-data.sh`)
 - [ ] T004 Ajustar scripts/Make/CI para lint/diff dos contratos e JSON Schema (Spectral/oasdiff) com paths consolidados e gate único (`scripts/ci/validate-seed-contracts.sh`, `Makefile`, `.github/workflows/ci-contracts.yml`)
 - [ ] T005 Ajustar scripts Pact/Prism e stub do calculo financeiro para paths dos contratos seed (`scripts/ci/validate-seed-contracts.sh`, `contracts/pacts/financial-calculator.json`)
 
@@ -56,10 +56,10 @@ Critério de teste independente: `POST /api/v1/seed-profiles/validate` retorna 2
 
 ## Fase 4: User Story 1 - Seeds baseline multi-tenant (Prioridade P1)
 Objetivo da história: Executar `seed_data --profile` para baseline deterministica por tenant/ambiente, bloqueando cross-tenant e falhando em falta de RLS/off-peak.  
-Critério de teste independente: `seed_data` baseline roda em dry-run com manifesto v1 válido, respeita RLS, não grava WORM/checkpoints e devolve Problem Details auditável ao violar regras (incluindo falha OTEL/Sentry simulada).
+Critério de teste independente: `seed_data` baseline roda em dry-run com manifesto v1 válido, respeita RLS, não grava WORM/checkpoints, reprova quando PII não está mascarada/contratos divergirem/caps Q11 forem violados, e devolve Problem Details auditável ao violar regras (incluindo falha OTEL/Sentry simulada).
 
 ### Testes (executar antes da implementacao)
-- [ ] T027 [P] [US1] Cobrir comando `seed_data` baseline com dry-run (sem WORM/checkpoints), RLS/off-peak e idempotency_key (sucesso e bloqueios cross-tenant) (`backend/apps/tenancy/tests/test_seed_data_command.py`)
+- [ ] T027 [P] [US1] Cobrir comando `seed_data` baseline com dry-run (sem WORM/checkpoints), RLS/off-peak e idempotency_key, validando mascaramento PII, contratos `/api/v1` e caps Q11 (sucesso e bloqueios cross-tenant) (`backend/apps/tenancy/tests/test_seed_data_command.py`)
 - [ ] T028 [P] [US1] Testes negativos de autorização (CLI/API) para perfis seed-runner/admin/read, janela off-peak e tenants/ambientes não permitidos (`backend/apps/tenancy/tests/test_seed_auth.py`)
 - [ ] T029 [P] [US1] Bloquear runs quando `reference_datetime` divergir do checkpoint e exigir limpeza/reseed controlado (`backend/apps/tenancy/tests/test_seed_reference_datetime_drift.py`)
 
