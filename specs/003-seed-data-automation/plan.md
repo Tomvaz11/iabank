@@ -7,7 +7,7 @@
 
 ## Summary
 
-Implementar automacao de seeds/factories deterministicas e 100% sinteticas para baseline, carga e DR multi-tenant, governadas por manifestos versionados e contratos `/api/v1` (spec.md, clarifications-archive.md, ADR-008/010/011/012 citados no spec). A solucao usa monolito Django/DRF sobre PostgreSQL com RLS/pgcrypto, Celery/Redis para execucoes idempotentes com backoff/jitter, acks tardios e DLQ (Blueprint §26) e evidencia WORM assinada (Art. I, XI, XIII, XVI). Fluxo segue Test-First (Art. III), release seguro com flags (canary apenas quando adotado) e GitOps/Argo CD (Art. VIII, XVIII), bloqueando execucao fora de off-peak, rate limit/budget ou sem mascaramento PII via Vault Transit.
+Implementar automacao de seeds/factories deterministicas e 100% sinteticas para baseline, carga, DR e canary multi-tenant, governadas por manifestos versionados e contratos `/api/v1` (spec.md, clarifications-archive.md, ADR-008/010/011/012 citados no spec). A solucao usa monolito Django/DRF sobre PostgreSQL com RLS/pgcrypto, Celery/Redis para execucoes idempotentes com backoff/jitter, acks tardios e DLQ (Blueprint §26) e evidencia WORM assinada (Art. I, XI, XIII, XVI). Fluxo segue Test-First (Art. III), release seguro com flags (canary apenas quando adotado) e GitOps/Argo CD (Art. VIII, XVIII), bloqueando execucao fora de off-peak, rate limit/budget ou sem mascaramento PII via Vault Transit.
 
 ## Technical Context
 
@@ -21,7 +21,7 @@ Preencha cada item com o plano concreto para a feature. Use `[NEEDS CLARIFICATIO
 **Project Type**: Monolito web/backend com tarefas Celery e CLI de management commands  
 **Performance Goals**: Cumprir SLO/SLI por manifesto (p95/p99 de execucao seed_data), RPO≤5 min e RTO≤60 min para DR, respeitando rate limit/budgets e throughput controlado  
 **Constraints**: Execucao apenas com RLS ativo e RBAC/ABAC minimo, off-peak window em UTC, caps de volumetria (Q11) e rate limit por tenant/ambiente, dados sinteticos sem snapshots de producao, expand/contract para evolucao de schema  
-**Scale/Scope**: Multi-tenant, modos baseline/carga/DR, concorrencia serializada por tenant/ambiente com fila curta e teto global por ambiente/cluster; contratos `/api/v1` governados por lint/diff/contrato
+**Scale/Scope**: Multi-tenant, modos baseline/carga/DR/canary, concorrencia serializada por tenant/ambiente com fila curta e teto global por ambiente/cluster; contratos `/api/v1` governados por lint/diff/contrato
 
 ### Contexto Expandido
 
@@ -34,13 +34,13 @@ Preencha cada item com o plano concreto para a feature. Use `[NEEDS CLARIFICATIO
 **Segurança/Compliance**: RBAC/ABAC minimo para `seed_data`, RLS enforced, mascaramento PII deterministico (Vault Transit FPE), FinOps budgets/caps por manifesto, evidencias WORM assinadas, mocks para integrações externas (OWASP/NIST; Art. XII, XIII, XVI).  
 **Performance Targets**: p95/p99 de execucao por manifesto (fonte = manifesto por ambiente/tenant) dentro do budget; throughput alinhado a RateLimit-* e idempotencia; DR cumpre RPO≤5 min/RTO≤60 min; error budget consumido/abortado conforme manifesto.  
 **Restrições Operacionais**: TDD/integ-primeiro, execucao apenas em janela off-peak declarada, bloqueio sem RLS ou drift de manifesto, RLS check preflight, somente dados sinteticos (proibido snapshot/dump de producao), GitOps/Argo CD com flags (canary só quando `mode=canary`) e deteccao de drift/off-peak; expand/contract para schema; pipeline/Argo falha se não cumprir Trunk-Based (branches curtas, histórico linear, squash-only) ou rollback ensaiado (Art. VIII, adicoes_blueprint §1).
-**Escopo/Impacto**: Tenants/ambientes multi-tenant, modos baseline/carga/DR, APIs `/api/v1` consumidas/testadas, pipelines CI/CD, infra de Vault/WORM/filas/Terraform; sem dependencias externas reais (stubs Pact).
+**Escopo/Impacto**: Tenants/ambientes multi-tenant, modos baseline/carga/DR/canary, APIs `/api/v1` consumidas/testadas, pipelines CI/CD, infra de Vault/WORM/filas/Terraform; sem dependencias externas reais (stubs Pact).
 
 ## Constitution Check
 
 *GATE: Validar antes da Fase 0 e reconfirmar apos o desenho de Fase 1.*
 
-- [x] **Art. III - TDD**: Suites pytest/pytest-django planejadas para `seed_data` (baseline/carga/DR), factories com mascaramento e checagens de idempotencia/rate-limit; iniciar em `/home/pizzaplanet/meus_projetos/iabank/backend/apps/**/tests/` com falha antes de codigo.  
+- [x] **Art. III - TDD**: Suites pytest/pytest-django planejadas para `seed_data` (baseline/carga/DR/canary), factories com mascaramento e checagens de idempotencia/rate-limit; iniciar em `/home/pizzaplanet/meus_projetos/iabank/backend/apps/**/tests/` com falha antes de codigo.  
 - [x] **Art. VIII - Lancamento Seguro**: Flags (canary apenas quando `mode=canary`), rollback via Argo CD, budget de erro por manifesto e relatorio WORM vinculado; documentado neste plano e quickstart.  
 - [x] **Art. IX - Pipeline CI**: Cobertura≥85%, complexidade≤10, SAST/DAST/SCA/SBOM, k6 perf gate e dry-run deterministico mapeados; falha bloqueia promocao (ver spec/quickstart).  
 - [x] **Art. XI - Governanca de API**: Contratos OpenAPI 3.1 em `contracts/seed-data.openapi.yaml` e alinhamento a `contracts/api.yaml`; lint/diff/Pact previstos e versionamento SemVer.  
@@ -94,7 +94,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 ### Fluxo operacional do comando `seed_data`
 
 - **Preflight**: Checar migrations pendentes; validar enforcement de RLS (Art. XIII), flags do domínio (canary apenas quando `mode=canary`) e disponibilidade do Vault/WORM (bucket, role/KMS, retenção, chave FPE ativa no Vault); reforçar RBAC/ABAC mínimo para acesso a chaves/manifestos e registrar auditoria com redaction; abortar fail-closed se qualquer pré-condição falhar, retornando Problem Details e sem enfileirar lotes.  
-- **Validação de manifesto**: Carregar manifesto YAML/JSON (GitOps) e validar contra JSON Schema v1 (JSON Schema 2020-12). Campos obrigatórios: `metadata` (tenant, ambiente, profile/version, salt_version), `mode` (baseline/carga/dr), `reference_datetime` ISO 8601 UTC, `window.start_utc/end_utc` (única, pode cruzar meia-noite), `volumetry` por entidade (caps Q11), `rate_limit` (limit/window) + `backoff` (base/jitter/max_retries), `budget` (cost/error budget), `ttl` por modo, `slo` (p95/p99 alvo), `caps_override` opcional para dev. Versão divergente ou ausência de campos → fail-closed.  
+- **Validação de manifesto**: Carregar manifesto YAML/JSON (GitOps) e validar contra JSON Schema v1 (JSON Schema 2020-12). Campos obrigatórios: `metadata` (tenant, ambiente, profile/version, salt_version), `reference_datetime` ISO 8601 UTC, `mode` (`baseline|carga|dr|canary`), `window.start_utc/end_utc` (única, pode cruzar meia-noite), `volumetry` por entidade (caps Q11), `rate_limit` (limit/window) + `backoff` (base/jitter/max_retries), `budget` (cost/error budget), `ttl` por modo, `slo` (p95/p99 alvo), `integrity.manifest_hash` e `caps_override` opcional para dev. `canary` é opcional e obrigatório somente quando `mode=canary`, devendo estar ausente nos demais modos. Versão divergente ou ausência de campos → fail-closed.  
 - **Concorrência/locks**: Adquirir lock global (teto 2 execuções por ambiente/cluster, TTL fila 5 min) e lock por tenant/ambiente via advisory lock (TTL 60s) no Postgres; fila curta auditável no DB; liberação em finally; se lock expirar, reagendar.  
 - **Criação de SeedRun/SeedBatch**: Persistir `SeedRun` com `idempotency_key`, status `queued` e manifesto referenciado; para cada entidade/caps gerar `SeedBatch` inicial com attempt=0 e status `pending`.  
 - **Execução (Celery/Redis)**: Disparar lotes Celery com `acks_late`, backoff com jitter em 429/erro transitório, DLQ com teto de tentativas definido no manifesto; baseline sequencial, carga/DR com paralelismo controlado (2–4 workers) respeitando rate limit centralizado.  
@@ -108,11 +108,13 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 
 - **Fonte**: Manifestos versionados em `configs/seed_profiles/<ambiente>/<tenant>.yaml` (GitOps/Argo CD). JSON Schema v1 a publicar em `contracts/seed-profile.schema.json` (JSON Schema 2020-12) e usado pelo endpoint `/api/v1/seed-profiles/validate`.  
 - **Campos obrigatórios**:  
-  - `metadata`: `tenant`, `environment`, `profile`, `version` (SemVer), `schema_version`, `salt_version`, `reference_datetime` (ISO 8601 UTC).  
-  - `mode`: `baseline|carga|dr`; `window.start_utc/end_utc` (par único, UTC, pode cruzar meia-noite).  
+  - `metadata`: `tenant`, `environment`, `profile`, `version` (SemVer), `schema_version`, `salt_version`.  
+  - `reference_datetime`: ISO 8601 UTC.  
+  - `mode`: `baseline|carga|dr|canary`; `window.start_utc/end_utc` (par único, UTC, pode cruzar meia-noite).  
   - `volumetry`: caps Q11 por entidade; `rate_limit` (`limit`, `window_seconds`), `backoff` (`base_seconds`, `jitter`, `max_retries`), `budget` (`cost_cap`, `error_budget`), `ttl` por modo.  
   - `slo`: `p95_target_ms`, `p99_target_ms`, `throughput_target`.  
-  - `canary`: opcional e obrigatório somente quando `mode=canary` (percentual ou tenants-alvo).  
+  - `integrity.manifest_hash`: sha256 do manifesto bruto.  
+  - `canary`: opcional e obrigatório somente quando `mode=canary` (percentual ou tenants-alvo), devendo estar ausente nos demais modos.  
 - **Regras**: Versão nova de `reference_datetime` é breaking e exige reseed/limpeza de checkpoints; schema_version divergente → fail-closed; overrides só permitidos em dev isolado.  
 - **Evidência**: Manifesto e hash de integridade referenciados no relatório WORM e no `SeedRun.profile_version`.
 
@@ -176,7 +178,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Rate limit/FinOps**: Manifesto define caps; calcular consumo e alertar em 80% do budget; abort/rollback em 100% (fail-closed). Propagar cabeçalhos `RateLimit-*`/`Retry-After` em API e logs de CLI; registrar consumo no relatório WORM. Cálculo de custo: estimativa = (requests API * custo_unit_request + CPU_s * custo_unit_CPU + GB_s Redis/DB * custo_unit_storage); custo real = amostragem Prometheus/CloudWatch por SeedRun. Janela de apuração = por SeedRun + agregação diária por ambiente/tenant; registrar `cost_model_version` e fonte de preços/metas no relatório e tabela de budget.  
 - **SLO**: Medir p95/p99 de execução por manifesto e throughput por lote; violação consome error budget e pode abortar.  
 - **Telemetria**: Conformidade com ADR-012 (OTEL + Sentry) e ADR-010 (redação PII). Falha de export → marca SeedRun como failed e bloqueia promoção (Art. VII).  
-- **PII**: FPE determinística via Vault Transit (FF3-1/FF1), chaves/salts por ambiente/tenant com rotação trimestral; fallback apenas em dev isolado; pgcrypto em repouso; catálogo PII aplicado nas factories.
+- **PII**: FPE determinística via Vault Transit (FF3-1/FF1), chaves/salts por ambiente/tenant com rotação trimestral; dev isolado usa key/salt em Vault dev (sem `.env`); pgcrypto em repouso; catálogo PII aplicado nas factories.
 - **Integrações externas simuladas (FR-008)**: KYC/antifraude/pagamentos/notificações sempre via stubs Pact/Prism (sem outbound real). CLI/API/batches falham fail-close se outbound real ocorrer. Simular rate-limit/backoff nesses stubs e validar que seeds/factories reagem corretamente (Problem Details, Retry-After, sem side effects). Contract tests dessas integrações entram no mesmo gate de contratos/lint/diff.
 - **DORA/flags**: métricas DORA (lead time, MTTR, frequency) coletadas no pipeline; feature flags (canary apenas quando `mode=canary`) são testadas em rollback antes da promoção.
 
@@ -233,7 +235,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - `lease_lock_key` deve bater com o advisory lock vigente; mismatch entre lock e fila → fail-closed e reaplica lock antes de reprocessar.
 
 #### Parâmetros por ambiente e FinOps (assunções consolidadas do clarify)
-- **Volumetria Q11 por ambiente**: dev 1x baseline, homolog 3x, staging/carga 5x (staging dedicado para carga/DR); caps por entidade versionados no manifesto. Não executar carga/DR em produção/controlada.
+- **Volumetria Q11 por ambiente**: dev 1x baseline, homolog 3x, staging/carga 5x (staging dedicado) e perf 5x (perf dedicado) para carga/DR; caps por entidade versionados no manifesto. Não executar carga/DR em produção/controlada.
 - **Rate limit alvo (RPM)**: dev 300, homolog 600, staging/carga 1.200; usar no máximo 80% do limite e aplicar backoff+jitter ao se aproximar do cap.
 - **Tempos-alvo por ambiente**: dev <5 min, homolog <10 min, staging/carga <20 min; exceder +20% aborta/rollback auditado.
 - **Budget por execução (FinOps)**: dev/homolog até US$5, staging/carga até US$25; alertar em 80%, abortar em 100% (fail-closed) e exigir ajuste do manifesto.
@@ -257,7 +259,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 | limits                  | 100          | 500       | 500    |
 | contracts               | 150          | 750       | 750    |
 
-Multiplicadores por ambiente (aplicados sobre a tabela acima): dev = 1x, homolog = 3x, staging/carga = 5x (staging dedicado), perf = 5x. Proibido carga/DR em produção/controlada.
+Multiplicadores por ambiente (aplicados sobre a tabela acima): dev = 1x, homolog = 3x, staging/carga = 5x (staging dedicado) e perf = 5x (perf dedicado). Proibido carga/DR em produção/controlada.
 
 #### Bloqueio de mutações e caches
 - **Caches/índices/busca**: invalidar caches Redis e rebuild de busca/índices em torno da execução; rebuild só em modos controlados (dry-run/staging/carga/DR), proibido em produção fora da janela aprovada para preservar determinismo/idempotência.
@@ -289,9 +291,9 @@ Multiplicadores por ambiente (aplicados sobre a tabela acima): dev = 1x, homolog
 - **Máscara/anonimização**: usar `vault_transit_ff3-1` preservando formato (CPF/CNPJ/telefone/email) para todos os campos acima; pgcrypto em repouso.  
 - **Seed determinístico**: `factory_seed = sha256(tenant_id || environment || manifest_version || salt_version)` truncado para inteiro; todas as factories usam esse seed via helper central.  
 - **Cálculo CET/IOF/parcelas**: sempre chamar serviços/domínio oficiais; validar igualdade arredondada a 2 casas; divergência falha o lote.  
-- **Ambientes**: fallback de FPE somente em dev isolado com chave em `.env.local`; CI/staging/prod falham se fallback ativo.
+- **Ambientes**: fallback de FPE somente em dev isolado e ainda via Vault dev; CI/staging/perf/prod falham se fallback ativo ou se Vault estiver indisponível.
 - **Vault Transit PII**: paths `transit/seeds/<environment>/<tenant>/ff3` para FPE e `transit/seeds/<environment>/<tenant>/ff1` para formatos legados; role `seed-data` com política de mínimo privilégio. Helper `get_fpe_client(env, tenant, salt_version)` retorna callable injetado nas factories; falha de autorização → fail-closed.  
-- **Catálogo de campos/estados (baseline/carga/DR)**:  
+- **Catálogo de campos/estados (baseline/carga/DR/canary)**:  
   - `customers`: baseline 100% `ACTIVE`; carga/DR adicionam 10% `BLOCKED`, 10% `DELINQUENT`, 5% `CANCELED`. PII mascarada em `document_number`, `email`, `phone`, `address.*`.  
   - `bank_accounts`: baseline `ACTIVE`; carga/DR com 5% `BLOCKED`. Campos sensíveis: `account_number`, `branch/agency`.  
   - `loans`: baseline status `IN_PROGRESS`; carga/DR com `IN_COLLECTION` 20% e `CANCELED` 10%.  

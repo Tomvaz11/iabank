@@ -32,7 +32,7 @@ poetry run python backend/manage.py seed_data \
 - Fail-closed se manifesto versao/schema divergirem, se RLS ausente ou fora da janela off-peak.  
 - Usa factories factory-boy deterministicas (seed derivado de tenant/ambiente/manifesto) e stubs Pact para integrações externas.
 
-## Execucao em staging (carga/DR)
+## Execucao em staging/perf (carga/DR)
 ```bash
 poetry run python backend/manage.py seed_data \
   --profile configs/seed_profiles/dr/tenant-a.yaml \

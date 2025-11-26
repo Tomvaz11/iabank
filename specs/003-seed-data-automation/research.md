@@ -30,7 +30,7 @@ Nenhuma pendencia de clarificacao aberta; consolidamos decisoes e melhores prati
   Rationale: Detecta regressao cedo e cumpre Art. III/IV/IX/XI sem custos de execucao completa.  
   Alternatives considered: Executar modos carga/DR em PR (rejeitado por custo e risco de quota); pular k6 (rejeitado por violar Art. IX e adicoes blueprint).
 
-- Decision: Restauracao/DR ocorrera apenas em staging dedicado com dados sinteticos, cumprindo RPO≤5 min/RTO≤60 min; manifestos definem checkpoints e limpeza/idempotencia antes de replays.  
+- Decision: Restauracao/DR ocorrera apenas em staging e perf dedicados com dados sinteticos, cumprindo RPO≤5 min/RTO≤60 min; manifestos definem checkpoints e limpeza/idempotencia antes de replays.  
   Rationale: Isola risco, permite testes de recuperacao e respeita blueprint/clarifications.  
   Alternatives considered: DR em ambientes compartilhados (rejeitado por risco cross-tenant/impacto SLO); uso de snapshots (rejeitado por LGPD e determinismo).
 

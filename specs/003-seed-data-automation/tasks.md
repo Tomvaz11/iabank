@@ -15,7 +15,7 @@ Objetivo: Publicar artefatos de contrato/manifesto e comandos base para permitir
 Critério de teste independente: contratos e manifestos canônicos passam lint/diff e podem ser usados pelo comando `seed_data` em modo dry-run sem gravação de WORM/checkpoints e com falha OTEL/Sentry forçada sendo bloqueadora.
 
 - [ ] T001 Publicar contratos seed-data e schema para lint/diff (`contracts/seed-data.openapi.yaml`, `contracts/seed-profile.schema.json`)
-- [ ] T002 Criar manifestos canônicos baseline/carga/DR por ambiente/tenant (dev/homolog/staging/perf; carga/DR apenas em staging dedicado) validados contra schema v1 (`configs/seed_profiles/<env>/<tenant>.yaml`)
+- [ ] T002 Criar manifestos canônicos baseline/carga/DR por ambiente/tenant (dev/homolog/staging/perf; carga/DR apenas em staging/perf dedicados) validados contra schema v1 (`configs/seed_profiles/<env>/<tenant>.yaml`)
 - [ ] T003 Adicionar alvo CI/Makefile para `seed_data` validate/dry-run com Idempotency-Key, sem gravar WORM/checkpoints e falhando em export OTEL/Sentry simulada (`Makefile`, `scripts/ci/seed-data.sh`)
 - [ ] T004 Ajustar scripts/Make/CI para lint/diff dos contratos e JSON Schema (Spectral/oasdiff) com paths consolidados e gate único (`scripts/ci/validate-seed-contracts.sh`, `Makefile`, `.github/workflows/ci-contracts.yml`)
 - [ ] T005 Ajustar scripts Pact/Prism e stub do calculo financeiro para paths dos contratos seed (`scripts/ci/validate-seed-contracts.sh`, `contracts/pacts/financial-calculator.json`)

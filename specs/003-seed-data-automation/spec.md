@@ -9,7 +9,7 @@
 
 ## Contexto
 
-Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, com PII mascarada e determinismo por ambiente/tenant, garantindo que `seed_data` e factories (factory-boy) sejam reprodutíveis, auditáveis e integradas ao CI/CD e Argo CD. O objetivo é permitir baseline, carga e DR com dados sintéticos que respeitem rate limits (`/api/v1`), volumetria (Q11) e políticas de segurança/compliance sem expor dados reais.
+Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, com PII mascarada e determinismo por ambiente/tenant, garantindo que `seed_data` e factories (factory-boy) sejam reprodutíveis, auditáveis e integradas ao CI/CD e Argo CD. O objetivo é permitir baseline, canary, carga e DR com dados sintéticos que respeitem rate limits (`/api/v1`), volumetria (Q11) e políticas de segurança/compliance sem expor dados reais.
 
 ## Clarifications
 
@@ -18,13 +18,13 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - Q2: Concorrência global → A: Teto de execuções simultâneas por ambiente/cluster com fila curta e expiração fail-closed para proteger SLO/FinOps.  
 - Q3: PII/anonimização → A: FPE determinística via Vault Transit por ambiente/tenant, preservando formato; PII em repouso cifrada; fallback só em dev isolado.  
 - Q4: Manifestos obrigatórios → A: `seed_data --profile` consome manifestos YAML/JSON versionados por ambiente/tenant com mode, volumetria/caps, rate limit/backoff, TTL, budget e janela off-peak em UTC; validar schema/versão e falhar fail-closed se divergir.  
-- Q5: Execução em pipelines → A: CI/PR roda dry-run determinístico do baseline; cargas/DR completas só em staging dedicado em janela off-peak com evidência WORM.
+- Q5: Execução em pipelines → A: CI/PR roda dry-run determinístico do baseline; cargas/DR completas só em staging e perf dedicados, em janela off-peak, com evidência WORM.
 
 ### Session 2025-11-23 (2)
 - Q6: RLS e privilégio → A: Sempre com RLS habilitado e service account de menor privilégio; preflight de RLS falha se enforcement ausente.  
 - Q7: Rate limit/backoff → A: Orçamento por tenant/ambiente; em 429 usar backoff+jitter curto; se persistir ou exceder cap do manifesto, abortar e reagendar off-peak.  
 - Q8: Determinismo/datas → A: IDs/valores determinísticos por tenant/ambiente/manifesto; `reference_datetime` obrigatório em ISO 8601 UTC, mudança é breaking e exige reseed coordenado.  
-- Q9: DR e dados sintéticos → A: Apenas dados sintéticos (vedado snapshot de prod), com RPO/RTO do blueprint; restauração/validação em staging de carga/DR isolado.  
+- Q9: DR e dados sintéticos → A: Apenas dados sintéticos (vedado snapshot de prod), com RPO/RTO do blueprint; restauração/validação em staging/perf dedicados e isolados para carga/DR.  
 - Q10: Evidências WORM → A: Relatórios JSON assinados (trace/span, manifesto/tenant/ambiente, custos/volumetria/status por lote) em repositório WORM; se indisponível, falhar antes de escrever dados.
 
 > Decisões adicionais detalhadas permanecem registradas em `clarifications-archive.md` e valem como referência normativa para o plano/implementação.
@@ -33,14 +33,14 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 
 | Categoria                           | Status      | Notas                                                     |
 |-------------------------------------|-------------|-----------------------------------------------------------|
-| Escopo funcional & comportamento    | Resolved    | Seeds baseline/carga/DR, manifestos obrigatórios          |
+| Escopo funcional & comportamento    | Resolved    | Seeds baseline/carga/DR/canary, manifestos obrigatórios   |
 | Domínio & dados                     | Resolved    | Tenants, manifestos, datasets, checkpoints, PII/keys      |
 | UX/fluxos                           | Clear       | Fluxos de seed_data e uso de factories cobertos nas US    |
 | NFR (perf/observabilidade/segurança)| Resolved    | Rate limit/backoff, OTEL/Sentry, PII/vault, WORM          |
 | Integrações externas                | Resolved    | Mocks/stubs Pact, sem chamadas reais                      |
 | Edge cases & falhas                 | Resolved    | Fail-closed, 429, drift, indisponibilidade de vault/WORM  |
 | FinOps                              | Resolved    | Budgets/caps por manifesto, abort em estouro              |
-| DR/RPO/RTO                          | Resolved    | RPO ≤5 min, RTO ≤60 min, staging dedicado                 |
+| DR/RPO/RTO                          | Resolved    | RPO ≤5 min, RTO ≤60 min, staging/perf dedicados           |
 | Cobertura clarify                   | Clear       | 10 Qs no spec + archive referenciado; sem pendências      |
 
 ## User Scenarios & Testing *(mandatorio)*
@@ -99,9 +99,9 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 
 - **Persona & Objetivo**: SRE gera volumetria (Q11) configurável para carga e DR sem afetar limites de API.  
 - **Valor de Negocio**: Garante previsibilidade de performance e prontidão de DR sem risco a produção.  
-- **Contexto Tecnico**: Staging de carga/DR, rate limits, RPO/RTO do blueprint.
+- **Contexto Tecnico**: Staging/perf dedicados para carga/DR, rate limits, RPO/RTO do blueprint.
 
-**Independent Test**: Execução de carga usa manifestos, respeita caps/rate limit e entrega evidência WORM de restauração dentro de RPO/RTO.
+**Independent Test**: Execução de carga usa manifestos, respeita caps/rate limit e entrega evidência WORM de restauração dentro de RPO/RTO em staging/perf dedicados.
 
 **Acceptance Scenarios (BDD)**:
 1. **Dado** volumetria por ambiente/tenant no manifesto, **Quando** gero dataset sintético em modo carga, **Entao** respeito rate limits e concluo na janela off-peak com relatório de volumetria.  
@@ -144,10 +144,10 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-001**: `seed_data --profile` DEVE provisionar baseline determinística por ambiente/tenant com idempotência e isolamento RLS.  
 - **FR-002**: Factories (factory-boy) DEVEM cobrir entidades core e gerar dados sintéticos mascarados, prontos para contratos `/api/v1`.  
 - **FR-003**: PII DEVEM ser mascaradas/anonimizadas de forma determinística por ambiente/tenant via Vault; PII em repouso permanece cifrada.  
-- **FR-004**: Manifestos versionados por ambiente/tenant são obrigatórios e DEVEM seguir schema explícito (ex.: v1) com campos mínimos: version/schema, mode (baseline/carga/DR), volumetria/caps, rate limit/backoff com jitter, TTL, budgets/error budget, `reference_datetime` em UTC, janela off-peak em UTC e thresholds de SLO/performance; ausência ou versão incompatível falha em fail-closed. Campo `canary` é opcional e só é exigido quando `mode=canary`.  
+- **FR-004**: Manifestos versionados por ambiente/tenant são obrigatórios e DEVEM seguir schema explícito (ex.: v1) com campos mínimos: `metadata` (`tenant`, `environment`, `profile`, `version` SemVer, `schema_version`, `salt_version`), `reference_datetime` (ISO 8601 UTC), `mode` (`baseline|carga|dr|canary`), `window.start_utc/end_utc` (off-peak UTC), `volumetry` (caps Q11), `rate_limit`, `backoff` com jitter, `budget`, `ttl`, `slo` e `integrity.manifest_hash` (sha256). Ausência ou versão incompatível falha em fail-closed. Campo `canary` é opcional e só é exigido quando `mode=canary`, devendo estar ausente nos demais modos.  
 - **FR-005**: Execuções DEVEM ser serializadas por tenant/ambiente; concorrência global limitada por ambiente/cluster (teto de 2 execuções simultâneas) com fila curta (TTL 5 min) e lock por tenant/ambiente com lease de 60s, sempre fail-closed.  
 - **FR-006**: CI/PR DEVE rodar dry-run determinístico do baseline (tenant canônico ou lista curta), validando PII, contratos e idempotência; sem publicar evidência WORM.  
-- **FR-007**: Carga e DR DEVEM rodar em staging dedicado, na janela off-peak e com evidência WORM; restauração deve cumprir RPO/RTO do blueprint.  
+- **FR-007**: Carga e DR DEVEM rodar em staging e perf dedicados, na janela off-peak e com evidência WORM; restauração deve cumprir RPO/RTO do blueprint.  
 - **FR-008**: Integrações externas (KYC/antifraude/pagamentos/notificações) DEVEM ser simuladas (mocks/stubs) sem chamadas reais; rate limit exercitado sem side effects.  
 - **FR-009**: Eventos/outbox/CDC gerados DEVEM ir para sinks sandbox isolados, sem publicar em destinos reais.  
 - **FR-010**: Execução deve falhar se RLS estiver ausente/desabilitado ou se o manifesto não cobrir o perfil/volumetria requeridos.  
@@ -168,16 +168,16 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-025**: Seeds/factories DEVEM evitar poluição da trilha de auditoria (incluindo WORM) com rotulagem por execução/tenant e preservação de RLS/índices multi-tenant; execuções que gerem drift ou falsos positivos de auditoria devem falhar.  
 - **FR-026**: Infraestrutura e artefatos necessários para seeds/factories (WORM, Vault, filas/assíncrono, pipelines CI/CD) DEVEM ser gerenciados como código (Terraform) com validação OPA/policy-as-code e fluxo GitOps/Argo CD; ausência de validação bloqueia promoção.  
 - **FR-027**: A gestão de dependências para bibliotecas de seeds/factories/performance e para o cliente de Vault Transit DEVE seguir automação contínua (ADR-008), com checagem/atualização em CI e bloqueio por CVEs críticos ou versões defasadas.  
-- **FR-028**: Fundido em FR-011 (ver FR-011).  
+- **FR-028 (alias de FR-011)**: Alias histórico de FR-011 (WORM/assinatura); não gera checklist próprio nem gate adicional. Rastreabilidade e verificação permanecem apenas em FR-011.  
 - **FR-029**: A API/CLI de seed runs (`/api/v1/seed-runs*`) DEVE suportar criar/consultar/cancelar execuções com RateLimit-*, `Idempotency-Key`, `ETag/If-Match` e Problem Details RFC 9457; ausência de headers ou conflito de lock/rate/budget deve retornar 4xx previsível sem criar execuções.
 - **FR-030**: O endpoint `/api/v1/seed-profiles/validate` DEVE validar manifestos v1 (JSON Schema 2020-12), aplicar RateLimit-* e `Retry-After`, exigir `Idempotency-Key`, retornar Problem Details previsível em 4xx (incluindo 422 para schema/versão incompatível, 429 para rate-limit/backoff) e nunca iniciar execução em caso de falha.
 
 ### Volumetria Q11 (canônica e ambientes)
 
-- Carga/DR somente em staging dedicado; vedado executar carga/DR em produção/controlada.  
+- Carga/DR somente em staging e perf dedicados; vedado executar carga/DR em produção/controlada.  
 - Caps base por entidade (antes de multiplicadores de ambiente): tenant_users 5; customers 100; addresses 150; consultants 10; bank_accounts 120; account_categories 20; suppliers 30; loans 200; installments 2.000; financial_transactions 4.000; limits 100; contracts 150.  
 - Caps para carga/DR: tenant_users 10; customers 500; addresses 750; consultants 30; bank_accounts 600; account_categories 60; suppliers 150; loans 1.000; installments 10.000; financial_transactions 20.000; limits 500; contracts 750.  
-- Multiplicadores por ambiente: dev = 1x, homolog = 3x, staging/carga = 5x (staging dedicado), perf = 5x. Manifestos devem versionar esses caps; divergência falha em lint/diff/schema.
+- Multiplicadores por ambiente: dev = 1x, homolog = 3x, staging/carga = 5x (staging dedicado) e perf = 5x (perf dedicado). Manifestos devem versionar esses caps; divergência falha em lint/diff/schema.
 
 ### Non-Functional Requirements
 
@@ -197,8 +197,8 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 ## Key Entities & Relationships
 
 - **Tenant**: identificador e políticas de RLS; relaciona com manifestos, datasets e evidências.  
-- **Manifesto (seed_profile)**: por ambiente/tenant; contém metadata, mode (baseline/carga/DR), volumetria/caps, rate limit/backoff, TTL, budget, `reference_datetime`, janela off-peak e versão/schema.  
-- **Mode/Profile**: baseline vs carga vs DR, definindo escopo de entidades/estados e caps.  
+- **Manifesto (seed_profile)**: por ambiente/tenant; contém metadata completa, mode (`baseline|carga|dr|canary`), `canary` (somente quando `mode=canary`), volumetria/caps, rate limit/backoff, TTL, budget, `reference_datetime`, janela off-peak, SLOs e versão/schema + `integrity.manifest_hash`.  
+- **Mode/Profile**: baseline vs carga vs DR vs canary, definindo escopo de entidades/estados e caps; `canary` exige bloco dedicado e é vedado nos demais modos.  
 - **Dataset sintético**: conjunto de registros gerados por mode/tenant; vinculado ao manifesto e ao checkpoint.  
 - **Checkpoint/Idempotência**: estado de execução por lote/tenant/mode; guarda hashes/versão para retomada/limpeza.  
 - **PII/Keys**: catálogo de campos sensíveis e chaves/salts de anonimização por ambiente/tenant.  
@@ -209,8 +209,8 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 ## Assumptions & Defaults
 
 - Manifestos vivem no repositório de aplicação em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), versionados via PR/GitOps.  
-- **Q11 (Volumetria/caps)**: catálogo obrigatório de caps por entidade (contagem de registros por modo baseline/carga/DR e por ambiente/tenant), declarado no manifesto e usado como fonte única para throughput/FinOps/performance; ausência ou cap fora do catálogo falha em fail-closed.  
-- Schema de manifesto presume versão explícita (ex.: v1) com campos obrigatórios (mode, volumetria/caps, rate limit/backoff+jitter, budgets/error budget, janela off-peak UTC, `reference_datetime`, thresholds de SLO/performance) e defaults declarados no próprio manifesto; lacunas ou versões não suportadas devem falhar em fail-closed.  
+- **Q11 (Volumetria/caps)**: catálogo obrigatório de caps por entidade (contagem de registros por modo baseline/carga/DR/canary e por ambiente/tenant), declarado no manifesto e usado como fonte única para throughput/FinOps/performance; ausência ou cap fora do catálogo falha em fail-closed.  
+- Schema de manifesto presume versão explícita (ex.: v1) com campos obrigatórios (`metadata` completo, mode `baseline|carga|dr|canary`, `canary` só quando `mode=canary`), volumetria/caps, rate limit/backoff+jitter, budgets/error budget, janela off-peak UTC, `reference_datetime`, SLO/performance e `integrity.manifest_hash`; defaults declarados no próprio manifesto; lacunas ou versões não suportadas devem falhar em fail-closed.  
 - Baseline cobre apenas domínios core; estados “sad path” ficam restritos aos modos carga/DR conforme manifesto.  
 - Off-peak é declarado em UTC no manifesto (par único start/end); execuções fora da janela falham.
 - Promoção/rollback das execuções ocorre via Argo CD/GitOps, vinculando cada execução a um commit e impedindo drift.

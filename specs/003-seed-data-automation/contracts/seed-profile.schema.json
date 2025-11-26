@@ -15,7 +15,8 @@
     "backoff",
     "budget",
     "ttl",
-    "slo"
+    "slo",
+    "integrity"
   ],
   "properties": {
     "metadata": {
