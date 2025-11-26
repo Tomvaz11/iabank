@@ -36,6 +36,8 @@ Critério de teste independente: migrations e politicas passam testes de modelo/
 - [ ] T015 Criar testes basicos de migracoes/RLS para tabelas banking e seeds (`backend/apps/banking/tests/test_models.py`, `backend/apps/tenancy/tests/test_seed_models.py`)
 - [ ] T016 Implementar preflight de disponibilidade Vault/WORM (CLI/API) com fail-close, RBAC/ABAC mínimo e auditoria/redaction de acesso a chaves/manifestos, retornando Problem Details (`backend/apps/tenancy/services/seed_preflight.py`, `backend/apps/tenancy/tests/test_seed_preflight.py`, `infra/`, `docs/runbooks/seguranca-pii-vault.md`)
 - [ ] T017 Publicar SLO/SLI/error budget para seed_data e alinhar thresholds do k6 (`docs/slo/seed-data.md`, `observabilidade/k6/seed-data-smoke.js`)
+- [ ] T065 Publicar threat model STRIDE/LINDDUN e GameDay seeds/carga/DR como gate antes de US5/US1; registrar critérios de sucesso e owners (`docs/runbooks/seed-data.md`)
+- [ ] T020A Produzir/atualizar ROPA/RIPD LGPD para automação de seeds/factories, com evidências WORM/CI e paths versionados (`docs/compliance/ropa/seed-data.md`, `docs/runbooks/seed-data.md`)
 - [ ] T018 Terraform/OPA para Vault/WORM/filas e pipeline Argo CD com drift/rollback e janela off-peak (`infra/`, `scripts/ci/validate-opa.sh`)
 - [ ] T019 Garantir migrações expand/contract com índices CONCURRENTLY e testes de rollback (`backend/apps/**/migrations/`, `scripts/ci/check-migrations.sh`)
 - [ ] T020 Publicar cost-model FinOps e schema JSON, validar no CI e versionar (`configs/finops/seed-data.cost-model.yaml`, `contracts/finops/seed-data.cost-model.schema.json`, `scripts/ci/validate-finops.sh`)
@@ -136,21 +138,20 @@ Objetivo: Encerrar observabilidade/compliance e amarrar docs/runbooks.
 Critério de teste independente: pipelines com lint/tests/perf e docs gate verdes; observabilidade/seguranca ativas sem drift.
 
 - [ ] T063 Consolidar spans/metricas/logs OTEL+Sentry/Grafana para seed_data (labels tenant/ambiente/run) (`observabilidade/`, `docs/runbooks/observabilidade.md`)
-- [ ] T064 Atualizar docs/plan/ADRs e rodar `check-docs-needed` para feature (specs/plan/quickstart/runbooks) (`specs/003-seed-data-automation/plan.md`, `specs/003-seed-data-automation/spec.md`, `specs/003-seed-data-automation/quickstart.md`, `scripts/ci/check-docs-needed.js`)
-- [ ] T065 Publicar threat model STRIDE/LINDDUN, runbook e GameDay seeds/carga/DR com critérios de sucesso (`docs/runbooks/seed-data.md`)
+- [ ] T064 Atualizar docs/plan/ADRs e rodar `check-docs-needed` para feature (specs/plan/quickstart/runbooks), incluindo ROPA/RIPD LGPD da automação de seeds/factories (`specs/003-seed-data-automation/plan.md`, `specs/003-seed-data-automation/spec.md`, `specs/003-seed-data-automation/quickstart.md`, `docs/compliance/ropa/seed-data.md`, `scripts/ci/check-docs-needed.js`)
 - [ ] T066 Garantir gates de CI (cobertura ≥85%, cc≤10, SAST/DAST/SCA/SBOM, k6 alinhado a SLOs) ativos para a feature (`.github/workflows/`, `docs/pipelines/ci-required-checks.md`)
 - [ ] T067 Gate de observabilidade fail-close: simular falha de export/redaction OTEL/Sentry e bloquear pipeline/execução (`observabilidade/`, `docs/runbooks/observabilidade.md`, `.github/workflows/`)
 - [ ] T068 Gate Trunk-Based/rollback no CI/Argo (branches curtas, squash-only, histórico linear, rollback ensaiado) com bloqueio de promoção quando violado (`.github/workflows/`, `docs/pipelines/ci-required-checks.md`)
 - [ ] T069 Checklist anti-poluição: reprovar se logs/WORM faltarem labels obrigatórios ou conterem PII, com validação automática no CI/Argo e aderente ao fluxo único de WORM (T053) (`backend/apps/tenancy/services/seed_worm.py`, `scripts/ci/check-audit-cleanliness.sh`)
 
 ## Dependencias e ordem de historias
-- Fundacional (T006–T020) precede qualquer história; Setup (T001–T005) pode avançar em paralelo a Fundacional. Convergência obrigatória: preflight Vault/WORM (T016) e cap global/TTL fila (T012–T013) antes de validar/rodar baseline.
+- Fundacional (T006–T020 + T020A + T065) precede qualquer história; Setup (T001–T005) pode avançar em paralelo a Fundacional. Convergência obrigatória: threat model/GameDay (T065), ROPA/RIPD LGPD (T020A), preflight Vault/WORM (T016) e cap global/TTL fila (T012–T013) antes de validar/rodar baseline.
 - US5 (validação de manifestos) → US1 (baseline) → US2 (factories) → US4 (API/CLI seed-runs) → US3 (carga/DR). US5 exige schema/manifesto Q11 (T023) e idempotência do validate (T022/T026) antes de expor baseline. US1 requer locks/idempotência (T030), drift cleanup (T029/T034) e stubs (T033).
 - US4 depende de Fundacional + contratos prontos; Idempotency TTL/ETag/RateLimit são fechados em T040–T046 antes de execuções remotas. US3 herda serviços/API/CLI prontos e precisa dos testes T047–T050 antes de T051–T077 (TDD). Polish depende de todas as fases.
 
 ## Paralelizacao sugerida
 - Setup: T001–T005 em paralelo (contratos, manifestos, CI alvo).
-- Fundacional: T006–T011 em paralelo; T012/T013 após filas; T016 cedo para preflight; T017–T020 em paralelo com migrations concluídas.
+- Fundacional: T006–T011 em paralelo; T012/T013 após filas; T016 cedo para preflight; T017–T020 em paralelo com migrations concluídas; T020A (ROPA/RIPD) e T065 (threat model/GameDay) devem ser concluídas antes de iniciar US5/US1.
 - US5: T021–T022 em paralelo; T023–T026 em ordem (schema → validador → endpoint → idempotência).
 - US1: T027–T029 em paralelo após Fundacional; T030–T031–T032–T033–T034 em ordem (serviço → comando → quickstart → stubs → cleanup).
 - US2: T035/T036 em paralelo após helpers; T037–T039 após serializers/helpers prontos.
@@ -159,7 +160,7 @@ Critério de teste independente: pipelines com lint/tests/perf e docs gate verde
 - Polish: T063–T069 após histórias concluídas.
 
 ## Estrategia de implementacao (MVP primeiro)
-1) Entregar MVP com Setup + Fundacional + US5 (validação de manifestos) + US1 (baseline CLI/API) incluindo preflight Vault/WORM, cap global/TTL da fila, schema/manifesto Q11, idempotência, drift cleanup e quickstart atualizado.  
+1) Entregar MVP com Setup + Fundacional (incluindo ROPA/RIPD T020A e threat model/GameDay T065) + US5 (validação de manifestos) + US1 (baseline CLI/API) incluindo preflight Vault/WORM, cap global/TTL da fila, schema/manifesto Q11, idempotência, drift cleanup e quickstart atualizado.  
 2) Expandir com US2 (factories mascaradas determinísticas e serviço financeiro + Pact).  
 3) Entregar US4 (API/CLI seed-runs com RateLimit/Idempotency/ETag e k6 smoke).  
 4) Entregar US3 (carga/DR: Celery/DLQ, FinOps/RateLimit, WORM, perf gates k6, RPO/RTO, SLO/error budget runtime).  

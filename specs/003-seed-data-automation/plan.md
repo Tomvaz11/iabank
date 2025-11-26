@@ -41,10 +41,16 @@ Preencha cada item com o plano concreto para a feature. Use `[NEEDS CLARIFICATIO
 *GATE: Validar antes da Fase 0 e reconfirmar apos o desenho de Fase 1.*
 
 - [x] **Art. III - TDD**: Suites pytest/pytest-django planejadas para `seed_data` (baseline/carga/DR/canary), factories com mascaramento e checagens de idempotencia/rate-limit; iniciar em `/home/pizzaplanet/meus_projetos/iabank/backend/apps/**/tests/` com falha antes de codigo.  
+- [x] **Art. VI - SLO/SLI e Error Budget**: SLOs p95/p99/throughput por manifesto em `docs/slo/seed-data.md`, gates de consumo/abort em T017/T050/T062; relatórios WORM registram orçamento.  
+- [x] **Art. VII - Observabilidade**: OTEL+Sentry+logs JSON com redaction, labels tenant/ambiente/run; fail-close em export/redaction (T016/T063/T067).  
 - [x] **Art. VIII - Lancamento Seguro**: Flags (canary apenas quando `mode=canary`), rollback via Argo CD, budget de erro por manifesto e relatorio WORM vinculado; documentado neste plano e quickstart.  
 - [x] **Art. IX - Pipeline CI**: Cobertura≥85%, complexidade≤10, SAST/DAST/SCA/SBOM, k6 perf gate e dry-run deterministico mapeados; falha bloqueia promocao (ver spec/quickstart).  
+- [x] **Art. X - Migracoes Zero-Downtime**: Expand/contract + indices CONCURRENTLY e testes de rollback (T019).  
 - [x] **Art. XI - Governanca de API**: Contratos OpenAPI 3.1 em `contracts/seed-data.openapi.yaml` e alinhamento a `contracts/api.yaml`; lint/diff/Pact previstos e versionamento SemVer.  
 - [x] **Art. XIII - Multi-tenant & LGPD**: RLS obrigatório com managers aplicando tenant_id, testes anti-cross-tenant, mascaramento Vault Transit FPE e PII cifrada; fail-closed sem RLS.  
+- [x] **Art. XIV - IaC/GitOps/OPA**: Terraform/OPA para Vault/WORM/filas e pipeline Argo CD com drift/rollback/off-peak (T018, T059/T060).  
+- [x] **Art. XV - Dependencias**: Automacao/SCA para libs de seeds/factories/Vault/perf com bloqueio de CVEs criticos (T058).  
+- [x] **Art. XVI - Auditoria/FinOps**: Relatórios WORM assinados/validados, caps/budgets monitorados e gates de custo (T053/T054/T061).  
 - [x] **Art. XVIII - Fluxo Spec-Driven**: Artefatos atualizados (`spec.md`, `clarifications-archive.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, `contracts/`); `tasks.md` sera gerado na proxima fase via `/speckit.tasks`.
 
 ## Project Structure
@@ -337,7 +343,7 @@ Multiplicadores por ambiente (aplicados sobre a tabela acima): dev = 1x, homolog
 
 ## Threat modeling, runbooks e GameDays (Art. XVII)
 
-- Rodadas STRIDE/LINDDUN específicas para seeds/carga/DR com backlog mitigável e owners em `docs/runbooks/seed-data.md`.  
+- Rodadas STRIDE/LINDDUN específicas para seeds/carga/DR com backlog mitigável e owners em `docs/runbooks/seed-data.md`; este gate roda antes de US5/US1 e bloqueia qualquer execução baseline/carga/DR se não aprovado.  
 - GameDay semestral simula 429 persistente, falha de WORM e drift de manifesto; sucesso = RPO ≤ 5 min, RTO ≤ 60 min, zero vazamento cross-tenant e checklist PII/RLS/contratos aprovado.  
 - Runbooks incluem bloqueios off-peak, rate-limit, Vault/PII e DR; métricas DORA/SLO exportadas para dashboards e vinculadas aos relatórios WORM.
 

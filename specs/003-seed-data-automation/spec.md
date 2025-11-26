@@ -168,7 +168,6 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-025**: Seeds/factories DEVEM evitar poluição da trilha de auditoria (incluindo WORM) com rotulagem por execução/tenant e preservação de RLS/índices multi-tenant; execuções que gerem drift ou falsos positivos de auditoria devem falhar.  
 - **FR-026**: Infraestrutura e artefatos necessários para seeds/factories (WORM, Vault, filas/assíncrono, pipelines CI/CD) DEVEM ser gerenciados como código (Terraform) com validação OPA/policy-as-code e fluxo GitOps/Argo CD; ausência de validação bloqueia promoção.  
 - **FR-027**: A gestão de dependências para bibliotecas de seeds/factories/performance e para o cliente de Vault Transit DEVE seguir automação contínua (ADR-008), com checagem/atualização em CI e bloqueio por CVEs críticos ou versões defasadas.  
-- **FR-028 (alias de FR-011)**: Alias histórico de FR-011 (WORM/assinatura); não gera checklist próprio nem gate adicional. Rastreabilidade e verificação permanecem apenas em FR-011.  
 - **FR-029**: A API/CLI de seed runs (`/api/v1/seed-runs*`) DEVE suportar criar/consultar/cancelar execuções com RateLimit-*, `Idempotency-Key`, `ETag/If-Match` e Problem Details RFC 9457; ausência de headers ou conflito de lock/rate/budget deve retornar 4xx previsível sem criar execuções.
 - **FR-030**: O endpoint `/api/v1/seed-profiles/validate` DEVE validar manifestos v1 (JSON Schema 2020-12), aplicar RateLimit-* e `Retry-After`, exigir `Idempotency-Key`, retornar Problem Details previsível em 4xx (incluindo 422 para schema/versão incompatível, 429 para rate-limit/backoff) e nunca iniciar execução em caso de falha.
 
@@ -193,6 +192,7 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - Chaves/salts residem no Vault (segregação por ambiente/tenant, rotação automática); proibido guardar em código/config estática.  
 - Evidências imutáveis (WORM) para execuções e restaurações; direito ao esquecimento atendido por limpeza por tenant.  
 - DR e carga só com dados sintéticos; RLS obrigatório em todas as execuções.
+- Produzir/atualizar ROPA/RIPD para a automação de seeds/factories, registrando evidências (WORM/CI) antes de execuções baseline/carga/DR.
 
 ## Key Entities & Relationships
 
