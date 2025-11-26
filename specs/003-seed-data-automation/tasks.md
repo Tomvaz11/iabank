@@ -40,19 +40,28 @@ Critério de teste independente: migrations e politicas passam testes de modelo/
 - [ ] T036 Garantir migrações expand/contract com índices CONCURRENTLY e testes de rollback (`backend/apps/**/migrations/`, `scripts/ci/check-migrations.sh`)
 - [ ] T049 Publicar cost-model FinOps e schema JSON, validar no CI e versionar (`configs/finops/seed-data.cost-model.yaml`, `contracts/finops/seed-data.cost-model.schema.json`, `scripts/ci/validate-finops.sh`)
 
-## Fase 3: User Story 1 - Seeds baseline multi-tenant (Prioridade P1)
-Objetivo da história: Executar `seed_data --profile` para baseline deterministica por tenant/ambiente, bloqueando cross-tenant e falhando em falta de RLS/off-peak.  
-Critério de teste independente: baseline roda em dry-run com manifesto v1 valido, respeita RLS e devolve Problem Details auditavel ao violar regras.
+## Fase 3: User Stories P1 (validação de manifesto e baseline)
+Objetivo da história: Validar manifestos v1 via API antes de qualquer execução (US5) e executar `seed_data --profile` para baseline deterministica por tenant/ambiente (US1), bloqueando cross-tenant e falhando em falta de RLS/off-peak.  
+Critério de teste independente: `/api/v1/seed-profiles/validate` retorna Problem Details previsível e `seed_data` baseline roda em dry-run com manifesto v1 válido, respeita RLS e devolve Problem Details auditável ao violar regras.
 
-### Testes (executar antes da implementacao)
+### User Story 5 - Validar manifestos via API (Prioridade P1)
+
+#### Testes (executar antes da implementacao)
 - [ ] T012 [P] [US5] Cobrir 200/422/429 do endpoint `/api/v1/seed-profiles/validate` com headers obrigatorios e Problem Details (`backend/apps/tenancy/tests/test_seed_profile_validate_api.py`)
+
+#### Implementacao
+- [ ] T068 [US5] Atualizar JSON Schema v1 com caps Q11 obrigatórios por entidade/mode/ambiente e manifestos canônicos alinhados (`contracts/seed-profile.schema.json`, `configs/seed_profiles/<env>/<tenant>.yaml`)
+- [ ] T014 [US5] Implementar validador JSON Schema v1 + preflight de manifesto (versao/schema/hash/off-peak) (`backend/apps/tenancy/services/seed_manifest_validator.py`)
+- [ ] T015 [US5] Expor `/api/v1/seed-profiles/validate` com RateLimit-*, Idempotency-Key e Problem Details (`backend/apps/tenancy/views.py`, `backend/apps/tenancy/urls.py`)
+
+### User Story 1 - Seeds baseline multi-tenant (Prioridade P1)
+
+#### Testes (executar antes da implementacao)
 - [ ] T013 [P] [US1] Cobrir comando `seed_data` baseline com dry-run, RLS/off-peak e idempotency_key (sucesso e bloqueios cross-tenant) (`backend/apps/tenancy/tests/test_seed_data_command.py`)
 - [ ] T053 [P] [US1] Testes negativos de autorização (CLI/API) para perfis seed-runner/admin/read, janela off-peak e tenants/ambientes não permitidos (`backend/apps/tenancy/tests/test_seed_auth.py`)
 - [ ] T057 [P] [US1] Bloquear runs quando `reference_datetime` divergir do checkpoint e exigir limpeza/reseed controlado (`backend/apps/tenancy/tests/test_seed_reference_datetime_drift.py`)
 
-### Implementacao
-- [ ] T014 [US5] Implementar validador JSON Schema v1 + preflight de manifesto (versao/schema/hash/off-peak) (`backend/apps/tenancy/services/seed_manifest_validator.py`)
-- [ ] T015 [US5] Expor `/api/v1/seed-profiles/validate` com RateLimit-*, Idempotency-Key e Problem Details (`backend/apps/tenancy/views.py`, `backend/apps/tenancy/urls.py`)
+#### Implementacao
 - [ ] T016 [US1] Implementar SeedRunService para criar SeedRun/SeedBatch com advisory lock e store de idempotencia (`backend/apps/tenancy/services/seed_runs.py`)
 - [ ] T017 [US1] Criar management command `seed_data` baseline (carrega manifesto, preflight RLS, dry-run, checkpoints iniciais) (`backend/apps/tenancy/management/commands/seed_data.py`)
 - [ ] T018 [US1] Atualizar quickstart com fluxo baseline, codigos de saida e exemplos de manifesto (`specs/003-seed-data-automation/quickstart.md`)
@@ -80,10 +89,13 @@ Critério de teste independente: API/CLI `/seed-runs*` retornam headers obrigat�
 - [ ] T024 [P] [US4] Cobrir `/api/v1/seed-runs` create/get/cancel com Idempotency-Key, ETag/If-Match e RateLimit-* (`backend/apps/tenancy/tests/test_seed_runs_api.py`)
 - [ ] T026 [P] [US4] Adicionar script/perf gate k6 para validate/create/poll seed runs com thresholds (p95/p99/erro) (`observabilidade/k6/seed-data-smoke.js`)
 - [ ] T054 [P] [US4] Testes negativos de RBAC/ABAC para create/poll/cancel seed runs (perfis seed-runner/admin/read, If-Match/Idempotency-Key, tenants/ambientes proibidos) (`backend/apps/tenancy/tests/test_seed_runs_auth.py`)
+- [ ] T066 [P] [US4] Validar armazenamento de `Idempotency-Key` com TTL/deduplicação (replay retorna resposta anterior, expiração configurável por modo) (`backend/apps/tenancy/tests/test_seed_idempotency.py`)
+- [ ] T069 [P] [US4] Ajustar k6 para ler thresholds (`slo`, `rate_limit`, `budget`) direto do manifesto e falhar se ausentes (`observabilidade/k6/seed-data-smoke.js`, `observabilidade/k6/seed-data-load.js`)
 
 ### Implementacao
 - [ ] T027 [US4] Expor views/serializers `/api/v1/seed-runs` create/poll/cancel com RBAC/ABAC e headers governanca (RateLimit-*, Idempotency-Key, ETag) (`backend/apps/tenancy/views.py`, `backend/apps/tenancy/serializers/seed_runs.py`, `backend/apps/tenancy/urls.py`)
 - [ ] T031 [US4] Ajustar `seed_data` e GC da fila para modos baseline/carga/DR (TTL, off-peak enforcement, cancelamento seguro) (`backend/apps/tenancy/management/commands/seed_data.py`, `backend/apps/tenancy/services/seed_queue_gc.py`)
+- [ ] T067 [US4] Persistir `Idempotency-Key` com TTL/deduplicação auditável (tabela/cache) e limpeza periódica (`backend/apps/tenancy/services/seed_idempotency.py`, `backend/apps/tenancy/management/commands/seed_data.py`)
 
 ## Fase 6: User Story 3 - Carga e DR com dados sinteticos (Prioridade P3)
 Objetivo da história: Executar modos carga/DR com caps Q11, rate limit/backoff, DLQ e evidencias WORM assinadas dentro de RPO/RTO.  
@@ -123,25 +135,25 @@ Critério de teste independente: pipelines com lint/tests/perf e docs gate verde
 - [ ] T055 Checklist anti-poluição: reprovar se logs/WORM faltarem labels obrigatórios ou conterem PII, com validação automática no CI/Argo (`backend/apps/tenancy/services/seed_worm.py`, `scripts/ci/check-audit-cleanliness.sh`)
 
 ## Dependencias e ordem de historias
-- Fundacional (T004–T011, T056, T061, T062) + guardrails base (T034–T036) precedem US1; Fase 1 inclui manifestos multi-ambiente (T002), ajustes de CI/Make/contratos (T063, T064) e FinOps (T049) pode ser preparado em paralelo na fundação.
-- US1 (baseline) → US2 (factories) → US4 (API/CLI) → US3 (carga/DR). Fundacional completa antes de US1; US1 inclui drift de `reference_datetime` e cleanup (T057, T058) e o cap global/TTL da fila (T061, T062). US4 depende de contratos prontos (T010/T063/T064) e serviços de lock/idempotência (T016); US3 depende também de T037 (stubs externos), gates T038–T043/T046 e dos itens de RPO/RTO/perf/FinOps/observabilidade (T047, T048, T050, T052, T051, T055) mais o gate runtime de SLO/error budget (T059, T060).
+- Fundacional (T004–T011, T056, T061, T062) + guardrails base (T034–T036) precedem US5/US1; Fase 1 inclui manifestos multi-ambiente (T002), ajustes de CI/Make/contratos (T063, T064) e FinOps (T049) pode ser preparado em paralelo na fundação.
+- US5 (validate) → US1 (baseline) → US2 (factories) → US4 (API/CLI) → US3 (carga/DR). Fundacional completa antes de US5/US1; US5 requer T068 (schema/manifestos Q11) antes de validar/rodar baseline. US1 inclui drift de `reference_datetime` e cleanup (T057, T058) e o cap global/TTL da fila (T061, T062). US4 depende de contratos prontos (T010/T063/T064) e serviços de lock/idempotência (T016/T067) + testes de dedupe/TTL (T066) e ajuste k6 do manifesto (T069); US3 depende também de T037 (stubs externos), gates T038–T043/T046 e dos itens de RPO/RTO/perf/FinOps/observabilidade (T047, T048, T050, T052, T051, T055) mais o gate runtime de SLO/error budget (T059, T060).
 - Fase Final depende das histórias completas e dos gates/documentação, incluindo checklists anti-poluição (T055) e fail-close de observabilidade (T051).
 
 ## Paralelizacao sugerida
 - Fundacional: T004–T011 em paralelo com T034–T036 (SLO/SLI, Terraform/OPA/Argo, expand/contract) após definição de modelos; incluir T056 cedo (preflight Vault/WORM), T061/T062 logo após locks básicos e T049 pode avançar junto para viabilizar FinOps.
 - Fase 1 CI/contratos: T001/T010/T063/T064 em paralelo após paths definidos; T002 pode seguir em paralelo com lint/diff.
-- US1: T012/T013 em paralelo após migrations; T014–T017 em ordem; T037 pode seguir após T010/T063/T064 (stubs/contratos prontos); testes negativos de autorização (T053) após RBAC/ABAC inicial (T007); drift `reference_datetime` (T057) e cleanup/reseed (T058) após checkpoints iniciais.
+- US5/US1: T012/T013 em paralelo após migrations; T014–T017 em ordem; T068 pode seguir cedo após paths/schema; T037 pode seguir após T010/T063/T064 (stubs/contratos prontos); testes negativos de autorização (T053) após RBAC/ABAC inicial (T007); drift `reference_datetime` (T057) e cleanup/reseed (T058) após checkpoints iniciais.
 - US2: T019/T020 em paralelo após helpers (T021); T022/T023 em paralelo com T020 se serializers fechados.
-- US4: T024/T026 em paralelo após T009/T010; T027 pode rodar em paralelo a T031 quando locks/idempotência estiverem prontos; T054 após RBAC/ABAC (T007).
+- US4: T024/T026/T066 em paralelo após T009/T010; T069 em paralelo com T026 para alinhar k6 ao manifesto; T027 pode rodar em paralelo a T031 quando locks/idempotência estiverem prontos; T054 após RBAC/ABAC (T007); T067 segue T027/T031 para conectar dedupe/TTL em API/CLI.
 - US3: T025 em paralelo a T028; T029/T030 dependem de T028; perf/load (T052), RPO/RTO (T047), gates de ambiente/WORM (T048) e FinOps/WORM (T050) devem fechar antes da promoção; gate runtime SLO/error budget (T059, T060) precisa estar pronto antes de execuções de carga/DR; T041/T042/T043/T046 são guardrails complementares.
 - Polish: T032, T033, T044, T045, T051, T055 amarram observabilidade, docs e checklists finais.
 
 ## Estrategia de implementacao (MVP primeiro)
-1) Entregar MVP com Fase 1 + Fundacional + preflight Vault/WORM (T056) + guardrails SLO/SLI + expand/contract (T034–T036) + ajustes de contratos/CI (T063, T064) + US1 (baseline CLI/API validate) incluindo cap global/TTL da fila (T061, T062), detecção de drift `reference_datetime`/cleanup (T057, T058) + FinOps cost-model (T049) e auth negativa básica (T053) para habilitar dry-run determinístico com governança mínima.  
+1) Entregar MVP com Fase 1 + Fundacional + preflight Vault/WORM (T056) + guardrails SLO/SLI + expand/contract (T034–T036) + ajustes de contratos/CI (T063, T064) + US5/US1 (validate + baseline CLI/API) incluindo cap global/TTL da fila (T061, T062), detecção de drift `reference_datetime`/cleanup (T057, T058), FinOps cost-model (T049), auth negativa básica (T053) e manifesto/schema Q11 (T068) para habilitar dry-run determinístico com governança mínima.  
 2) Expandir com US2 adicionando factories mascaradas para suportar testes/contratos e reutilizar no comando.  
 3) Entregar US4 (API/CLI de seed runs) garantindo governança de RateLimit/Idempotency/ETag, RBAC/ABAC e k6 smoke antes de expor carga.  
 4) Finalizar com US3 para modos carga/DR incluindo perf gate real (T052), RPO/RTO e ambiente/off-peak/WORM (T047, T048), FinOps/WORM (T050), checklist WORM (T038), guardrails (T039–T043), rotulagem/auditoria anti-poluição (T046) e gate runtime SLO/error budget (T059, T060).  
 5) Encerrar com Polish para observabilidade (T032, T051), docs/gov (T033, T044, T045) e checklist anti-poluição (T055).
 
 ## Validação de completude
-Todas as user stories possuem testes dedicados (contrato/CLI/factories/API/CLI/Celery/perf), tarefas de implementacao e paths claros. Gates adicionais agora incluídos: preflight Vault/WORM (T056), SLO/SLI/error budget (T034) e gate runtime (T059, T060), cap global/TTL fila (T061, T062), IaC/OPA/Argo (T035), expand/contract (T036), stubs externos (T037), checklist WORM (T038), rotulagem/auditoria anti-poluição WORM/logs (T046, T055), outbox/CDC sandbox (T039), guardrail anti-snapshot (T040), flags/canary/DORA (T041), dependências/SCA (T042), drift/off-peak/GitOps (T043), cost-model FinOps + schema + integração WORM (T049, T050), ajustes de contratos/CI/Pact (T063, T064), perf gate carga/DR (T052), RPO/RTO e ambiente/off-peak/WORM (T047, T048), fail-close observabilidade (T051), drift `reference_datetime`/cleanup (T057, T058), testes negativos de RBAC/ABAC (T053, T054) e gate Trunk-Based/rollback (T065). US4 cobre API/CLI de seed runs (T024, T026, T027, T031, T054), enquanto US3 fica focada em carga/DR (T025, T028–T030, T038–T043, T046–T048, T050, T052, T059, T060). Cada fase continua entregando incremento testável e governado conforme spec/plan.
+Todas as user stories possuem testes dedicados (contrato/CLI/factories/API/CLI/Celery/perf), tarefas de implementacao e paths claros. Gates adicionais agora incluídos: preflight Vault/WORM (T056), SLO/SLI/error budget (T034) e gate runtime (T059, T060), cap global/TTL fila (T061, T062), IaC/OPA/Argo (T035), expand/contract (T036), stubs externos (T037), checklist WORM (T038), rotulagem/auditoria anti-poluição WORM/logs (T046, T055), outbox/CDC sandbox (T039), guardrail anti-snapshot (T040), flags/canary/DORA (T041), dependências/SCA (T042), drift/off-peak/GitOps (T043), cost-model FinOps + schema + integração WORM (T049, T050), ajustes de contratos/CI/Pact (T063, T064), perf gate carga/DR (T052), RPO/RTO e ambiente/off-peak/WORM (T047, T048), fail-close observabilidade (T051), drift `reference_datetime`/cleanup (T057, T058), testes negativos de RBAC/ABAC (T053, T054), dedupe/TTL de Idempotency-Key (T066, T067), manifesto/schema Q11 (T068), k6 lendo thresholds do manifesto (T069) e gate Trunk-Based/rollback (T065). US4 cobre API/CLI de seed runs (T024, T026, T027, T031, T054, T066, T067, T069), enquanto US3 fica focada em carga/DR (T025, T028–T030, T038–T043, T046–T048, T050, T052, T059, T060). Cada fase continua entregando incremento testável e governado conforme spec/plan.

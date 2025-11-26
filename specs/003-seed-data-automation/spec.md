@@ -151,14 +151,14 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-008**: Integrações externas (KYC/antifraude/pagamentos/notificações) DEVEM ser simuladas (mocks/stubs) sem chamadas reais; rate limit exercitado sem side effects.  
 - **FR-009**: Eventos/outbox/CDC gerados DEVEM ir para sinks sandbox isolados, sem publicar em destinos reais.  
 - **FR-010**: Execução deve falhar se RLS estiver ausente/desabilitado ou se o manifesto não cobrir o perfil/volumetria requeridos.  
-- **FR-011**: Relatórios de execução DEVEM ser assinados e armazenados em WORM; indisponibilidade do WORM bloqueia execução.  
+- **FR-011**: Relatórios de execução DEVEM ser assinados e armazenados em WORM; indisponibilidade do WORM bloqueia execução e a retenção mínima/compliance segue Art. XVI (hash + assinatura assimétrica, Object Lock, governança de acesso).  
 - **FR-012**: `reference_datetime` em ISO 8601 UTC é obrigatório no manifesto; mudanças exigem reseed coordenado e limpeza de checkpoints.  
 - **FR-013**: Dados sintéticos são exclusivos; uso de snapshots/dumps de produção é proibido em qualquer ambiente.
 - **FR-014**: Seeds/factories DEVEM suportar coordenação assíncrona/idempotente (fila curta, acks tardios, backoff/DLQ) alinhada à estratégia de tarefas do blueprint para evitar perda/duplicidade.  
 - **FR-015**: Manifestos e execuções DEVEM seguir fluxo GitOps/Argo CD (promoção/rollback auditados, janelas off-peak, evidência anexada) e falhar sem aprovação ou drift detectado.  
 - **FR-016**: Execuções DEVEM expor validação automatizada e mensurável (checklist PII/RLS/contrato/idempotência/rate limit), produzindo relatório WORM com percentuais e itens reprovados.  
 - **FR-017**: Modo carga/DR DEVE exercitar testes de performance/capacidade com orçamentos de volumetria/rate limit definidos em manifesto e gate de aprovação antes da promoção.  
-- **FR-018**: Operações que acionam `/api/v1` DEVEM respeitar governança de API (Idempotency-Key com TTL/auditoria, Problem Details RFC 9457, RateLimit-* e ETag/If-Match); descumprimento bloqueia a execução.  
+- **FR-018**: Operações que acionam `/api/v1` DEVEM respeitar governança de API (Idempotency-Key persistida com TTL/deduplicação auditável, Problem Details RFC 9457, RateLimit-* e ETag/If-Match); descumprimento bloqueia a execução.  
 - **FR-019**: Evoluções de schema ligadas às seeds DEVEM seguir padrão expand/contract e índices `CONCURRENTLY`, com checkpoints e rollback seguros.
 - **FR-020**: Qualquer uso de `/api/v1` por seeds/factories DEVE estar coberto por contrato OpenAPI 3.1 versionado (SemVer) e checagens de compatibilidade (lint/diff/contrato) antes da execução/promoção.  
 - **FR-021**: Execução de `seed_data` DEVE exigir autorização explícita por ambiente/tenant (RBAC/ABAC com privilégio mínimo) e testes automatizados que neguem execuções fora do perfil autorizado.  
@@ -168,7 +168,7 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-025**: Seeds/factories DEVEM evitar poluição da trilha de auditoria (incluindo WORM) com rotulagem por execução/tenant e preservação de RLS/índices multi-tenant; execuções que gerem drift ou falsos positivos de auditoria devem falhar.  
 - **FR-026**: Infraestrutura e artefatos necessários para seeds/factories (WORM, Vault, filas/assíncrono, pipelines CI/CD) DEVEM ser gerenciados como código (Terraform) com validação OPA/policy-as-code e fluxo GitOps/Argo CD; ausência de validação bloqueia promoção.  
 - **FR-027**: A gestão de dependências para bibliotecas de seeds/factories/performance e para o cliente de Vault Transit DEVE seguir automação contínua (ADR-008), com checagem/atualização em CI e bloqueio por CVEs críticos ou versões defasadas.  
-- **FR-028**: Relatórios/evidências WORM DEVEM ter integridade verificável (hash/assinatura) e política de acesso governada; falha em verificar integridade ou em aplicar retenção/governança deve bloquear a execução/promoção.  
+- **FR-028**: Complemento de FR-011: a integridade/assinatura dos relatórios WORM DEVE ser verificada pós-upload (hash + assinatura assimétrica via KMS/Vault), com retenção/lock e trilha auditável; falha em verificar ou aplicar retenção/governança bloqueia a execução/promoção.  
 - **FR-029**: A API/CLI de seed runs (`/api/v1/seed-runs*`) DEVE suportar criar/consultar/cancelar execuções com RateLimit-*, `Idempotency-Key`, `ETag/If-Match` e Problem Details RFC 9457; ausência de headers ou conflito de lock/rate/budget deve retornar 4xx previsível sem criar execuções.
 - **FR-030**: O endpoint `/api/v1/seed-profiles/validate` DEVE validar manifestos v1 (JSON Schema 2020-12), aplicar RateLimit-* e `Retry-After`, exigir `Idempotency-Key`, retornar Problem Details previsível em 4xx (incluindo 422 para schema/versão incompatível, 429 para rate-limit/backoff) e nunca iniciar execução em caso de falha.
 
@@ -202,6 +202,7 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 ## Assumptions & Defaults
 
 - Manifestos vivem no repositório de aplicação em paths estáveis (ex.: `configs/seed_profiles/<ambiente>/<tenant>.yaml`), versionados via PR/GitOps.  
+- **Q11 (Volumetria/caps)**: catálogo obrigatório de caps por entidade (contagem de registros por modo baseline/carga/DR e por ambiente/tenant), declarado no manifesto e usado como fonte única para throughput/FinOps/performance; ausência ou cap fora do catálogo falha em fail-closed.  
 - Schema de manifesto presume versão explícita (ex.: v1) com campos obrigatórios (mode, volumetria/caps, rate limit/backoff+jitter, budgets/error budget, janela off-peak UTC, `reference_datetime`, thresholds de SLO/performance) e defaults declarados no próprio manifesto; lacunas ou versões não suportadas devem falhar em fail-closed.  
 - Baseline cobre apenas domínios core; estados “sad path” ficam restritos aos modos carga/DR conforme manifesto.  
 - Off-peak é declarado em UTC no manifesto (par único start/end); execuções fora da janela falham.
