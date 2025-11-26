@@ -112,7 +112,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
   - `mode`: `baseline|carga|dr`; `window.start_utc/end_utc` (par único, UTC, pode cruzar meia-noite).  
   - `volumetry`: caps Q11 por entidade; `rate_limit` (`limit`, `window_seconds`), `backoff` (`base_seconds`, `jitter`, `max_retries`), `budget` (`cost_cap`, `error_budget`), `ttl` por modo.  
   - `slo`: `p95_target_ms`, `p99_target_ms`, `throughput_target`.  
-  - `canary`: obrigatório somente quando `mode=canary` (percentual ou tenants-alvo).  
+  - `canary`: opcional e obrigatório somente quando `mode=canary` (percentual ou tenants-alvo).  
 - **Regras**: Versão nova de `reference_datetime` é breaking e exige reseed/limpeza de checkpoints; schema_version divergente → fail-closed; overrides só permitidos em dev isolado.  
 - **Evidência**: Manifesto e hash de integridade referenciados no relatório WORM e no `SeedRun.profile_version`.
 
