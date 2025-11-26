@@ -33,7 +33,7 @@ Preencha cada item com o plano concreto para a feature. Use `[NEEDS CLARIFICATIO
 **Observabilidade**: OTEL com W3C Trace Context, structlog/django-prometheus/Sentry (ADR-012); traces/metricas/logs etiquetados por tenant/ambiente/execucao; redacao de PII obrigatoria; export falho bloqueia. SLOs/SLIs (p95/p99/throughput/error budget) vivem em `docs/slo/seed-data.md` e alimentam k6 e o relatório WORM.  
 **Segurança/Compliance**: RBAC/ABAC minimo para `seed_data`, RLS enforced, mascaramento PII deterministico (Vault Transit FPE), FinOps budgets/caps por manifesto, evidencias WORM assinadas, mocks para integrações externas (OWASP/NIST; Art. XII, XIII, XVI).  
 **Performance Targets**: p95/p99 de execucao por manifesto (fonte = manifesto por ambiente/tenant) dentro do budget; throughput alinhado a RateLimit-* e idempotencia; DR cumpre RPO≤5 min/RTO≤60 min; error budget consumido/abortado conforme manifesto.  
-**Restrições Operacionais**: TDD/integ-primeiro, execucao apenas em janela off-peak declarada, bloqueio sem RLS ou drift de manifesto, RLS check preflight, somente dados sinteticos (proibido snapshot/dump de producao), GitOps/Argo CD com flags/canary/rollback e deteccao de drift/off-peak; expand/contract para schema; pipeline/Argo falha se não cumprir Trunk-Based (branches curtas, histórico linear, squash-only) ou rollback ensaiado (Art. VIII, adicoes_blueprint §1).  
+**Restrições Operacionais**: TDD/integ-primeiro, execucao apenas em janela off-peak declarada, bloqueio sem RLS ou drift de manifesto, RLS check preflight, somente dados sinteticos (proibido snapshot/dump de producao), GitOps/Argo CD com flags/canary/rollback e deteccao de drift/off-peak; expand/contract para schema; pipeline/Argo falha se não cumprir Trunk-Based (branches curtas, histórico linear, squash-only) ou rollback ensaiado (Art. VIII, adicoes_blueprint §1). Canary é opcional (apenas se modo canary for adotado).
 **Escopo/Impacto**: Tenants/ambientes multi-tenant, modos baseline/carga/DR, APIs `/api/v1` consumidas/testadas, pipelines CI/CD, infra de Vault/WORM/filas/Terraform; sem dependencias externas reais (stubs Pact).
 
 ## Constitution Check
@@ -104,7 +104,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Relatório WORM**: Ao final (ou falha), gerar relatório JSON assinado (hash/assinatura) com manifest/tenant/ambiente, trace/span IDs, volumetria prevista/real, uso de rate limit/budget, SLO atingidos, erros Problem Details; armazenar em WORM (ex.: S3 Object Lock) com retenção mínima 1 ano e integridade verificada; indisponibilidade de WORM → abort antes de escrever dados.  
 - **Limpeza/expurgo**: Modos carga/DR limpam dataset do modo antes de recriar; TTL de datasets de carga/DR executado via Argo CronJob; dry-run não persiste checkpoints nem WORM.
 
-### Manifesto `seed_profile` — schema v1
+### Manifesto `seed_profile` — schema v1 (canary opcional)
 
 - **Fonte**: Manifestos versionados em `configs/seed_profiles/<ambiente>/<tenant>.yaml` (GitOps/Argo CD). JSON Schema v1 a publicar em `contracts/seed-profile.schema.json` (JSON Schema 2020-12) e usado pelo endpoint `/api/v1/seed-profiles/validate`.  
 - **Campos obrigatórios**:  
@@ -112,7 +112,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
   - `mode`: `baseline|carga|dr`; `window.start_utc/end_utc` (par único, UTC, pode cruzar meia-noite).  
   - `volumetry`: caps Q11 por entidade; `rate_limit` (`limit`, `window_seconds`), `backoff` (`base_seconds`, `jitter`, `max_retries`), `budget` (`cost_cap`, `error_budget`), `ttl` por modo.  
   - `slo`: `p95_target_ms`, `p99_target_ms`, `throughput_target`.  
-  - `canary`: escopo obrigatório para modo canary (percentual ou tenants-alvo).  
+  - `canary`: obrigatório somente quando `mode=canary` (percentual ou tenants-alvo).  
 - **Regras**: Versão nova de `reference_datetime` é breaking e exige reseed/limpeza de checkpoints; schema_version divergente → fail-closed; overrides só permitidos em dev isolado.  
 - **Evidência**: Manifesto e hash de integridade referenciados no relatório WORM e no `SeedRun.profile_version`.
 
@@ -124,7 +124,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **`budget`**: `{cost_cap_brl: number >=0 com 2 casas, error_budget_pct: number 0-100}`; alerta em 80% e abort em 100%.  
 - **`slo`**: `{p95_target_ms: integer >=1, p99_target_ms: integer >=1, throughput_target_rps: number >=0.1}`.  
 - **`ttl`**: `{baseline_days: integer >=0, carga_days: integer >=0, dr_days: integer >=0}`.  
-- **`canary`**: `{percentage: number 0-100} ou {tenants: array string unique, minItems=1}`; obrigatório quando `mode=canary`.  
+- **`canary`**: `{percentage: number 0-100} ou {tenants: array string unique, minItems=1}`; obrigatório somente quando `mode=canary`.  
 - **`reference_datetime`**: ISO 8601 UTC obrigatório; mudança é breaking.  
 - **`integrity`**: campos `manifest_hash` (sha256 hex) e `schema_version` devem coincidir com o schema publicado; divergência falha.  
 - **Exemplos**: incluir exemplos canônicos por modo no schema para servir de goldens de lint/diff.  
@@ -221,7 +221,7 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - **Checklist automatizado**: relatório WORM inclui percentuais e resultados de checklist PII/RLS/contratos/idempotência/rate-limit/SLO; qualquer reprovação marca o run como `failed` e bloqueia promoção/Argo CD.
 
 #### Operacional WORM/OTEL (ambientes e fallback)
-- **Buckets e segredos**: variáveis `SEEDS_WORM_BUCKET`, `SEEDS_WORM_ROLE_ARN`, `SEEDS_WORM_KMS_KEY_ID`, `SEEDS_WORM_RETENTION_DAYS` (>=365) por ambiente; tempo limite de upload/verificação 10s, payload máximo 5 MB. Ambientes que exigem WORM (staging/perf/prod) falham fail-closed se bucket/KMS/Vault estiverem indisponíveis ou se a verificação de assinatura não concluir; não há fallback. Dry-run/CI que não escrevem WORM pulam o passo de upload.  
+- **Buckets e segredos**: variáveis `SEEDS_WORM_BUCKET`, `SEEDS_WORM_ROLE_ARN`, `SEEDS_WORM_KMS_KEY_ID`, `SEEDS_WORM_RETENTION_DAYS` (>=365) por ambiente; tempo limite de upload/verificação 10s, payload máximo 5 MB. Ambientes que exigem WORM (staging/perf) falham fail-closed se bucket/KMS/Vault estiverem indisponíveis ou se a verificação de assinatura não concluir; não há fallback. Dry-run/CI que não escrevem WORM pulam o passo de upload.  
 - **OTEL**: `OTEL_EXPORTER_OTLP_ENDPOINT` obrigatório; headers `x-otlp-tenant`/`x-otlp-environment` configurados; `OTEL_TRACES_SAMPLER=parentbased_always_on` em prod/staging, `parentbased_traceidratio(0.05)` em CI. Timeout export 5s; falha de export marca run como `failed` (Problem Details `telemetry_unavailable`) conforme ADR-012/runbook `docs/runbooks/observabilidade.md`.  
 - **Sentry**: DSN por ambiente e `traces_sample_rate` alinhada ao sampler OTEL; captura de PII desabilitada.  
 - **Fallback**: qualquer indisponibilidade de Vault/KMS/WORM/OTEL fora de dev-isolado aborta antes de escrever dados (Art. XVI, ADR-010/012).
@@ -232,18 +232,36 @@ docs/                                        # runbooks, checklists PII/RLS, rel
 - `lease_lock_key` deve bater com o advisory lock vigente; mismatch entre lock e fila → fail-closed e reaplica lock antes de reprocessar.
 
 #### Parâmetros por ambiente e FinOps (assunções consolidadas do clarify)
-- **Volumetria Q11 por ambiente**: dev 1x baseline, homolog 3x, staging/carga 5x, produção controlada 1x (mínimo); caps por entidade versionados no manifesto.
-- **Rate limit alvo (RPM)**: dev 300, homolog 600, staging/carga 1.200, produção controlada 300; usar no máximo 80% do limite e aplicar backoff+jitter ao se aproximar do cap.
-- **Tempos-alvo por ambiente**: dev <5 min, homolog <10 min, produção controlada <20 min; exceder +20% aborta/rollback auditado.
-- **Budget por execução (FinOps)**: dev/homolog até US$5, staging/carga até US$25, produção controlada até US$50; alertar em 80%, abortar em 100% (fail-closed) e exigir ajuste do manifesto.
+- **Volumetria Q11 por ambiente**: dev 1x baseline, homolog 3x, staging/carga 5x (staging dedicado para carga/DR); caps por entidade versionados no manifesto. Não executar carga/DR em produção/controlada.
+- **Rate limit alvo (RPM)**: dev 300, homolog 600, staging/carga 1.200; usar no máximo 80% do limite e aplicar backoff+jitter ao se aproximar do cap.
+- **Tempos-alvo por ambiente**: dev <5 min, homolog <10 min, staging/carga <20 min; exceder +20% aborta/rollback auditado.
+- **Budget por execução (FinOps)**: dev/homolog até US$5, staging/carga até US$25; alertar em 80%, abortar em 100% (fail-closed) e exigir ajuste do manifesto.
 - **Dry-run em CI/PR**: apenas baseline determinístico para um tenant canônico (ou lista curta declarada), sem WORM, validando PII/contrato/idempotência/rate-limit.
 - **RPO/RTO**: campanhas carga/DR devem comprovar RPO ≤5 min e RTO ≤60 min em staging/perf com manifesto canônico; execuções fora de staging ou sem evidência WORM assinada falham em fail-closed e não são promovidas.
 
+#### Tabela canônica de caps Q11 (por entidade, antes de multiplicadores de ambiente)
+
+| Entidade                | Baseline cap | Carga cap | DR cap |
+|-------------------------|--------------|-----------|--------|
+| tenant_users            | 5            | 10        | 10     |
+| customers               | 100          | 500       | 500    |
+| addresses               | 150          | 750       | 750    |
+| consultants             | 10           | 30        | 30     |
+| bank_accounts           | 120          | 600       | 600    |
+| account_categories      | 20           | 60        | 60     |
+| suppliers               | 30           | 150       | 150    |
+| loans                   | 200          | 1_000     | 1_000  |
+| installments            | 2_000        | 10_000    | 10_000 |
+| financial_transactions  | 4_000        | 20_000    | 20_000 |
+| limits                  | 100          | 500       | 500    |
+| contracts               | 150          | 750       | 750    |
+
+Multiplicadores por ambiente (aplicados sobre a tabela acima): dev = 1x, homolog = 3x, staging/carga = 5x (staging dedicado), perf = 5x. Proibido carga/DR em produção/controlada.
+
 #### Bloqueio de mutações e caches
-- **Maintenance flag**: durante a janela off-peak, aplicar flag de manutenção por tenant (coluna/status + policy/RLS) para bloquear writes concorrentes; se faltarem flags ou se forem desrespeitadas, abortar em fail-closed e auditar.
 - **Caches/índices/busca**: invalidar caches Redis e rebuild de busca/índices em torno da execução; rebuild só em modos controlados (dry-run/staging/carga/DR), proibido em produção fora da janela aprovada para preservar determinismo/idempotência.
 - **Eventos/outbox/CDC**: sempre roteados para sinks sandbox com mocks/stubs e auditoria; nunca publicar em destinos reais durante seeds/factories/carga/DR.
-- **Enforcement de janela off-peak**: preflight do CLI/API valida `now() AT TIME ZONE 'UTC'` contra `SeedProfile.window` e `tenancy_tenant.off_peak_window_utc`; fora da janela marca `SeedRun` como `blocked` com Problem Details `offpeak_window_closed`. Middleware DRF adicional impede POST/PUT de domínios afetados quando `maintenance_mode` ativo ou janela fechada, registrando auditoria.
+- **Enforcement de janela off-peak**: preflight do CLI/API valida `now() AT TIME ZONE 'UTC'` contra `SeedProfile.window` e `tenancy_tenant.off_peak_window_utc`; fora da janela marca `SeedRun` como `blocked` com Problem Details `offpeak_window_closed`. Middleware DRF adicional impede POST/PUT de domínios afetados quando a janela estiver fechada, registrando auditoria.
 
 #### RBAC/ABAC e gate RLS/off-peak
 - **Policies**: versionar matriz em `configs/rbac/seed-data.yaml` com perfis `seed-runner` (execução), `seed-admin` (cancel/reprocess), `seed-read` (consulta). Binding por `tenant`, `environment` e `subject` (service account). Registrar cópia no banco (`tenancy_seed_rbac`) para auditoria e aplicar via permission class DRF `SeedDataPermission`.  

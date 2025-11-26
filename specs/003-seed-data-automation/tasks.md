@@ -15,7 +15,7 @@ Objetivo: Publicar artefatos de contrato/manifesto e comandos base para permitir
 Critério de teste independente: contratos e manifestos canônicos passam lint/diff e podem ser usados pelo comando `seed_data` em modo dry-run sem gravação de WORM/checkpoints e com falha OTEL/Sentry forçada sendo bloqueadora.
 
 - [ ] T001 Publicar contratos seed-data e schema para lint/diff (`contracts/seed-data.openapi.yaml`, `contracts/seed-profile.schema.json`)
-- [ ] T002 Criar manifestos canônicos baseline/carga/DR por ambiente/tenant (dev/homolog/staging/perf/prod-controlada) validados contra schema v1 (`configs/seed_profiles/<env>/<tenant>.yaml`)
+- [ ] T002 Criar manifestos canônicos baseline/carga/DR por ambiente/tenant (dev/homolog/staging/perf; carga/DR apenas em staging dedicado) validados contra schema v1 (`configs/seed_profiles/<env>/<tenant>.yaml`)
 - [ ] T003 Adicionar alvo CI/Makefile para `seed_data` validate/dry-run com Idempotency-Key, sem gravar WORM/checkpoints e falhando em export OTEL/Sentry simulada (`Makefile`, `scripts/ci/seed-data.sh`)
 - [ ] T004 Ajustar scripts/Make/CI para lint/diff dos contratos e JSON Schema (Spectral/oasdiff) com paths consolidados (`scripts/ci/validate-seed-contracts.sh`, `Makefile`, `.github/workflows/ci-contracts.yml`)
 - [ ] T005 Ajustar scripts Pact/Prism e stub do calculo financeiro para paths dos contratos seed (`scripts/ci/validate-seed-contracts.sh`, `contracts/pacts/financial-calculator.json`)
@@ -32,7 +32,7 @@ Critério de teste independente: migrations e politicas passam testes de modelo/
 - [ ] T011 Configurar filas Celery/Redis (default, load_dr, dlq) e roteamento para seed_data com acks tardios (`backend/config/settings.py`, `backend/apps/tenancy/tasks.py`, `backend/celery.py`)
 - [ ] T012 [P] Testar teto global de concorrencia e TTL da fila (409/429 + reaprazamento) para seeds (`backend/apps/tenancy/tests/test_seed_global_concurrency.py`)
 - [ ] T013 Implementar teto global por ambiente/cluster com TTL 5 min na fila e reaprazamento (Problem Details 409/429) (`backend/apps/tenancy/services/seed_runs.py`, `backend/apps/tenancy/services/seed_queue.py`, `backend/apps/tenancy/management/commands/seed_data.py`)
-- [ ] T014 Configurar lint/diff de contratos seed-data e JSON Schema no CI (Spectral/oasdiff) (`scripts/ci/validate-seed-contracts.sh`, `package.json`)
+- [ ] T014 Consolidar lint/diff de contratos seed-data e JSON Schema no CI usando o mesmo script do Setup (T004), removendo redundâncias (`scripts/ci/validate-seed-contracts.sh`, `Makefile`, `.github/workflows/ci-contracts.yml`)
 - [ ] T015 Criar testes basicos de migracoes/RLS para tabelas banking e seeds (`backend/apps/banking/tests/test_models.py`, `backend/apps/tenancy/tests/test_seed_models.py`)
 - [ ] T016 Implementar preflight de disponibilidade Vault/WORM (CLI/API) com fail-close, RBAC/ABAC mínimo e auditoria/redaction de acesso a chaves/manifestos, retornando Problem Details (`backend/apps/tenancy/services/seed_preflight.py`, `backend/apps/tenancy/tests/test_seed_preflight.py`, `infra/`, `docs/runbooks/seguranca-pii-vault.md`)
 - [ ] T017 Publicar SLO/SLI/error budget para seed_data e alinhar thresholds do k6 (`docs/slo/seed-data.md`, `observabilidade/k6/seed-data-smoke.js`)
@@ -111,8 +111,8 @@ Critério de teste independente: CLI/API criam seed runs carga/DR respeitando Ra
 ### Implementacao
 - [ ] T051 [US3] Implementar tasks Celery de seeds com backoff+jitter, ordenacao de entidades e DLQ (`backend/apps/tenancy/tasks.py`, `backend/apps/tenancy/services/seed_batches.py`)
 - [ ] T052 [US3] Integrar BudgetRateLimit/FinOps (caps, reset, abort em estouro) e retorno de RateLimit-* (`backend/apps/tenancy/services/budget.py`)
-- [ ] T053 [US3] Gerar relatorio WORM assinado (hash/assinatura/verificacao) sem fallback (fail-closed se indisponível) e com verificação pós-upload (`backend/apps/tenancy/services/seed_worm.py`, `docs/runbooks/worm/seed-data.md`)
-- [ ] T054 [US3] Incluir checklist automatizado PII/RLS/contratos/idempotencia/rate-limit/SLO no relatório WORM e garantir rotulagem/auditoria por execução/tenant (`backend/apps/tenancy/services/seed_worm.py`, `observabilidade/`, `.github/workflows/`)
+- [ ] T053 [US3] Gerar relatório WORM assinado e verificar integridade pós-upload (hash + assinatura, retenção/lock, fail-close) (`backend/apps/tenancy/services/seed_worm.py`, `docs/runbooks/worm/seed-data.md`)
+- [ ] T054 [US3] Incluir checklist automatizado PII/RLS/contratos/idempotencia/rate-limit/SLO no relatório WORM, com rotulagem/auditoria por execução/tenant e o mesmo fluxo único de WORM (T053) (`backend/apps/tenancy/services/seed_worm.py`, `observabilidade/`, `.github/workflows/`)
 - [ ] T055 [US3] Roteamento de outbox/CDC para sinks sandbox e testes de isolamento (sem side effects reais) (`backend/apps/tenancy/services/seed_batches.py`)
 - [ ] T056 [US3] Guardrail anti-snapshot/dump de producao para seeds/factories (fail-closed no CI) (`scripts/ci/seed-guardrails.sh`)
 - [ ] T057 [US3] Instrumentar flags/canary e métricas DORA para seed_data (rollback ensaiado) (`backend/apps/tenancy/feature_flags.py`, `docs/runbooks/observabilidade.md`)
@@ -121,6 +121,14 @@ Critério de teste independente: CLI/API criam seed runs carga/DR respeitando Ra
 - [ ] T060 [US3] Gate de ambiente/off-peak: bloquear carga/DR fora de staging ou sem evidência WORM válida antes da promoção (`backend/apps/tenancy/services/seed_runs.py`, `.github/workflows/`, `configs/seed_profiles/`)
 - [ ] T061 [US3] Integrar cost-model a BudgetRateLimit e relatório WORM (fail-close se ausente ou versão incompatível) (`backend/apps/tenancy/services/budget.py`, `backend/apps/tenancy/services/seed_worm.py`)
 - [ ] T062 [US3] Implementar monitor/gate de SLO/error budget em runtime (p95/p99/throughput) abortando/reagendando runs e registrando Problem Details/relatório WORM (`backend/apps/tenancy/services/seed_observability.py`, `backend/apps/tenancy/services/seed_runs.py`)
+- [ ] T070 [P] [US3] Criar stubs Pact/Prism e testes para integrações KYC/antifraude simulando rate-limit/backoff e bloqueando outbound real (`contracts/pacts/kyc.json`, `scripts/ci/validate-seed-contracts.sh`)
+- [ ] T071 [P] [US3] Criar stubs/tests para integrações de pagamentos simulando rate-limit/backoff e bloqueando outbound real (`contracts/pacts/pagamentos.json`, `scripts/ci/validate-seed-contracts.sh`)
+- [ ] T072 [P] [US3] Criar stubs/tests para integrações de notificações simulando rate-limit/backoff e bloqueando outbound real (`contracts/pacts/notificacoes.json`, `scripts/ci/validate-seed-contracts.sh`)
+- [ ] T073 [P] [US3] Testes negativos garantindo fail-close para qualquer outbound real nas integrações externas (KYC/antifraude/pagamentos/notificações) (`backend/apps/tenancy/tests/test_seed_outbound_block.py`)
+- [ ] T074 [US3] Implementar bloqueio de outbound real e fallback para stubs Pact/Prism nas integrações externas (KYC/antifraude/pagamentos/notificações) (`backend/apps/tenancy/services/seed_integrations.py`, `backend/apps/tenancy/views.py`, `backend/apps/tenancy/management/commands/seed_data.py`)
+- [ ] T075 [US3] Propagar rate-limit/backoff simulados das integrações para o fluxo de seeds/factories e Problem Details (`backend/apps/tenancy/services/seed_runs.py`, `backend/apps/tenancy/services/seed_batches.py`)
+- [ ] T076 [US3] Adicionar contract tests para os stubs externos (KYC/antifraude/pagamentos/notificações) no CI único de contratos (`scripts/ci/validate-seed-contracts.sh`, `.github/workflows/ci-contracts.yml`)
+- [ ] T077 [US3] Documentar e versionar os stubs/mocks externos e políticas de bloqueio outbound em quickstart/runbooks (`specs/003-seed-data-automation/quickstart.md`, `docs/runbooks/`)
 
 ## Fase Final: Polish & Cross-Cutting
 Objetivo: Encerrar observabilidade/compliance e amarrar docs/runbooks.  
@@ -132,12 +140,12 @@ Critério de teste independente: pipelines com lint/tests/perf e docs gate verde
 - [ ] T066 Garantir gates de CI (cobertura ≥85%, cc≤10, SAST/DAST/SCA/SBOM, k6 alinhado a SLOs) ativos para a feature (`.github/workflows/`, `docs/pipelines/ci-required-checks.md`)
 - [ ] T067 Gate de observabilidade fail-close: simular falha de export/redaction OTEL/Sentry e bloquear pipeline/execução (`observabilidade/`, `docs/runbooks/observabilidade.md`, `.github/workflows/`)
 - [ ] T068 Gate Trunk-Based/rollback no CI/Argo (branches curtas, squash-only, histórico linear, rollback ensaiado) com bloqueio de promoção quando violado (`.github/workflows/`, `docs/pipelines/ci-required-checks.md`)
-- [ ] T069 Checklist anti-poluição: reprovar se logs/WORM faltarem labels obrigatórios ou conterem PII, com validação automática no CI/Argo (`backend/apps/tenancy/services/seed_worm.py`, `scripts/ci/check-audit-cleanliness.sh`)
+- [ ] T069 Checklist anti-poluição: reprovar se logs/WORM faltarem labels obrigatórios ou conterem PII, com validação automática no CI/Argo e aderente ao fluxo único de WORM (T053) (`backend/apps/tenancy/services/seed_worm.py`, `scripts/ci/check-audit-cleanliness.sh`)
 
 ## Dependencias e ordem de historias
 - Fundacional (T006–T020) precede qualquer história; Setup (T001–T005) pode avançar em paralelo a Fundacional. Convergência obrigatória: preflight Vault/WORM (T016) e cap global/TTL fila (T012–T013) antes de validar/rodar baseline.
 - US5 (validação de manifestos) → US1 (baseline) → US2 (factories) → US4 (API/CLI seed-runs) → US3 (carga/DR). US5 exige schema/manifesto Q11 (T023) e idempotência do validate (T022/T026) antes de expor baseline. US1 requer locks/idempotência (T030), drift cleanup (T029/T034) e stubs (T033).
-- US4 depende de Fundacional + contratos prontos; Idempotency TTL/ETag/RateLimit são fechados em T040–T046 antes de execuções remotas. US3 herda serviços/API/CLI prontos e precisa dos testes T047–T050 antes de T051–T062 (TDD). Polish depende de todas as fases.
+- US4 depende de Fundacional + contratos prontos; Idempotency TTL/ETag/RateLimit são fechados em T040–T046 antes de execuções remotas. US3 herda serviços/API/CLI prontos e precisa dos testes T047–T050 antes de T051–T077 (TDD). Polish depende de todas as fases.
 
 ## Paralelizacao sugerida
 - Setup: T001–T005 em paralelo (contratos, manifestos, CI alvo).
@@ -146,7 +154,7 @@ Critério de teste independente: pipelines com lint/tests/perf e docs gate verde
 - US1: T027–T029 em paralelo após Fundacional; T030–T031–T032–T033–T034 em ordem (serviço → comando → quickstart → stubs → cleanup).
 - US2: T035/T036 em paralelo após helpers; T037–T039 após serializers/helpers prontos.
 - US4: T040–T043 em paralelo após Fundacional; T044–T046 em ordem (API → GC → idempotência persistida).
-- US3: T047–T050 primeiro (TDD), em paralelo após Fundacional e contratos; implementações T051–T062 seguem os testes, com FinOps/WORM/observabilidade avançando em paralelo respeitando dependências.
+- US3: T047–T050 + T070–T073 primeiro (TDD), em paralelo após Fundacional e contratos; implementações T051–T062 + T074–T077 seguem os testes, com FinOps/WORM/observabilidade avançando em paralelo respeitando dependências.
 - Polish: T063–T069 após histórias concluídas.
 
 ## Estrategia de implementacao (MVP primeiro)

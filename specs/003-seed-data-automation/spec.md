@@ -151,7 +151,7 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-008**: Integrações externas (KYC/antifraude/pagamentos/notificações) DEVEM ser simuladas (mocks/stubs) sem chamadas reais; rate limit exercitado sem side effects.  
 - **FR-009**: Eventos/outbox/CDC gerados DEVEM ir para sinks sandbox isolados, sem publicar em destinos reais.  
 - **FR-010**: Execução deve falhar se RLS estiver ausente/desabilitado ou se o manifesto não cobrir o perfil/volumetria requeridos.  
-- **FR-011**: Relatórios de execução DEVEM ser assinados e armazenados em WORM; indisponibilidade do WORM bloqueia execução e a retenção mínima/compliance segue Art. XVI (hash + assinatura assimétrica, Object Lock, governança de acesso).  
+- **FR-011**: Relatórios de execução DEVEM ser assinados, ter integridade verificada pós-upload e ser armazenados em WORM com retenção/lock e governança; falha em qualquer etapa (assinatura, verificação, WORM indisponível) bloqueia a execução/promoção (Art. XVI).  
 - **FR-012**: `reference_datetime` em ISO 8601 UTC é obrigatório no manifesto; mudanças exigem reseed coordenado e limpeza de checkpoints.  
 - **FR-013**: Dados sintéticos são exclusivos; uso de snapshots/dumps de produção é proibido em qualquer ambiente.
 - **FR-014**: Seeds/factories DEVEM suportar coordenação assíncrona/idempotente (fila curta, acks tardios, backoff/DLQ) alinhada à estratégia de tarefas do blueprint para evitar perda/duplicidade.  
@@ -168,9 +168,16 @@ Precisamos automatizar seeds e datasets de teste para ambientes multi-tenant, co
 - **FR-025**: Seeds/factories DEVEM evitar poluição da trilha de auditoria (incluindo WORM) com rotulagem por execução/tenant e preservação de RLS/índices multi-tenant; execuções que gerem drift ou falsos positivos de auditoria devem falhar.  
 - **FR-026**: Infraestrutura e artefatos necessários para seeds/factories (WORM, Vault, filas/assíncrono, pipelines CI/CD) DEVEM ser gerenciados como código (Terraform) com validação OPA/policy-as-code e fluxo GitOps/Argo CD; ausência de validação bloqueia promoção.  
 - **FR-027**: A gestão de dependências para bibliotecas de seeds/factories/performance e para o cliente de Vault Transit DEVE seguir automação contínua (ADR-008), com checagem/atualização em CI e bloqueio por CVEs críticos ou versões defasadas.  
-- **FR-028**: Complemento de FR-011: a integridade/assinatura dos relatórios WORM DEVE ser verificada pós-upload (hash + assinatura assimétrica via KMS/Vault), com retenção/lock e trilha auditável; falha em verificar ou aplicar retenção/governança bloqueia a execução/promoção.  
+- **FR-028**: Fundido em FR-011 (ver FR-011).  
 - **FR-029**: A API/CLI de seed runs (`/api/v1/seed-runs*`) DEVE suportar criar/consultar/cancelar execuções com RateLimit-*, `Idempotency-Key`, `ETag/If-Match` e Problem Details RFC 9457; ausência de headers ou conflito de lock/rate/budget deve retornar 4xx previsível sem criar execuções.
 - **FR-030**: O endpoint `/api/v1/seed-profiles/validate` DEVE validar manifestos v1 (JSON Schema 2020-12), aplicar RateLimit-* e `Retry-After`, exigir `Idempotency-Key`, retornar Problem Details previsível em 4xx (incluindo 422 para schema/versão incompatível, 429 para rate-limit/backoff) e nunca iniciar execução em caso de falha.
+
+### Volumetria Q11 (canônica e ambientes)
+
+- Carga/DR somente em staging dedicado; vedado executar carga/DR em produção/controlada.  
+- Caps base por entidade (antes de multiplicadores de ambiente): tenant_users 5; customers 100; addresses 150; consultants 10; bank_accounts 120; account_categories 20; suppliers 30; loans 200; installments 2.000; financial_transactions 4.000; limits 100; contracts 150.  
+- Caps para carga/DR: tenant_users 10; customers 500; addresses 750; consultants 30; bank_accounts 600; account_categories 60; suppliers 150; loans 1.000; installments 10.000; financial_transactions 20.000; limits 500; contracts 750.  
+- Multiplicadores por ambiente: dev = 1x, homolog = 3x, staging/carga = 5x (staging dedicado), perf = 5x. Manifestos devem versionar esses caps; divergência falha em lint/diff/schema.
 
 ### Non-Functional Requirements
 
