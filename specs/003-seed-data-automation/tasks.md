@@ -31,10 +31,10 @@ Critério de teste independente: migrations e politicas passam testes de modelo/
 - [X] T008 Modelar/migrar tabelas de seeds e auditoria (SeedProfile, SeedRun, SeedBatch, Checkpoint, SeedQueue, SeedDataset, SeedIdempotency, SeedRBAC, BudgetRateLimit, EvidenceWORM) (`backend/apps/tenancy/models/seed_*.py`, `backend/apps/tenancy/migrations/`)
 - [X] T009 Adicionar politicas RLS/ABAC e managers para novas tabelas de seeds (`backend/apps/tenancy/sql/rls_policies.sql`, `backend/apps/tenancy/managers.py`)
 - [X] T010 Implementar helper único de determinismo/idempotencia e cliente Vault Transit FPE reutilizavel para seeds e factories (`backend/apps/foundation/services/seed_utils.py`)
-- [ ] T011 Configurar filas Celery/Redis (default, load_dr, dlq) e roteamento para seed_data com acks tardios (`backend/config/settings.py`, `backend/apps/tenancy/tasks.py`, `backend/celery.py`)
-- [ ] T012 [P] Testar teto global de concorrencia e TTL da fila (409/429 + reaprazamento) para seeds (`backend/apps/tenancy/tests/test_seed_global_concurrency.py`)
-- [ ] T013 Implementar teto global por ambiente/cluster com TTL 5 min na fila e reaprazamento (Problem Details 409/429) (`backend/apps/tenancy/services/seed_runs.py`, `backend/apps/tenancy/services/seed_queue.py`, `backend/apps/tenancy/management/commands/seed_data.py`)
-- [ ] T014 (referência) Gate único de contratos/schema já unificado em T004; manter alinhamento e evitar novo gate duplicado
+- [X] T011 Configurar filas Celery/Redis (default, load_dr, dlq) e roteamento para seed_data com acks tardios (`backend/config/settings.py`, `backend/apps/tenancy/tasks.py`, `backend/celery.py`)
+- [X] T012 [P] Testar teto global de concorrencia e TTL da fila (409/429 + reaprazamento) para seeds (`backend/apps/tenancy/tests/test_seed_global_concurrency.py`)
+- [X] T013 Implementar teto global por ambiente/cluster com TTL 5 min na fila e reaprazamento (Problem Details 409/429) (`backend/apps/tenancy/services/seed_runs.py`, `backend/apps/tenancy/services/seed_queue.py`, `backend/apps/tenancy/management/commands/seed_data.py`)
+- [X] T014 (referência) Gate único de contratos/schema já unificado em T004; manter alinhamento e evitar novo gate duplicado
 - [X] T015 Criar testes basicos de migracoes/RLS para tabelas banking e seeds (`backend/apps/banking/tests/test_models.py`, `backend/apps/tenancy/tests/test_seed_models.py`)
 - [ ] T016 Implementar preflight de disponibilidade Vault/WORM (CLI/API) com fail-close, RBAC/ABAC mínimo e auditoria/redaction de acesso a chaves/manifestos, retornando Problem Details (`backend/apps/tenancy/services/seed_preflight.py`, `backend/apps/tenancy/tests/test_seed_preflight.py`, `infra/`, `docs/runbooks/seguranca-pii-vault.md`)
 - [ ] T017 Publicar SLO/SLI/error budget para seed_data e alinhar thresholds do k6 (`docs/slo/seed-data.md`, `observabilidade/k6/seed-data-smoke.js`)

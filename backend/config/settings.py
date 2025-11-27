@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 import structlog
+from kombu import Exchange, Queue
 
 from backend.config.logging_utils import structlog_pii_sanitizer
 from backend.config.sentry import init_sentry
@@ -197,6 +198,48 @@ structlog.configure(
     wrapper_class=structlog.stdlib.BoundLogger,
     cache_logger_on_first_use=True,
 )
+
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_DEFAULT_QUEUE = 'seed_data.default'
+CELERY_TASK_DEFAULT_EXCHANGE = 'seed_data'
+CELERY_TASK_DEFAULT_EXCHANGE_TYPE = 'direct'
+CELERY_TASK_DEFAULT_ROUTING_KEY = 'seed_data.default'
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_TASK_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ALWAYS_EAGER = os.environ.get(
+    'CELERY_TASK_ALWAYS_EAGER',
+    'true' if DEBUG else 'false',
+).lower() == 'true'
+CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'visibility_timeout': int(os.environ.get('SEED_QUEUE_VISIBILITY_TIMEOUT', '600')),
+}
+CELERY_TASK_QUEUES = (
+    Queue('seed_data.default', Exchange('seed_data'), routing_key='seed_data.default'),
+    Queue('seed_data.load_dr', Exchange('seed_data'), routing_key='seed_data.load_dr'),
+    Queue('seed_data.dlq', Exchange('seed_data'), routing_key='seed_data.dlq'),
+)
+CELERY_TASK_ROUTES = {
+    'seed_data.dispatch_baseline': {
+        'queue': 'seed_data.default',
+        'routing_key': 'seed_data.default',
+    },
+    'seed_data.dispatch_load_dr': {
+        'queue': 'seed_data.load_dr',
+        'routing_key': 'seed_data.load_dr',
+    },
+    'seed_data.handle_dlq': {
+        'queue': 'seed_data.dlq',
+        'routing_key': 'seed_data.dlq',
+    },
+    'seed_data.healthcheck': {
+        'queue': 'seed_data.default',
+        'routing_key': 'seed_data.default',
+    },
+}
 
 if (
     DATABASES.get('postgresql')
