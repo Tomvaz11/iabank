@@ -9,11 +9,14 @@ on:
       - 'scripts/ci/seed-data-*.sh'
       - 'scripts/ci/seed-manifest-validate.js'
       - 'scripts/ci/validate-seed-contracts.sh'
+      - 'scripts/ci/validate-finops.sh'
       - 'scripts/api/check_rate_headers.sh'
       - 'contracts/pacts/financial-calculator.json'
       - 'specs/003-seed-data-automation/contracts/**'
       - 'contracts/seed-data.openapi.yaml'
       - 'contracts/seed-profile.schema.json'
+      - 'contracts/finops/**'
+      - 'configs/finops/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
   workflow_dispatch:
@@ -181,4 +184,15 @@ jobs:
       - name: Verify rate limiting headers script
         run: |
           ./scripts/api/check_rate_headers.sh --help > /dev/null
+        shell: bash
+
+  validate-finops:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate FinOps cost model
+        run: |
+          ./scripts/ci/validate-finops.sh
         shell: bash

@@ -18,9 +18,26 @@ def _create_tenant() -> Tenant:
     )
 
 
+def _set_preflight_env(monkeypatch: pytest.MonkeyPatch, *, enforce_worm_on_dry_run: bool = False) -> None:
+    envs: dict[str, str] = {
+        'VAULT_TRANSIT_PATH': 'transit/seeds/staging/tenant-cli/ff3',
+        'SEEDS_WORM_BUCKET': 'worm-bucket',
+        'SEEDS_WORM_ROLE_ARN': 'arn:aws:iam::123:role/worm',
+        'SEEDS_WORM_KMS_KEY_ID': 'arn:aws:kms:us-east-1:123:key/worm',
+        'SEEDS_WORM_RETENTION_DAYS': '365',
+        'SEED_ALLOWED_ENVIRONMENTS': 'dev,homolog,staging,perf',
+        'SEED_ALLOWED_ROLES': 'seed-runner,seed-admin',
+        'SEED_ROLES': 'seed-runner',
+        'SEED_ENFORCE_WORM_ON_DRY_RUN': 'true' if enforce_worm_on_dry_run else 'false',
+    }
+    for key, value in envs.items():
+        monkeypatch.setenv(key, value)
+
+
 @pytest.mark.django_db
-def test_seed_data_command_accepts_queue_slot(capfd) -> None:
+def test_seed_data_command_accepts_queue_slot(capfd, monkeypatch: pytest.MonkeyPatch) -> None:
     tenant = _create_tenant()
+    _set_preflight_env(monkeypatch)
 
     call_command(
         'seed_data',
@@ -38,8 +55,9 @@ def test_seed_data_command_accepts_queue_slot(capfd) -> None:
 
 
 @pytest.mark.django_db
-def test_seed_data_command_returns_conflict_when_global_cap_reached(capfd) -> None:
+def test_seed_data_command_returns_conflict_when_global_cap_reached(capfd, monkeypatch: pytest.MonkeyPatch) -> None:
     tenant = _create_tenant()
+    _set_preflight_env(monkeypatch)
     now = timezone.now()
 
     SeedQueue.objects.unscoped().create(
@@ -71,8 +89,9 @@ def test_seed_data_command_returns_conflict_when_global_cap_reached(capfd) -> No
 
 
 @pytest.mark.django_db
-def test_seed_data_command_returns_retry_after_when_pending_exists(capfd) -> None:
+def test_seed_data_command_returns_retry_after_when_pending_exists(capfd, monkeypatch: pytest.MonkeyPatch) -> None:
     tenant = _create_tenant()
+    _set_preflight_env(monkeypatch)
     now = timezone.now()
 
     SeedQueue.objects.unscoped().create(
@@ -94,3 +113,21 @@ def test_seed_data_command_returns_retry_after_when_pending_exists(capfd) -> Non
     err = capfd.readouterr().err
     assert excinfo.value.code == 5
     assert 'seed_queue_busy' in err
+
+
+@pytest.mark.django_db
+def test_seed_data_command_blocks_when_preflight_forbidden(capfd, monkeypatch: pytest.MonkeyPatch) -> None:
+    tenant = _create_tenant()
+    _set_preflight_env(monkeypatch)
+
+    with pytest.raises(SystemExit) as excinfo:
+        call_command(
+            'seed_data',
+            tenant_id=str(tenant.id),
+            environment='prod',  # ambiente não permitido pelo preflight
+            mode='baseline',
+        )
+
+    err = capfd.readouterr().err
+    assert excinfo.value.code == 1
+    assert 'seed_preflight_forbidden' in err

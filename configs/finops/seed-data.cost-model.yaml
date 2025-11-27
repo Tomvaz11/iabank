@@ -1,0 +1,56 @@
+{
+  "schema_version": "v1",
+  "model_version": "2025-01-15",
+  "currency": "BRL",
+  "worm": {
+    "minimum_retention_days": 365,
+    "required_environments": ["staging", "perf"]
+  },
+  "environments": {
+    "dev": {
+      "cost_cap_brl": 25,
+      "error_budget_pct": 2.0,
+      "slo": { "p95_ms": 5000, "p99_ms": 7000, "throughput_rps": 2 },
+      "rate_limit_rpm": 300,
+      "notes": "baseline apenas; WORM opcional em dry-run"
+    },
+    "homolog": {
+      "cost_cap_brl": 25,
+      "error_budget_pct": 2.0,
+      "slo": { "p95_ms": 5000, "p99_ms": 7000, "throughput_rps": 3 },
+      "rate_limit_rpm": 600,
+      "notes": "baseline com gates de PII e rate-limit"
+    },
+    "staging": {
+      "cost_cap_brl": 125,
+      "error_budget_pct": 1.5,
+      "slo": { "p95_ms": 5000, "p99_ms": 7000, "throughput_rps": 5 },
+      "rate_limit_rpm": 1200,
+      "notes": "carga/DR dedicados; exige WORM/telemetria fail-close"
+    },
+    "perf": {
+      "cost_cap_brl": 125,
+      "error_budget_pct": 1.5,
+      "slo": { "p95_ms": 5000, "p99_ms": 7000, "throughput_rps": 5 },
+      "rate_limit_rpm": 1200,
+      "notes": "perf dedicado com WORM e thresholds identicos a staging"
+    }
+  },
+  "modes": {
+    "baseline": { "max_runtime_minutes": 25, "budget_alert_pct": 80, "worm_required": false },
+    "carga": { "max_runtime_minutes": 40, "budget_alert_pct": 80, "worm_required": true },
+    "dr": { "max_runtime_minutes": 60, "budget_alert_pct": 80, "worm_required": true }
+  },
+  "components": {
+    "vault_transit_per_10k_calls_brl": 0.35,
+    "worm_gb_month_brl": 0.55,
+    "redis_hour_brl": 0.08,
+    "celery_worker_hour_brl": 0.42,
+    "k6_smoke_per_run_brl": 1.25
+  },
+  "dataset_caps": {
+    "baseline_multiplier": 1,
+    "carga_multiplier": 5,
+    "dr_multiplier": 5
+  }
+}

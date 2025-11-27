@@ -88,3 +88,14 @@ class SeedRunServiceTest(SimpleTestCase):
         self.assertEqual(problem.title, 'seed_queue_busy')
         self.assertEqual(problem.retry_after, 30)
         self.assertEqual(SeedRunService.exit_code_for(decision), 5)
+
+    def test_exit_code_for_defaults_to_one_for_unknown_status(self) -> None:
+        decision = QueueDecision(
+            allowed=False,
+            status_code=HTTPStatus.BAD_REQUEST,
+            retry_after=None,
+            entry=None,
+            reason='unexpected_status',
+        )
+
+        self.assertEqual(SeedRunService.exit_code_for(decision), 1)

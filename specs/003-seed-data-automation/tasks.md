@@ -36,15 +36,15 @@ Critério de teste independente: migrations e politicas passam testes de modelo/
 - [X] T013 Implementar teto global por ambiente/cluster com TTL 5 min na fila e reaprazamento (Problem Details 409/429) (`backend/apps/tenancy/services/seed_runs.py`, `backend/apps/tenancy/services/seed_queue.py`, `backend/apps/tenancy/management/commands/seed_data.py`)
 - [X] T014 (referência) Gate único de contratos/schema já unificado em T004; manter alinhamento e evitar novo gate duplicado
 - [X] T015 Criar testes basicos de migracoes/RLS para tabelas banking e seeds (`backend/apps/banking/tests/test_models.py`, `backend/apps/tenancy/tests/test_seed_models.py`)
-- [ ] T016 Implementar preflight de disponibilidade Vault/WORM (CLI/API) com fail-close, RBAC/ABAC mínimo e auditoria/redaction de acesso a chaves/manifestos, retornando Problem Details (`backend/apps/tenancy/services/seed_preflight.py`, `backend/apps/tenancy/tests/test_seed_preflight.py`, `infra/`, `docs/runbooks/seguranca-pii-vault.md`)
-- [ ] T017 Publicar SLO/SLI/error budget para seed_data e alinhar thresholds do k6 (`docs/slo/seed-data.md`, `observabilidade/k6/seed-data-smoke.js`)
-- [ ] T085 Publicar threat model STRIDE/LINDDUN para seeds/carga/DR com owners e critérios de sucesso (`docs/runbooks/seed-data.md`)
-- [ ] T086 Planejar e registrar GameDay seeds/carga/DR (roteiro, execução, evidências, owners) como gate antes de US5/US1 (`docs/runbooks/seed-data.md`, `docs/runbooks/gameday/seed-data.md`)
-- [ ] T079 Produzir/atualizar ROPA/RIPD LGPD para automação de seeds/factories, com evidências WORM/CI e paths versionados (`docs/compliance/ropa/seed-data.md`, `docs/runbooks/seed-data.md`)
+- [X] T016 Implementar preflight de disponibilidade Vault/WORM (CLI/API) com fail-close, RBAC/ABAC mínimo e auditoria/redaction de acesso a chaves/manifestos, retornando Problem Details (`backend/apps/tenancy/services/seed_preflight.py`, `backend/apps/tenancy/tests/test_seed_preflight.py`, `infra/`, `docs/runbooks/seguranca-pii-vault.md`)
+- [X] T017 Publicar SLO/SLI/error budget para seed_data e alinhar thresholds do k6 (`docs/slo/seed-data.md`, `observabilidade/k6/seed-data-smoke.js`)
+- [X] T085 Publicar threat model STRIDE/LINDDUN para seeds/carga/DR com owners e critérios de sucesso (`docs/runbooks/seed-data.md`)
+- [X] T086 Planejar e registrar GameDay seeds/carga/DR (roteiro, execução, evidências, owners) como gate antes de US5/US1 (`docs/runbooks/seed-data.md`, `docs/runbooks/gameday/seed-data.md`)
+- [X] T079 Produzir/atualizar ROPA/RIPD LGPD para automação de seeds/factories, com evidências WORM/CI e paths versionados (`docs/compliance/ropa/seed-data.md`, `docs/runbooks/seed-data.md`)
 - [ ] T083 Terraform/OPA para Vault/WORM/filas (drift/rollback, off-peak) (`infra/`, `scripts/ci/validate-opa.sh`)
 - [ ] T084 Pipeline Argo CD com drift/rollback e janela off-peak para seed_data (`.github/workflows/ci-*.yml`, `infra/argo/`)
-- [ ] T019 Garantir migrações expand/contract com índices CONCURRENTLY e testes de rollback (`backend/apps/**/migrations/`, `scripts/ci/check-migrations.sh`)
-- [ ] T020 Publicar cost-model FinOps e schema JSON, validar no CI e versionar (`configs/finops/seed-data.cost-model.yaml`, `contracts/finops/seed-data.cost-model.schema.json`, `scripts/ci/validate-finops.sh`)
+- [X] T019 Garantir migrações expand/contract com índices CONCURRENTLY e testes de rollback (`backend/apps/**/migrations/`, `scripts/ci/check-migrations.sh`)
+- [X] T020 Publicar cost-model FinOps e schema JSON, validar no CI e versionar (`configs/finops/seed-data.cost-model.yaml`, `contracts/finops/seed-data.cost-model.schema.json`, `scripts/ci/validate-finops.sh`)
 
 ## Fase 3: User Story 5 - Validar manifestos via API (Prioridade P1)
 Objetivo da história: Validar manifestos v1 via API antes de qualquer execução, garantindo schema/versão e governança de headers.  
@@ -103,6 +103,7 @@ Critério de teste independente: API/CLI `/seed-runs*` retornam headers obrigat�
 - [ ] T044 [US4] Expor views/serializers `/api/v1/seed-runs` create/poll/cancel com RBAC/ABAC e headers governanca (RateLimit-*, Idempotency-Key, ETag) (`backend/apps/tenancy/views.py`, `backend/apps/tenancy/serializers/seed_runs.py`, `backend/apps/tenancy/urls.py`)
 - [ ] T045 [US4] Ajustar `seed_data` e GC da fila para modos baseline/carga/DR (TTL, off-peak enforcement, cancelamento seguro) (`backend/apps/tenancy/management/commands/seed_data.py`, `backend/apps/tenancy/services/seed_queue_gc.py`)
 - [ ] T046 [US4] Persistir `Idempotency-Key` com TTL/deduplicação auditável (tabela/cache) e limpeza periódica (`backend/apps/tenancy/services/seed_idempotency.py`, `backend/apps/tenancy/management/commands/seed_data.py`)
+- Nota US4: reutilizar `SeedPreflightService` nas views `/api/v1/seed-runs*` para manter fail-close de Vault/WORM/RBAC alinhado ao CLI.
 
 ## Fase 7: User Story 3 - Carga e DR com dados sinteticos (Prioridade P3)
 Objetivo da história: Executar modos carga/DR com caps Q11, rate limit/backoff, DLQ e evidencias WORM assinadas dentro de RPO/RTO.  

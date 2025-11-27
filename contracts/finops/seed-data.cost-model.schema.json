@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iabank.local/contracts/finops/seed-data.cost-model.schema.json",
+  "title": "Seed data cost model (v1)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "model_version",
+    "currency",
+    "worm",
+    "environments",
+    "modes",
+    "components",
+    "dataset_caps"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "enum": ["v1"] },
+    "model_version": { "type": "string", "minLength": 1 },
+    "currency": { "type": "string", "enum": ["BRL"] },
+    "worm": {
+      "type": "object",
+      "required": ["minimum_retention_days", "required_environments"],
+      "properties": {
+        "minimum_retention_days": { "type": "integer", "minimum": 365 },
+        "required_environments": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true
+        }
+      }
+    },
+    "environments": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^[a-z]+$": {
+          "type": "object",
+          "required": ["cost_cap_brl", "error_budget_pct", "slo", "rate_limit_rpm"],
+          "properties": {
+            "cost_cap_brl": { "type": "number", "minimum": 0 },
+            "error_budget_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+            "slo": {
+              "type": "object",
+              "required": ["p95_ms", "p99_ms", "throughput_rps"],
+              "properties": {
+                "p95_ms": { "type": "integer", "minimum": 1 },
+                "p99_ms": { "type": "integer", "minimum": 1 },
+                "throughput_rps": { "type": "number", "minimum": 0.1 }
+              }
+            },
+            "rate_limit_rpm": { "type": "integer", "minimum": 1 },
+            "notes": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "modes": {
+      "type": "object",
+      "required": ["baseline", "carga", "dr"],
+      "properties": {
+        "baseline": { "$ref": "#/$defs/mode" },
+        "carga": { "$ref": "#/$defs/mode" },
+        "dr": { "$ref": "#/$defs/mode" }
+      }
+    },
+    "components": {
+      "type": "object",
+      "required": [
+        "vault_transit_per_10k_calls_brl",
+        "worm_gb_month_brl",
+        "redis_hour_brl",
+        "celery_worker_hour_brl",
+        "k6_smoke_per_run_brl"
+      ],
+      "properties": {
+        "vault_transit_per_10k_calls_brl": { "type": "number", "minimum": 0 },
+        "worm_gb_month_brl": { "type": "number", "minimum": 0 },
+        "redis_hour_brl": { "type": "number", "minimum": 0 },
+        "celery_worker_hour_brl": { "type": "number", "minimum": 0 },
+        "k6_smoke_per_run_brl": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "dataset_caps": {
+      "type": "object",
+      "required": ["baseline_multiplier", "carga_multiplier", "dr_multiplier"],
+      "properties": {
+        "baseline_multiplier": { "type": "integer", "minimum": 1 },
+        "carga_multiplier": { "type": "integer", "minimum": 1 },
+        "dr_multiplier": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "mode": {
+      "type": "object",
+      "required": ["max_runtime_minutes", "budget_alert_pct", "worm_required"],
+      "properties": {
+        "max_runtime_minutes": { "type": "integer", "minimum": 1 },
+        "budget_alert_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "worm_required": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
