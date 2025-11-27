@@ -1,0 +1,563 @@
+{
+  "seed_plan": {
+    "planned_values": {
+      "root_module": {
+        "resources": [
+          {
+            "address": "aws_s3_bucket.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-a-worm",
+              "object_lock_enabled": true,
+              "tags": {
+                "service": "seed-data",
+                "environment": "staging",
+                "tenant": "tenant-a",
+                "purpose": "seed-data-worm",
+                "data_classification": "internal",
+                "pii": "masked",
+                "owner": "seed-platform",
+                "managed_by": "terraform",
+                "off_peak_window_utc": "02:00-05:00",
+                "retention_days": "730"
+              }
+            }
+          },
+          {
+            "address": "aws_s3_bucket_versioning.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket_versioning",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-a-worm",
+              "versioning_configuration": [
+                {
+                  "status": "Enabled",
+                  "mfa_delete": "Disabled"
+                }
+              ]
+            }
+          },
+          {
+            "address": "aws_s3_bucket_server_side_encryption_configuration.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket_server_side_encryption_configuration",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-a-worm",
+              "rule": [
+                {
+                  "apply_server_side_encryption_by_default": [
+                    {
+                      "sse_algorithm": "aws:kms",
+                      "kms_master_key_id": "arn:aws:kms:us-east-1:123456789012:key/seed-worm"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "address": "aws_s3_bucket_object_lock_configuration.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket_object_lock_configuration",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-a-worm",
+              "rule": [
+                {
+                  "default_retention": [
+                    {
+                      "mode": "COMPLIANCE",
+                      "days": 730
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "address": "aws_elasticache_replication_group.seed_queue",
+            "mode": "managed",
+            "type": "aws_elasticache_replication_group",
+            "name": "seed_queue",
+            "values": {
+              "at_rest_encryption_enabled": true,
+              "transit_encryption_enabled": true,
+              "automatic_failover_enabled": true,
+              "multi_az_enabled": true,
+              "snapshot_retention_limit": 2,
+              "maintenance_window": "sun:04:00-sun:05:00",
+              "snapshot_window": "03:00-04:00",
+              "replication_group_id": "staging-seed-data-tenant-a-queue",
+              "node_type": "cache.t3.micro",
+              "tags": {
+                "service": "seed-data",
+                "purpose": "seed-data-queue",
+                "environment": "staging",
+                "tenant": "tenant-a",
+                "off_peak_window_utc": "02:00-05:00"
+              }
+            }
+          },
+          {
+            "address": "vault_mount.seed_transit",
+            "mode": "managed",
+            "type": "vault_mount",
+            "name": "seed_transit",
+            "values": {
+              "path": "transit/staging/seed-data",
+              "type": "transit",
+              "default_lease_ttl_seconds": 3600,
+              "max_lease_ttl_seconds": 3600
+            }
+          },
+          {
+            "address": "vault_transit_secret_backend_key.seed_fpe",
+            "mode": "managed",
+            "type": "vault_transit_secret_backend_key",
+            "name": "seed_fpe",
+            "values": {
+              "backend": "transit/staging/seed-data",
+              "name": "tenant-a-staging",
+              "type": "aes256-gcm96",
+              "deletion_allowed": false,
+              "exportable": false,
+              "derived": true,
+              "convergent_encryption": true
+            }
+          },
+          {
+            "address": "vault_policy.seed_data",
+            "mode": "managed",
+            "type": "vault_policy",
+            "name": "seed_data",
+            "values": {
+              "name": "seed-data-staging-tenant-a",
+              "policy": "path \"transit/staging/seed-data/encrypt/tenant-a-staging\" { capabilities = [\"update\"] }\npath \"transit/staging/seed-data/decrypt/tenant-a-staging\" { capabilities = [\"update\"] }\npath \"transit/staging/seed-data/rewrap/tenant-a-staging\" { capabilities = [\"update\"] }\npath \"transit/staging/seed-data/keys/tenant-a-staging\" { capabilities = [\"read\"] }\n"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "seed_plan_invalid": {
+    "planned_values": {
+      "root_module": {
+        "resources": [
+          {
+            "address": "aws_s3_bucket.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "dev-seed-data-tenant-b-worm",
+              "object_lock_enabled": false,
+              "tags": {
+                "service": "seed-data",
+                "environment": "dev",
+                "tenant": "tenant-b",
+                "purpose": "seed-data-worm"
+              }
+            }
+          },
+          {
+            "address": "aws_s3_bucket_object_lock_configuration.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket_object_lock_configuration",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "dev-seed-data-tenant-b-worm",
+              "rule": [
+                {
+                  "default_retention": [
+                    {
+                      "mode": "GOVERNANCE",
+                      "days": 30
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "address": "aws_s3_bucket_server_side_encryption_configuration.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket_server_side_encryption_configuration",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "dev-seed-data-tenant-b-worm",
+              "rule": [
+                {
+                  "apply_server_side_encryption_by_default": [
+                    {
+                      "sse_algorithm": "AES256"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "address": "aws_elasticache_replication_group.seed_queue",
+            "mode": "managed",
+            "type": "aws_elasticache_replication_group",
+            "name": "seed_queue",
+            "values": {
+              "at_rest_encryption_enabled": false,
+              "transit_encryption_enabled": false,
+              "automatic_failover_enabled": false,
+              "multi_az_enabled": false,
+              "snapshot_retention_limit": 0,
+              "maintenance_window": "wed:10:00-wed:11:00",
+              "snapshot_window": "10:00-11:00",
+              "replication_group_id": "dev-seed-data-tenant-b-queue",
+              "node_type": "cache.t3.micro",
+              "tags": {
+                "service": "seed-data",
+                "purpose": "seed-data-queue",
+                "environment": "dev",
+                "tenant": "tenant-b",
+                "off_peak_window_utc": "02:00-05:00"
+              }
+            }
+          },
+          {
+            "address": "vault_mount.seed_transit",
+            "mode": "managed",
+            "type": "vault_mount",
+            "name": "seed_transit",
+            "values": {
+              "path": "transit/dev/seed-data",
+              "type": "transit",
+              "default_lease_ttl_seconds": 7200,
+              "max_lease_ttl_seconds": 7200
+            }
+          },
+          {
+            "address": "vault_transit_secret_backend_key.seed_fpe",
+            "mode": "managed",
+            "type": "vault_transit_secret_backend_key",
+            "name": "seed_fpe",
+            "values": {
+              "backend": "transit/dev/seed-data",
+              "name": "tenant-b-dev",
+              "type": "aes256-gcm96",
+              "deletion_allowed": true,
+              "exportable": true,
+              "derived": false,
+              "convergent_encryption": false
+            }
+          },
+          {
+            "address": "vault_policy.seed_data",
+            "mode": "managed",
+            "type": "vault_policy",
+            "name": "seed_data",
+            "values": {
+              "name": "seed-data-dev-tenant-b",
+              "policy": "path \"transit/dev/seed-data/encrypt/tenant-b-dev\" { capabilities = [\"update\"] }\n"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "seed_plan_no_resources": {
+    "planned_values": {
+      "root_module": {
+        "resources": []
+      }
+    }
+  },
+  "seed_plan_invalid_bucket_offpeak": {
+    "planned_values": {
+      "root_module": {
+        "resources": [
+          {
+            "address": "aws_s3_bucket.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-c-worm",
+              "object_lock_enabled": true,
+              "tags": {
+                "service": "seed-data",
+                "environment": "staging",
+                "tenant": "tenant-c",
+                "purpose": "seed-data-worm",
+                "off_peak_window_utc": "invalid-window"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "seed_plan_invalid_queue": {
+    "planned_values": {
+      "root_module": {
+        "resources": [
+          {
+            "address": "aws_s3_bucket.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-d-worm",
+              "object_lock_enabled": true,
+              "tags": {
+                "service": "seed-data",
+                "environment": "staging",
+                "tenant": "tenant-d",
+                "purpose": "seed-data-worm",
+                "off_peak_window_utc": "02:00-05:00"
+              }
+            }
+          },
+          {
+            "address": "aws_s3_bucket_versioning.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket_versioning",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-d-worm",
+              "versioning_configuration": [
+                {
+                  "status": "Enabled"
+                }
+              ]
+            }
+          },
+          {
+            "address": "aws_s3_bucket_server_side_encryption_configuration.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket_server_side_encryption_configuration",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-d-worm",
+              "rule": [
+                {
+                  "apply_server_side_encryption_by_default": [
+                    {
+                      "sse_algorithm": "aws:kms",
+                      "kms_master_key_id": "arn:aws:kms:us-east-1:123456789012:key/seed-worm"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "address": "aws_s3_bucket_object_lock_configuration.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket_object_lock_configuration",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-d-worm",
+              "rule": [
+                {
+                  "default_retention": [
+                    {
+                      "mode": "COMPLIANCE",
+                      "days": 365
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "address": "aws_elasticache_replication_group.seed_queue",
+            "mode": "managed",
+            "type": "aws_elasticache_replication_group",
+            "name": "seed_queue",
+            "values": {
+              "at_rest_encryption_enabled": true,
+              "transit_encryption_enabled": true,
+              "automatic_failover_enabled": true,
+              "multi_az_enabled": true,
+              "snapshot_retention_limit": 1,
+              "maintenance_window": "bad-window",
+              "snapshot_window": "bad-window",
+              "replication_group_id": "staging-seed-data-tenant-d-queue",
+              "node_type": "cache.t3.micro",
+              "tags": {
+                "service": "seed-data",
+                "purpose": "seed-data-queue",
+                "environment": "staging",
+                "tenant": "tenant-d",
+                "off_peak_window_utc": "invalid-window"
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "seed_plan_wraparound": {
+    "planned_values": {
+      "root_module": {
+        "resources": [
+          {
+            "address": "aws_s3_bucket.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-e-worm",
+              "object_lock_enabled": true,
+              "tags": {
+                "service": "seed-data",
+                "environment": "staging",
+                "tenant": "tenant-e",
+                "purpose": "seed-data-worm",
+                "off_peak_window_utc": "23:00-02:00"
+              }
+            }
+          },
+          {
+            "address": "aws_s3_bucket_versioning.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket_versioning",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-e-worm",
+              "versioning_configuration": [
+                {
+                  "status": "Enabled"
+                }
+              ]
+            }
+          },
+          {
+            "address": "aws_s3_bucket_server_side_encryption_configuration.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket_server_side_encryption_configuration",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-e-worm",
+              "rule": [
+                {
+                  "apply_server_side_encryption_by_default": [
+                    {
+                      "sse_algorithm": "aws:kms",
+                      "kms_master_key_id": "arn:aws:kms:us-east-1:123456789012:key/seed-worm"
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "address": "aws_s3_bucket_object_lock_configuration.seed_worm",
+            "mode": "managed",
+            "type": "aws_s3_bucket_object_lock_configuration",
+            "name": "seed_worm",
+            "values": {
+              "bucket": "staging-seed-data-tenant-e-worm",
+              "rule": [
+                {
+                  "default_retention": [
+                    {
+                      "mode": "COMPLIANCE",
+                      "days": 365
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "address": "aws_elasticache_replication_group.seed_queue_wrap_start",
+            "mode": "managed",
+            "type": "aws_elasticache_replication_group",
+            "name": "seed_queue_wrap_start",
+            "values": {
+              "at_rest_encryption_enabled": true,
+              "transit_encryption_enabled": true,
+              "automatic_failover_enabled": true,
+              "multi_az_enabled": true,
+              "snapshot_retention_limit": 1,
+              "maintenance_window": "sun:23:30-sun:23:45",
+              "snapshot_window": "23:00-23:30",
+              "replication_group_id": "staging-seed-data-tenant-e-queue-start",
+              "node_type": "cache.t3.micro",
+              "tags": {
+                "service": "seed-data",
+                "purpose": "seed-data-queue",
+                "environment": "staging",
+                "tenant": "tenant-e",
+                "off_peak_window_utc": "23:00-02:00"
+              }
+            }
+          },
+          {
+            "address": "aws_elasticache_replication_group.seed_queue_wrap_end",
+            "mode": "managed",
+            "type": "aws_elasticache_replication_group",
+            "name": "seed_queue_wrap_end",
+            "values": {
+              "at_rest_encryption_enabled": true,
+              "transit_encryption_enabled": true,
+              "automatic_failover_enabled": true,
+              "multi_az_enabled": true,
+              "snapshot_retention_limit": 1,
+              "maintenance_window": "sun:00:30-sun:00:45",
+              "snapshot_window": "00:00-00:30",
+              "replication_group_id": "staging-seed-data-tenant-e-queue-end",
+              "node_type": "cache.t3.micro",
+              "tags": {
+                "service": "seed-data",
+                "purpose": "seed-data-queue",
+                "environment": "staging",
+                "tenant": "tenant-e",
+                "off_peak_window_utc": "23:00-02:00"
+              }
+            }
+          },
+          {
+            "address": "vault_mount.seed_transit",
+            "mode": "managed",
+            "type": "vault_mount",
+            "name": "seed_transit",
+            "values": {
+              "path": "transit/staging/seed-data",
+              "type": "transit",
+              "default_lease_ttl_seconds": 3600,
+              "max_lease_ttl_seconds": 3600
+            }
+          },
+          {
+            "address": "vault_transit_secret_backend_key.seed_fpe",
+            "mode": "managed",
+            "type": "vault_transit_secret_backend_key",
+            "name": "seed_fpe",
+            "values": {
+              "backend": "transit/staging/seed-data",
+              "name": "tenant-e-staging",
+              "type": "aes256-gcm96",
+              "deletion_allowed": false,
+              "exportable": false,
+              "derived": true,
+              "convergent_encryption": true
+            }
+          },
+          {
+            "address": "vault_policy.seed_data",
+            "mode": "managed",
+            "type": "vault_policy",
+            "name": "seed_data",
+            "values": {
+              "name": "seed-data-staging-tenant-e",
+              "policy": "path \"transit/staging/seed-data/keys/tenant-e-staging\" { capabilities = [\"read\"] }\npath \"transit/staging/seed-data/encrypt/tenant-e-staging\" { capabilities = [\"update\"] }\npath \"transit/staging/seed-data/decrypt/tenant-e-staging\" { capabilities = [\"update\"] }\npath \"transit/staging/seed-data/rewrap/tenant-e-staging\" { capabilities = [\"update\"] }\n"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

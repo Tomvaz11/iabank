@@ -41,8 +41,8 @@ Critério de teste independente: migrations e politicas passam testes de modelo/
 - [X] T085 Publicar threat model STRIDE/LINDDUN para seeds/carga/DR com owners e critérios de sucesso (`docs/runbooks/seed-data.md`)
 - [X] T086 Planejar e registrar GameDay seeds/carga/DR (roteiro, execução, evidências, owners) como gate antes de US5/US1 (`docs/runbooks/seed-data.md`, `docs/runbooks/gameday/seed-data.md`)
 - [X] T079 Produzir/atualizar ROPA/RIPD LGPD para automação de seeds/factories, com evidências WORM/CI e paths versionados (`docs/compliance/ropa/seed-data.md`, `docs/runbooks/seed-data.md`)
-- [ ] T083 Terraform/OPA para Vault/WORM/filas (drift/rollback, off-peak) (`infra/`, `scripts/ci/validate-opa.sh`)
-- [ ] T084 Pipeline Argo CD com drift/rollback e janela off-peak para seed_data (`.github/workflows/ci-*.yml`, `infra/argo/`)
+- [X] T083 Terraform/OPA para Vault/WORM/filas (drift/rollback, off-peak) (`infra/`, `scripts/ci/validate-opa.sh`)
+- [X] T084 Pipeline Argo CD com drift/rollback e janela off-peak para seed_data (`.github/workflows/ci-*.yml`, `infra/argo/`)
 - [X] T019 Garantir migrações expand/contract com índices CONCURRENTLY e testes de rollback (`backend/apps/**/migrations/`, `scripts/ci/check-migrations.sh`)
 - [X] T020 Publicar cost-model FinOps e schema JSON, validar no CI e versionar (`configs/finops/seed-data.cost-model.yaml`, `contracts/finops/seed-data.cost-model.schema.json`, `scripts/ci/validate-finops.sh`)
 

@@ -12,6 +12,7 @@ Reflete os gates constitucionais (v5.2.0) e ADRs 008–012.
 7. **iac-policy**: Terraform plan + OPA/Gatekeeper.
 8. **finops-tags**: Script para validar tagging obrigatório (Artigo XVI).
 9. **complexity-gate**: Radon cc ≤ 10 (Python) usando `scripts/ci/check_python_complexity.py` e allowlist controlado.
+10. **seed-data IaC (T083/T084)**: workflow `.github/workflows/ci-argo-seed-data.yml` roda `scripts/ci/validate-opa.sh` (terraform fmt/init/validate + `opa test` em `infra/opa/seed-data`) e renderiza kustomize de `infra/argocd/seed-data/` para garantir drift/rollback/off-peak GitOps.
 
 ## Automação Pendente
 - Revisar periodicamente os scripts em `scripts/` conforme o amadurecimento dos serviços.

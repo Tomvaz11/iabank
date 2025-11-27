@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seed-data-pipeline
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: seed-data
+    app.kubernetes.io/part-of: seed-data
+spec:
+  project: seed-data
+  source:
+    repoURL: https://github.com/iabank/iabank
+    targetRevision: main
+    path: infra/argocd/seed-data/resources
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: seed-data
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 30s
+        factor: 2
+        maxDuration: 5m
+  info:
+    - name: owner
+      value: seed-platform
+    - name: off_peak_window_utc
+      value: 02:00-05:00
+    - name: rollback
+      value: enabled
