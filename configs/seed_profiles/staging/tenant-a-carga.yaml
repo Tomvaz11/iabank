@@ -1,17 +1,17 @@
 metadata:
   tenant: tenant-a
-  environment: dr
-  profile: dr-recovery
-  version: 2.0.0
+  environment: staging
+  profile: carga
+  version: 1.0.0
   schema_version: v1
   salt_version: 2025-q1
 
-mode: dr
-reference_datetime: "2025-02-10T00:00:00Z"
+mode: carga
+reference_datetime: "2025-01-15T00:00:00Z"
 
 window:
-  start_utc: "23:00"
-  end_utc: "04:00"
+  start_utc: "21:00"
+  end_utc: "05:00"
 
 volumetry:
   tenant_users:
@@ -45,7 +45,7 @@ rate_limit:
   burst: 1200
 
 backoff:
-  base_seconds: 3
+  base_seconds: 2
   jitter_factor: 0.45
   max_retries: 7
   max_interval_seconds: 60
@@ -60,9 +60,9 @@ ttl:
   dr_days: 3
 
 slo:
-  p95_target_ms: 9000
-  p99_target_ms: 13000
-  throughput_target_rps: 16.0
+  p95_target_ms: 8000
+  p99_target_ms: 12000
+  throughput_target_rps: 18.0
 
 integrity:
-  manifest_hash: "12cee2307938156e8d51ba2cc358aae798369d1b037559c203a9cc08bf5d8db5"
+  manifest_hash: "77ac1ea3850bd606648e17e7df0b4c3040e685c8a33c20941fb0cc7d28853432"

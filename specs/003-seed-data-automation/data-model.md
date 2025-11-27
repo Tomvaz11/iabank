@@ -2,13 +2,13 @@
 
 ## Tenant
 - **Tabela**: `tenancy_tenant` (já existente).  
-- **Campos**: `id` (UUID PK), `slug` (unique), `environment` (`dev|staging|perf|dr|prod`), `rls_policy_version` (SemVer), `budget_caps` (JSONB), `off_peak_window_utc` (intervalo HH:MM-HH:MM), `maintenance_mode` (bool default false), `maintenance_note` (texto opcional), `maintenance_set_at` (timestamptz).  
+- **Campos**: `id` (UUID PK), `slug` (unique), `environment` (`dev|homolog|staging|perf|dr|prod`), `rls_policy_version` (SemVer), `budget_caps` (JSONB), `off_peak_window_utc` (intervalo HH:MM-HH:MM), `maintenance_mode` (bool default false), `maintenance_note` (texto opcional), `maintenance_set_at` (timestamptz).  
 - **Índices/RLS**: índice composto iniciando por `id`; RLS obrigatória em todas as consultas; managers aplicam `tenant_id` por padrão.  
 - **Uso**: FK obrigatório em todas as novas tabelas abaixo.
 
 ## SeedProfile (Manifesto)
 - **Tabela**: `tenancy_seed_profile`.  
-- **Campos**: `id` (UUID PK), `tenant_id` (FK), `environment` (`dev|staging|perf|dr|prod`), `profile` (texto), `schema_version` (ex.: `v1`), `version` (SemVer), `mode` (`baseline|carga|dr|canary`), `reference_datetime` (timestamptz UTC), `volumetry` (JSONB caps Q11), `rate_limit` (JSONB limit/window/burst), `backoff` (JSONB base/jitter/max_retries/max_interval_seconds), `budget` (JSONB cost/error_budget), `window_start_utc`/`window_end_utc` (time, única janela off-peak, `end < start` indica cruzar meia-noite), `ttl_config` (JSONB `{baseline_days, carga_days, dr_days}`), `slo_p95_ms`/`slo_p99_ms` (int), `slo_throughput_rps` (numeric), `integrity_hash` (texto sha256), `salt_version` (texto), `canary_scope` (JSONB `{percentage|tenants[]}`), `manifest_path` (texto GitOps), `manifest_hash_sha256` (texto).  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `environment` (`dev|homolog|staging|perf|dr|prod`), `profile` (texto), `schema_version` (ex.: `v1`), `version` (SemVer), `mode` (`baseline|carga|dr|canary`), `reference_datetime` (timestamptz UTC), `volumetry` (JSONB caps Q11), `rate_limit` (JSONB limit/window/burst), `backoff` (JSONB base/jitter/max_retries/max_interval_seconds), `budget` (JSONB cost/error_budget), `window_start_utc`/`window_end_utc` (time, única janela off-peak, `end < start` indica cruzar meia-noite), `ttl_config` (JSONB `{baseline_days, carga_days, dr_days}`), `slo_p95_ms`/`slo_p99_ms` (int), `slo_throughput_rps` (numeric), `integrity_hash` (texto sha256), `salt_version` (texto), `canary_scope` (JSONB `{percentage|tenants[]}`), `manifest_path` (texto GitOps), `manifest_hash_sha256` (texto).  
 - **Constraints**: `unique(tenant_id, profile, version)`, check `window_start_utc != window_end_utc`, `reference_datetime` not null, `mode != 'canary'` implica `canary_scope is null`, ttl por modo >= 0.  
 - **Índices**: `index(tenant_id, profile)`, `index(tenant_id, mode)`, GIN em `volumetry`, GIN em `canary_scope`.  
 - **RLS**: policy `tenant_id = current_setting('app.tenant_id')::uuid`.
@@ -23,7 +23,7 @@
 
 ## SeedRun
 - **Tabela**: `tenancy_seed_run`.  
-- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_profile_id` (FK), `environment` (`dev|staging|perf|dr|prod`), `mode`, `status` (`queued|running|succeeded|failed|aborted|retry_scheduled|blocked`), `requested_by` (texto/RBAC subject), `idempotency_key` (texto), `manifest_path` (texto), `manifest_hash_sha256` (texto), `reference_datetime` (timestamptz UTC), `trace_id`/`span_id` (texto), `rate_limit_usage` (JSONB: consumed/remaining/reset_at), `error_budget_consumed` (numeric), `started_at`/`finished_at` (timestamptz), `reason` (JSONB Problem Details), `profile_version` (SemVer), `dry_run` (bool), `offpeak_window` (tsrange opcional), `canary_scope_snapshot` (JSONB).  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_profile_id` (FK), `environment` (`dev|homolog|staging|perf|dr|prod`), `mode`, `status` (`queued|running|succeeded|failed|aborted|retry_scheduled|blocked`), `requested_by` (texto/RBAC subject), `idempotency_key` (texto), `manifest_path` (texto), `manifest_hash_sha256` (texto), `reference_datetime` (timestamptz UTC), `trace_id`/`span_id` (texto), `rate_limit_usage` (JSONB: consumed/remaining/reset_at), `error_budget_consumed` (numeric), `started_at`/`finished_at` (timestamptz), `reason` (JSONB Problem Details), `profile_version` (SemVer), `dry_run` (bool), `offpeak_window` (tsrange opcional), `canary_scope_snapshot` (JSONB).  
 - **Constraints**: `unique(tenant_id, seed_profile_id, idempotency_key)` com TTL (limpeza via job); status check; `idempotency_key` not null; `mode != 'canary'` implica `canary_scope_snapshot` null.  
 - **Índices**: `index(tenant_id, status)`, `index(tenant_id, seed_profile_id)`, `index(tenant_id, started_at)`, `index(environment, status)`.  
 - **RLS**: mesma política de tenant.
@@ -50,7 +50,7 @@
 
 ## SeedQueue (Controle de concorrência global)
 - **Tabela**: `tenancy_seed_queue`.  
-- **Campos**: `id` (UUID PK), `environment` (`dev|staging|perf|dr|prod`), `tenant_id` (FK opcional para filtrar serialização), `seed_run_id` (FK opcional), `status` (`pending|started|expired`), `enqueued_at` (timestamptz), `expires_at` (timestamptz), `lease_lock_key` (int8 derivado de advisory lock).  
+- **Campos**: `id` (UUID PK), `environment` (`dev|homolog|staging|perf|dr|prod`), `tenant_id` (FK opcional para filtrar serialização), `seed_run_id` (FK opcional), `status` (`pending|started|expired`), `enqueued_at` (timestamptz), `expires_at` (timestamptz), `lease_lock_key` (int8 derivado de advisory lock).  
 - **Constraints**: TTL máximo 5 minutos (`expires_at > enqueued_at`), teto global de 2 execuções ativas por `environment`; expira acima do teto.  
 - **Índices**: `index(environment, status, enqueued_at)`, `index(tenant_id, status)`.  
 - **RLS**: por environment/tenant, alinhado às políticas de tenant; operações de lock usam advisory lock em conjunto com a fila.
@@ -78,7 +78,7 @@
 
 ## BudgetRateLimit
 - **Tabela**: `tenancy_seed_budget_ratelimit`.  
-- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_profile_id` (FK), `environment` (`dev|staging|perf|dr|prod`), `rate_limit_limit` (int), `rate_limit_window_seconds` (int), `budget_cost_cap` (numeric(14,2)), `budget_cost_estimated` (numeric(14,2)), `budget_cost_actual` (numeric(14,2)), `error_budget` (numeric(5,2)), `rate_limit_remaining` (int), `reset_at` (timestamptz), `consumed_at` (timestamptz), `throughput_target_rps` (numeric), `budget_alert_at_pct` (numeric default 80.00), `cost_model_version` (texto), `cost_window_started_at` (timestamptz), `cost_window_ends_at` (timestamptz).  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_profile_id` (FK), `environment` (`dev|homolog|staging|perf|dr|prod`), `rate_limit_limit` (int), `rate_limit_window_seconds` (int), `budget_cost_cap` (numeric(14,2)), `budget_cost_estimated` (numeric(14,2)), `budget_cost_actual` (numeric(14,2)), `error_budget` (numeric(5,2)), `rate_limit_remaining` (int), `reset_at` (timestamptz), `consumed_at` (timestamptz), `throughput_target_rps` (numeric), `budget_alert_at_pct` (numeric default 80.00), `cost_model_version` (texto), `cost_window_started_at` (timestamptz), `cost_window_ends_at` (timestamptz).  
 - **Constraints**: valores não negativos; alertar em `budget_alert_at_pct`, abort se `rate_limit_remaining` < 0 ou `error_budget` >= 100; `budget_cost_actual`/`budget_cost_estimated` >= 0.  
 - **Índices**: `index(tenant_id, seed_profile_id)`, `index(tenant_id, reset_at)`, `index(environment, reset_at)`, `index(environment, cost_window_ends_at)`.  
 - **RLS**: por tenant; atualizado em cada lote/ack.
@@ -86,7 +86,7 @@
 
 ## SeedIdempotency
 - **Tabela**: `tenancy_seed_idempotency`.  
-- **Campos**: `id` (UUID PK), `tenant_id` (FK), `environment` (`dev|staging|perf|dr|prod`), `idempotency_key` (texto), `manifest_hash_sha256` (texto), `mode` (`baseline|carga|dr|canary`), `seed_run_id` (FK opcional para reutilização), `expires_at` (timestamptz), `created_at` (timestamptz default now).  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `environment` (`dev|homolog|staging|perf|dr|prod`), `idempotency_key` (texto), `manifest_hash_sha256` (texto), `mode` (`baseline|carga|dr|canary`), `seed_run_id` (FK opcional para reutilização), `expires_at` (timestamptz), `created_at` (timestamptz default now).  
 - **Constraints**: `unique(tenant_id, environment, idempotency_key)` com TTL (GC 24h via Argo Cron); `expires_at > created_at`; se `seed_run_id` presente, `manifest_hash_sha256` deve casar com o run.  
 - **Índices**: `index(tenant_id, environment, expires_at)`, `index(manifest_hash_sha256)` para reuso rápido.  
 - **RLS**: por tenant; bloqueia acesso cruzado e evita dedupe entre tenants.  
@@ -94,7 +94,7 @@
 
 ## SeedRBAC
 - **Tabela**: `tenancy_seed_rbac`.  
-- **Campos**: `id` (UUID PK), `tenant_id` (FK), `environment` (`dev|staging|perf|dr|prod`), `subject` (texto; service account ou user id), `role` enum (`seed-runner`, `seed-admin`, `seed-read`), `policy_version` (SemVer), `created_at` (timestamptz).  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `environment` (`dev|homolog|staging|perf|dr|prod`), `subject` (texto; service account ou user id), `role` enum (`seed-runner`, `seed-admin`, `seed-read`), `policy_version` (SemVer), `created_at` (timestamptz).  
 - **Constraints**: `unique(tenant_id, environment, subject)`; role enum fechada; `policy_version` obrigatório.  
 - **Índices**: `index(tenant_id, environment, role)`, `index(tenant_id, subject)`.  
 - **RLS**: por tenant; leitura/escrita restrita ao admin de tenant.  

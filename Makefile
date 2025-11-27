@@ -2,7 +2,7 @@
 ## IABank — Atalhos de DX (delegam para scripts existentes)
 ##
 
-.PHONY: help up down ps logs lint test test\:frontend test\:backend openapi contracts\:verify perf\:smoke sbom baseline
+.PHONY: help up down ps logs lint test test\:frontend test\:backend openapi contracts\:verify perf\:smoke sbom baseline seed-data\:lint seed-data\:dry-run seed-data\:contracts
 
 help: ## Mostra esta ajuda
 	@grep -E '^[a-zA-Z0-9_.:\\-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -41,6 +41,15 @@ openapi: ## Lint + diff + codegen dos contratos OpenAPI
 
 contracts\:verify: ## Verifica contratos (OpenAPI + Pact)
 	pnpm contracts:verify
+
+seed-data\:lint: ## Lint/diff de contratos seed_data + validação de manifestos/caps Q11
+	./scripts/ci/seed-data-lint.sh
+
+seed-data\:contracts: ## Gate de contratos seed_data (Spectral/oasdiff + stub Pact)
+	./scripts/ci/validate-seed-contracts.sh
+
+seed-data\:dry-run: ## Dry-run do comando seed_data com stub seguro e fail-close de telemetria
+	./scripts/ci/seed-data-dry-run.sh
 
 perf\:smoke: ## Teste de performance (k6) em modo local
 	pnpm perf:smoke:local

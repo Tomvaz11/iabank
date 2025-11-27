@@ -4,8 +4,16 @@ on:
   pull_request:
     paths:
       - 'contracts/**'
+      - 'configs/seed_profiles/**'
       - '.github/workflows/ci-contracts.yml'
+      - 'scripts/ci/seed-data-*.sh'
+      - 'scripts/ci/seed-manifest-validate.js'
+      - 'scripts/ci/validate-seed-contracts.sh'
       - 'scripts/api/check_rate_headers.sh'
+      - 'contracts/pacts/financial-calculator.json'
+      - 'specs/003-seed-data-automation/contracts/**'
+      - 'contracts/seed-data.openapi.yaml'
+      - 'contracts/seed-profile.schema.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
   workflow_dispatch:
@@ -89,6 +97,11 @@ jobs:
             export PATH="$INSTALL_DIR:$PATH"
           fi
           oasdiff --version || true
+        shell: bash
+
+      - name: Seed-data contracts lint/diff
+        run: |
+          ./scripts/ci/validate-seed-contracts.sh
         shell: bash
 
       - name: Spectral lint (via pnpm openapi:lint)

@@ -1,17 +1,17 @@
 metadata:
   tenant: tenant-a
-  environment: staging
+  environment: perf
   profile: baseline
-  version: 1.1.0
+  version: 1.0.0
   schema_version: v1
   salt_version: 2025-q1
 
 mode: baseline
-reference_datetime: "2025-01-10T00:00:00Z"
+reference_datetime: "2025-01-20T00:00:00Z"
 
 window:
-  start_utc: "22:00"
-  end_utc: "06:00"
+  start_utc: "21:30"
+  end_utc: "05:30"
 
 volumetry:
   tenant_users:
@@ -60,9 +60,9 @@ ttl:
   dr_days: 3
 
 slo:
-  p95_target_ms: 5000
-  p99_target_ms: 8000
-  throughput_target_rps: 10.0
+  p95_target_ms: 4800
+  p99_target_ms: 7800
+  throughput_target_rps: 12.0
 
 integrity:
-  manifest_hash: "3a760b3659f1c27ccde8777c70724e9a2d4f641c27d4d20f05e010f3015542fd"
+  manifest_hash: "2dc7774035e9bb65049bbf45cd133279a36f2511901b8450093650b62f02a30c"

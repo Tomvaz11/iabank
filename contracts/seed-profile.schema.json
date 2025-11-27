@@ -1,0 +1,401 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iabank.local/contracts/seed-profile.schema.json",
+  "title": "Seed Profile Manifest v1",
+  "description": "Manifesto v1 para execuções determinísticas de seed_data (baseline/carga/DR/canary) multi-tenant.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "metadata",
+    "mode",
+    "reference_datetime",
+    "window",
+    "volumetry",
+    "rate_limit",
+    "backoff",
+    "budget",
+    "ttl",
+    "slo",
+    "integrity"
+  ],
+  "properties": {
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tenant",
+        "environment",
+        "profile",
+        "version",
+        "schema_version",
+        "salt_version"
+      ],
+      "properties": {
+        "tenant": {
+          "type": "string",
+          "minLength": 1
+        },
+        "environment": {
+          "type": "string",
+          "enum": ["dev", "homolog", "staging", "perf", "dr", "prod"]
+        },
+        "profile": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Versão SemVer do manifesto.",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[0-9A-Za-z\\.-]+)?$"
+        },
+        "schema_version": {
+          "type": "string",
+          "enum": ["v1"]
+        },
+        "salt_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["baseline", "carga", "dr", "canary"]
+    },
+    "reference_datetime": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC; mudança é breaking e exige reseed."
+    },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_utc", "end_utc"],
+      "properties": {
+        "start_utc": {
+          "type": "string",
+          "pattern": "^\\d{2}:\\d{2}$",
+          "description": "HH:MM UTC; única janela diária."
+        },
+        "end_utc": {
+          "type": "string",
+          "pattern": "^\\d{2}:\\d{2}$",
+          "description": "HH:MM UTC; se end < start, cruza meia-noite."
+        }
+      }
+    },
+    "volumetry": {
+      "type": "object",
+      "description": "Caps Q11 por entidade; rejeita chaves fora do catálogo.",
+      "propertyNames": {
+        "enum": [
+          "tenant_users",
+          "customers",
+          "addresses",
+          "consultants",
+          "bank_accounts",
+          "account_categories",
+          "suppliers",
+          "loans",
+          "installments",
+          "financial_transactions",
+          "limits",
+          "contracts"
+        ]
+      },
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["cap"],
+        "properties": {
+          "cap": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "target_pct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          }
+        }
+      }
+    },
+    "rate_limit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["limit", "window_seconds"],
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "window_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "burst": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "description": "Limite de requests por janela; burst opcional deve ser >= limit."
+    },
+    "backoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base_seconds", "jitter_factor", "max_retries", "max_interval_seconds"],
+      "properties": {
+        "base_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "jitter_factor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_retries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "max_interval_seconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "allOf": [
+        {
+          "description": "max_interval_seconds deve ser >= base_seconds.",
+          "properties": {
+            "max_interval_seconds": {
+              "minimum": 1
+            }
+          }
+        }
+      ]
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cost_cap_brl", "error_budget_pct"],
+      "properties": {
+        "cost_cap_brl": {
+          "type": "number",
+          "minimum": 0,
+          "multipleOf": 0.01
+        },
+        "error_budget_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    },
+    "ttl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseline_days", "carga_days", "dr_days"],
+      "properties": {
+        "baseline_days": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "carga_days": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dr_days": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "slo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["p95_target_ms", "p99_target_ms", "throughput_target_rps"],
+      "properties": {
+        "p95_target_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "p99_target_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "throughput_target_rps": {
+          "type": "number",
+          "minimum": 0.1
+        }
+      }
+    },
+    "canary": {
+      "description": "Obrigatório quando mode = canary.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["percentage"],
+          "properties": {
+            "percentage": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tenants"],
+          "properties": {
+            "tenants": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        }
+      ]
+    },
+    "integrity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["manifest_hash"],
+      "properties": {
+        "manifest_hash": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$",
+          "description": "sha256 do manifesto bruto."
+        }
+      }
+    },
+    "caps_override": {
+      "type": "object",
+      "description": "Opcional para ambientes de teste controlados; mesmas chaves de volumetry.",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": { "const": "canary" }
+        }
+      },
+      "then": {
+        "required": ["canary"]
+      },
+      "else": {
+        "properties": {
+          "canary": { "not": {} }
+        }
+      }
+    }
+  ],
+  "examples": [
+    {
+      "metadata": {
+        "tenant": "tenant-a",
+        "environment": "staging",
+        "profile": "default",
+        "version": "1.0.0",
+        "schema_version": "v1",
+        "salt_version": "2025-q1"
+      },
+      "mode": "baseline",
+      "reference_datetime": "2025-01-01T00:00:00Z",
+      "window": { "start_utc": "22:00", "end_utc": "06:00" },
+      "volumetry": {
+        "customers": { "cap": 5000 },
+        "bank_accounts": { "cap": 5000 },
+        "financial_transactions": { "cap": 50000 }
+      },
+      "rate_limit": { "limit": 600, "window_seconds": 60 },
+      "backoff": { "base_seconds": 1, "jitter_factor": 0.3, "max_retries": 5, "max_interval_seconds": 30 },
+      "budget": { "cost_cap_brl": 25.0, "error_budget_pct": 5.0 },
+      "ttl": { "baseline_days": 30, "carga_days": 7, "dr_days": 3 },
+      "slo": { "p95_target_ms": 5000, "p99_target_ms": 8000, "throughput_target_rps": 5.0 },
+      "integrity": { "manifest_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" }
+    },
+    {
+      "metadata": {
+        "tenant": "tenant-b",
+        "environment": "perf",
+        "profile": "load-test",
+        "version": "1.2.0",
+        "schema_version": "v1",
+        "salt_version": "2025-q1"
+      },
+      "mode": "carga",
+      "reference_datetime": "2025-01-15T00:00:00Z",
+      "window": { "start_utc": "01:00", "end_utc": "05:00" },
+      "volumetry": {
+        "customers": { "cap": 20000, "target_pct": 70 },
+        "financial_transactions": { "cap": 1000000, "target_pct": 100 }
+      },
+      "rate_limit": { "limit": 1200, "window_seconds": 60, "burst": 1500 },
+      "backoff": { "base_seconds": 2, "jitter_factor": 0.5, "max_retries": 6, "max_interval_seconds": 60 },
+      "budget": { "cost_cap_brl": 50.0, "error_budget_pct": 10.0 },
+      "ttl": { "baseline_days": 30, "carga_days": 7, "dr_days": 3 },
+      "slo": { "p95_target_ms": 8000, "p99_target_ms": 12000, "throughput_target_rps": 20.0 },
+      "integrity": { "manifest_hash": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210" }
+    },
+    {
+      "metadata": {
+        "tenant": "tenant-c",
+        "environment": "dr",
+        "profile": "dr-recovery",
+        "version": "2.0.0",
+        "schema_version": "v1",
+        "salt_version": "2025-q1"
+      },
+      "mode": "dr",
+      "reference_datetime": "2025-02-01T00:00:00Z",
+      "window": { "start_utc": "23:00", "end_utc": "04:00" },
+      "volumetry": {
+        "customers": { "cap": 10000 },
+        "loans": { "cap": 3000 },
+        "installments": { "cap": 12000 }
+      },
+      "rate_limit": { "limit": 600, "window_seconds": 60 },
+      "backoff": { "base_seconds": 1, "jitter_factor": 0.4, "max_retries": 5, "max_interval_seconds": 45 },
+      "budget": { "cost_cap_brl": 25.0, "error_budget_pct": 8.0 },
+      "ttl": { "baseline_days": 30, "carga_days": 7, "dr_days": 3 },
+      "slo": { "p95_target_ms": 6000, "p99_target_ms": 9000, "throughput_target_rps": 8.0 },
+      "integrity": { "manifest_hash": "abcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcdefabcd" }
+    },
+    {
+      "metadata": {
+        "tenant": "tenant-d",
+        "environment": "staging",
+        "profile": "canary-10",
+        "version": "1.1.0",
+        "schema_version": "v1",
+        "salt_version": "2025-q1"
+      },
+      "mode": "canary",
+      "reference_datetime": "2025-03-01T00:00:00Z",
+      "window": { "start_utc": "22:00", "end_utc": "06:00" },
+      "volumetry": {
+        "customers": { "cap": 1000 },
+        "financial_transactions": { "cap": 10000 }
+      },
+      "rate_limit": { "limit": 600, "window_seconds": 60 },
+      "backoff": { "base_seconds": 1, "jitter_factor": 0.3, "max_retries": 4, "max_interval_seconds": 30 },
+      "budget": { "cost_cap_brl": 10.0, "error_budget_pct": 5.0 },
+      "ttl": { "baseline_days": 30, "carga_days": 7, "dr_days": 3 },
+      "slo": { "p95_target_ms": 5000, "p99_target_ms": 7000, "throughput_target_rps": 5.0 },
+      "canary": { "percentage": 10 },
+      "integrity": { "manifest_hash": "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff" }
+    }
+  ]
+}
