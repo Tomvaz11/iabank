@@ -6,7 +6,7 @@ from typing import Iterable, Iterator, Optional, Union
 from uuid import UUID
 import uuid
 
-from django.db import models
+from django.db import connection, models
 
 TenantIdentifier = Union[str, UUID]
 
@@ -31,6 +31,7 @@ def _parse_tenant_id(value: TenantIdentifier) -> UUID:
 @contextmanager
 def use_tenant(tenant_id: TenantIdentifier) -> Iterator[str]:
     token = _current_tenant.set(_normalize_tenant_id(tenant_id))
+    _set_tenant_guc(_normalize_tenant_id(tenant_id))
     try:
         yield _normalize_tenant_id(tenant_id)
     finally:
@@ -47,14 +48,18 @@ class TenantManager(models.Manager.from_queryset(TenantQuerySet)):  # type: igno
 
     def _require_tenant(self, tenant: Optional[TenantIdentifier] = None) -> UUID:
         if tenant is not None:
-            return _parse_tenant_id(tenant)
+            tenant_id = _parse_tenant_id(tenant)
+            _set_tenant_guc(_normalize_tenant_id(tenant_id))
+            return tenant_id
 
         current = _current_tenant.get()
         if current is None:
             raise TenantContextError(
                 'Tenant não definido no contexto. Use `use_tenant` para estabelecer o escopo.',
             )
-        return _parse_tenant_id(current)
+        tenant_id = _parse_tenant_id(current)
+        _set_tenant_guc(_normalize_tenant_id(tenant_id))
+        return tenant_id
 
     def get_queryset(self) -> TenantQuerySet:  # type: ignore[override]
         tenant_id = self._require_tenant()
@@ -83,3 +88,15 @@ class TenantManager(models.Manager.from_queryset(TenantQuerySet)):  # type: igno
         if 'tenant_id' not in kwargs and 'tenant' not in kwargs:
             kwargs['tenant_id'] = self._require_tenant()
         return self.unscoped().update_or_create(defaults=defaults, **kwargs)
+
+
+def _set_tenant_guc(tenant_id: str) -> None:
+    """
+    Propaga o tenant atual para o GUC utilizado pelas políticas de RLS no banco.
+    """
+    engine = connection.settings_dict.get('ENGINE', '')
+    if 'postgresql' not in engine:
+        return
+
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT set_config('iabank.current_tenant_id', %s, false)", [tenant_id])

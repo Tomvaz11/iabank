@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     'ratelimit',
     'backend.apps.contracts',
     'backend.apps.tenancy',
+    'backend.apps.banking',
     'backend.apps.foundation',
 ]
 
