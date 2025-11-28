@@ -114,6 +114,7 @@ jobs:
       SEED_VUS: 10
       SEED_MAX_VUS: 20
       SEED_SLEEP: 0.1
+      DJANGO_SETTINGS_MODULE: backend.config.settings
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -142,6 +143,8 @@ jobs:
       - name: Garantir tenant para perf
         run: |
           poetry run python - <<'PY'
+          import django
+          django.setup()
           from backend.apps.tenancy.models import Tenant
 
           Tenant.objects.update_or_create(
