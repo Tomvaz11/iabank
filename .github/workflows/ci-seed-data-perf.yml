@@ -1,0 +1,186 @@
+name: CI - seed_data perf
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+      - 'release/**'
+      - '[0-9][0-9][0-9]-*'
+      - 'chore/**'
+    paths:
+      - 'backend/**'
+      - 'observabilidade/k6/**'
+      - 'configs/seed_profiles/**'
+      - '.github/workflows/ci-seed-data-perf.yml'
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+      - '[0-9][0-9][0-9]-*'
+      - 'chore/**'
+    paths:
+      - 'backend/**'
+      - 'observabilidade/k6/**'
+      - 'configs/seed_profiles/**'
+      - '.github/workflows/ci-seed-data-perf.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Changeset (seed perf)
+    runs-on: ubuntu-latest
+    outputs:
+      seed: ${{ steps.filter.outputs.seed }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: filter
+        name: Detectar mudanças relevantes
+        uses: dorny/paths-filter@v3
+        with:
+          token: ${{ github.token }}
+          filters: |
+            seed:
+              - 'backend/**'
+              - 'observabilidade/k6/**'
+              - 'configs/seed_profiles/**'
+              - '.github/workflows/ci-seed-data-perf.yml'
+
+  perf:
+    name: k6 seed_data load/DR
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.seed == 'true' || github.event_name == 'workflow_dispatch' }}
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: foundation
+          POSTGRES_USER: foundation
+          POSTGRES_PASSWORD: foundation
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U foundation -d foundation"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 6
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 6
+    env:
+      FOUNDATION_DB_VENDOR: postgresql
+      FOUNDATION_DB_HOST: localhost
+      FOUNDATION_DB_PORT: 5432
+      FOUNDATION_DB_NAME: foundation
+      FOUNDATION_DB_USER: foundation
+      FOUNDATION_DB_PASSWORD: foundation
+      CELERY_BROKER_URL: redis://localhost:6379/0
+      CELERY_RESULT_BACKEND: redis://localhost:6379/0
+      SEED_BASE_URL: http://127.0.0.1:8000
+      SEED_VALIDATE_URL: http://127.0.0.1:8000/api/v1/seed-profiles/validate
+      SEED_RUNS_URL: http://127.0.0.1:8000/api/v1/seed-runs
+      SEED_TENANT_ID: tenant-a
+      SEED_ENVIRONMENT: staging
+      SEED_MODE: carga
+      SEED_MANIFEST_PATH: configs/seed_profiles/staging/tenant-a-carga.yaml
+      SEED_PROFILE: tenant-a-carga
+      SEED_WORM_PROOF: stub-worm-evidence
+      SEED_COST_MODEL_VERSION: 2025-01-15
+      SEED_START_RPS: 5
+      SEED_TARGET_RPS: 10
+      SEED_RAMP_DURATION: 45s
+      SEED_SUSTAIN_DURATION: 1m
+      SEED_VUS: 10
+      SEED_MAX_VUS: 20
+      SEED_SLEEP: 0.1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: pip install poetry==1.8.3
+
+      - name: Install dependencies
+        run: |
+          poetry config virtualenvs.create false
+          poetry install --no-interaction --no-ansi --no-root
+
+      - name: Aplicar migrations
+        run: poetry run python backend/manage.py migrate --noinput
+
+      - name: Popular tenants base
+        run: poetry run python backend/manage.py seed_foundation_tenants --force
+
+      - name: Garantir tenant para perf
+        run: |
+          poetry run python - <<'PY'
+          from backend.apps.tenancy.models import Tenant
+
+          Tenant.objects.update_or_create(
+              slug='tenant-a',
+              defaults={
+                  'display_name': 'Tenant A',
+                  'primary_domain': 'tenant-a.iabank.local',
+                  'pii_policy_version': 'v1',
+                  'status': Tenant.Status.PRODUCTION,
+              },
+          )
+          PY
+
+      - name: Iniciar backend (dev server)
+        run: |
+          nohup poetry run python backend/manage.py runserver 0.0.0.0:8000 >/tmp/django.log 2>&1 &
+          echo $! > /tmp/django.pid
+          sleep 8
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Executar k6 carga/DR
+        run: |
+          mkdir -p artifacts/perf
+          k6 run --summary-export=artifacts/perf/seed-data-load.json observabilidade/k6/seed-data-load.js
+
+      - name: Publicar resultados k6
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: seed-data-load-k6
+          path: artifacts/perf/seed-data-load.json
+          if-no-files-found: ignore
+
+      - name: Encerrar backend e logs
+        if: always()
+        run: |
+          if [ -f /tmp/django.pid ]; then
+            kill "$(cat /tmp/django.pid)" || true
+          fi
+          tail -n 50 /tmp/django.log || true

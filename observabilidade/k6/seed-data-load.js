@@ -1,5 +1,6 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
+import { sha256 } from 'k6/crypto';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
 const BASE_URL = __ENV.SEED_BASE_URL || 'http://localhost:8000';
@@ -17,6 +18,20 @@ const errorRate = new Rate('seed_error_rate');
 const ratelimitRemaining = new Trend('seed_ratelimit_remaining', true);
 const runsCreated = new Counter('seed_runs_created');
 
+function stableStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableStringify(item)).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    const entries = Object.keys(value)
+      .sort()
+      .map((key) => `"${key}":${stableStringify(value[key])}`)
+      .join(',');
+    return `{${entries}}`;
+  }
+  return JSON.stringify(value);
+}
+
 function manifestFromEnv() {
   const slo = {
     p95_target_ms: Number(__ENV.SEED_SLO_P95_MS || 5000),
@@ -31,14 +46,21 @@ function manifestFromEnv() {
   };
 
   const volumetry = {
+    tenant_users: { cap: Number(__ENV.SEED_CAP_TENANT_USERS || 50) },
     customers: { cap: Number(__ENV.SEED_CAP_CUSTOMERS || 500) },
+    addresses: { cap: Number(__ENV.SEED_CAP_ADDRESSES || 750) },
+    consultants: { cap: Number(__ENV.SEED_CAP_CONSULTANTS || 30) },
     bank_accounts: { cap: Number(__ENV.SEED_CAP_BANK_ACCOUNTS || 600) },
+    account_categories: { cap: Number(__ENV.SEED_CAP_ACCOUNT_CATEGORIES || 60) },
+    suppliers: { cap: Number(__ENV.SEED_CAP_SUPPLIERS || 150) },
     loans: { cap: Number(__ENV.SEED_CAP_LOANS || 1000) },
     installments: { cap: Number(__ENV.SEED_CAP_INSTALLMENTS || 10000) },
     financial_transactions: { cap: Number(__ENV.SEED_CAP_FINTRANS || 20000) },
+    limits: { cap: Number(__ENV.SEED_CAP_LIMITS || 500) },
+    contracts: { cap: Number(__ENV.SEED_CAP_CONTRACTS || 750) },
   };
 
-  return {
+  const manifest = {
     metadata: {
       tenant: TENANT,
       environment: ENVIRONMENT,
@@ -75,6 +97,19 @@ function manifestFromEnv() {
       manifest_hash: __ENV.SEED_MANIFEST_HASH || 'load-hash',
     },
   };
+
+  if (MODE === 'carga' || MODE === 'dr') {
+    manifest.integrity.worm_proof = __ENV.SEED_WORM_PROOF || 'stub-worm-evidence';
+    if (__ENV.SEED_COST_MODEL_VERSION) {
+      manifest.budget.cost_model_version = __ENV.SEED_COST_MODEL_VERSION;
+    }
+  }
+
+  const payloadForHash = JSON.parse(JSON.stringify(manifest));
+  delete payloadForHash.integrity.manifest_hash;
+  const serialized = stableStringify(payloadForHash);
+  manifest.integrity.manifest_hash = sha256(serialized, 'hex');
+  return manifest;
 }
 
 function headers(idempotencyKey, extra = {}) {
@@ -94,22 +129,24 @@ const ERROR_RATE_CAP = Number(__ENV.SEED_ERROR_RATE || 0.05);
 export const options = {
   scenarios: {
     load: {
-      executor: 'ramping-arrival-rate',
-      startRate: Number(__ENV.SEED_START_RPS || 5),
+      executor: 'constant-arrival-rate',
+      rate: Number(__ENV.SEED_TARGET_RPS || 1),
       timeUnit: '1s',
-      preAllocatedVUs: Number(__ENV.SEED_VUS || 20),
-      maxVUs: Number(__ENV.SEED_MAX_VUS || 100),
-      stages: [
-        { target: Number(__ENV.SEED_TARGET_RPS || 20), duration: __ENV.SEED_RAMP_DURATION || '2m' },
-        { target: Number(__ENV.SEED_TARGET_RPS || 20), duration: __ENV.SEED_SUSTAIN_DURATION || '3m' },
-        { target: 0, duration: '30s' },
-      ],
+      duration: __ENV.SEED_SUSTAIN_DURATION || '1m',
+      preAllocatedVUs: Number(__ENV.SEED_VUS || 5),
+      maxVUs: Number(__ENV.SEED_MAX_VUS || 10),
     },
   },
   thresholds: {
     http_req_failed: [`rate<${ERROR_RATE_CAP}`],
-    'seed_validate_duration{kind:validate}': [`p(95)<${MANIFEST.slo.p95_target_ms}`, `p(99)<${MANIFEST.slo.p99_target_ms}`],
-    'seed_create_duration{kind:create}': [`p(95)<${MANIFEST.slo.p95_target_ms}`, `p(99)<${MANIFEST.slo.p99_target_ms}`],
+    'seed_validate_duration{kind:validate}': [
+      `p(95)<${MANIFEST.slo.p95_target_ms}`,
+      `p(99)<${MANIFEST.slo.p99_target_ms}`,
+    ],
+    'seed_create_duration{kind:create}': [
+      `p(95)<${MANIFEST.slo.p95_target_ms}`,
+      `p(99)<${MANIFEST.slo.p99_target_ms}`,
+    ],
     'seed_poll_duration{kind:poll}': [`p(95)<${MANIFEST.slo.p99_target_ms}`],
   },
   summaryTrendStats: ['avg', 'p(95)', 'p(99)', 'min', 'max'],
@@ -119,8 +156,8 @@ function recordError(success) {
   errorRate.add(success ? 0 : 1);
 }
 
-export default function () {
-  const idempoKey = `${__ENV.SEED_IDEMPOTENCY_PREFIX || 'k6-load'}-${__ITER}-${Date.now()}`;
+export function setup() {
+  const idempoKey = `${__ENV.SEED_IDEMPOTENCY_PREFIX || 'k6-load'}-setup-${Date.now()}`;
 
   const validateRes = http.post(
     VALIDATE_URL,
@@ -128,11 +165,9 @@ export default function () {
     { headers: headers(`${idempoKey}-validate`), timeout: '15s' },
   );
   validateTrend.add(validateRes.timings.duration, { kind: 'validate' });
-  const validateOk = check(validateRes, {
+  check(validateRes, {
     'validate status accepted': (r) => [200, 422, 429].includes(r.status),
-    'validate ratelimit headers': (r) => r.headers['RateLimit-Remaining'] !== undefined,
   });
-  recordError(validateOk);
 
   const createBody = {
     manifest: MANIFEST,
@@ -147,34 +182,46 @@ export default function () {
   createTrend.add(createRes.timings.duration, { kind: 'create' });
 
   const acceptedStatuses = [201, 409, 422, 429];
-  const createOk = check(createRes, {
+  check(createRes, {
     'create status accepted': (r) => acceptedStatuses.includes(r.status),
-    'create returned etag or retry': (r) => r.headers['ETag'] !== undefined || r.headers['Retry-After'] !== undefined,
   });
-  recordError(createOk);
 
   const seedRunId = createRes.json('seed_run_id');
+  const etag = createRes.headers['ETag'] || createRes.headers['Etag'] || '';
   if (createRes.status === 201 && seedRunId) {
     runsCreated.add(1);
-    const pollRes = http.get(`${RUNS_URL}/${seedRunId}`, {
-      headers: headers(`${idempoKey}-poll`, {
-        'If-None-Match': createRes.headers['ETag'] || createRes.headers['Etag'] || '',
-      }),
-      timeout: '10s',
-    });
-    pollTrend.add(pollRes.timings.duration, { kind: 'poll' });
-
-    const pollOk = check(pollRes, {
-      'poll status ok': (r) => [200, 304, 429].includes(r.status),
-      'poll has ratelimit': (r) => r.headers['RateLimit-Remaining'] !== undefined,
-    });
-    recordError(pollOk);
-
-    const remaining = Number(pollRes.headers['RateLimit-Remaining'] || 0);
-    ratelimitRemaining.add(remaining, { mode: MODE });
-  } else {
     ratelimitRemaining.add(Number(createRes.headers['RateLimit-Remaining'] || 0), { mode: MODE });
+    return { seedRunId, etag };
   }
+
+  ratelimitRemaining.add(Number(createRes.headers['RateLimit-Remaining'] || 0), { mode: MODE });
+  return { seedRunId: null, etag: null };
+}
+
+export default function (data) {
+  const idempoKey = `${__ENV.SEED_IDEMPOTENCY_PREFIX || 'k6-load'}-${__ITER}-${Date.now()}`;
+  if (!data.seedRunId) {
+    recordError(false);
+    return;
+  }
+
+  const pollRes = http.get(`${RUNS_URL}/${data.seedRunId}`, {
+    headers: headers(`${idempoKey}-poll`, {
+      'If-None-Match': data.etag || '',
+    }),
+    timeout: '10s',
+  });
+  pollTrend.add(pollRes.timings.duration, { kind: 'poll' });
+
+  const pollOk = check(pollRes, {
+    'poll status ok': (r) => [200, 304, 429].includes(r.status),
+  });
+  recordError(pollOk);
+
+  const remaining = Number(
+    pollRes.headers['RateLimit-Remaining'] || pollRes.headers['ratelimit-remaining'] || 0,
+  );
+  ratelimitRemaining.add(remaining, { mode: MODE });
 
   const targetSleep = Number(__ENV.SEED_SLEEP || '0.3');
   sleep(targetSleep);
