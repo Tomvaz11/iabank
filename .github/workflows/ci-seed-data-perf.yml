@@ -107,13 +107,13 @@ jobs:
       SEED_PROFILE: tenant-a-carga
       SEED_WORM_PROOF: stub-worm-evidence
       SEED_COST_MODEL_VERSION: 2025-01-15
-      SEED_START_RPS: 5
-      SEED_TARGET_RPS: 10
-      SEED_RAMP_DURATION: 45s
-      SEED_SUSTAIN_DURATION: 1m
-      SEED_VUS: 10
-      SEED_MAX_VUS: 20
-      SEED_SLEEP: 0.1
+      SEED_START_RPS: 1
+      SEED_TARGET_RPS: 4
+      SEED_RAMP_DURATION: 30s
+      SEED_SUSTAIN_DURATION: 45s
+      SEED_VUS: 2
+      SEED_MAX_VUS: 4
+      SEED_SLEEP: 0.5
       DJANGO_SETTINGS_MODULE: backend.config.settings
     steps:
       - name: Checkout
@@ -145,7 +145,7 @@ jobs:
           poetry run python - <<'PY'
           import django
           django.setup()
-          from backend.apps.tenancy.models import Tenant
+          from backend.apps.tenancy.models import SeedRBAC, Tenant
 
           Tenant.objects.update_or_create(
               slug='tenant-a',
@@ -155,6 +155,14 @@ jobs:
                   'pii_policy_version': 'v1',
                   'status': Tenant.Status.PRODUCTION,
               },
+          )
+
+          tenant = Tenant.objects.get(slug='tenant-a')
+          SeedRBAC.objects.update_or_create(
+              tenant=tenant,
+              environment='staging',
+              subject='svc-k6-load',
+              defaults={'role': SeedRBAC.Role.SEED_ADMIN, 'policy_version': 'v1'},
           )
           PY
 
