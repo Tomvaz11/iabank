@@ -129,7 +129,11 @@ class SeedWormService:
         Constrói, assina, persiste e verifica o relatório WORM.
         Retorna ProblemDetail em caso de falha (fail-close).
         """
-        if seed_run.dry_run and not self.enforce_on_dry_run:
+        retention_problem = self._retention_problem(retention_days)
+        if retention_problem:
+            return SeedWormOutcome(report={}, evidence=None, problem=retention_problem)
+
+        if self._skip_on_dry_run(seed_run):
             report = self._build_report(
                 seed_run=seed_run,
                 manifest=manifest,
@@ -141,15 +145,6 @@ class SeedWormService:
                 extra_metadata=extra_metadata or {},
             )
             return SeedWormOutcome(report=report, evidence=None, problem=None)
-
-        if retention_days < self.min_retention_days:
-            problem = ProblemDetail(
-                status=HTTPStatus.SERVICE_UNAVAILABLE,
-                title='worm_retention_too_low',
-                detail=f'Retenção WORM abaixo do mínimo exigido ({retention_days}d < {self.min_retention_days}d).',
-                type='https://iabank.local/problems/seed/worm-retention',
-            )
-            return SeedWormOutcome(report={}, evidence=None, problem=problem)
 
         checklist = self._checklist_payload(checklist_results)
         status_label = 'failed' if checklist['summary']['failed'] else 'succeeded'
@@ -166,61 +161,22 @@ class SeedWormService:
 
         digest = self._hash(report)
         signature = self.signer.sign(digest=digest)
-        serialized = json.dumps(report, sort_keys=True, ensure_ascii=False).encode('utf-8')
-        url = self.storage.upload(
-            content=serialized,
+        url = self._upload_report(seed_run, serialized=json.dumps(report, sort_keys=True, ensure_ascii=False).encode('utf-8'), retention_days=retention_days)
+
+        integrity_ok = self._verify_integrity(url=url, digest=digest, signature=signature)
+        evidence = self._persist_evidence(
+            seed_run=seed_run,
+            url=url,
+            digest=digest,
+            signature=signature,
             retention_days=retention_days,
-            metadata={
-                'seed_run_id': str(seed_run.id),
-                'environment': seed_run.environment,
-                'tenant_id': str(seed_run.tenant_id),
-            },
+            cost_model_version=cost_model_version,
+            cost_estimated_brl=cost_estimated_brl,
+            cost_actual_brl=cost_actual_brl,
+            integrity_ok=integrity_ok,
         )
 
-        stored_bytes = self.storage.retrieve(url)
-        stored_digest = self._hash(json.loads(stored_bytes.decode('utf-8')))
-        verified_signature = self.signer.verify(digest=stored_digest, signature=signature)
-        integrity_ok = stored_digest == digest and verified_signature
-
-        evidence_status = (
-            EvidenceWORM.IntegrityStatus.VERIFIED if integrity_ok else EvidenceWORM.IntegrityStatus.INVALID
-        )
-        with use_tenant(seed_run.tenant_id):
-            evidence, _ = EvidenceWORM.objects.update_or_create(
-                seed_run=seed_run,
-                defaults={
-                    'tenant': seed_run.tenant,
-                    'report_url': url,
-                    'signature_hash': digest,
-                    'signature_algo': signature.algorithm,
-                    'key_id': signature.key_id,
-                    'key_version': signature.key_version,
-                    'worm_retention_days': retention_days,
-                    'integrity_status': evidence_status,
-                    'integrity_verified_at': timezone.now(),
-                    'cost_model_version': cost_model_version,
-                    'cost_estimated_brl': Decimal(str(cost_estimated_brl or 0)),
-                    'cost_actual_brl': Decimal(str(cost_actual_brl or 0)),
-                },
-            )
-
-        problem = None
-        if not integrity_ok:
-            problem = ProblemDetail(
-                status=HTTPStatus.SERVICE_UNAVAILABLE,
-                title='worm_integrity_failed',
-                detail='Hash ou assinatura do relatório WORM não pôde ser verificada.',
-                type='https://iabank.local/problems/seed/worm-integrity',
-            )
-        elif checklist['summary']['failed']:
-            failed_ids = ','.join(sorted(checklist['summary']['failed_ids']))
-            problem = ProblemDetail(
-                status=HTTPStatus.FORBIDDEN,
-                title='worm_checklist_failed',
-                detail=f'Itens de checklist reprovados: {failed_ids}.',
-                type='https://iabank.local/problems/seed/worm-checklist',
-            )
-
+        problem = self._problem_for_outcome(integrity_ok=integrity_ok, checklist=checklist)
         return SeedWormOutcome(report=report, evidence=evidence, problem=problem)
 
     def _build_report(
@@ -297,6 +253,90 @@ class SeedWormService:
             'failed_ids': failed,
         }
         return {'items': items, 'summary': summary}
+
+    def _skip_on_dry_run(self, seed_run: SeedRun) -> bool:
+        return seed_run.dry_run and not self.enforce_on_dry_run
+
+    def _retention_problem(self, retention_days: int) -> ProblemDetail | None:
+        if retention_days >= self.min_retention_days:
+            return None
+        return ProblemDetail(
+            status=HTTPStatus.SERVICE_UNAVAILABLE,
+            title='worm_retention_too_low',
+            detail=f'Retenção WORM abaixo do mínimo exigido ({retention_days}d < {self.min_retention_days}d).',
+            type='https://iabank.local/problems/seed/worm-retention',
+        )
+
+    def _upload_report(self, seed_run: SeedRun, *, serialized: bytes, retention_days: int) -> str:
+        return self.storage.upload(
+            content=serialized,
+            retention_days=retention_days,
+            metadata={
+                'seed_run_id': str(seed_run.id),
+                'environment': seed_run.environment,
+                'tenant_id': str(seed_run.tenant_id),
+            },
+        )
+
+    def _verify_integrity(self, *, url: str, digest: str, signature: WormSignature) -> bool:
+        stored_bytes = self.storage.retrieve(url)
+        stored_digest = self._hash(json.loads(stored_bytes.decode('utf-8')))
+        verified_signature = self.signer.verify(digest=stored_digest, signature=signature)
+        return stored_digest == digest and verified_signature
+
+    def _persist_evidence(
+        self,
+        *,
+        seed_run: SeedRun,
+        url: str,
+        digest: str,
+        signature: WormSignature,
+        retention_days: int,
+        cost_model_version: str,
+        cost_estimated_brl: float | Decimal,
+        cost_actual_brl: float | Decimal,
+        integrity_ok: bool,
+    ) -> EvidenceWORM:
+        evidence_status = (
+            EvidenceWORM.IntegrityStatus.VERIFIED if integrity_ok else EvidenceWORM.IntegrityStatus.INVALID
+        )
+        with use_tenant(seed_run.tenant_id):
+            evidence, _ = EvidenceWORM.objects.update_or_create(
+                seed_run=seed_run,
+                defaults={
+                    'tenant': seed_run.tenant,
+                    'report_url': url,
+                    'signature_hash': digest,
+                    'signature_algo': signature.algorithm,
+                    'key_id': signature.key_id,
+                    'key_version': signature.key_version,
+                    'worm_retention_days': retention_days,
+                    'integrity_status': evidence_status,
+                    'integrity_verified_at': timezone.now(),
+                    'cost_model_version': cost_model_version,
+                    'cost_estimated_brl': Decimal(str(cost_estimated_brl or 0)),
+                    'cost_actual_brl': Decimal(str(cost_actual_brl or 0)),
+                },
+            )
+        return evidence
+
+    def _problem_for_outcome(self, *, integrity_ok: bool, checklist: Mapping[str, Any]) -> ProblemDetail | None:
+        if not integrity_ok:
+            return ProblemDetail(
+                status=HTTPStatus.SERVICE_UNAVAILABLE,
+                title='worm_integrity_failed',
+                detail='Hash ou assinatura do relatório WORM não pôde ser verificada.',
+                type='https://iabank.local/problems/seed/worm-integrity',
+            )
+        if checklist['summary']['failed']:
+            failed_ids = ','.join(sorted(checklist['summary']['failed_ids']))
+            return ProblemDetail(
+                status=HTTPStatus.FORBIDDEN,
+                title='worm_checklist_failed',
+                detail=f'Itens de checklist reprovados: {failed_ids}.',
+                type='https://iabank.local/problems/seed/worm-checklist',
+            )
+        return None
 
     def _load_checklist_template(self, path: Path) -> Sequence[dict[str, Any]]:
         if path.exists():

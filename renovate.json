@@ -33,7 +33,7 @@
     },
     {
       "matchManagers": ["poetry"],
-      "matchPaths": ["backend/**", "specs/003-seed-data-automation/**", "scripts/**"],
+      "matchFileNames": ["backend/**", "specs/003-seed-data-automation/**", "scripts/**"],
       "groupName": "seed-data python deps",
       "labels": ["seed-data", "dependencies", "security"],
       "prPriority": 2,
