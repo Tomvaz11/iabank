@@ -38,3 +38,10 @@ class SeedUtilsTest(SimpleTestCase):
         client = VaultTransitFPEClient(transit_path="transit/seeds/staging")
         with self.assertRaises(NotImplementedError):
             client.unmask("123", salt_version="2025-q1")
+
+    def test_unmask_allows_stub_when_flag_enabled(self) -> None:
+        client = VaultTransitFPEClient(
+            transit_path="transit/seeds/staging",
+            allow_stub_decrypt=True,
+        )
+        self.assertEqual("abc", client.unmask("abc", salt_version="2025-q1"))

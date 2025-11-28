@@ -81,13 +81,13 @@ Objetivo da história: Produzir factories factory-boy deterministicas com PII ma
 Critério de teste independente: factories geram payloads mascarados que passam validacao de serializers/contratos e mantem determinismo por tenant/ambiente/manifesto.
 
 ### Testes (executar antes da implementacao)
-- [ ] T035 [P] [US2] Validar determinismo/seed e mascaramento FPE das factories (PII nao vazada) (`backend/apps/banking/tests/test_factories_pii.py`)
-- [ ] T036 [P] [US2] Validar factories contra serializers/contratos `/api/v1` (payloads validos e sem drift) (`backend/apps/banking/tests/test_factories_contracts.py`)
+- [X] T035 [P] [US2] Validar determinismo/seed e mascaramento FPE das factories (PII nao vazada) (`backend/apps/banking/tests/test_factories_pii.py`)
+- [X] T036 [P] [US2] Validar factories contra serializers/contratos `/api/v1` (payloads validos e sem drift) (`backend/apps/banking/tests/test_factories_contracts.py`)
 
 ### Implementacao
-- [ ] T037 [US2] Reusar helper único (`foundation/services/seed_utils.py`) na base de factories com seed deterministico e injeção de cliente Vault Transit (`backend/apps/banking/tests/factories.py`, `backend/apps/foundation/services/seed_utils.py`)
-- [ ] T038 [US2] Implementar factories para entidades banking usando base/shared helpers e validacao via serializers (`backend/apps/banking/tests/factories.py`)
-- [ ] T039 [US2] Implementar servico financeiro (CET/IOF/parcelas) e stub Pact para factories (`backend/apps/banking/services/financial_calculations.py`, `contracts/pacts/financial-calculator.json`)
+- [X] T037 [US2] Reusar helper único (`foundation/services/seed_utils.py`) na base de factories com seed deterministico e injeção de cliente Vault Transit (`backend/apps/banking/tests/factories.py`, `backend/apps/foundation/services/seed_utils.py`)
+- [X] T038 [US2] Implementar factories para entidades banking usando base/shared helpers e validacao via serializers (`backend/apps/banking/tests/factories.py`)
+- [X] T039 [US2] Implementar servico financeiro (CET/IOF/parcelas) e stub Pact para factories (`backend/apps/banking/services/financial_calculations.py`, `contracts/pacts/financial-calculator.json`)
 
 ## Fase 6: User Story 4 - Orquestrar seed runs via API/CLI (Prioridade P2)
 Objetivo da história: Agendar, consultar e cancelar execuções via API/CLI com governança de RateLimit/Idempotency/ETag e rollback/flags conforme Art. VIII.  
