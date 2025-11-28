@@ -51,8 +51,8 @@ Objetivo da história: Validar manifestos v1 via API antes de qualquer execuçã
 Critério de teste independente: `POST /api/v1/seed-profiles/validate` retorna 200/422/429 previsíveis com RateLimit-* e Idempotency-Key, sem disparar execução.
 
 ### Testes (executar antes da implementacao)
-- [ ] T021 [P] [US5] Cobrir 200/422/429 do endpoint `/api/v1/seed-profiles/validate` com headers obrigatorios e Problem Details (`backend/apps/tenancy/tests/test_seed_profile_validate_api.py`)
-- [ ] T022 [P] [US5] Cobrir replays de `Idempotency-Key` no `/api/v1/seed-profiles/validate` (TTL 24h; `manifest_hash` divergente retorna 409 `idempotency_conflict`) (`backend/apps/tenancy/tests/test_seed_profile_validate_idempotency.py`)
+- [X] T021 [P] [US5] Cobrir 200/422/429 do endpoint `/api/v1/seed-profiles/validate` com headers obrigatorios e Problem Details (`backend/apps/tenancy/tests/test_seed_profile_validate_api.py`)
+- [X] T022 [P] [US5] Cobrir replays de `Idempotency-Key` no `/api/v1/seed-profiles/validate` (TTL 24h; `manifest_hash` divergente retorna 409 `idempotency_conflict`) (`backend/apps/tenancy/tests/test_seed_profile_validate_idempotency.py`)
 
 ### Implementacao
 - [ ] T023 [US5] Atualizar JSON Schema v1 com caps Q11 obrigatórios por entidade/mode/ambiente e manifestos canônicos alinhados (`contracts/seed-profile.schema.json`, `configs/seed_profiles/<env>/<tenant>.yaml`)
