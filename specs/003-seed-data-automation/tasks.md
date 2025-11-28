@@ -55,10 +55,10 @@ Critério de teste independente: `POST /api/v1/seed-profiles/validate` retorna 2
 - [X] T022 [P] [US5] Cobrir replays de `Idempotency-Key` no `/api/v1/seed-profiles/validate` (TTL 24h; `manifest_hash` divergente retorna 409 `idempotency_conflict`) (`backend/apps/tenancy/tests/test_seed_profile_validate_idempotency.py`)
 
 ### Implementacao
-- [ ] T023 [US5] Atualizar JSON Schema v1 com caps Q11 obrigatórios por entidade/mode/ambiente e manifestos canônicos alinhados (`contracts/seed-profile.schema.json`, `configs/seed_profiles/<env>/<tenant>.yaml`)
-- [ ] T024 [US5] Implementar validador JSON Schema v1 + preflight de manifesto (versao/schema/hash/off-peak) (`backend/apps/tenancy/services/seed_manifest_validator.py`)
-- [ ] T025 [US5] Expor `/api/v1/seed-profiles/validate` com RateLimit-*, Idempotency-Key e Problem Details (`backend/apps/tenancy/views.py`, `backend/apps/tenancy/urls.py`)
-- [ ] T026 [US5] Reutilizar storage/serviço `seed_idempotency` no `/api/v1/seed-profiles/validate` (TTL 24h, dedupe, auditoria; replay determinístico) (`backend/apps/tenancy/services/seed_idempotency.py`, `backend/apps/tenancy/views.py`)
+- [X] T023 [US5] Atualizar JSON Schema v1 com caps Q11 obrigatórios por entidade/mode/ambiente e manifestos canônicos alinhados (`contracts/seed-profile.schema.json`, `configs/seed_profiles/<env>/<tenant>.yaml`)
+- [X] T024 [US5] Implementar validador JSON Schema v1 + preflight de manifesto (versao/schema/hash/off-peak) (`backend/apps/tenancy/services/seed_manifest_validator.py`)
+- [X] T025 [US5] Expor `/api/v1/seed-profiles/validate` com RateLimit-*, Idempotency-Key e Problem Details (`backend/apps/tenancy/views.py`, `backend/apps/tenancy/urls.py`)
+- [X] T026 [US5] Reutilizar storage/serviço `seed_idempotency` no `/api/v1/seed-profiles/validate` (TTL 24h, dedupe, auditoria; replay determinístico) (`backend/apps/tenancy/services/seed_idempotency.py`, `backend/apps/tenancy/views.py`)
 
 ## Fase 4: User Story 1 - Seeds baseline multi-tenant (Prioridade P1)
 Objetivo da história: Executar `seed_data --profile` para baseline deterministica por tenant/ambiente, bloqueando cross-tenant e falhando em falta de RLS/off-peak.  

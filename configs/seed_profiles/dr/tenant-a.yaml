@@ -5,14 +5,11 @@ metadata:
   version: 2.0.0
   schema_version: v1
   salt_version: 2025-q1
-
 mode: dr
-reference_datetime: "2025-02-10T00:00:00Z"
-
+reference_datetime: '2025-02-10T00:00:00Z'
 window:
-  start_utc: "23:00"
-  end_utc: "04:00"
-
+  start_utc: '23:00'
+  end_utc: 04:00
 volumetry:
   tenant_users:
     cap: 50
@@ -38,31 +35,25 @@ volumetry:
     cap: 2500
   contracts:
     cap: 3750
-
 rate_limit:
   limit: 960
   window_seconds: 60
   burst: 1200
-
 backoff:
   base_seconds: 3
   jitter_factor: 0.45
   max_retries: 7
   max_interval_seconds: 60
-
 budget:
   cost_cap_brl: 125.0
   error_budget_pct: 8.0
-
 ttl:
   baseline_days: 30
   carga_days: 7
   dr_days: 3
-
 slo:
   p95_target_ms: 9000
   p99_target_ms: 13000
   throughput_target_rps: 16.0
-
 integrity:
-  manifest_hash: "12cee2307938156e8d51ba2cc358aae798369d1b037559c203a9cc08bf5d8db5"
+  manifest_hash: 03d7ffe6a6f4ff54cc5b15e6c0507a02bb6aac9cbc77dec7466841ff7a3e2647

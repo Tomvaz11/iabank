@@ -6,6 +6,48 @@ from copy import deepcopy
 from typing import Any, Dict
 
 
+BASELINE_CAPS = {
+    'tenant_users': 5,
+    'customers': 100,
+    'addresses': 150,
+    'consultants': 10,
+    'bank_accounts': 120,
+    'account_categories': 20,
+    'suppliers': 30,
+    'loans': 200,
+    'installments': 2000,
+    'financial_transactions': 4000,
+    'limits': 100,
+    'contracts': 150,
+}
+
+CARGA_CAPS = {
+    'tenant_users': 10,
+    'customers': 500,
+    'addresses': 750,
+    'consultants': 30,
+    'bank_accounts': 600,
+    'account_categories': 60,
+    'suppliers': 150,
+    'loans': 1000,
+    'installments': 10000,
+    'financial_transactions': 20000,
+    'limits': 500,
+    'contracts': 750,
+}
+
+DR_CAPS = dict(CARGA_CAPS)
+
+ENVIRONMENT_MULTIPLIERS = {
+    'dev': 1,
+    'homolog': 3,
+    'staging': 5,
+    'perf': 5,
+    'dr': 5,
+    'prod': 1,
+}
+
+
 def _merge_dicts(base: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, Any]:
     """
     Realiza merge raso/recursivo de dicionários para permitir overrides em testes.
@@ -33,6 +75,17 @@ def compute_manifest_hash(manifest: Dict[str, Any]) -> str:
     return hashlib.sha256(serialized.encode('utf-8')).hexdigest()
 
 
+def _volumetry_for(mode: str, environment: str) -> Dict[str, Dict[str, int]]:
+    caps = BASELINE_CAPS
+    if mode == 'carga':
+        caps = CARGA_CAPS
+    elif mode == 'dr':
+        caps = DR_CAPS
+
+    multiplier = ENVIRONMENT_MULTIPLIERS.get(environment, 1)
+    return {entity: {'cap': int(value * multiplier)} for entity, value in caps.items()}
+
+
 def build_manifest(
     tenant_slug: str,
     environment: str = 'staging',
@@ -54,10 +107,7 @@ def build_manifest(
         'mode': mode,
         'reference_datetime': '2025-01-01T00:00:00Z',
         'window': {'start_utc': '00:00', 'end_utc': '06:00'},
-        'volumetry': {
-            'customers': {'cap': 100},
-            'addresses': {'cap': 120},
-        },
+        'volumetry': _volumetry_for(mode, environment),
         'rate_limit': {'limit': 120, 'window_seconds': 60},
         'backoff': {'base_seconds': 1, 'jitter_factor': 0.1, 'max_retries': 3, 'max_interval_seconds': 60},
         'budget': {'cost_cap_brl': 25.0, 'error_budget_pct': 10},
