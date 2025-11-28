@@ -7,6 +7,7 @@ on:
       - 'configs/seed_profiles/**'
       - '.github/workflows/ci-contracts.yml'
       - 'scripts/ci/seed-data-*.sh'
+      - 'scripts/ci/deps-seed.sh'
       - 'scripts/ci/seed-manifest-validate.js'
       - 'scripts/ci/validate-seed-contracts.sh'
       - 'scripts/ci/validate-finops.sh'
@@ -32,6 +33,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Seed guardrails (anti-snapshot/dump)
+        run: ./scripts/ci/seed-guardrails.sh
+        shell: bash
+
       - name: Detect baseline via PR label (contracts:baseline-3.1)
         if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'contracts:baseline-3.1') }}
         run: |
@@ -55,6 +60,10 @@ jobs:
       - name: Install dependencies (pnpm)
         if: ${{ hashFiles('package.json') != '' }}
         run: pnpm install --frozen-lockfile
+        shell: bash
+
+      - name: Seed deps audit (pip-audit + pnpm audit)
+        run: ./scripts/ci/deps-seed.sh
         shell: bash
 
       # Cache do oasdiff por versão (v1.11.7)

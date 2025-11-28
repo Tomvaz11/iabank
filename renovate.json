@@ -30,6 +30,28 @@
       "labels": ["critical-upgrade"],
       "prPriority": 1,
       "minimumReleaseAge": "7 days"
+    },
+    {
+      "matchManagers": ["poetry"],
+      "matchPaths": ["backend/**", "specs/003-seed-data-automation/**", "scripts/**"],
+      "groupName": "seed-data python deps",
+      "labels": ["seed-data", "dependencies", "security"],
+      "prPriority": 2,
+      "minimumReleaseAge": "3 days"
+    },
+    {
+      "matchManagers": ["npm"],
+      "matchPackageNames": [
+        "@stoplight/spectral-cli",
+        "@pact-foundation/pact",
+        "@pact-foundation/pact-cli",
+        "k6",
+        "openapi-typescript-codegen"
+      ],
+      "groupName": "seed-data tooling (contracts/perf)",
+      "labels": ["seed-data", "dependencies", "security"],
+      "prPriority": 2,
+      "minimumReleaseAge": "3 days"
     }
   ]
 }

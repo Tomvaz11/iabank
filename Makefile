@@ -2,7 +2,7 @@
 ## IABank — Atalhos de DX (delegam para scripts existentes)
 ##
 
-.PHONY: help up down ps logs lint test test\:frontend test\:backend openapi contracts\:verify perf\:smoke sbom baseline seed-data\:lint seed-data\:dry-run seed-data\:contracts seed-data\:finops
+.PHONY: help up down ps logs lint test test\:frontend test\:backend openapi contracts\:verify perf\:smoke sbom baseline seed-data\:lint seed-data\:dry-run seed-data\:contracts seed-data\:finops seed-data\:deps
 
 help: ## Mostra esta ajuda
 	@grep -E '^[a-zA-Z0-9_.:\\-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -53,6 +53,9 @@ seed-data\:dry-run: ## Dry-run do comando seed_data com stub seguro e fail-close
 
 seed-data\:finops: ## Valida cost-model FinOps (schema + tetos por ambiente)
 	./scripts/ci/validate-finops.sh
+
+seed-data\:deps: ## Auditoria de dependências seeds/factories/Vault/perf (pip-audit + pnpm audit)
+	./scripts/ci/deps-seed.sh
 
 perf\:smoke: ## Teste de performance (k6) em modo local
 	pnpm perf:smoke:local

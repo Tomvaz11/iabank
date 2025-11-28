@@ -23,6 +23,7 @@ from .services.seed_manifest_validator import (
     SimpleRateLimiter,
     ValidationResult,
 )
+from .services.seed_integrations import SeedIntegrationService
 from .services.seed_preflight import PreflightContext, SeedPreflightConfig, SeedPreflightService
 from .services.seed_queue import QueueDecision, SeedQueueService
 from .services.seed_queue_gc import SeedQueueGC
@@ -370,6 +371,7 @@ class SeedRunViewBase(APIView):
     rate_limiter = SimpleRateLimiter()
     queue_service = SeedQueueService()
     queue_gc = SeedQueueGC()
+    integration_service = SeedIntegrationService()
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -577,6 +579,12 @@ class SeedRunViewBase(APIView):
         cost_model_problem = self.run_service.ensure_cost_model_alignment(manifest=manifest)
         if cost_model_problem:
             response = Response(cost_model_problem.as_dict(), status=cost_model_problem.status)
+            self._apply_rate_limit_headers(response, rate_decision)
+            return response
+
+        integration_problem = self.integration_service.block_outbound(manifest=manifest)
+        if integration_problem:
+            response = Response(integration_problem.as_dict(), status=integration_problem.status)
             self._apply_rate_limit_headers(response, rate_decision)
             return response
 

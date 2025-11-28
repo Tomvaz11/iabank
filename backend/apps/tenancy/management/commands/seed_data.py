@@ -12,9 +12,11 @@ from uuid import UUID
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
+from backend.apps.tenancy.feature_flags import SeedDORAMetrics, SeedFeatureFlags
 from backend.apps.tenancy import tasks as seed_tasks
 from backend.apps.tenancy.managers import _set_tenant_guc, _current_tenant, use_tenant
 from backend.apps.tenancy.models import Tenant
+from backend.apps.tenancy.services.seed_integrations import SeedIntegrationService
 from backend.apps.tenancy.services.seed_idempotency import IdempotencyDecision, SeedIdempotencyService
 from backend.apps.tenancy.services.seed_manifest_validator import SeedManifestValidator, ValidationResult
 from backend.apps.tenancy.services.seed_preflight import PreflightContext, SeedPreflightService
@@ -48,6 +50,8 @@ class Command(BaseCommand):
         environment = options['environment']
         mode = options['mode']
         dry_run = bool(options.get('dry_run', False))
+        feature_flags = SeedFeatureFlags()
+        integration_service = SeedIntegrationService()
 
         tenant = self._get_tenant(tenant_id)
         self._pin_tenant_context(tenant.id)
@@ -90,6 +94,17 @@ class Command(BaseCommand):
         )
         self._fail_if_problem(
             service.ensure_cost_model_alignment(manifest=manifest),
+            service.exit_code_for_problem,
+        )
+        self._fail_if_problem(
+            integration_service.block_outbound(manifest=manifest),
+            service.exit_code_for_problem,
+        )
+        self._fail_if_problem(
+            feature_flags.ensure_canary_scope(
+                manifest=manifest,
+                mode=mode,
+            ),
             service.exit_code_for_problem,
         )
         self._fail_if_problem(
@@ -164,6 +179,7 @@ class Command(BaseCommand):
         if entry:
             self.stdout.write(f'queue_entry={entry.id} expires_at={entry.expires_at.isoformat()}')
         self._dispatch_batches(creation, mode)
+        SeedDORAMetrics().snapshot(seed_run=creation.seed_run)
 
     def _load_manifest(
         self,

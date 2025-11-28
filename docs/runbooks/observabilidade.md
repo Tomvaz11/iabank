@@ -25,3 +25,8 @@ Executa o **ADR-012** alinhado ao Artigo VII da Constituição.
 - Quando alertas DORA/SLO dispararem, siga `docs/runbooks/incident-response.md`.
 - Registre post-mortem com os spans relevantes.
 - Para evidências WORM ligadas a observabilidade, assine o payload (hash SHA-256 + assinatura assimétrica via KMS/Vault, ex.: RSA-PSS-SHA256 ou Ed25519) e valide a assinatura após upload antes de marcar como verificada.
+
+## Flags e métricas DORA (seed_data)
+- `backend/apps/tenancy/feature_flags.py` bloqueia `canary` quando o manifesto não está em `mode=canary` (Problem Details `canary_flag_not_allowed`), garantindo rollout seguro.
+- `SeedDORAMetrics` registra snapshot estruturado (`seed_dora_snapshot` via structlog) com `deployment_frequency_per_day`, `change_failure_rate`, `mttr_minutes`, `lead_time_minutes` e `rollback_rehearsed` por tenant. Fonte: tabela `tenancy_seed_run` (janela padrão = 14 dias).
+- Use os snapshots para dashboards DORA e gatilhos de rollback ensaiado; falhas recorrentes devem acionar revisão de manifestos/feature flags antes de promover seeds carga/DR.

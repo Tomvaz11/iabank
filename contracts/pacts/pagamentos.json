@@ -1,0 +1,86 @@
+{
+  "consumer": {
+    "name": "SeedData"
+  },
+  "provider": {
+    "name": "Pagamentos"
+  },
+  "interactions": [
+    {
+      "description": "cria cobrança sintética com headers de governança",
+      "providerState": "stub de pagamentos ativo",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/payments/charge",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": "tenant-a",
+          "X-Environment": "staging",
+          "Idempotency-Key": "pact-pay-123",
+          "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"
+        },
+        "body": {
+          "amount": 120.5,
+          "currency": "BRL",
+          "method": "credit_card",
+          "customer_id": "cust-123"
+        }
+      },
+      "response": {
+        "status": 202,
+        "headers": {
+          "Content-Type": "application/json",
+          "RateLimit-Remaining": "80",
+          "RateLimit-Reset": "60"
+        },
+        "body": {
+          "payment_id": "pay-abc",
+          "status": "accepted",
+          "retry_after_seconds": 0
+        }
+      }
+    },
+    {
+      "description": "pagamentos retorna 429 e requer backoff",
+      "providerState": "stub de pagamentos com rate-limit",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/payments/charge",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": "tenant-a",
+          "X-Environment": "staging",
+          "Idempotency-Key": "pact-pay-429",
+          "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"
+        },
+        "body": {
+          "amount": 250.0,
+          "currency": "BRL",
+          "method": "pix",
+          "customer_id": "cust-429"
+        }
+      },
+      "response": {
+        "status": 429,
+        "headers": {
+          "Content-Type": "application/json",
+          "RateLimit-Remaining": "0",
+          "RateLimit-Reset": "10",
+          "Retry-After": "10"
+        },
+        "body": {
+          "error": "rate_limited",
+          "detail": "stub de pagamentos bloqueou a chamada; aguarde backoff."
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "13.2.0"
+    },
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  }
+}

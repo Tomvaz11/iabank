@@ -112,9 +112,10 @@ def test_factory_mascaramento(vault_stub):
 - Drift de `reference_datetime`: se existir checkpoint para outro `reference_datetime`, o CLI encerra com código `2` e não cria entrada na fila; limpe checkpoints/datasets antes de reseedar.
 
 ## Stubs Pact/Prism (sem outbound real)
-- Stubs obrigatórios para seeds estão em `contracts/pacts/financial-calculator.json` e `contracts/pacts/seed-data-outbound-block.json`.  
-- O CI roda `scripts/ci/validate-seed-contracts.sh` para validar os Pact files e garantir que nenhuma chamada real seja usada; sirva-os via Prism/Pact no ambiente de testes.  
-- Qualquer tentativa de outbound real deve falhar em fail-close (`external_calls_blocked`) antes de enfileirar os batches.
+- Stubs obrigatórios para seeds: `contracts/pacts/financial-calculator.json`, `contracts/pacts/seed-data-outbound-block.json`, `contracts/pacts/kyc.json`, `contracts/pacts/pagamentos.json`, `contracts/pacts/notificacoes.json`.  
+- Para servir localmente: `pnpm exec prism mock contracts/pacts/kyc.json --port 4010`, `--port 4011` para pagamentos e `--port 4012` para notificações (paths seguem os Pact).  
+- CLI/API usam `SeedIntegrationService` e bloqueiam hosts fora da allowlist `localhost/127.0.0.1/prism/pact/stub`; configure `SEED_STUB_BASE` ou `SEED_KYC_URL/SEED_ANTIFRAUDE_URL/SEED_PAGAMENTOS_URL/SEED_NOTIFICACOES_URL` para apontar para os stubs.  
+- O CI roda `scripts/ci/validate-seed-contracts.sh` e falha se os stubs não tiverem respostas 2xx + 429 para rate-limit/backoff; qualquer outbound real retorna Problem Details `external_calls_blocked` antes de enfileirar batches.
 
 ## Observabilidade e relatorios
 - Traces/metricas/logs OTEL (W3C) com labels de tenant/ambiente/seed_run_id; PII sempre mascarada/redact.  

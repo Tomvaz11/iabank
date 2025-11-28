@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 from http import HTTPStatus
+import tempfile
+from pathlib import Path
+from datetime import datetime, timedelta, timezone as dt_timezone
 
 from django.test import TestCase
 
 from backend.apps.tenancy.managers import use_tenant
 from backend.apps.tenancy.models import BudgetRateLimit, Tenant
+from backend.apps.tenancy.services.budget import BudgetService, BudgetSnapshot
 from backend.apps.tenancy.services.seed_runs import ProblemDetail, SeedRunService
 from backend.apps.tenancy.tests.seed_profile_test_utils import build_manifest
 
@@ -86,3 +90,37 @@ class SeedBudgetServiceTest(TestCase):
         assert problem
         self.assertEqual(problem.status, HTTPStatus.FORBIDDEN)
         self.assertIn('WORM', problem.detail)
+
+    def test_cost_model_missing_file_raises_runtime_error(self) -> None:
+        missing = Path(tempfile.gettempdir()) / 'cost-model-missing.json'
+        if missing.exists():
+            missing.unlink()
+
+        with self.assertRaises(RuntimeError):
+            BudgetService(cost_model_path=missing)
+
+    def test_cost_model_missing_required_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / 'cost-model-invalid.yaml'
+            path.write_text('schema_version: v1\nmodes: {}\n', encoding='utf-8')
+
+            with self.assertRaises(RuntimeError):
+                BudgetService(cost_model_path=path)
+
+    def test_rate_limit_usage_uses_provided_now(self) -> None:
+        snapshot = BudgetSnapshot(
+            limit=5,
+            window_seconds=30,
+            cost_cap=0,
+            error_budget_pct=0,
+            cost_model_version='vX',
+            budget_alert_pct=80,
+        )
+        fixed_now = datetime(2025, 1, 1, 12, 0, tzinfo=dt_timezone.utc)
+
+        usage = BudgetService().rate_limit_usage(snapshot, now=fixed_now)
+
+        expected_reset = (fixed_now + timedelta(seconds=snapshot.window_seconds)).isoformat()
+        self.assertEqual(usage['limit'], snapshot.limit)
+        self.assertEqual(usage['remaining'], snapshot.limit)
+        self.assertEqual(usage['reset_at'], expected_reset)

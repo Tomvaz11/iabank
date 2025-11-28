@@ -101,3 +101,20 @@ class SeedRpoRtoGateTest(TestCase):
             refreshed = SeedRun.objects.get(id=self.seed_run.id)
             self.assertEqual(refreshed.status, SeedRun.Status.BLOCKED)
             self.assertIsNotNone(refreshed.reason)
+
+    def test_blocks_when_no_checkpoint_or_start_time(self) -> None:
+        with use_tenant(self.tenant.id):
+            SeedRun.objects.filter(id=self.seed_run.id).update(started_at=None, status=SeedRun.Status.RUNNING)
+
+        problem = self.gate.check_rpo_rto(
+            seed_run=self.seed_run,
+            checkpoints=[],
+            now=self.now,
+        )
+
+        self.assertIsInstance(problem, ProblemDetail)
+        assert problem
+        self.assertEqual(problem.status, HTTPStatus.SERVICE_UNAVAILABLE)
+        with use_tenant(self.tenant.id):
+            refreshed = SeedRun.objects.get(id=self.seed_run.id)
+            self.assertEqual(refreshed.status, SeedRun.Status.BLOCKED)

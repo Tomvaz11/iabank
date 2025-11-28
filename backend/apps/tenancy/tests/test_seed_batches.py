@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.test import TestCase
 from django.utils import timezone
 
 from backend.apps.tenancy import tasks as seed_tasks
 from backend.apps.tenancy.managers import use_tenant
-from backend.apps.tenancy.models import SeedBatch, SeedCheckpoint, Tenant
+from backend.apps.tenancy.models import SeedBatch, SeedCheckpoint, SeedProfile, Tenant
 from backend.apps.tenancy.services.seed_batches import (
     BackoffConfig,
     BatchRetryPlan,
@@ -234,3 +235,52 @@ class SeedBatchCeleryTaskTest(TestCase):
         self.assertEqual(result['queue'], 'seed_data.load_dr')
         self.assertEqual(result['reason'], 'rate_limited')
         self.assertIsNotNone(result['retry_in_seconds'])
+
+    def test_retry_seed_batch_returns_not_found_when_missing(self) -> None:
+        result = seed_tasks.retry_seed_batch.__wrapped__.__func__(  # type: ignore[attr-defined]
+            None,
+            '00000000-0000-0000-0000-000000000000',
+            429,
+            auto_dispatch=False,
+        )
+
+        self.assertEqual(result['status'], 'not_found')
+        self.assertEqual(result['batch_id'], '00000000-0000-0000-0000-000000000000')
+
+    @patch('backend.apps.tenancy.tasks.handle_dlq.apply_async')
+    def test_retry_seed_batch_auto_dispatches_to_dlq(self, mock_apply_async) -> None:
+        with use_tenant(self.tenant.id):
+            SeedBatch.objects.filter(id=self.batch.id).update(attempt=3)
+
+        result = seed_tasks.retry_seed_batch.__wrapped__.__func__(  # type: ignore[attr-defined]
+            None,
+            str(self.batch.id),
+            429,
+        )
+
+        self.assertTrue(result['to_dlq'])
+        mock_apply_async.assert_called_once()
+        called_args, called_kwargs = mock_apply_async.call_args
+        self.assertEqual(called_kwargs.get('queue'), 'seed_data.dlq')
+        self.assertIn(str(self.batch.seed_run_id), called_kwargs.get('args', []))
+
+    @patch('backend.apps.tenancy.tasks.dispatch_load_dr.apply_async')
+    def test_retry_seed_batch_auto_dispatches_to_load_dr(self, mock_apply_async) -> None:
+        with use_tenant(self.tenant.id):
+            SeedProfile.objects.filter(id=self.batch.seed_run.seed_profile_id).update(
+                backoff={'base_seconds': 1, 'jitter_factor': 0, 'max_retries': 3, 'max_interval_seconds': 5}
+            )
+            SeedBatch.objects.filter(id=self.batch.id).update(attempt=0)
+
+        result = seed_tasks.retry_seed_batch.__wrapped__.__func__(  # type: ignore[attr-defined]
+            None,
+            str(self.batch.id),
+            500,
+        )
+
+        self.assertFalse(result['to_dlq'])
+        mock_apply_async.assert_called_once()
+        called_args, called_kwargs = mock_apply_async.call_args
+        self.assertIn(str(self.batch.seed_run_id), called_kwargs.get('args', []))
+        self.assertEqual(called_kwargs.get('queue'), 'seed_data.load_dr')
+        self.assertEqual(called_kwargs.get('countdown'), result['retry_in_seconds'])

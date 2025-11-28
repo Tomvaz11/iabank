@@ -1,0 +1,89 @@
+{
+  "consumer": {
+    "name": "SeedData"
+  },
+  "provider": {
+    "name": "Notificacoes"
+  },
+  "interactions": [
+    {
+      "description": "envia notificação sintética com rastreabilidade",
+      "providerState": "stub de notificações ativo",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/notifications/send",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": "tenant-a",
+          "X-Environment": "staging",
+          "Idempotency-Key": "pact-notify-123",
+          "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"
+        },
+        "body": {
+          "channel": "email",
+          "recipient": "seed@example.com",
+          "template": "seed-run",
+          "payload": {
+            "seed_run_id": "00000000-0000-0000-0000-000000000000"
+          }
+        }
+      },
+      "response": {
+        "status": 202,
+        "headers": {
+          "Content-Type": "application/json",
+          "RateLimit-Remaining": "50",
+          "RateLimit-Reset": "60"
+        },
+        "body": {
+          "notification_id": "notif-abc",
+          "status": "queued"
+        }
+      }
+    },
+    {
+      "description": "stub retorna 429 para notificações fora do budget",
+      "providerState": "stub de notificações rate-limited",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/notifications/send",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": "tenant-a",
+          "X-Environment": "staging",
+          "Idempotency-Key": "pact-notify-429",
+          "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"
+        },
+        "body": {
+          "channel": "sms",
+          "recipient": "+55000000000",
+          "template": "rate-limit",
+          "payload": {
+            "seed_run_id": "00000000-0000-0000-0000-000000000000"
+          }
+        }
+      },
+      "response": {
+        "status": 429,
+        "headers": {
+          "Content-Type": "application/json",
+          "RateLimit-Remaining": "0",
+          "RateLimit-Reset": "15",
+          "Retry-After": "15"
+        },
+        "body": {
+          "error": "rate_limited",
+          "detail": "notificações bloqueadas até reset do rate-limit."
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "13.2.0"
+    },
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  }
+}
