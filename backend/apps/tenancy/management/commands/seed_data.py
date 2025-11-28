@@ -13,8 +13,8 @@ from django.utils import timezone
 
 from backend.apps.tenancy.managers import _set_tenant_guc, _current_tenant, use_tenant
 from backend.apps.tenancy.models import Tenant
-from backend.apps.tenancy.services.seed_idempotency import SeedIdempotencyService
-from backend.apps.tenancy.services.seed_manifest_validator import SeedManifestValidator
+from backend.apps.tenancy.services.seed_idempotency import IdempotencyDecision, SeedIdempotencyService
+from backend.apps.tenancy.services.seed_manifest_validator import SeedManifestValidator, ValidationResult
 from backend.apps.tenancy.services.seed_preflight import PreflightContext, SeedPreflightService
 from backend.apps.tenancy.services.seed_runs import ProblemDetail, SeedRunService
 
@@ -51,74 +51,35 @@ class Command(BaseCommand):
         requested_by, roles, manifest_path = self._preflight_params(options, tenant.slug, environment)
         self._run_preflight(tenant.id, environment, requested_by, roles, manifest_path, dry_run)
 
-        manifest, from_file = self._load_manifest(manifest_path, tenant.slug, environment, mode)
-        validator = SeedManifestValidator()
-        validation = validator.validate_manifest(manifest, environment=environment)
-        manifest_hash = validation.manifest_hash
-        manifest = self._apply_manifest_hash(manifest, manifest_hash)
-        mode = manifest.get('mode', mode) or mode
-        reference_datetime = SeedRunService._parse_reference_datetime(manifest)
-
-        if from_file and not validation.valid:
-            self._render_problem(
-                ProblemDetail(
-                    status=HTTPStatus.UNPROCESSABLE_ENTITY,
-                    title='manifest_invalid',
-                    detail='; '.join(validation.issues),
-                    type='https://iabank.local/problems/seed/manifest-invalid',
-                ),
-                exit_code=2,
-            )
-
-        tenant_in_manifest = manifest.get('metadata', {}).get('tenant')
-        if tenant_in_manifest and tenant_in_manifest != tenant.slug:
-            self._render_problem(
-                ProblemDetail(
-                    status=HTTPStatus.UNPROCESSABLE_ENTITY,
-                    title='manifest_tenant_mismatch',
-                    detail='Manifesto pertence a outro tenant; revise o caminho informado.',
-                    type='https://iabank.local/problems/seed/tenant-mismatch',
-                ),
-                exit_code=2,
-            )
+        manifest, manifest_hash, mode, reference_datetime, validation, from_file = self._prepare_manifest(
+            manifest_path,
+            tenant.slug,
+            environment,
+            mode,
+        )
+        self._ensure_manifest_matches_tenant(validation, from_file, manifest, tenant.slug)
 
         service = SeedRunService()
-        drift_problem = service.ensure_reference_drift(
-            tenant_id=tenant.id,
-            environment=environment,
-            mode=mode,
-            reference_datetime=reference_datetime,
+        self._fail_if_problem(
+            service.ensure_reference_drift(
+                tenant_id=tenant.id,
+                environment=environment,
+                mode=mode,
+                reference_datetime=reference_datetime,
+            ),
+            service.exit_code_for_problem,
         )
-        if drift_problem:
-            self._render_problem(drift_problem, exit_code=SeedRunService.exit_code_for_problem(drift_problem))
 
-        idempotency_key = self._resolve_idempotency_key(options, manifest_hash)
         idempotency_service = SeedIdempotencyService(tenant.id)
-        idempotency_decision = idempotency_service.ensure_entry(
+        idempotency_key = self._resolve_idempotency_key(options, manifest_hash)
+        idempotency_decision, created_idempo_entry = self._ensure_idempotency(
+            idempotency_service=idempotency_service,
             environment=environment,
             idempotency_key=idempotency_key,
             manifest_hash=manifest_hash,
             mode=mode,
         )
-        created_idempo_entry = idempotency_decision.outcome == 'new'
-
-        if idempotency_decision.outcome == 'conflict':
-            self._render_problem(
-                ProblemDetail(
-                    status=HTTPStatus.CONFLICT,
-                    title='idempotency_conflict',
-                    detail='Idempotency-Key já usada para manifesto diferente; limpe ou use nova chave.',
-                    type='https://iabank.local/problems/seed/idempotency-conflict',
-                ),
-                exit_code=2,
-            )
-
-        if idempotency_decision.outcome == 'replay' and idempotency_decision.entry and idempotency_decision.entry.seed_run:
-            self.stdout.write(
-                self.style.SUCCESS(
-                    f'Replay idempotente: reutilizando SeedRun {idempotency_decision.entry.seed_run_id} para {environment}.',
-                )
-            )
+        if idempotency_decision is None:
             return
 
         with use_tenant(tenant.id):
@@ -130,9 +91,7 @@ class Command(BaseCommand):
             )
 
         if problem:
-            if created_idempo_entry and idempotency_decision.entry:
-                with use_tenant(tenant.id):
-                    idempotency_decision.entry.delete()
+            self._cleanup_idempotency(created_idempo_entry, idempotency_decision, tenant.id)
             self._render_problem(problem, exit_code=service.exit_code_for(decision))
 
         creation = service.create_seed_run(
@@ -238,6 +197,104 @@ class Command(BaseCommand):
         if explicit:
             return str(explicit)
         return f'seed-data:{manifest_hash or "auto"}'
+
+    def _prepare_manifest(
+        self,
+        manifest_path: str,
+        tenant_slug: str,
+        environment: str,
+        mode: str,
+    ) -> tuple[Dict[str, Any], str, str, timezone.datetime, ValidationResult, bool]:
+        manifest, from_file = self._load_manifest(manifest_path, tenant_slug, environment, mode)
+        validator = SeedManifestValidator()
+        validation = validator.validate_manifest(manifest, environment=environment)
+        manifest_hash = validation.manifest_hash
+        manifest = self._apply_manifest_hash(manifest, manifest_hash)
+        resolved_mode = manifest.get('mode', mode) or mode
+        reference_datetime = SeedRunService._parse_reference_datetime(manifest)
+        return manifest, manifest_hash, resolved_mode, reference_datetime, validation, from_file
+
+    def _ensure_manifest_matches_tenant(
+        self,
+        validation: ValidationResult,
+        from_file: bool,
+        manifest: Dict[str, Any],
+        tenant_slug: str,
+    ) -> None:
+        if from_file and not validation.valid:
+            self._render_problem(
+                ProblemDetail(
+                    status=HTTPStatus.UNPROCESSABLE_ENTITY,
+                    title='manifest_invalid',
+                    detail='; '.join(validation.issues),
+                    type='https://iabank.local/problems/seed/manifest-invalid',
+                ),
+                exit_code=2,
+            )
+
+        tenant_in_manifest = manifest.get('metadata', {}).get('tenant')
+        if tenant_in_manifest and tenant_in_manifest != tenant_slug:
+            self._render_problem(
+                ProblemDetail(
+                    status=HTTPStatus.UNPROCESSABLE_ENTITY,
+                    title='manifest_tenant_mismatch',
+                    detail='Manifesto pertence a outro tenant; revise o caminho informado.',
+                    type='https://iabank.local/problems/seed/tenant-mismatch',
+                ),
+                exit_code=2,
+            )
+
+    def _fail_if_problem(self, problem: ProblemDetail | None, exit_code_resolver) -> None:
+        if problem:
+            self._render_problem(problem, exit_code=exit_code_resolver(problem))
+
+    def _ensure_idempotency(
+        self,
+        *,
+        idempotency_service: SeedIdempotencyService,
+        environment: str,
+        idempotency_key: str,
+        manifest_hash: str,
+        mode: str,
+    ) -> tuple[IdempotencyDecision | None, bool]:
+        decision = idempotency_service.ensure_entry(
+            environment=environment,
+            idempotency_key=idempotency_key,
+            manifest_hash=manifest_hash,
+            mode=mode,
+        )
+        created = decision.outcome == 'new'
+
+        if decision.outcome == 'conflict':
+            self._render_problem(
+                ProblemDetail(
+                    status=HTTPStatus.CONFLICT,
+                    title='idempotency_conflict',
+                    detail='Idempotency-Key já usada para manifesto diferente; limpe ou use nova chave.',
+                    type='https://iabank.local/problems/seed/idempotency-conflict',
+                ),
+                exit_code=2,
+            )
+
+        if decision.outcome == 'replay' and decision.entry and decision.entry.seed_run:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f'Replay idempotente: reutilizando SeedRun {decision.entry.seed_run_id} para {environment}.',
+                )
+            )
+            return None, created
+
+        return decision, created
+
+    def _cleanup_idempotency(
+        self,
+        created: bool,
+        decision: IdempotencyDecision,
+        tenant_id: UUID,
+    ) -> None:
+        if created and decision.entry:
+            with use_tenant(tenant_id):
+                decision.entry.delete()
 
     def _render_problem(self, problem: ProblemDetail, *, exit_code: int) -> None:
         self.stderr.write(self.style.ERROR(json.dumps(problem.as_dict())))

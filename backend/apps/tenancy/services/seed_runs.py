@@ -47,6 +47,23 @@ class SeedRunCreation:
     batches: list[SeedBatch]
 
 
+@dataclass
+class _ManifestParts:
+    reference_datetime: datetime
+    window_start: time
+    window_end: time
+    volumetry: Dict[str, Any]
+    rate_limit: Dict[str, Any]
+    backoff: Dict[str, Any]
+    budget: Dict[str, Any]
+    ttl_config: Dict[str, Any]
+    slo: Dict[str, Any]
+    integrity: Dict[str, Any]
+    metadata: Dict[str, Any]
+    canary_scope: Any
+    manifest_hash: str
+
+
 class SeedRunService:
     def __init__(self, queue_service: Optional[SeedQueueService] = None) -> None:
         self.queue_service = queue_service or SeedQueueService()
@@ -95,69 +112,134 @@ class SeedRunService:
         dry_run: bool,
         mode: str,
     ) -> SeedRunCreation:
-        manifest_hash = compute_manifest_hash(manifest)
-        reference_datetime = self._parse_reference_datetime(manifest)
-        window_start, window_end = self._extract_window(manifest)
-        volumetry = manifest.get('volumetry') if isinstance(manifest, dict) else {}
-        rate_limit = manifest.get('rate_limit') if isinstance(manifest, dict) else {}
-        backoff = manifest.get('backoff') if isinstance(manifest, dict) else {}
-        budget = manifest.get('budget') if isinstance(manifest, dict) else {}
-        ttl_config = manifest.get('ttl') if isinstance(manifest, dict) else {}
-        slo = manifest.get('slo') if isinstance(manifest, dict) else {}
-        integrity = manifest.get('integrity') if isinstance(manifest, dict) else {}
-        metadata = manifest.get('metadata') if isinstance(manifest, dict) else {}
-        canary_scope = manifest.get('canary') if isinstance(manifest, dict) else None
+        parts = self._extract_manifest_parts(
+            manifest=manifest,
+            manifest_path=manifest_path,
+            mode=mode,
+        )
 
         with transaction.atomic():
             if not self._acquire_advisory_lock(tenant_id, environment):
                 raise RuntimeError('Não foi possível adquirir lock para o seed_data.')  # pragma: no cover
 
             with use_tenant(tenant_id):
-                seed_profile, _ = SeedProfile.objects.update_or_create(
-                    profile=metadata.get('profile', 'default'),
-                    version=metadata.get('version', '0.0.0'),
-                    defaults={
-                        'environment': environment,
-                        'schema_version': metadata.get('schema_version', 'v1'),
-                        'mode': mode,
-                        'reference_datetime': reference_datetime,
-                        'volumetry': volumetry or {},
-                        'rate_limit': rate_limit or {},
-                        'backoff': backoff or {},
-                        'budget': budget or {},
-                        'window_start_utc': window_start,
-                        'window_end_utc': window_end,
-                        'ttl_config': ttl_config or {},
-                        'slo_p95_ms': int(slo.get('p95_target_ms', 0) or 0),
-                        'slo_p99_ms': int(slo.get('p99_target_ms', 0) or 0),
-                        'slo_throughput_rps': Decimal(str(slo.get('throughput_target_rps', 0) or 0)),
-                        'integrity_hash': integrity.get('manifest_hash', manifest_hash),
-                        'manifest_path': manifest_path,
-                        'manifest_hash_sha256': manifest_hash,
-                        'salt_version': metadata.get('salt_version', 'v1'),
-                        'canary_scope': canary_scope,
-                    },
+                seed_profile = self._upsert_seed_profile(
+                    tenant_id=tenant_id,
+                    environment=environment,
+                    mode=mode,
+                    manifest_path=manifest_path,
+                    parts=parts,
                 )
 
-                seed_run = SeedRun.objects.create(
+                seed_run = self._create_seed_run_record(
                     seed_profile=seed_profile,
                     environment=environment,
                     mode=mode,
-                    status=SeedRun.Status.QUEUED,
                     requested_by=requested_by,
                     idempotency_key=idempotency_key,
                     manifest_path=manifest_path,
-                    manifest_hash_sha256=manifest_hash,
-                    reference_datetime=reference_datetime,
-                    profile_version=metadata.get('version', ''),
                     dry_run=dry_run,
-                    offpeak_window={'start': window_start.isoformat(), 'end': window_end.isoformat()},
-                    canary_scope_snapshot=canary_scope,
+                    parts=parts,
                 )
 
-                batches = self._create_batches(seed_run, volumetry or {})
+                batches = self._create_batches(seed_run, parts.volumetry)
 
         return SeedRunCreation(seed_run=seed_run, seed_profile=seed_profile, batches=batches)
+
+    def _extract_manifest_parts(self, *, manifest: Dict[str, Any], manifest_path: str, mode: str) -> _ManifestParts:
+        manifest_dict = manifest if isinstance(manifest, dict) else {}
+        metadata = manifest_dict.get('metadata') or {}
+        volumetry = manifest_dict.get('volumetry') or {}
+        rate_limit = manifest_dict.get('rate_limit') or {}
+        backoff = manifest_dict.get('backoff') or {}
+        budget = manifest_dict.get('budget') or {}
+        ttl_config = manifest_dict.get('ttl') or {}
+        slo = manifest_dict.get('slo') or {}
+        integrity = manifest_dict.get('integrity') or {}
+        canary_scope = manifest_dict.get('canary')
+        manifest_hash = compute_manifest_hash(manifest_dict)
+        window_start, window_end = self._extract_window(manifest_dict)
+
+        return _ManifestParts(
+            reference_datetime=self._parse_reference_datetime(manifest_dict),
+            window_start=window_start,
+            window_end=window_end,
+            volumetry=volumetry,
+            rate_limit=rate_limit,
+            backoff=backoff,
+            budget=budget,
+            ttl_config=ttl_config,
+            slo=slo,
+            integrity=integrity,
+            metadata=metadata,
+            canary_scope=canary_scope,
+            manifest_hash=manifest_hash,
+        )
+
+    def _upsert_seed_profile(
+        self,
+        *,
+        tenant_id: UUID,
+        environment: str,
+        mode: str,
+        manifest_path: str,
+        parts: _ManifestParts,
+    ) -> SeedProfile:
+        with use_tenant(tenant_id):
+            seed_profile, _ = SeedProfile.objects.update_or_create(
+                profile=parts.metadata.get('profile', 'default'),
+                version=parts.metadata.get('version', '0.0.0'),
+                defaults={
+                    'environment': environment,
+                    'schema_version': parts.metadata.get('schema_version', 'v1'),
+                    'mode': mode,
+                    'reference_datetime': parts.reference_datetime,
+                    'volumetry': parts.volumetry or {},
+                    'rate_limit': parts.rate_limit or {},
+                    'backoff': parts.backoff or {},
+                    'budget': parts.budget or {},
+                    'window_start_utc': parts.window_start,
+                    'window_end_utc': parts.window_end,
+                    'ttl_config': parts.ttl_config or {},
+                    'slo_p95_ms': int(parts.slo.get('p95_target_ms', 0) or 0),
+                    'slo_p99_ms': int(parts.slo.get('p99_target_ms', 0) or 0),
+                    'slo_throughput_rps': Decimal(str(parts.slo.get('throughput_target_rps', 0) or 0)),
+                    'integrity_hash': parts.integrity.get('manifest_hash', parts.manifest_hash),
+                    'manifest_path': manifest_path,
+                    'manifest_hash_sha256': parts.manifest_hash,
+                    'salt_version': parts.metadata.get('salt_version', 'v1'),
+                    'canary_scope': parts.canary_scope,
+                },
+            )
+        return seed_profile
+
+    def _create_seed_run_record(
+        self,
+        *,
+        seed_profile: SeedProfile,
+        environment: str,
+        mode: str,
+        requested_by: str,
+        idempotency_key: str,
+        manifest_path: str,
+        dry_run: bool,
+        parts: _ManifestParts,
+    ) -> SeedRun:
+        return SeedRun.objects.create(
+            seed_profile=seed_profile,
+            environment=environment,
+            mode=mode,
+            status=SeedRun.Status.QUEUED,
+            requested_by=requested_by,
+            idempotency_key=idempotency_key,
+            manifest_path=manifest_path,
+            manifest_hash_sha256=parts.manifest_hash,
+            reference_datetime=parts.reference_datetime,
+            profile_version=parts.metadata.get('version', ''),
+            dry_run=dry_run,
+            offpeak_window={'start': parts.window_start.isoformat(), 'end': parts.window_end.isoformat()},
+            canary_scope_snapshot=parts.canary_scope,
+        )
 
     def request_slot(
         self,
