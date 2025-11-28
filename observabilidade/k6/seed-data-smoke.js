@@ -1,5 +1,6 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
+import { sha256 } from 'k6/crypto';
 
 const VALIDATE_URL = __ENV.SEED_VALIDATE_URL || 'http://localhost:8000/api/v1/seed-profiles/validate';
 const RUNS_URL = __ENV.SEED_RUNS_URL || 'http://localhost:8000/api/v1/seed-runs';
@@ -8,6 +9,42 @@ const ENVIRONMENT = __ENV.SEED_ENVIRONMENT || 'staging';
 const SUBJECT = __ENV.SEED_SUBJECT || 'svc-k6';
 const IDEMPOTENCY_KEY = __ENV.SEED_IDEMPOTENCY_KEY || `k6-${Date.now()}`;
 const MODE = __ENV.SEED_MODE || 'baseline';
+
+function findHeader(headers, key) {
+  const target = key.toLowerCase();
+  for (const header in headers) {
+    if (header.toLowerCase() === target) {
+      return headers[header];
+    }
+  }
+  return undefined;
+}
+
+function canonicalize(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => canonicalize(item));
+  }
+  if (value && typeof value === 'object') {
+    const sorted = {};
+    Object.keys(value)
+      .sort()
+      .forEach((key) => {
+        sorted[key] = canonicalize(value[key]);
+      });
+    return sorted;
+  }
+  return value;
+}
+
+function computeManifestHash(manifest) {
+  const clone = JSON.parse(JSON.stringify(manifest));
+  if (clone.integrity && typeof clone.integrity === 'object') {
+    delete clone.integrity.manifest_hash;
+  }
+  const canonical = canonicalize(clone);
+  const serialized = JSON.stringify(canonical);
+  return sha256(serialized, 'hex');
+}
 
 function manifestFromEnv() {
   const slo = {
@@ -21,7 +58,7 @@ function manifestFromEnv() {
     window_seconds: Number(__ENV.SEED_RATE_WINDOW || 60),
   };
 
-  return {
+  const manifest = {
     metadata: {
       tenant: TENANT,
       environment: ENVIRONMENT,
@@ -37,7 +74,18 @@ function manifestFromEnv() {
       end_utc: __ENV.SEED_WINDOW_END || '06:00',
     },
     volumetry: {
+      tenant_users: { cap: Number(__ENV.SEED_CAP_TENANT_USERS || 5) },
       customers: { cap: Number(__ENV.SEED_CAP_CUSTOMERS || 25) },
+      addresses: { cap: Number(__ENV.SEED_CAP_ADDRESSES || 35) },
+      consultants: { cap: Number(__ENV.SEED_CAP_CONSULTANTS || 3) },
+      bank_accounts: { cap: Number(__ENV.SEED_CAP_BANK_ACCOUNTS || 30) },
+      account_categories: { cap: Number(__ENV.SEED_CAP_ACCOUNT_CATEGORIES || 6) },
+      suppliers: { cap: Number(__ENV.SEED_CAP_SUPPLIERS || 10) },
+      loans: { cap: Number(__ENV.SEED_CAP_LOANS || 50) },
+      installments: { cap: Number(__ENV.SEED_CAP_INSTALLMENTS || 500) },
+      financial_transactions: { cap: Number(__ENV.SEED_CAP_FINTRANS || 1000) },
+      limits: { cap: Number(__ENV.SEED_CAP_LIMITS || 25) },
+      contracts: { cap: Number(__ENV.SEED_CAP_CONTRACTS || 35) },
     },
     rate_limit: rateLimit,
     backoff: {
@@ -52,12 +100,23 @@ function manifestFromEnv() {
     },
     ttl: {
       baseline_days: Number(__ENV.SEED_TTL_BASELINE || 1),
+      carga_days: Number(__ENV.SEED_TTL_CARGA || 2),
+      dr_days: Number(__ENV.SEED_TTL_DR || 2),
     },
     slo,
-    integrity: {
-      manifest_hash: __ENV.SEED_MANIFEST_HASH || 'dev-hash',
-    },
+    integrity: {},
   };
+
+  const wormProof = __ENV.SEED_WORM_PROOF;
+  if (wormProof) {
+    manifest.integrity.worm_proof = wormProof;
+  }
+  const costModelVersion = __ENV.SEED_COST_MODEL_VERSION;
+  if (costModelVersion) {
+    manifest.budget.cost_model_version = costModelVersion;
+  }
+  manifest.integrity.manifest_hash = __ENV.SEED_MANIFEST_HASH || computeManifestHash(manifest);
+  return manifest;
 }
 
 const MANIFEST = manifestFromEnv();
@@ -91,12 +150,16 @@ export default function () {
 
   check(validateRes, {
     'validate status ok': (r) => [200, 422, 429].includes(r.status),
-    'validate ratelimit headers': (r) => r.headers['RateLimit-Remaining'] !== undefined,
+    'validate ratelimit headers': (r) => findHeader(r.headers, 'RateLimit-Remaining') !== undefined,
   });
 
   const createBody = {
     manifest: MANIFEST,
-    manifest_path: __ENV.SEED_MANIFEST_PATH || `configs/seed_profiles/${ENVIRONMENT}/${TENANT}.yaml`,
+    manifest_path:
+      __ENV.SEED_MANIFEST_PATH
+      || (MODE === 'baseline'
+        ? `configs/seed_profiles/${ENVIRONMENT}/${TENANT}.yaml`
+        : `configs/seed_profiles/${ENVIRONMENT}/${TENANT}-${MODE}.yaml`),
     mode: MODE,
     dry_run: __ENV.SEED_DRY_RUN === 'true',
   };
@@ -108,21 +171,24 @@ export default function () {
 
   check(createRes, {
     'create status ok': (r) => [201, 409, 422, 429].includes(r.status),
-    'create ratelimit headers': (r) => r.headers['RateLimit-Remaining'] !== undefined,
-    'etag returned': (r) => r.headers['ETag'] !== undefined || r.headers['Etag'] !== undefined,
+    'create ratelimit headers': (r) => findHeader(r.headers, 'RateLimit-Remaining') !== undefined,
+    'etag returned': (r) => findHeader(r.headers, 'ETag') !== undefined,
   });
 
   const etag = createRes.headers['ETag'] || createRes.headers['Etag'];
   const seedRunId = createRes.json('seed_run_id');
   if (createRes.status === 201 && seedRunId) {
-    const pollRes = http.get(`${RUNS_URL}/${seedRunId}`, {
-      headers: headers(`${IDEMPOTENCY_KEY}-poll`, etag ? { 'If-None-Match': etag } : {}),
-      timeout: '10s',
-    });
+    const pollRes = http.get(
+      `${RUNS_URL}/${seedRunId}`,
+      {
+        headers: headers(`${IDEMPOTENCY_KEY}-poll`, etag ? { 'If-None-Match': etag } : {}),
+        timeout: '10s',
+      },
+    );
 
     check(pollRes, {
       'poll status ok': (r) => [200, 304, 429].includes(r.status),
-      'poll ratelimit headers': (r) => r.headers['RateLimit-Remaining'] !== undefined,
+      'poll ratelimit headers': (r) => findHeader(r.headers, 'RateLimit-Remaining') !== undefined,
     });
   }
 

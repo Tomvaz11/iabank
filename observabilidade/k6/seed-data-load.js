@@ -1,5 +1,6 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
+import { sha256 } from 'k6/crypto';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
 const BASE_URL = __ENV.SEED_BASE_URL || 'http://localhost:8000';
@@ -17,6 +18,42 @@ const errorRate = new Rate('seed_error_rate');
 const ratelimitRemaining = new Trend('seed_ratelimit_remaining', true);
 const runsCreated = new Counter('seed_runs_created');
 
+function findHeader(headers, key) {
+  const target = key.toLowerCase();
+  for (const header in headers) {
+    if (header.toLowerCase() === target) {
+      return headers[header];
+    }
+  }
+  return undefined;
+}
+
+function canonicalize(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => canonicalize(item));
+  }
+  if (value && typeof value === 'object') {
+    const sorted = {};
+    Object.keys(value)
+      .sort()
+      .forEach((key) => {
+        sorted[key] = canonicalize(value[key]);
+      });
+    return sorted;
+  }
+  return value;
+}
+
+function computeManifestHash(manifest) {
+  const clone = JSON.parse(JSON.stringify(manifest));
+  if (clone.integrity && typeof clone.integrity === 'object') {
+    delete clone.integrity.manifest_hash;
+  }
+  const canonical = canonicalize(clone);
+  const serialized = JSON.stringify(canonical);
+  return sha256(serialized, 'hex');
+}
+
 function manifestFromEnv() {
   const slo = {
     p95_target_ms: Number(__ENV.SEED_SLO_P95_MS || 5000),
@@ -31,14 +68,21 @@ function manifestFromEnv() {
   };
 
   const volumetry = {
+    tenant_users: { cap: Number(__ENV.SEED_CAP_TENANT_USERS || 50) },
     customers: { cap: Number(__ENV.SEED_CAP_CUSTOMERS || 500) },
+    addresses: { cap: Number(__ENV.SEED_CAP_ADDRESSES || 750) },
+    consultants: { cap: Number(__ENV.SEED_CAP_CONSULTANTS || 30) },
     bank_accounts: { cap: Number(__ENV.SEED_CAP_BANK_ACCOUNTS || 600) },
+    account_categories: { cap: Number(__ENV.SEED_CAP_ACCOUNT_CATEGORIES || 60) },
+    suppliers: { cap: Number(__ENV.SEED_CAP_SUPPLIERS || 150) },
     loans: { cap: Number(__ENV.SEED_CAP_LOANS || 1000) },
     installments: { cap: Number(__ENV.SEED_CAP_INSTALLMENTS || 10000) },
     financial_transactions: { cap: Number(__ENV.SEED_CAP_FINTRANS || 20000) },
+    limits: { cap: Number(__ENV.SEED_CAP_LIMITS || 500) },
+    contracts: { cap: Number(__ENV.SEED_CAP_CONTRACTS || 750) },
   };
 
-  return {
+  const manifest = {
     metadata: {
       tenant: TENANT,
       environment: ENVIRONMENT,
@@ -71,10 +115,20 @@ function manifestFromEnv() {
       dr_days: Number(__ENV.SEED_TTL_DR || 2),
     },
     slo,
-    integrity: {
-      manifest_hash: __ENV.SEED_MANIFEST_HASH || 'load-hash',
-    },
+    integrity: {},
   };
+
+  const wormProof = __ENV.SEED_WORM_PROOF;
+  if (wormProof) {
+    manifest.integrity.worm_proof = wormProof;
+  }
+  const costModelVersion = __ENV.SEED_COST_MODEL_VERSION;
+  if (costModelVersion) {
+    manifest.budget.cost_model_version = costModelVersion;
+  }
+
+  manifest.integrity.manifest_hash = __ENV.SEED_MANIFEST_HASH || computeManifestHash(manifest);
+  return manifest;
 }
 
 function headers(idempotencyKey, extra = {}) {
@@ -130,13 +184,18 @@ export default function () {
   validateTrend.add(validateRes.timings.duration, { kind: 'validate' });
   const validateOk = check(validateRes, {
     'validate status accepted': (r) => [200, 422, 429].includes(r.status),
-    'validate ratelimit headers': (r) => r.headers['RateLimit-Remaining'] !== undefined,
+    'validate ratelimit headers': (r) => findHeader(r.headers, 'RateLimit-Remaining') !== undefined,
   });
   recordError(validateOk);
 
+  const manifestPath =
+    __ENV.SEED_MANIFEST_PATH
+    || (MODE === 'baseline'
+      ? `configs/seed_profiles/${ENVIRONMENT}/${TENANT}.yaml`
+      : `configs/seed_profiles/${ENVIRONMENT}/${TENANT}-${MODE}.yaml`);
   const createBody = {
     manifest: MANIFEST,
-    manifest_path: __ENV.SEED_MANIFEST_PATH || `configs/seed_profiles/${ENVIRONMENT}/${TENANT}.yaml`,
+    manifest_path: manifestPath,
     mode: MODE,
     dry_run: __ENV.SEED_DRY_RUN === 'true',
   };
@@ -149,7 +208,7 @@ export default function () {
   const acceptedStatuses = [201, 409, 422, 429];
   const createOk = check(createRes, {
     'create status accepted': (r) => acceptedStatuses.includes(r.status),
-    'create returned etag or retry': (r) => r.headers['ETag'] !== undefined || r.headers['Retry-After'] !== undefined,
+    'create returned etag or retry': (r) => findHeader(r.headers, 'ETag') !== undefined || findHeader(r.headers, 'Retry-After') !== undefined,
   });
   recordError(createOk);
 
@@ -158,7 +217,7 @@ export default function () {
     runsCreated.add(1);
     const pollRes = http.get(`${RUNS_URL}/${seedRunId}`, {
       headers: headers(`${idempoKey}-poll`, {
-        'If-None-Match': createRes.headers['ETag'] || createRes.headers['Etag'] || '',
+        'If-None-Match': findHeader(createRes.headers, 'ETag') || '',
       }),
       timeout: '10s',
     });
@@ -166,14 +225,14 @@ export default function () {
 
     const pollOk = check(pollRes, {
       'poll status ok': (r) => [200, 304, 429].includes(r.status),
-      'poll has ratelimit': (r) => r.headers['RateLimit-Remaining'] !== undefined,
+      'poll has ratelimit': (r) => findHeader(r.headers, 'RateLimit-Remaining') !== undefined,
     });
     recordError(pollOk);
 
-    const remaining = Number(pollRes.headers['RateLimit-Remaining'] || 0);
+    const remaining = Number(findHeader(pollRes.headers, 'RateLimit-Remaining') || 0);
     ratelimitRemaining.add(remaining, { mode: MODE });
   } else {
-    ratelimitRemaining.add(Number(createRes.headers['RateLimit-Remaining'] || 0), { mode: MODE });
+    ratelimitRemaining.add(Number(findHeader(createRes.headers, 'RateLimit-Remaining') || 0), { mode: MODE });
   }
 
   const targetSleep = Number(__ENV.SEED_SLEEP || '0.3');
