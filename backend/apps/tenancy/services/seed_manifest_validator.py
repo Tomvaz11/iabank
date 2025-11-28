@@ -101,43 +101,14 @@ class SeedManifestValidator:
     def validate_manifest(self, manifest: Dict[str, Any] | None, *, environment: str | None = None) -> ValidationResult:
         manifest_hash = compute_manifest_hash(manifest)
         if not isinstance(manifest, dict):
-            violation = {
-                'field': 'manifest',
-                'message': 'Manifesto deve ser um objeto JSON válido.',
-                'code': 'invalid_type',
-            }
-            return ValidationResult(False, [violation['message']], [violation], manifest_hash)
+            return self._invalid_manifest_result(manifest_hash)
 
         validator = self._get_validator()
-        errors = sorted(validator.iter_errors(manifest), key=lambda err: err.json_path)
-        violations: list[dict[str, str]] = [
-            {
-                'field': '.'.join([str(part) for part in error.path]) or error.json_path.lstrip('$.'),
-                'message': error.message,
-                'code': str(error.validator),
-            }
-            for error in errors
-        ]
-
-        integrity = manifest.get('integrity') if isinstance(manifest, dict) else None
-        integrity_hash = integrity.get('manifest_hash') if isinstance(integrity, dict) else None
-        if integrity_hash and integrity_hash != manifest_hash:
-            violations.append(
-                {
-                    'field': 'integrity.manifest_hash',
-                    'message': 'Hash do manifesto não confere com o payload informado.',
-                    'code': 'manifest_hash_mismatch',
-                }
-            )
-
-        if environment and manifest.get('metadata', {}).get('environment') != environment:
-            violations.append(
-                {
-                    'field': 'metadata.environment',
-                    'message': 'Cabeçalho X-Environment diverge do manifesto.',
-                    'code': 'environment_mismatch',
-                }
-            )
+        violations: list[dict[str, str]] = (
+            self._schema_violations(validator, manifest)
+            + self._integrity_violations(manifest, manifest_hash)
+            + self._environment_violations(manifest, environment)
+        )
 
         issues = [violation['message'] for violation in violations]
         return ValidationResult(
@@ -195,3 +166,48 @@ class SeedManifestValidator:
             raise RuntimeError(f'Não foi possível carregar o schema em {self.schema_path}') from exc
         except SchemaError as exc:  # pragma: no cover - schema inválido impede execução
             raise RuntimeError(f'Schema inválido em {self.schema_path}') from exc
+
+    def _invalid_manifest_result(self, manifest_hash: str) -> ValidationResult:
+        violation = {
+            'field': 'manifest',
+            'message': 'Manifesto deve ser um objeto JSON válido.',
+            'code': 'invalid_type',
+        }
+        return ValidationResult(False, [violation['message']], [violation], manifest_hash)
+
+    def _schema_violations(self, validator: Draft202012Validator, manifest: Dict[str, Any]) -> list[dict[str, str]]:
+        errors = sorted(validator.iter_errors(manifest), key=lambda err: err.json_path)
+        return [
+            {
+                'field': '.'.join([str(part) for part in error.path]) or error.json_path.lstrip('$.'),
+                'message': error.message,
+                'code': str(error.validator),
+            }
+            for error in errors
+        ]
+
+    def _integrity_violations(self, manifest: Dict[str, Any], manifest_hash: str) -> list[dict[str, str]]:
+        integrity = manifest.get('integrity') if isinstance(manifest, dict) else None
+        integrity_hash = integrity.get('manifest_hash') if isinstance(integrity, dict) else None
+        if integrity_hash and integrity_hash != manifest_hash:
+            return [
+                {
+                    'field': 'integrity.manifest_hash',
+                    'message': 'Hash do manifesto não confere com o payload informado.',
+                    'code': 'manifest_hash_mismatch',
+                }
+            ]
+        return []
+
+    def _environment_violations(
+        self, manifest: Dict[str, Any], environment: str | None
+    ) -> list[dict[str, str]]:
+        if environment and manifest.get('metadata', {}).get('environment') != environment:
+            return [
+                {
+                    'field': 'metadata.environment',
+                    'message': 'Cabeçalho X-Environment diverge do manifesto.',
+                    'code': 'environment_mismatch',
+                }
+            ]
+        return []
