@@ -16,6 +16,7 @@ from backend.apps.tenancy.models import Tenant
 from backend.apps.tenancy.services.seed_idempotency import IdempotencyDecision, SeedIdempotencyService
 from backend.apps.tenancy.services.seed_manifest_validator import SeedManifestValidator, ValidationResult
 from backend.apps.tenancy.services.seed_preflight import PreflightContext, SeedPreflightService
+from backend.apps.tenancy.services.seed_queue_gc import SeedQueueGC
 from backend.apps.tenancy.services.seed_runs import ProblemDetail, SeedRunService
 
 
@@ -60,6 +61,7 @@ class Command(BaseCommand):
         self._ensure_manifest_matches_tenant(validation, from_file, manifest, tenant.slug)
 
         service = SeedRunService()
+        queue_gc = SeedQueueGC()
         self._fail_if_problem(
             service.ensure_reference_drift(
                 tenant_id=tenant.id,
@@ -69,8 +71,17 @@ class Command(BaseCommand):
             ),
             service.exit_code_for_problem,
         )
+        self._fail_if_problem(
+            service.ensure_offpeak_window(
+                manifest=manifest,
+                environment=environment,
+                mode=mode,
+            ),
+            service.exit_code_for_problem,
+        )
 
-        idempotency_service = SeedIdempotencyService(tenant.id)
+        idempotency_service = SeedIdempotencyService(tenant.id, context='seed_data_cli')
+        idempotency_service.cleanup_expired(environment=environment)
         idempotency_key = self._resolve_idempotency_key(options, manifest_hash)
         idempotency_decision, created_idempo_entry = self._ensure_idempotency(
             idempotency_service=idempotency_service,
@@ -82,12 +93,14 @@ class Command(BaseCommand):
         if idempotency_decision is None:
             return
 
+        queue_gc.expire_stale(environment=environment)
         with use_tenant(tenant.id):
             decision, problem = service.request_slot(
                 environment=environment,
                 tenant_id=tenant.id,
                 seed_run_id=None,
                 now=timezone.now(),
+                ttl=SeedRunService.queue_ttl_for_mode(mode),
             )
 
         if problem:
@@ -170,11 +183,11 @@ class Command(BaseCommand):
                 'profile': 'default',
                 'version': '0.0.0',
                 'schema_version': 'v1',
-                'salt_version': 'v1',
-            },
-            'mode': mode or 'baseline',
-            'reference_datetime': timezone.now().isoformat(),
-            'window': {'start_utc': '00:00', 'end_utc': '06:00'},
+            'salt_version': 'v1',
+        },
+        'mode': mode or 'baseline',
+        'reference_datetime': '2025-01-01T00:00:00Z',
+        'window': {'start_utc': '00:00', 'end_utc': '06:00'},
             'volumetry': {},
             'rate_limit': {'limit': 1, 'window_seconds': 60},
             'backoff': {'base_seconds': 1, 'jitter_factor': 0.1, 'max_retries': 1, 'max_interval_seconds': 60},

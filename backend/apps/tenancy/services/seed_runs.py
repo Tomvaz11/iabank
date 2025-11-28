@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 from http import HTTPStatus
 from typing import Any, Dict, Optional
@@ -248,6 +248,7 @@ class SeedRunService:
         tenant_id: UUID,
         seed_run_id: Optional[UUID] = None,
         now: Optional[datetime] = None,
+        ttl: Optional[timedelta] = None,
     ) -> tuple[QueueDecision, Optional[ProblemDetail]]:
         current_time = now or timezone.now()
         decision = self.queue_service.enqueue(
@@ -255,6 +256,7 @@ class SeedRunService:
             tenant_id=tenant_id,
             seed_run_id=seed_run_id,
             now=current_time,
+            ttl=ttl,
         )
 
         if decision.allowed:
@@ -302,6 +304,50 @@ class SeedRunService:
         raw = manifest.get('reference_datetime') if isinstance(manifest, dict) else None
         parsed = parse_datetime(str(raw)) if raw is not None else None
         return parsed or timezone.now()
+
+    @staticmethod
+    def _in_offpeak_window(reference: datetime, window_start: time, window_end: time) -> bool:
+        """
+        Avalia se a referência informada cai na janela off-peak.
+        """
+        ref_time = reference.time()
+        if window_start <= window_end:
+            return window_start <= ref_time <= window_end
+        return ref_time >= window_start or ref_time <= window_end
+
+    def ensure_offpeak_window(
+        self,
+        *,
+        manifest: Dict[str, Any],
+        environment: str,
+        mode: str,
+    ) -> Optional[ProblemDetail]:
+        """
+        Bloqueia execuções fora da janela off-peak declarada no manifesto, exceto se override explícito.
+        """
+        if manifest.get('allow_offpeak_override'):
+            return None
+
+        window_start, window_end = self._extract_window(manifest)
+        reference = self._parse_reference_datetime(manifest)
+        if self._in_offpeak_window(reference, window_start, window_end):
+            return None
+
+        return ProblemDetail(
+            status=HTTPStatus.FORBIDDEN,
+            title='offpeak_window_closed',
+            detail=f'Janela off-peak para {environment}/{mode} está fechada.',
+            type='https://iabank.local/problems/seed/offpeak-closed',
+        )
+
+    @staticmethod
+    def queue_ttl_for_mode(mode: str) -> timedelta:
+        """
+        TTL diferenciado para fila por modo; baseline mantém 5min para evitar backlog.
+        """
+        if mode in {'carga', 'dr'}:
+            return timedelta(minutes=10)
+        return timedelta(minutes=5)
 
     @staticmethod
     def _extract_window(manifest: Dict[str, Any]) -> tuple[time, time]:

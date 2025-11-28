@@ -33,8 +33,10 @@ class SeedQueueService:
         tenant_id: Optional[UUID] = None,
         seed_run_id: Optional[UUID] = None,
         now: Optional[datetime] = None,
+        ttl: Optional[timedelta] = None,
     ) -> QueueDecision:
         current_time = now or timezone.now()
+        effective_ttl = ttl or self.ttl
 
         with transaction.atomic():
             self._expire_old_entries(environment=environment, now=current_time)
@@ -78,7 +80,7 @@ class SeedQueueService:
                 seed_run_id=seed_run_id,
                 status=SeedQueue.Status.PENDING,
                 enqueued_at=current_time,
-                expires_at=current_time + self.ttl,
+                expires_at=current_time + effective_ttl,
             )
 
         return QueueDecision(

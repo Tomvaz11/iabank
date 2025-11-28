@@ -94,15 +94,15 @@ Objetivo da história: Agendar, consultar e cancelar execuções via API/CLI com
 Critério de teste independente: API/CLI `/seed-runs*` retornam headers obrigatórios, aplicam locks/rate-limit/budget e respeitam RBAC/ABAC (Problem Details previsíveis).
 
 ### Testes (executar antes da implementacao)
-- [ ] T040 [US4] Cobrir `/api/v1/seed-runs` create/get/cancel com Idempotency-Key, ETag/If-Match e RateLimit-* (`backend/apps/tenancy/tests/test_seed_runs_api.py`)
-- [ ] T041 [US4] Testes negativos de RBAC/ABAC para create/poll/cancel seed runs (perfis seed-runner/admin/read, If-Match/Idempotency-Key, tenants/ambientes proibidos) (`backend/apps/tenancy/tests/test_seed_runs_auth.py`)
-- [ ] T042 [US4] Validar armazenamento de `Idempotency-Key` com TTL/deduplicação (replay retorna resposta anterior, expiração configurável por modo) (`backend/apps/tenancy/tests/test_seed_idempotency.py`)
-- [ ] T043 [US4] Adicionar script/perf gate k6 para validate/create/poll seed runs lendo thresholds de SLO/rate_limit/budget do manifesto (`observabilidade/k6/seed-data-smoke.js`)
+- [X] T040 [US4] Cobrir `/api/v1/seed-runs` create/get/cancel com Idempotency-Key, ETag/If-Match e RateLimit-* (`backend/apps/tenancy/tests/test_seed_runs_api.py`)
+- [X] T041 [US4] Testes negativos de RBAC/ABAC para create/poll/cancel seed runs (perfis seed-runner/admin/read, If-Match/Idempotency-Key, tenants/ambientes proibidos) (`backend/apps/tenancy/tests/test_seed_runs_auth.py`)
+- [X] T042 [US4] Validar armazenamento de `Idempotency-Key` com TTL/deduplicação (replay retorna resposta anterior, expiração configurável por modo) (`backend/apps/tenancy/tests/test_seed_idempotency.py`)
+- [X] T043 [US4] Adicionar script/perf gate k6 para validate/create/poll seed runs lendo thresholds de SLO/rate_limit/budget do manifesto (`observabilidade/k6/seed-data-smoke.js`)
 
 ### Implementacao
-- [ ] T044 [US4] Expor views/serializers `/api/v1/seed-runs` create/poll/cancel com RBAC/ABAC e headers governanca (RateLimit-*, Idempotency-Key, ETag) (`backend/apps/tenancy/views.py`, `backend/apps/tenancy/serializers/seed_runs.py`, `backend/apps/tenancy/urls.py`)
-- [ ] T045 [US4] Ajustar `seed_data` e GC da fila para modos baseline/carga/DR (TTL, off-peak enforcement, cancelamento seguro) (`backend/apps/tenancy/management/commands/seed_data.py`, `backend/apps/tenancy/services/seed_queue_gc.py`)
-- [ ] T046 [US4] Persistir `Idempotency-Key` com TTL/deduplicação auditável (tabela/cache) e limpeza periódica (`backend/apps/tenancy/services/seed_idempotency.py`, `backend/apps/tenancy/management/commands/seed_data.py`)
+- [X] T044 [US4] Expor views/serializers `/api/v1/seed-runs` create/poll/cancel com RBAC/ABAC e headers governanca (RateLimit-*, Idempotency-Key, ETag) (`backend/apps/tenancy/views.py`, `backend/apps/tenancy/serializers/seed_runs.py`, `backend/apps/tenancy/urls.py`)
+- [X] T045 [US4] Ajustar `seed_data` e GC da fila para modos baseline/carga/DR (TTL, off-peak enforcement, cancelamento seguro) (`backend/apps/tenancy/management/commands/seed_data.py`, `backend/apps/tenancy/services/seed_queue_gc.py`)
+- [X] T046 [US4] Persistir `Idempotency-Key` com TTL/deduplicação auditável (tabela/cache) e limpeza periódica (`backend/apps/tenancy/services/seed_idempotency.py`, `backend/apps/tenancy/management/commands/seed_data.py`)
 - Nota US4: reutilizar `SeedPreflightService` nas views `/api/v1/seed-runs*` para manter fail-close de Vault/WORM/RBAC alinhado ao CLI.
 
 ## Fase 7: User Story 3 - Carga e DR com dados sinteticos (Prioridade P3)

@@ -1,9 +1,19 @@
 from django.urls import path
 
-from .views import SeedProfileValidateView, TenantSuccessMetricsView, TenantThemeView
+from .views import (
+    SeedProfileValidateView,
+    SeedRunCancelView,
+    SeedRunDetailView,
+    SeedRunsView,
+    TenantSuccessMetricsView,
+    TenantThemeView,
+)
 
 urlpatterns = [
     path('tenants/<slug:tenant_slug>/themes/current', TenantThemeView.as_view(), name='tenant-theme-current'),
     path('tenant-metrics/<slug:tenant_slug>/sc', TenantSuccessMetricsView.as_view(), name='tenant-success-metrics'),
     path('seed-profiles/validate', SeedProfileValidateView.as_view(), name='seed-profile-validate'),
+    path('seed-runs', SeedRunsView.as_view(), name='seed-runs'),
+    path('seed-runs/<uuid:seed_run_id>', SeedRunDetailView.as_view(), name='seed-run-detail'),
+    path('seed-runs/<uuid:seed_run_id>/cancel', SeedRunCancelView.as_view(), name='seed-run-cancel'),
 ]
