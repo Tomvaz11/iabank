@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 
 from .managers import use_tenant
 from .models import Tenant, TenantThemeToken
+from .services.seed_preflight import SeedPreflightConfig
 from .services.seed_idempotency import SeedIdempotencyService
 from .services.seed_manifest_validator import (
     RateLimitDecision,
@@ -116,6 +117,15 @@ class SeedProfileValidateView(APIView):
                 status_code=status.HTTP_404_NOT_FOUND,
                 title='tenant_not_found',
                 detail='Tenant não encontrado para validação do manifesto.',
+                manifest=manifest,
+            )
+
+        config = SeedPreflightConfig.from_env()
+        if environment not in config.allowed_environments:
+            return self._problem_response(
+                status_code=status.HTTP_403_FORBIDDEN,
+                title='environment_not_allowed',
+                detail=f"Environment '{environment}' nao autorizado para validação de seed profiles.",
                 manifest=manifest,
             )
 

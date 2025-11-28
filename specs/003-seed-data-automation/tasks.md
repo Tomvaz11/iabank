@@ -65,16 +65,16 @@ Objetivo da história: Executar `seed_data --profile` para baseline deterministi
 Critério de teste independente: `seed_data` baseline roda em dry-run com manifesto v1 válido, respeita RLS, não grava WORM/checkpoints, reprova quando PII não está mascarada/contratos divergirem/caps Q11 forem violados, e devolve Problem Details auditável ao violar regras (incluindo falha OTEL/Sentry simulada).
 
 ### Testes (executar antes da implementacao)
-- [ ] T027 [US1] Cobrir comando `seed_data` baseline com dry-run (sem WORM/checkpoints), RLS/off-peak e idempotency_key, validando mascaramento PII, contratos `/api/v1` e caps Q11 (sucesso e bloqueios cross-tenant) (`backend/apps/tenancy/tests/test_seed_data_command.py`)
-- [ ] T028 [US1] Testes negativos de autorização (CLI/API) para perfis seed-runner/admin/read, janela off-peak e tenants/ambientes não permitidos (`backend/apps/tenancy/tests/test_seed_auth.py`)
-- [ ] T029 [US1] Bloquear runs quando `reference_datetime` divergir do checkpoint e exigir limpeza/reseed controlado (`backend/apps/tenancy/tests/test_seed_reference_datetime_drift.py`)
+- [X] T027 [US1] Cobrir comando `seed_data` baseline com dry-run (sem WORM/checkpoints), RLS/off-peak e idempotency_key, validando mascaramento PII, contratos `/api/v1` e caps Q11 (sucesso e bloqueios cross-tenant) (`backend/apps/tenancy/tests/test_seed_data_command.py`)
+- [X] T028 [US1] Testes negativos de autorização (CLI/API) para perfis seed-runner/admin/read, janela off-peak e tenants/ambientes não permitidos (`backend/apps/tenancy/tests/test_seed_auth.py`)
+- [X] T029 [US1] Bloquear runs quando `reference_datetime` divergir do checkpoint e exigir limpeza/reseed controlado (`backend/apps/tenancy/tests/test_seed_reference_datetime_drift.py`)
 
 ### Implementacao
-- [ ] T030 [US1] Implementar SeedRunService para criar SeedRun/SeedBatch com advisory lock e store de idempotencia (baseline) (`backend/apps/tenancy/services/seed_runs.py`)
-- [ ] T031 [US1] Criar management command `seed_data` baseline (carrega manifesto, preflight RLS, dry-run, checkpoints iniciais) (`backend/apps/tenancy/management/commands/seed_data.py`)
-- [ ] T032 [US1] Atualizar quickstart com fluxo baseline, codigos de saida e exemplos de manifesto (`specs/003-seed-data-automation/quickstart.md`)
-- [ ] T033 [US1] Configurar mocks/stubs Pact/Prism para integrações externas e validar bloqueio de chamadas reais (`contracts/pacts/*.json`, `scripts/ci/validate-seed-contracts.sh`)
-- [ ] T034 [US1] Implementar limpeza/forçar reseed ao detectar drift de `reference_datetime` em manifesto e checkpoints (`backend/apps/tenancy/services/seed_runs.py`, `backend/apps/tenancy/management/commands/seed_data.py`)
+- [X] T030 [US1] Implementar SeedRunService para criar SeedRun/SeedBatch com advisory lock e store de idempotencia (baseline) (`backend/apps/tenancy/services/seed_runs.py`)
+- [X] T031 [US1] Criar management command `seed_data` baseline (carrega manifesto, preflight RLS, dry-run, checkpoints iniciais) (`backend/apps/tenancy/management/commands/seed_data.py`)
+- [X] T032 [US1] Atualizar quickstart com fluxo baseline, codigos de saida e exemplos de manifesto (`specs/003-seed-data-automation/quickstart.md`)
+- [X] T033 [US1] Configurar mocks/stubs Pact/Prism para integrações externas e validar bloqueio de chamadas reais (`contracts/pacts/*.json`, `scripts/ci/validate-seed-contracts.sh`)
+- [X] T034 [US1] Implementar limpeza/forçar reseed ao detectar drift de `reference_datetime` em manifesto e checkpoints (`backend/apps/tenancy/services/seed_runs.py`, `backend/apps/tenancy/management/commands/seed_data.py`)
 
 ## Fase 5: User Story 2 - Factories com PII mascarada (Prioridade P2)
 Objetivo da história: Produzir factories factory-boy deterministicas com PII mascarada via Vault Transit, reutilizaveis em testes e contratos.  

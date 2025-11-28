@@ -1,0 +1,45 @@
+{
+  "consumer": {
+    "name": "SeedData"
+  },
+  "provider": {
+    "name": "ExternalIntegrations"
+  },
+  "interactions": [
+    {
+      "description": "bloqueia chamadas reais de integrações externas durante seed_data baseline",
+      "providerState": "modo offline com mocks Pact/Prism",
+      "request": {
+        "method": "POST",
+        "path": "/__external__/block",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": "tenant-a",
+          "X-Environment": "staging"
+        },
+        "body": {
+          "source": "seed_data",
+          "mode": "baseline"
+        }
+      },
+      "response": {
+        "status": 503,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "error": "external_calls_blocked",
+          "detail": "Seeds usam stubs Pact/Prism; nenhuma chamada real deve acontecer."
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "13.2.0"
+    },
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  }
+}

@@ -8,6 +8,43 @@
 - WORM acessivel para persistir relatorios assinados; se indisponivel, nao executar.  
 - Pipelines CI/PR com cobertura≥85%, ruff, SAST/DAST/SCA/SBOM e k6 habilitados.
 
+### Manifesto baseline (exemplo resumido)
+```yaml
+metadata:
+  tenant: tenant-a
+  environment: staging
+  profile: default
+  version: 1.0.0
+  schema_version: v1
+  salt_version: v1
+mode: baseline
+reference_datetime: 2025-01-01T00:00:00Z
+window:
+  start_utc: "00:00"
+  end_utc: "06:00"
+volumetry:
+  customers:
+    cap: 100
+  bank_accounts:
+    cap: 120
+rate_limit:
+  limit: 120
+  window_seconds: 60
+backoff:
+  base_seconds: 1
+  jitter_factor: 0.1
+  max_retries: 3
+  max_interval_seconds: 60
+ttl:
+  baseline_days: 1
+slo:
+  p95_target_ms: 150
+  p99_target_ms: 250
+  throughput_target_rps: 1.5
+integrity:
+  manifest_hash: "<preenchido pelo pipeline>"
+```
+
 ## Validar manifesto antes de rodar
 ```bash
 curl -X POST https://api.iabank.local/api/v1/seed-profiles/validate \
@@ -23,28 +60,28 @@ Idempotência: replays com a mesma `Idempotency-Key` (TTL 24h) retornam a mesma 
 ## Dry-run deterministico (CI/PR)
 ```bash
 poetry run python backend/manage.py seed_data \
-  --profile configs/seed_profiles/staging/tenant-a.yaml \
+  --tenant-id <UUID_DO_TENANT> \
+  --environment staging \
   --mode baseline \
-  --reference-datetime 2025-01-01T00:00:00Z \
-  --dry-run \
-  --idempotency-key ci-$(uuidgen)
+  --manifest-path configs/seed_profiles/staging/tenant-a.yaml \
+  --idempotency-key ci-$(uuidgen) \
+  --dry-run
 ```
-- Fail-closed se manifesto versao/schema divergirem, se RLS ausente ou fora da janela off-peak.  
-- Usa factories factory-boy deterministicas (seed derivado de tenant/ambiente/manifesto) e stubs Pact para integrações externas.  
-- Reprova se PII não estiver mascarada, se payloads divergirem dos contratos `/api/v1` (Spectral/oasdiff) ou se caps Q11 do manifesto forem violados (fail-close).
+- Falha em `422` se manifesto/schema/tags divergem ou se o manifesto pertence a outro tenant; usa fallback de `Idempotency-Key` para `seed-data:<manifest_hash>` quando o parâmetro é omitido.  
+- Locks: advisory lock por tenant/ambiente + fila curta com TTL=5 min; conflitos retornam código de saída `3` (cap global) ou `5` (fila pendente).  
+- Determinismo: factories factory-boy e stubs Pact para integrações externas; nenhuma chamada real sai do container.  
+- Reprova se PII não estiver mascarada, se payloads divergirem dos contratos `/api/v1` (Spectral/oasdiff), se caps Q11 do manifesto forem violados (fail-close) ou se `reference_datetime` divergir de checkpoints existentes (código `2` solicitando cleanup/reseed).
 
 ## Execucao em staging/perf (carga/DR)
 ```bash
 poetry run python backend/manage.py seed_data \
-  --profile configs/seed_profiles/dr/tenant-a.yaml \
+  --tenant-id <UUID_DO_TENANT> \
+  --environment perf \
   --mode dr \
-  --idempotency-key dr-$(uuidgen) \
-  --concurrency 1 \
-  --acks-late \
-  --backoff jittered \
-  --dlq
+  --manifest-path configs/seed_profiles/dr/tenant-a.yaml \
+  --idempotency-key dr-$(uuidgen)
 ```
-- Concorrecia serializada por tenant via advisory lock; fila curta Celery com acks tardios e DLQ.  
+- Concorrecia serializada por tenant via advisory lock; fila curta Celery com acks tardios e DLQ configurados no serviço.  
 - Aborta e registra Problem Details se 429 persistente ou budget/caps estourar; reagenda off-peak.
 
 ## Factories em testes
@@ -59,17 +96,25 @@ def test_factory_mascaramento(vault_stub):
 - Seeds de factory derivam de tenant/ambiente/manifesto para reproducao idempotente.
 
 ## Flags do CLI `seed_data`
-- `--profile <path>`: obrigatório. Caminho YAML/JSON GitOps do manifesto v1.  
-- `--mode <baseline|carga|dr|canary>`: default = do manifesto; override opcional.  
-- `--reference-datetime <ISO8601 UTC>`: default = do manifesto; override falha se divergente.  
-- `--concurrency <int>`: default baseline=1; carga/DR/canary aceita 1–4 sob rate-limit/backoff do manifesto.  
-- `--acks-late`: default `true`.  
-- `--backoff <jittered|none>`: default `jittered` obedecendo manifesto (base/jitter/max_retries/max_interval).  
-- `--dlq/--no-dlq`: default `--dlq`.  
-- `--allow-offpeak-override`: default `false`; só permitido em dev isolado.  
-- `--dry-run`: default `false`; roda em transação/snapshot e não grava checkpoints/WORM.  
-- `--idempotency-key <str>`: obrigatório; falha se ausente.  
-- Códigos de saída: `0` sucesso; `2` validação de manifesto/schema/contrato; `3` lock/concorrência; `4` WORM/telemetria indisponível; `5` rate-limit/budget; `6` RLS/tenant ausente.
+- `--tenant-id <uuid>`: obrigatório; RLS/ABAC são avaliados com esse tenant.  
+- `--environment <ambiente>`: obrigatório (`dev|homolog|staging|perf|dr`).  
+- `--manifest-path <path>`: default `configs/seed_profiles/<env>/<tenant>.yaml`; se ausente, o comando monta um manifesto baseline mínimo para destravar a fila, mas o ideal é apontar para o manifesto versionado.  
+- `--mode <baseline|carga|dr|canary>`: default = do manifesto ou `baseline` quando não informado.  
+- `--dry-run`: roda sem checkpoints/WORM.  
+- `--idempotency-key <str>`: opcional; fallback para `seed-data:<manifest_hash>`; conflito com manifesto divergente retorna código `2`.  
+- `--role` (pode repetir) e `--requested-by`: usados pelo preflight; defaults via `SEED_ROLES` e `SEED_REQUESTED_BY`.  
+- Códigos de saída: `0` sucesso; `2` validação/tenant mismatch/drift `reference_datetime`/idempotência; `3` lock/concorrência; `4` WORM/telemetria indisponível; `5` rate-limit/budget; `6` RLS/tenant ausente.
+
+## Fluxo baseline + idempotência e locks
+- Passo 1: validar o manifesto (`/seed-profiles/validate`), garantindo hash/integrity e tenant correto.  
+- Passo 2: executar `seed_data` com `Idempotency-Key`; se omitido, o CLI usa o hash do manifesto e registra `manifest_hash` no stdout para auditoria.  
+- Passo 3: o comando adquire lock advisory por tenant/ambiente, cria o `SeedRun/SeedBatch` e registra a entrada na fila com TTL 5 min; o id da fila aparece no stdout.  
+- Drift de `reference_datetime`: se existir checkpoint para outro `reference_datetime`, o CLI encerra com código `2` e não cria entrada na fila; limpe checkpoints/datasets antes de reseedar.
+
+## Stubs Pact/Prism (sem outbound real)
+- Stubs obrigatórios para seeds estão em `contracts/pacts/financial-calculator.json` e `contracts/pacts/seed-data-outbound-block.json`.  
+- O CI roda `scripts/ci/validate-seed-contracts.sh` para validar os Pact files e garantir que nenhuma chamada real seja usada; sirva-os via Prism/Pact no ambiente de testes.  
+- Qualquer tentativa de outbound real deve falhar em fail-close (`external_calls_blocked`) antes de enfileirar os batches.
 
 ## Observabilidade e relatorios
 - Traces/metricas/logs OTEL (W3C) com labels de tenant/ambiente/seed_run_id; PII sempre mascarada/redact.  

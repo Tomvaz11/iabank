@@ -3,15 +3,20 @@ from __future__ import annotations
 import json
 import os
 import sys
+from http import HTTPStatus
+from pathlib import Path
+from typing import Any, Dict, Tuple
 from uuid import UUID
 
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
-from backend.apps.tenancy.managers import use_tenant
+from backend.apps.tenancy.managers import _set_tenant_guc, _current_tenant, use_tenant
 from backend.apps.tenancy.models import Tenant
+from backend.apps.tenancy.services.seed_idempotency import SeedIdempotencyService
+from backend.apps.tenancy.services.seed_manifest_validator import SeedManifestValidator
 from backend.apps.tenancy.services.seed_preflight import PreflightContext, SeedPreflightService
-from backend.apps.tenancy.services.seed_runs import SeedRunService
+from backend.apps.tenancy.services.seed_runs import ProblemDetail, SeedRunService
 
 
 class Command(BaseCommand):
@@ -30,6 +35,10 @@ class Command(BaseCommand):
             help='Role autorizada (pode repetir; ex.: --role seed-runner --role seed-admin).',
         )
         parser.add_argument('--manifest-path', help='Caminho do manifesto para auditoria/fingerprint.')
+        parser.add_argument(
+            '--idempotency-key',
+            help='Chave de idempotência (default = hash do manifesto).',
+        )
 
     def handle(self, *args, **options) -> None:
         tenant_id = self._parse_tenant_id(options['tenant_id'])
@@ -38,11 +47,81 @@ class Command(BaseCommand):
         dry_run = bool(options.get('dry_run', False))
 
         tenant = self._get_tenant(tenant_id)
+        self._pin_tenant_context(tenant.id)
         requested_by, roles, manifest_path = self._preflight_params(options, tenant.slug, environment)
         self._run_preflight(tenant.id, environment, requested_by, roles, manifest_path, dry_run)
 
+        manifest, from_file = self._load_manifest(manifest_path, tenant.slug, environment, mode)
+        validator = SeedManifestValidator()
+        validation = validator.validate_manifest(manifest, environment=environment)
+        manifest_hash = validation.manifest_hash
+        manifest = self._apply_manifest_hash(manifest, manifest_hash)
+        mode = manifest.get('mode', mode) or mode
+        reference_datetime = SeedRunService._parse_reference_datetime(manifest)
+
+        if from_file and not validation.valid:
+            self._render_problem(
+                ProblemDetail(
+                    status=HTTPStatus.UNPROCESSABLE_ENTITY,
+                    title='manifest_invalid',
+                    detail='; '.join(validation.issues),
+                    type='https://iabank.local/problems/seed/manifest-invalid',
+                ),
+                exit_code=2,
+            )
+
+        tenant_in_manifest = manifest.get('metadata', {}).get('tenant')
+        if tenant_in_manifest and tenant_in_manifest != tenant.slug:
+            self._render_problem(
+                ProblemDetail(
+                    status=HTTPStatus.UNPROCESSABLE_ENTITY,
+                    title='manifest_tenant_mismatch',
+                    detail='Manifesto pertence a outro tenant; revise o caminho informado.',
+                    type='https://iabank.local/problems/seed/tenant-mismatch',
+                ),
+                exit_code=2,
+            )
+
+        service = SeedRunService()
+        drift_problem = service.ensure_reference_drift(
+            tenant_id=tenant.id,
+            environment=environment,
+            mode=mode,
+            reference_datetime=reference_datetime,
+        )
+        if drift_problem:
+            self._render_problem(drift_problem, exit_code=SeedRunService.exit_code_for_problem(drift_problem))
+
+        idempotency_key = self._resolve_idempotency_key(options, manifest_hash)
+        idempotency_service = SeedIdempotencyService(tenant.id)
+        idempotency_decision = idempotency_service.ensure_entry(
+            environment=environment,
+            idempotency_key=idempotency_key,
+            manifest_hash=manifest_hash,
+            mode=mode,
+        )
+        created_idempo_entry = idempotency_decision.outcome == 'new'
+
+        if idempotency_decision.outcome == 'conflict':
+            self._render_problem(
+                ProblemDetail(
+                    status=HTTPStatus.CONFLICT,
+                    title='idempotency_conflict',
+                    detail='Idempotency-Key já usada para manifesto diferente; limpe ou use nova chave.',
+                    type='https://iabank.local/problems/seed/idempotency-conflict',
+                ),
+                exit_code=2,
+            )
+
+        if idempotency_decision.outcome == 'replay' and idempotency_decision.entry and idempotency_decision.entry.seed_run:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f'Replay idempotente: reutilizando SeedRun {idempotency_decision.entry.seed_run_id} para {environment}.',
+                )
+            )
+            return
+
         with use_tenant(tenant.id):
-            service = SeedRunService()
             decision, problem = service.request_slot(
                 environment=environment,
                 tenant_id=tenant.id,
@@ -51,18 +130,125 @@ class Command(BaseCommand):
             )
 
         if problem:
-            self.stderr.write(self.style.WARNING(json.dumps(problem.as_dict())))
-            sys.exit(service.exit_code_for(decision))
+            if created_idempo_entry and idempotency_decision.entry:
+                with use_tenant(tenant.id):
+                    idempotency_decision.entry.delete()
+            self._render_problem(problem, exit_code=service.exit_code_for(decision))
+
+        creation = service.create_seed_run(
+            tenant_id=tenant.id,
+            environment=environment,
+            manifest=manifest,
+            manifest_path=manifest_path,
+            idempotency_key=idempotency_key,
+            requested_by=requested_by,
+            dry_run=dry_run,
+            mode=mode,
+        )
+
+        if idempotency_decision.entry:
+            with use_tenant(tenant.id):
+                idempotency_decision.entry.seed_run = creation.seed_run
+                idempotency_decision.entry.save(update_fields=['seed_run', 'updated_at'])
 
         entry = decision.entry
+        if entry:
+            entry.seed_run = creation.seed_run
+            entry.tenant = creation.seed_run.tenant
+            entry.save(update_fields=['seed_run', 'tenant', 'updated_at'])
+
         message = (
             f'Seed {mode} {"(dry-run)" if dry_run else ""} '
-            f'aceito na fila {decision.reason} para {environment}.'
+            f'aceito na fila {decision.reason} para {environment}. '
+            f'seed_run={creation.seed_run.id}'
         )
         self.stdout.write(self.style.SUCCESS(message))
-
+        self.stdout.write(f'manifest_hash={manifest_hash}')
         if entry:
             self.stdout.write(f'queue_entry={entry.id} expires_at={entry.expires_at.isoformat()}')
+
+    def _load_manifest(
+        self,
+        manifest_path: str,
+        tenant_slug: str,
+        environment: str,
+        mode: str,
+    ) -> Tuple[Dict[str, Any], bool]:
+        path = Path(manifest_path)
+        if path.exists():
+            content = path.read_text(encoding='utf-8')
+            parsed = self._parse_manifest_content(content)
+            return parsed if isinstance(parsed, dict) else {}, True
+        return self._default_manifest(tenant_slug, environment, mode), False
+
+    def _parse_manifest_content(self, content: str) -> Dict[str, Any]:
+        try:
+            import yaml  # type: ignore
+        except Exception:  # pragma: no cover - fallback quando PyYAML não estiver disponível
+            yaml = None
+
+        if yaml is not None:
+            try:
+                data = yaml.safe_load(content)
+                if isinstance(data, dict):
+                    return data
+            except yaml.YAMLError:
+                pass
+
+        try:
+            data = json.loads(content)
+            if isinstance(data, dict):
+                return data
+        except json.JSONDecodeError:
+            return {}
+        return {}
+
+    def _default_manifest(self, tenant_slug: str, environment: str, mode: str) -> Dict[str, Any]:
+        return {
+            'metadata': {
+                'tenant': tenant_slug,
+                'environment': environment,
+                'profile': 'default',
+                'version': '0.0.0',
+                'schema_version': 'v1',
+                'salt_version': 'v1',
+            },
+            'mode': mode or 'baseline',
+            'reference_datetime': timezone.now().isoformat(),
+            'window': {'start_utc': '00:00', 'end_utc': '06:00'},
+            'volumetry': {},
+            'rate_limit': {'limit': 1, 'window_seconds': 60},
+            'backoff': {'base_seconds': 1, 'jitter_factor': 0.1, 'max_retries': 1, 'max_interval_seconds': 60},
+            'budget': {'cost_cap_brl': 0, 'error_budget_pct': 0},
+            'ttl': {'baseline_days': 0, 'carga_days': 0, 'dr_days': 0},
+            'slo': {'p95_target_ms': 0, 'p99_target_ms': 0, 'throughput_target_rps': 0},
+            'integrity': {'manifest_hash': ''},
+        }
+
+    def _apply_manifest_hash(self, manifest: Dict[str, Any], manifest_hash: str) -> Dict[str, Any]:
+        integrity = manifest.get('integrity') if isinstance(manifest, dict) else None
+        if not isinstance(integrity, dict):
+            manifest['integrity'] = {'manifest_hash': manifest_hash}
+        else:
+            integrity.setdefault('manifest_hash', manifest_hash)
+        return manifest
+
+    def _resolve_idempotency_key(self, options: dict, manifest_hash: str) -> str:
+        explicit = options.get('idempotency_key') or os.getenv('SEED_IDEMPOTENCY_KEY')
+        if explicit:
+            return str(explicit)
+        return f'seed-data:{manifest_hash or "auto"}'
+
+    def _render_problem(self, problem: ProblemDetail, *, exit_code: int) -> None:
+        self.stderr.write(self.style.ERROR(json.dumps(problem.as_dict())))
+        sys.exit(exit_code)
+
+    def _pin_tenant_context(self, tenant_id: UUID) -> None:
+        """
+        Mantém o tenant atual no contexto para consultas pós-comando em testes.
+        """
+        _current_tenant.set(str(tenant_id))
+        _set_tenant_guc(str(tenant_id))
 
     def _parse_tenant_id(self, raw: str) -> UUID:
         try:
