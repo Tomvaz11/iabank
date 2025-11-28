@@ -565,7 +565,38 @@ class SeedRunViewBase(APIView):
         environment: str,
         mode: str,
         rate_decision: RateLimitDecision,
+        manifest_path: Optional[str] = None,
+        dry_run: bool = False,
     ) -> Optional[Response]:
+        environment_problem = self.run_service.ensure_environment_gate(environment=str(environment), mode=mode)
+        if environment_problem:
+            response = Response(environment_problem.as_dict(), status=environment_problem.status)
+            self._apply_rate_limit_headers(response, rate_decision)
+            return response
+
+        cost_model_problem = self.run_service.ensure_cost_model_alignment(manifest=manifest)
+        if cost_model_problem:
+            response = Response(cost_model_problem.as_dict(), status=cost_model_problem.status)
+            self._apply_rate_limit_headers(response, rate_decision)
+            return response
+
+        worm_problem = self.run_service.ensure_worm_evidence(manifest=manifest, mode=mode)
+        if worm_problem:
+            response = Response(worm_problem.as_dict(), status=worm_problem.status)
+            self._apply_rate_limit_headers(response, rate_decision)
+            return response
+
+        if manifest_path:
+            gitops_problem = self.run_service.ensure_manifest_gitops_alignment(
+                manifest_path=manifest_path,
+                environment=str(environment),
+                allow_local_override=dry_run,
+            )
+            if gitops_problem:
+                response = Response(gitops_problem.as_dict(), status=gitops_problem.status)
+                self._apply_rate_limit_headers(response, rate_decision)
+                return response
+
         offpeak_problem = self.run_service.ensure_offpeak_window(
             manifest=manifest,
             environment=str(environment),
@@ -906,6 +937,8 @@ class SeedRunsView(SeedRunViewBase):
             environment=str(ctx.environment),
             mode=ctx.mode,
             rate_decision=ctx.rate_decision,
+            manifest_path=ctx.manifest_path,
+            dry_run=ctx.dry_run,
         )
 
     def _step_idempotency(self, ctx: SeedRunCreateContext) -> Optional[Response]:

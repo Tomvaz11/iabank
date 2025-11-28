@@ -5,12 +5,14 @@ import os
 import sys
 from http import HTTPStatus
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Dict, Tuple
 from uuid import UUID
 
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
+from backend.apps.tenancy import tasks as seed_tasks
 from backend.apps.tenancy.managers import _set_tenant_guc, _current_tenant, use_tenant
 from backend.apps.tenancy.models import Tenant
 from backend.apps.tenancy.services.seed_idempotency import IdempotencyDecision, SeedIdempotencyService
@@ -79,6 +81,29 @@ class Command(BaseCommand):
             ),
             service.exit_code_for_problem,
         )
+        self._fail_if_problem(
+            service.ensure_environment_gate(
+                environment=environment,
+                mode=mode,
+            ),
+            service.exit_code_for_problem,
+        )
+        self._fail_if_problem(
+            service.ensure_cost_model_alignment(manifest=manifest),
+            service.exit_code_for_problem,
+        )
+        self._fail_if_problem(
+            service.ensure_worm_evidence(manifest=manifest, mode=mode),
+            service.exit_code_for_problem,
+        )
+        self._fail_if_problem(
+            service.ensure_manifest_gitops_alignment(
+                manifest_path=manifest_path,
+                environment=environment,
+                allow_local_override=dry_run,
+            ),
+            service.exit_code_for_problem,
+        )
 
         idempotency_service = SeedIdempotencyService(tenant.id, context='seed_data_cli')
         idempotency_service.cleanup_expired(environment=environment)
@@ -138,6 +163,7 @@ class Command(BaseCommand):
         self.stdout.write(f'manifest_hash={manifest_hash}')
         if entry:
             self.stdout.write(f'queue_entry={entry.id} expires_at={entry.expires_at.isoformat()}')
+        self._dispatch_batches(creation, mode)
 
     def _load_manifest(
         self,
@@ -183,11 +209,11 @@ class Command(BaseCommand):
                 'profile': 'default',
                 'version': '0.0.0',
                 'schema_version': 'v1',
-            'salt_version': 'v1',
-        },
-        'mode': mode or 'baseline',
-        'reference_datetime': '2025-01-01T00:00:00Z',
-        'window': {'start_utc': '00:00', 'end_utc': '06:00'},
+                'salt_version': 'v1',
+            },
+            'mode': mode or 'baseline',
+            'reference_datetime': '2025-01-01T00:00:00Z',
+            'window': {'start_utc': '00:00', 'end_utc': '06:00'},
             'volumetry': {},
             'rate_limit': {'limit': 1, 'window_seconds': 60},
             'backoff': {'base_seconds': 1, 'jitter_factor': 0.1, 'max_retries': 1, 'max_interval_seconds': 60},
@@ -204,6 +230,22 @@ class Command(BaseCommand):
         else:
             integrity.setdefault('manifest_hash', manifest_hash)
         return manifest
+
+    def _dispatch_batches(self, creation, mode: str) -> None:
+        """
+        Dispara tasks Celery para cada batch criado.
+        Por padrão roda de forma síncrona (sem broker) para testes/dev; habilite async com SEED_CELERY_ASYNC=1.
+        """
+        use_async = os.getenv('SEED_CELERY_ASYNC', '0') == '1'
+        queue = 'seed_data.load_dr' if mode in {'carga', 'dr'} else 'seed_data.default'
+        task = seed_tasks.dispatch_load_dr if queue == 'seed_data.load_dr' else seed_tasks.dispatch_baseline
+        for batch in creation.batches:
+            args = [str(batch.seed_run_id), str(batch.tenant_id)]
+            if use_async:
+                task.apply_async(args=args, queue=queue)  # pragma: no cover - integração real com broker
+            else:
+                fake_self = SimpleNamespace(request=SimpleNamespace(delivery_info={'routing_key': queue}))
+                task.__wrapped__.__func__(fake_self, *args)  # type: ignore[attr-defined]
 
     def _resolve_idempotency_key(self, options: dict, manifest_hash: str) -> str:
         explicit = options.get('idempotency_key') or os.getenv('SEED_IDEMPOTENCY_KEY')

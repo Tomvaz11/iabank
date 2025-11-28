@@ -6,6 +6,7 @@ from http import HTTPStatus
 from django.test import TestCase
 from django.utils import timezone
 
+from backend.apps.tenancy import tasks as seed_tasks
 from backend.apps.tenancy.managers import use_tenant
 from backend.apps.tenancy.models import SeedRun, Tenant
 from backend.apps.tenancy.services.seed_observability import SeedObservabilityService
@@ -98,3 +99,23 @@ class SeedErrorBudgetGateTest(TestCase):
             self.assertEqual(refreshed.status, SeedRun.Status.ABORTED)
             self.assertGreaterEqual(float(refreshed.error_budget_consumed), 15.0)
             self.assertIsNotNone(refreshed.reason)
+
+    def test_celery_task_check_runtime_slo_aborts_run(self) -> None:
+        run = self._create_seed_run(
+            overrides={
+                'slo': {'p95_target_ms': 300, 'p99_target_ms': 500, 'throughput_target_rps': 5},
+                'budget': {'error_budget_pct': 5},
+            }
+        )
+        metrics = {'p95_ms': 800, 'p99_ms': 900, 'throughput_rps': 1, 'error_rate': 0.1}
+
+        result = seed_tasks.check_runtime_slo.__wrapped__.__func__(  # type: ignore[attr-defined]
+            None,
+            str(run.id),
+            metrics,
+        )
+
+        self.assertEqual(result['status'], 'aborted')
+        with use_tenant(self.tenant.id):
+            refreshed = SeedRun.objects.get(id=run.id)
+            self.assertEqual(refreshed.status, SeedRun.Status.ABORTED)

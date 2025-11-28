@@ -116,6 +116,10 @@ def build_manifest(
         'integrity': {'manifest_hash': ''},
     }
 
+    if mode in {'carga', 'dr'}:
+        manifest['integrity']['worm_proof'] = 'stub-worm-evidence'
+        manifest['budget']['cost_model_version'] = '2025-01-15'
+
     if overrides:
         manifest = _merge_dicts(manifest, overrides)
 

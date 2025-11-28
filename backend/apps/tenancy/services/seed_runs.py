@@ -13,10 +13,12 @@ from django.utils.dateparse import parse_datetime
 
 from backend.apps.tenancy.managers import use_tenant
 from backend.apps.tenancy.models import SeedBatch, SeedCheckpoint, SeedProfile, SeedRun
+from backend.apps.tenancy.services.budget import BudgetService, BudgetSnapshot
 from backend.apps.tenancy.services.seed_manifest_validator import (
     SeedManifestValidator,
     compute_manifest_hash,
 )
+from backend.apps.tenancy.services.seed_dataset_gc import SeedDatasetGC
 from backend.apps.tenancy.services.seed_queue import QueueDecision, SeedQueueService
 
 
@@ -65,8 +67,15 @@ class _ManifestParts:
 
 
 class SeedRunService:
-    def __init__(self, queue_service: Optional[SeedQueueService] = None) -> None:
+    def __init__(
+        self,
+        queue_service: Optional[SeedQueueService] = None,
+        budget_service: Optional[BudgetService] = None,
+        dataset_gc: Optional[SeedDatasetGC] = None,
+    ) -> None:
         self.queue_service = queue_service or SeedQueueService()
+        self.budget_service = budget_service or BudgetService()
+        self.dataset_gc = dataset_gc or SeedDatasetGC()
 
     def ensure_reference_drift(
         self,
@@ -118,6 +127,21 @@ class SeedRunService:
             mode=mode,
         )
 
+        ttl_days = self._ttl_for_mode(parts.ttl_config, mode)
+        if self.dataset_gc:
+            self.dataset_gc.cleanup_for_mode(
+                tenant_id=tenant_id,
+                environment=environment,
+                mode=mode,
+            )
+            if ttl_days > 0:
+                self.dataset_gc.expire_by_ttl(
+                    tenant_id=tenant_id,
+                    days=ttl_days,
+                    environment=environment,
+                )
+
+        snapshot = None
         with transaction.atomic():
             if not self._acquire_advisory_lock(tenant_id, environment):
                 raise RuntimeError('Não foi possível adquirir lock para o seed_data.')  # pragma: no cover
@@ -131,6 +155,11 @@ class SeedRunService:
                     parts=parts,
                 )
 
+                if self.budget_service:
+                    snapshot = self.budget_service.snapshot_from_profile(seed_profile)
+                    self.budget_service.ensure_budget_for_profile(seed_profile, snapshot=snapshot)
+
+                rate_limit_usage = self._rate_limit_usage(snapshot=snapshot, parts=parts)
                 seed_run = self._create_seed_run_record(
                     seed_profile=seed_profile,
                     environment=environment,
@@ -140,6 +169,7 @@ class SeedRunService:
                     manifest_path=manifest_path,
                     dry_run=dry_run,
                     parts=parts,
+                    rate_limit_usage=rate_limit_usage,
                 )
 
                 batches = self._create_batches(seed_run, parts.volumetry)
@@ -224,6 +254,7 @@ class SeedRunService:
         manifest_path: str,
         dry_run: bool,
         parts: _ManifestParts,
+        rate_limit_usage: Dict[str, Any] | None,
     ) -> SeedRun:
         return SeedRun.objects.create(
             seed_profile=seed_profile,
@@ -239,6 +270,7 @@ class SeedRunService:
             dry_run=dry_run,
             offpeak_window={'start': parts.window_start.isoformat(), 'end': parts.window_end.isoformat()},
             canary_scope_snapshot=parts.canary_scope,
+            rate_limit_usage=rate_limit_usage or {},
         )
 
     def request_slot(
@@ -340,6 +372,101 @@ class SeedRunService:
             type='https://iabank.local/problems/seed/offpeak-closed',
         )
 
+    def ensure_environment_gate(self, *, environment: str, mode: str) -> Optional[ProblemDetail]:
+        """
+        Bloqueia modos carga/DR fora dos ambientes permitidos pelo cost-model (WORM).
+        """
+        if mode not in {'carga', 'dr'} or self.budget_service is None:
+            return None
+
+        if self.budget_service.environment_allowed(mode=mode, environment=environment):
+            return None
+
+        required = sorted(self.budget_service.required_environments())
+        detail = (
+            f'Modo {mode} exige execução em ambientes dedicados (ex.: {", ".join(required)}) '
+            'com WORM habilitado e rollback validado.'
+        )
+        return ProblemDetail(
+            status=HTTPStatus.FORBIDDEN,
+            title='environment_not_allowed_for_mode',
+            detail=detail,
+            type='https://iabank.local/problems/seed/environment-gate',
+        )
+
+    def ensure_worm_evidence(self, *, manifest: Dict[str, Any], mode: str) -> Optional[ProblemDetail]:
+        """
+        Bloqueia execuções carga/DR quando o manifesto não declara evidência WORM exigida.
+        """
+        if mode not in {'carga', 'dr'} or self.budget_service is None:
+            return None
+
+        if not self.budget_service.worm_required(mode):
+            return None
+
+        integrity = manifest.get('integrity') if isinstance(manifest, dict) else {}
+        worm_proof = integrity.get('worm_proof') if isinstance(integrity, dict) else None
+        if worm_proof:
+            return None
+
+        return ProblemDetail(
+            status=HTTPStatus.FORBIDDEN,
+            title='worm_evidence_missing',
+            detail='Execuções de carga/DR exigem evidência WORM válida antes da promoção.',
+            type='https://iabank.local/problems/seed/worm-evidence',
+        )
+
+    def ensure_cost_model_alignment(self, *, manifest: Dict[str, Any]) -> Optional[ProblemDetail]:
+        """
+        Valida se a versão de cost-model declarada no manifesto está alinhada ao arquivo atual.
+        """
+        if self.budget_service is None:
+            return None
+
+        budget_cfg = manifest.get('budget') if isinstance(manifest, dict) else {}
+        manifest_version = budget_cfg.get('cost_model_version') if isinstance(budget_cfg, dict) else None
+        if not manifest_version:
+            return None
+
+        model_version = str(self.budget_service.cost_model.get('model_version', '')).strip()
+        if manifest_version == model_version:
+            return None
+
+        return ProblemDetail(
+            status=HTTPStatus.UNPROCESSABLE_ENTITY,
+            title='cost_model_mismatch',
+            detail=f'Versão do cost-model no manifesto ({manifest_version}) diverge da versão ativa ({model_version}).',
+            type='https://iabank.local/problems/seed/cost-model-version',
+        )
+
+    def ensure_manifest_gitops_alignment(
+        self,
+        *,
+        manifest_path: str,
+        environment: str,
+        allow_local_override: bool = False,
+    ) -> Optional[ProblemDetail]:
+        """
+        Garante que o manifesto esteja no caminho GitOps esperado para evitar drift no Argo CD.
+        """
+        expected_prefix = f'configs/seed_profiles/{environment}/'
+        if manifest_path and manifest_path.startswith(expected_prefix):
+            return None
+
+        if allow_local_override and manifest_path:
+            lowered = manifest_path.lower()
+            if lowered.startswith('/tmp') or lowered.startswith('tmp/'):
+                return None
+            if '/pytest-' in lowered:
+                return None
+
+        return ProblemDetail(
+            status=HTTPStatus.CONFLICT,
+            title='gitops_drift',
+            detail=f'Manifesto deve residir em {expected_prefix}*.yaml para promoção segura/GitOps.',
+            type='https://iabank.local/problems/seed/gitops-drift',
+        )
+
     @staticmethod
     def queue_ttl_for_mode(mode: str) -> timedelta:
         """
@@ -363,6 +490,26 @@ class SeedRunService:
         except ValueError:
             end = time.fromisoformat('06:00')
         return start, end
+
+    def _rate_limit_usage(self, *, snapshot: BudgetSnapshot | None, parts: _ManifestParts) -> dict[str, Any]:
+        if snapshot:
+            limit = snapshot.limit
+            window_seconds = snapshot.window_seconds
+        else:
+            limit = max(1, int(parts.rate_limit.get('limit', 1) or 1))
+            window_seconds = max(1, int(parts.rate_limit.get('window_seconds', 60) or 60))
+        reset_at = timezone.now() + timedelta(seconds=window_seconds)
+        return {'limit': limit, 'remaining': limit, 'reset_at': reset_at.isoformat()}
+
+    @staticmethod
+    def _ttl_for_mode(ttl_config: Dict[str, Any], mode: str) -> int:
+        key = f'{mode}_days'
+        if not isinstance(ttl_config, dict):
+            return 0
+        try:
+            return int(ttl_config.get(key, 0) or 0)
+        except (TypeError, ValueError):
+            return 0
 
     @staticmethod
     def _create_batches(seed_run: SeedRun, volumetry: Dict[str, Any]) -> list[SeedBatch]:
