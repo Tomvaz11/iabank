@@ -7,10 +7,12 @@ OPA_CACHE="${HOME}/.cache/opa/${OPA_VERSION}"
 OPA_BIN="${OPA_CACHE}/opa"
 PLAN_FIXTURE="${PLAN_FIXTURE:-${ROOT_DIR}/infra/opa/seed-data/fixtures/plan.json}"
 TERRAFORM_DIR="${ROOT_DIR}/infra/terraform/seed-data"
+REQUIRE_LIVE_PLAN="${VALIDATE_OPA_REQUIRE_PLAN:-0}"
 PLAN_TMP_DIR=""
 PLAN_OUT=""
 PLAN_JSON_RAW=""
 PLAN_JSON_WRAPPED=""
+USED_FIXTURE=0
 
 log() {
   printf '[validate-opa] %s\n' "$*"
@@ -82,19 +84,31 @@ generate_plan() {
   else
     log "Aviso: falha ao gerar plano Terraform; usando fixture ${PLAN_FIXTURE}"
     PLAN_JSON_RAW="${PLAN_FIXTURE}"
+    USED_FIXTURE=1
+    if [ "${REQUIRE_LIVE_PLAN}" != "0" ]; then
+      log "Erro: VALIDATE_OPA_REQUIRE_PLAN=1 e o terraform plan falhou; configure credenciais válidas."
+      exit 1
+    fi
   fi
 
   log "Gerando wrapper de plano para OPA"
   python3 - "$PLAN_JSON_RAW" "$PLAN_FIXTURE" "$PLAN_JSON_WRAPPED" <<'PY'
-import json, sys
+import json, os, sys
+from pathlib import Path
+
 plan_raw_path, fixture_path, out_path = sys.argv[1:4]
+require_live_plan = os.getenv("VALIDATE_OPA_REQUIRE_PLAN", "0") not in ("", "0")
 
 plan_data = {}
+used_fixture = False
 try:
     with open(plan_raw_path, "r", encoding="utf-8") as fh:
         plan_data = json.load(fh)
 except Exception as exc:  # pragma: no cover
     sys.stderr.write(f"[validate-opa] Aviso: falha ao ler plano gerado: {exc}\n")
+
+if Path(plan_raw_path).resolve() == Path(fixture_path).resolve():
+    used_fixture = True
 
 if isinstance(plan_data, dict) and "planned_values" not in plan_data and "seed_plan" in plan_data:
     plan_data = plan_data.get("seed_plan", {})
@@ -103,9 +117,14 @@ if not plan_data:
     with open(fixture_path, "r", encoding="utf-8") as fh:
         fixture = json.load(fh)
     plan_data = fixture.get("seed_plan", {})
+    used_fixture = True
 
 with open(out_path, "w", encoding="utf-8") as fh:
     json.dump({"seed_plan_live": plan_data}, fh)
+
+if require_live_plan and used_fixture:
+    sys.stderr.write("[validate-opa] Erro: fixture usada e VALIDATE_OPA_REQUIRE_PLAN=1; forneça credenciais válidas para terraform plan.\n")
+    sys.exit(2)
 PY
 }
 

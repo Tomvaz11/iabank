@@ -83,6 +83,7 @@ MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'backend.apps.foundation.middleware.security.ContentSecurityPolicyMiddleware',
+    'backend.apps.foundation.middleware.security.SecureHeadersMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -299,6 +300,9 @@ FOUNDATION_CSP = {
     'nonce': os.environ.get('FOUNDATION_CSP_NONCE', 'nonce-dev-fallback'),
     'trusted_types_policy': os.environ.get('FOUNDATION_TRUSTED_TYPES_POLICY', 'foundation-ui'),
     'report_uri': os.environ.get('FOUNDATION_CSP_REPORT_URI', 'https://csp-report.iabank.com'),
+    'report_to': _parse_csp_list(os.environ.get('FOUNDATION_CSP_REPORT_TO'), []),
+    'report_to_group': os.environ.get('FOUNDATION_CSP_REPORT_TO_GROUP', 'csp-endpoint'),
+    'report_to_max_age': os.environ.get('FOUNDATION_CSP_REPORT_TO_MAX_AGE', '86400'),
     'report_only_started_at': os.environ.get('FOUNDATION_CSP_REPORT_ONLY_STARTED_AT'),
     'report_only_ttl_days': os.environ.get('FOUNDATION_CSP_REPORT_ONLY_TTL_DAYS', '30'),
     'connect_src': _parse_csp_list(

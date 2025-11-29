@@ -1,6 +1,6 @@
 metadata:
   tenant: tenant-a
-  environment: dr
+  environment: perf
   profile: dr-recovery
   version: 2.0.0
   schema_version: v1
@@ -56,4 +56,5 @@ slo:
   p99_target_ms: 13000
   throughput_target_rps: 16.0
 integrity:
-  manifest_hash: 03d7ffe6a6f4ff54cc5b15e6c0507a02bb6aac9cbc77dec7466841ff7a3e2647
+  manifest_hash: 59b811fe5a8ffa7cdb9df7789aed799de528534fba74198267ecd989edb8b3f7
+  worm_proof: s3://worm-bucket/seed-data/tenant-a/perf/dr/proof.json
