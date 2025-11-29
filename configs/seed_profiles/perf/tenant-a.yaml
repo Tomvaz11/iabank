@@ -1,0 +1,59 @@
+metadata:
+  tenant: tenant-a
+  environment: perf
+  profile: baseline
+  version: 1.0.0
+  schema_version: v1
+  salt_version: 2025-q1
+mode: baseline
+reference_datetime: '2025-01-20T00:00:00Z'
+window:
+  start_utc: '21:30'
+  end_utc: 05:30
+volumetry:
+  tenant_users:
+    cap: 25
+  customers:
+    cap: 500
+  addresses:
+    cap: 750
+  consultants:
+    cap: 50
+  bank_accounts:
+    cap: 600
+  account_categories:
+    cap: 100
+  suppliers:
+    cap: 150
+  loans:
+    cap: 1000
+  installments:
+    cap: 10000
+  financial_transactions:
+    cap: 20000
+  limits:
+    cap: 500
+  contracts:
+    cap: 750
+rate_limit:
+  limit: 960
+  window_seconds: 60
+  burst: 1200
+backoff:
+  base_seconds: 2
+  jitter_factor: 0.4
+  max_retries: 6
+  max_interval_seconds: 45
+budget:
+  cost_cap_brl: 125.0
+  error_budget_pct: 6.0
+ttl:
+  baseline_days: 30
+  carga_days: 7
+  dr_days: 3
+slo:
+  p95_target_ms: 4800
+  p99_target_ms: 7800
+  throughput_target_rps: 12.0
+integrity:
+  manifest_hash: 7af23402cb6994f2152619fea762700cdb48bbb89aee353ad64d66d7463ec2b7

@@ -1,0 +1,7 @@
+1. **VEREDITO:** Sim. Após revisar a documentação oficial do spec-kit, os pontos sugeridos (OPA/policy-as-code, gestão de dependências, referências a ADR-010/011/012/PITR) não precisam ser adicionados na fase de `/speckit.specify`; são melhores tratáveis como itens de planejamento em `/speckit.plan`. A especificação atual permanece alinhada ao prompt e pronta para a próxima fase.
+
+2. **ANÁLISE DETALHADA:**
+   - **Pontos Fortes:** Mantém aderência ao prompt (seed_data, factory-boy, PII/anonimização, CI/CD+Argo, carga/RateLimit `/api/v1`, volumetria por ambiente/tenant), cobre Constituição/Blueprint aplicáveis, apresenta critérios de validação automatizada e edge cases multi-tenant bem descritos; atende ao foco “o quê/por quê” recomendado na doc do spec-kit (README/quickstart e templates de specify).
+   - **Pontos de Melhoria ou Riscos:** Os itens que citei (OPA/policy-as-code, dependências, ADR-010/011/012/PITR) são de natureza de “como”/gates e, conforme a doc do spec-kit, pertencem à fase de planejamento; tratá-los em `/speckit.plan` como ações/checagens é suficiente e mantém a especificação dentro do escopo correto.
+
+3. **RECOMENDAÇÃO FINAL:** Prosseguir para `/speckit.plan`, carregando como ações de planejamento: (a) validar manifestos de seeds via policy-as-code/OPA em Argo; (b) garantir fluxo de dependências/segurança (Renovate/SCA) para novas libs de seeds/factories; (c) alinhar observabilidade/PII com ADR-010/011/012 e impactos em PITR.

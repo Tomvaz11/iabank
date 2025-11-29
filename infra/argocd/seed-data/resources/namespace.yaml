@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: seed-data
+  labels:
+    app.kubernetes.io/name: seed-data
+    app.kubernetes.io/part-of: seed-data

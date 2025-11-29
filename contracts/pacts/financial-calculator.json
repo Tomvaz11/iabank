@@ -1,0 +1,119 @@
+{
+  "consumer": {
+    "name": "SeedData"
+  },
+  "interactions": [
+    {
+      "description": "calcula IOF/CET para empréstimo baseline",
+      "providerState": "calculadora financeira disponível com tabelas canônicas",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/financial-calculator/quote",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": "tenant-a",
+          "X-Environment": "staging",
+          "Idempotency-Key": "pact-fixture-123",
+          "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"
+        },
+        "body": {
+          "principal_amount": 10000.0,
+          "annual_rate_pct": 12.5,
+          "number_of_installments": 12,
+          "contract_date": "2025-01-10",
+          "first_installment_date": "2025-02-10"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "RateLimit-Remaining": "120",
+          "RateLimit-Reset": "60"
+        },
+        "body": {
+          "cet_annual_rate": 13.22,
+          "cet_monthly_rate": 1.04,
+          "iof_amount": 106.4,
+          "installments": [
+            {
+              "number": 1,
+              "due_date": "2025-02-10",
+              "amount": 900.21
+            },
+            {
+              "number": 2,
+              "due_date": "2025-03-10",
+              "amount": 900.21
+            },
+            {
+              "number": 3,
+              "due_date": "2025-04-10",
+              "amount": 900.21
+            },
+            {
+              "number": 4,
+              "due_date": "2025-05-10",
+              "amount": 900.21
+            },
+            {
+              "number": 5,
+              "due_date": "2025-06-10",
+              "amount": 900.21
+            },
+            {
+              "number": 6,
+              "due_date": "2025-07-10",
+              "amount": 900.21
+            },
+            {
+              "number": 7,
+              "due_date": "2025-08-10",
+              "amount": 900.21
+            },
+            {
+              "number": 8,
+              "due_date": "2025-09-10",
+              "amount": 900.21
+            },
+            {
+              "number": 9,
+              "due_date": "2025-10-10",
+              "amount": 900.21
+            },
+            {
+              "number": 10,
+              "due_date": "2025-11-10",
+              "amount": 900.21
+            },
+            {
+              "number": 11,
+              "due_date": "2025-12-10",
+              "amount": 900.21
+            },
+            {
+              "number": 12,
+              "due_date": "2026-01-10",
+              "amount": 900.21
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "13.2.0"
+    },
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  },
+  "provider": {
+    "name": "FinancialCalculator"
+  }
+}

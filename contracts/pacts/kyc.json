@@ -1,0 +1,84 @@
+{
+  "consumer": {
+    "name": "SeedData"
+  },
+  "provider": {
+    "name": "KYC"
+  },
+  "interactions": [
+    {
+      "description": "aprova KYC sintético com headers de rate-limit",
+      "providerState": "stub KYC em modo sandbox",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/kyc/check",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": "tenant-a",
+          "X-Environment": "staging",
+          "Idempotency-Key": "pact-kyc-123",
+          "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"
+        },
+        "body": {
+          "document_number": "12345678900",
+          "name": "Teste KYC",
+          "mode": "carga"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json",
+          "RateLimit-Remaining": "100",
+          "RateLimit-Reset": "60"
+        },
+        "body": {
+          "status": "approved",
+          "score": 0.98,
+          "detail": "kyc_sandbox_pass"
+        }
+      }
+    },
+    {
+      "description": "retorna 429 para exercitar backoff/jitter de seeds",
+      "providerState": "stub KYC limite atingido",
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/kyc/check",
+        "headers": {
+          "Content-Type": "application/json",
+          "X-Tenant-ID": "tenant-a",
+          "X-Environment": "staging",
+          "Idempotency-Key": "pact-kyc-429",
+          "traceparent": "00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01"
+        },
+        "body": {
+          "document_number": "99999999999",
+          "name": "Rate Limited",
+          "mode": "carga"
+        }
+      },
+      "response": {
+        "status": 429,
+        "headers": {
+          "Content-Type": "application/json",
+          "RateLimit-Remaining": "0",
+          "RateLimit-Reset": "5",
+          "Retry-After": "5"
+        },
+        "body": {
+          "error": "rate_limited",
+          "detail": "stub aplica backoff antes de liberar novas consultas."
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "13.2.0"
+    },
+    "pactSpecification": {
+      "version": "2.0.0"
+    }
+  }
+}

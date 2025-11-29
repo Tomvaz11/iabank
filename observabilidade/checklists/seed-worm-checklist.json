@@ -1,0 +1,52 @@
+{
+  "items": [
+    {
+      "id": "pii_masked",
+      "description": "PII mascarada/anonimizada via Vault Transit FPE e sem dados reais em seeds/factories.",
+      "category": "pii",
+      "severity": "critical"
+    },
+    {
+      "id": "rls_enforced",
+      "description": "RLS/ABAC ativos, GUC de tenant aplicado e sem consultas cross-tenant.",
+      "category": "security",
+      "severity": "critical"
+    },
+    {
+      "id": "contracts_aligned",
+      "description": "Payloads de seeds/factories aderentes aos contratos/serializers `/api/v1` e JSON Schema v1.",
+      "category": "governance",
+      "severity": "high"
+    },
+    {
+      "id": "idempotency_reused",
+      "description": "Idempotency-Key com TTL/dedupe ativa e hash do manifesto persistido.",
+      "category": "resilience",
+      "severity": "high"
+    },
+    {
+      "id": "rate_limit_respected",
+      "description": "RateLimit-* e backoff/jitter aplicados; limites/budget alinhados ao manifesto.",
+      "category": "performance",
+      "severity": "medium"
+    },
+    {
+      "id": "slo_met",
+      "description": "SLO/SLI e error budget atendidos; sem violação de p95/p99/throughput.",
+      "category": "observability",
+      "severity": "medium"
+    },
+    {
+      "id": "audit_labels",
+      "description": "Logs/WORM contêm tenant_id, environment, seed_run_id, manifest_version e mode para auditoria.",
+      "category": "observability",
+      "severity": "high"
+    },
+    {
+      "id": "audit_logs_clean",
+      "description": "Logs/WORM sem PII (pii_redacted=true) e com trace_id/span_id propagados para OTEL/Sentry.",
+      "category": "pii",
+      "severity": "critical"
+    }
+  ]
+}

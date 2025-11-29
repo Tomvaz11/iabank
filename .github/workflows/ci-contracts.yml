@@ -4,8 +4,20 @@ on:
   pull_request:
     paths:
       - 'contracts/**'
+      - 'configs/seed_profiles/**'
       - '.github/workflows/ci-contracts.yml'
+      - 'scripts/ci/seed-data-*.sh'
+      - 'scripts/ci/deps-seed.sh'
+      - 'scripts/ci/seed-manifest-validate.js'
+      - 'scripts/ci/validate-seed-contracts.sh'
+      - 'scripts/ci/validate-finops.sh'
       - 'scripts/api/check_rate_headers.sh'
+      - 'contracts/pacts/financial-calculator.json'
+      - 'specs/003-seed-data-automation/contracts/**'
+      - 'contracts/seed-data.openapi.yaml'
+      - 'contracts/seed-profile.schema.json'
+      - 'contracts/finops/**'
+      - 'configs/finops/**'
       - 'package.json'
       - 'pnpm-lock.yaml'
   workflow_dispatch:
@@ -20,6 +32,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Seed guardrails (anti-snapshot/dump)
+        run: ./scripts/ci/seed-guardrails.sh
+        shell: bash
 
       - name: Detect baseline via PR label (contracts:baseline-3.1)
         if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'contracts:baseline-3.1') }}
@@ -44,6 +60,10 @@ jobs:
       - name: Install dependencies (pnpm)
         if: ${{ hashFiles('package.json') != '' }}
         run: pnpm install --frozen-lockfile
+        shell: bash
+
+      - name: Seed deps audit (pip-audit + pnpm audit)
+        run: ./scripts/ci/deps-seed.sh
         shell: bash
 
       # Cache do oasdiff por versão (v1.11.7)
@@ -89,6 +109,11 @@ jobs:
             export PATH="$INSTALL_DIR:$PATH"
           fi
           oasdiff --version || true
+        shell: bash
+
+      - name: Seed-data contracts lint/diff
+        run: |
+          ./scripts/ci/validate-seed-contracts.sh
         shell: bash
 
       - name: Spectral lint (via pnpm openapi:lint)
@@ -168,4 +193,15 @@ jobs:
       - name: Verify rate limiting headers script
         run: |
           ./scripts/api/check_rate_headers.sh --help > /dev/null
+        shell: bash
+
+  validate-finops:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate FinOps cost model
+        run: |
+          ./scripts/ci/validate-finops.sh
         shell: bash

@@ -24,5 +24,5 @@ Aplicação operacional do **ADR-011** e do Artigo XI da Constituição.
 - Para dry‑run contra baseline alternativo: aplique o label `contracts:baseline-3.1` no PR. O workflow usará `contracts/api.baseline-3.1.yaml` sem promover `contracts/api.previous.yaml`.
 
 ## Auditoria
-- Armazene relatórios do diff e resultados do Pact no bucket WORM.
+- Armazene relatórios do diff e resultados do Pact no bucket WORM, assinando o payload (hash SHA-256 + assinatura assimétrica via KMS/Vault, ex.: RSA-PSS-SHA256 ou Ed25519) e verificando a assinatura após upload.
 - Atualize `docs/runbooks/governanca-api.md` com links para cada release.

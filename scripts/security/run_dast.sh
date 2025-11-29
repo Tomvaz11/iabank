@@ -24,6 +24,17 @@ if [[ "${ZAP_SKIP_SERVER_START:-}" == "1" || "${ZAP_SKIP_SERVER_START:-}" == "tr
   echo "[DAST] ZAP_SKIP_SERVER_START ativo — não iniciaremos o Django local. Usando alvo: ${TARGET_URL}"
 fi
 
+IGNORE_ALERTS_DEFAULT="10049,90005" # Cache-Control no-store é intencional; Sec-Fetch-* vem do client (não do backend).
+IGNORE_ALERTS_RAW="${ZAP_BASELINE_IGNORE_ALERTS:-${IGNORE_ALERTS_DEFAULT}}"
+IFS=',' read -ra IGNORE_ALERTS <<<"${IGNORE_ALERTS_RAW}"
+IGNORED_ARGS=()
+for ALERT in "${IGNORE_ALERTS[@]}"; do
+  CLEANED="$(echo "${ALERT}" | xargs)"
+  if [[ -n "${CLEANED}" ]]; then
+    IGNORED_ARGS+=("-I" "${CLEANED}")
+  fi
+done
+
 if [[ "${START_LOCAL_SERVER}" == true ]]; then
   if ! command -v "${POETRY_BIN}" >/dev/null 2>&1; then
     echo "Poetry não encontrado (procure por ${POETRY_BIN}). Defina POETRY_BIN para o binário correto ou use ZAP_SKIP_SERVER_START=1 se já houver backend ativo." >&2
@@ -59,6 +70,27 @@ if ! curl --fail --silent "${TARGET_URL}" >/dev/null 2>&1; then
 fi
 
 echo "Executando OWASP ZAP baseline contra ${TARGET_URL}..."
+zap_args=(
+  /zap/zap-baseline.py
+  -t "${TARGET_URL}"
+  -a
+  -J zap-baseline.json
+  -w zap-warnings.md
+  -r zap-report.html
+  -x zap-report.xml
+  -m 5
+)
+
+if [[ ${#IGNORED_ARGS[@]} -gt 0 ]]; then
+  zap_args+=("${IGNORED_ARGS[@]}")
+fi
+
+if [[ -n "${ZAP_BASELINE_EXTRA_ARGS:-}" ]]; then
+  # shellcheck disable=SC2206
+  EXTRA_ARGS=(${ZAP_BASELINE_EXTRA_ARGS})
+  zap_args+=("${EXTRA_ARGS[@]}")
+fi
+
 # Executa o baseline e tolera código 2 (apenas WARN). Falha em qualquer FAIL.
 set +e
 docker run --rm \
@@ -68,14 +100,7 @@ docker run --rm \
   -w /zap/wrk \
   -v "${REPORT_DIR}:/zap/wrk" \
   ghcr.io/zaproxy/zaproxy:stable \
-  /zap/zap-baseline.py \
-  -t "${TARGET_URL}" \
-  -a \
-  -J zap-baseline.json \
-  -w zap-warnings.md \
-  -r zap-report.html \
-  -x zap-report.xml \
-  -m 5 ${ZAP_BASELINE_EXTRA_ARGS:-}
+  "${zap_args[@]}"
 status=$?
 set -e
 if [ "$status" -eq 2 ]; then

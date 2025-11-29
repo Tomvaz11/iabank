@@ -1,0 +1,105 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: seed-data-drift-check
+  labels:
+    app.kubernetes.io/name: seed-data
+    app.kubernetes.io/part-of: seed-data
+spec:
+  schedule: "*/30 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: seed-data
+            app.kubernetes.io/part-of: seed-data
+        spec:
+          serviceAccountName: seed-data-argo
+          restartPolicy: Never
+          containers:
+            - name: argocd-diff
+              image: quay.io/argoproj/argocd:v2.11.0
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: OFF_PEAK_WINDOW_UTC
+                  valueFrom:
+                    configMapKeyRef:
+                      name: seed-data-release-policy
+                      key: off_peak_window_utc
+                - name: SEED_DATA_APP
+                  valueFrom:
+                    configMapKeyRef:
+                      name: seed-data-release-policy
+                      key: seed_data_app
+                - name: ARGOCD_SERVER
+                  valueFrom:
+                    configMapKeyRef:
+                      name: seed-data-release-policy
+                      key: argocd_server
+                - name: ARGOCD_AUTH_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: argocd-seed-data-token
+                      key: token
+                      optional: true
+                - name: ROLLBACK_ENABLED
+                  valueFrom:
+                    configMapKeyRef:
+                      name: seed-data-release-policy
+                      key: rollback_enabled
+              command:
+                - /bin/sh
+                - -c
+              args:
+                - |
+                  set -euo pipefail
+                  window="${OFF_PEAK_WINDOW_UTC:-02:00-05:00}"
+                  start="${window%-*}"
+                  end="${window#*-}"
+                  now="$(date -u +%H:%M)"
+                  in_window="false"
+                  if [ "$start" \<= "$end" ]; then
+                    if [ "$now" \>= "$start" ] && [ "$now" \< "$end" ]; then in_window="true"; fi
+                  else
+                    if [ "$now" \>= "$start" ] || [ "$now" \< "$end" ]; then in_window="true"; fi
+                  fi
+                  if [ "$in_window" != "true" ]; then
+                    echo "Skip drift check fora do off-peak ($window)."
+                    exit 0
+                  fi
+
+                  if [ -z "${ARGOCD_AUTH_TOKEN:-}" ]; then
+                    echo "Token do Argo CD ausente (secret argocd-seed-data-token)."
+                    exit 1
+                  fi
+
+                  argocd login "$ARGOCD_SERVER" --token "$ARGOCD_AUTH_TOKEN" --insecure --grpc-web
+
+                  set +e
+                  argocd app diff "${SEED_DATA_APP}" --exit-code --insecure --grpc-web
+                  diff_status=$?
+                  set -e
+
+                  if [ "$diff_status" -eq 0 ]; then
+                    echo "Nenhum drift detectado."
+                    exit 0
+                  fi
+
+                  echo "Drift detectado (status=$diff_status)."
+                  if [ "${ROLLBACK_ENABLED:-true}" = "true" ]; then
+                    echo "Solicitando rollback do Argo CD..."
+                    argocd app rollback "${SEED_DATA_APP}" 0 --insecure --grpc-web || true
+                  fi
+
+                  exit "$diff_status"
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi

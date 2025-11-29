@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: seed-data
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: seed-data
+    app.kubernetes.io/part-of: seed-data
+spec:
+  description: GitOps das execuções seed_data com janela off-peak e rollback auditável.
+  sourceRepos:
+    - https://github.com/iabank/iabank
+  destinations:
+    - namespace: seed-data
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  syncWindows:
+    - kind: allow
+      schedule: "0 2 * * *" # inicia 02:00 UTC
+      duration: "180m"      # termina 05:00 UTC
+      timeZone: "UTC"
+      applications:
+        - seed-data-pipeline
+  roles:
+    - name: seed-data-ci
+      description: Permite sync/rollback apenas para o app seed-data-pipeline.
+      policies:
+        - p, proj:seed-data:ci, applications, sync, seed-data/seed-data-pipeline, allow
+      groups:
+        - seed-platform

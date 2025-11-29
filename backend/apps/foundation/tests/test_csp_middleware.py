@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import Final
 
 from django.http import HttpRequest, HttpResponse
@@ -48,8 +49,22 @@ class ContentSecurityPolicyMiddlewareTest(SimpleTestCase):
         assert "connect-src 'self' https://api.iabank.test" in header
         assert "img-src 'self' data:" in header
         assert "trusted-types foundation-ui" in header
-        assert "report-uri https://csp-report.iabank.test/report" in header
+        assert "report-to csp-endpoint" in header
+        assert 'report-uri' not in header
         assert 'Content-Security-Policy' not in response.headers
+
+        report_to_raw = response.headers.get('Report-To')
+        assert report_to_raw is not None
+        parsed = json.loads(report_to_raw)
+        assert parsed == {
+            'group': 'csp-endpoint',
+            'max_age': 86_400,
+            'endpoints': [{'url': 'https://csp-report.iabank.test/report'}],
+        }
+        assert (
+            response.headers.get('Reporting-Endpoints')
+            == 'csp-endpoint="https://csp-report.iabank.test/report"'
+        )
 
     def test_modo_enforce_move_para_cabecalho_principal(self) -> None:
         with override_settings(
@@ -70,6 +85,8 @@ class ContentSecurityPolicyMiddlewareTest(SimpleTestCase):
         assert header is not None
         assert "script-src 'self' 'strict-dynamic' 'nonce-prod-nonce'" in header
         assert 'Content-Security-Policy-Report-Only' not in response.headers
+        assert 'Report-To' not in response.headers
+        assert 'Reporting-Endpoints' not in response.headers
 
     def test_modo_auto_fica_em_report_only_antes_do_prazo(self) -> None:
         with override_settings(

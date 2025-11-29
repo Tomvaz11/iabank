@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 from typing import Iterable, List, Sequence
 
@@ -122,7 +123,45 @@ def _apply_exceptions(
             bucket.append(value)
 
 
-def build_csp_header(config: dict[str, object], reference: datetime | None = None) -> str:
+def _resolve_report_to(config: dict[str, object]) -> dict[str, object] | None:
+    group = str(config.get('report_to_group', 'csp-endpoint') or 'csp-endpoint').strip()
+    max_age_raw = config.get('report_to_max_age', 86_400)
+    try:
+        max_age = max(int(max_age_raw), 0)
+    except (TypeError, ValueError):
+        max_age = 86_400
+
+    raw_endpoints = config.get('report_to')
+    endpoints = _coerce_values(raw_endpoints, [])
+    if not endpoints:
+        fallback_raw = config.get('report_uri')
+        if fallback_raw is not None:
+            fallback = str(fallback_raw).strip()
+            if fallback:
+                endpoints = [fallback]
+
+    cleaned_endpoints: list[dict[str, str]] = []
+    for endpoint in endpoints:
+        trimmed = endpoint.strip()
+        if not trimmed:
+            continue
+        cleaned_endpoints.append({'url': trimmed})
+
+    if not cleaned_endpoints:
+        return None
+
+    return {
+        'group': group,
+        'max_age': max_age,
+        'endpoints': cleaned_endpoints,
+    }
+
+
+def build_csp_header(
+    config: dict[str, object],
+    reference: datetime | None = None,
+    report_to: dict[str, object] | None = None,
+) -> str:
     if reference is None:
         reference = _resolve_now(config)
 
@@ -156,15 +195,16 @@ def build_csp_header(config: dict[str, object], reference: datetime | None = Non
         _build_directive('style-src', directive_map['style-src']),
         _build_directive('img-src', directive_map['img-src']),
         _build_directive('font-src', directive_map['font-src']),
+        _build_directive('form-action', ["'self'"]),
         "object-src 'none'",
         "frame-ancestors 'none'",
         "require-trusted-types-for 'script'",
         f'trusted-types {policy}',
     ]
 
-    report_uri = config.get('report_uri')
-    if report_uri:
-        directives.append(f'report-uri {report_uri}')
+    target_report = report_to if report_to is not None else _resolve_report_to(config)
+    if target_report:
+        directives.append(f"report-to {target_report['group']}")
 
     return '; '.join(directives)
 
@@ -177,8 +217,17 @@ class ContentSecurityPolicyMiddleware:
         response = self.get_response(request)
         config = getattr(settings, 'FOUNDATION_CSP', {})
         reference = _resolve_now(config)
-        header_value = build_csp_header(config, reference=reference)
+        target_report = _resolve_report_to(config)
+        header_value = build_csp_header(config, reference=reference, report_to=target_report)
         mode = _resolve_mode(config, reference)
+
+        if target_report:
+            response['Report-To'] = json.dumps(target_report)
+            first_endpoint = target_report['endpoints'][0]['url']
+            response['Reporting-Endpoints'] = f"{target_report['group']}=\"{first_endpoint}\""
+        else:
+            response.headers.pop('Report-To', None)
+            response.headers.pop('Reporting-Endpoints', None)
 
         if mode == 'enforce':
             response.headers.pop('Content-Security-Policy-Report-Only', None)
@@ -189,5 +238,35 @@ class ContentSecurityPolicyMiddleware:
         else:
             response.headers.pop('Content-Security-Policy', None)
             response['Content-Security-Policy-Report-Only'] = header_value
+
+        return response
+
+
+class SecureHeadersMiddleware:
+    """
+    Acrescenta cabeçalhos de segurança que não dependem do CSP para reduzir findings DAST.
+    """
+
+    PERMISSIONS_POLICY_DEFAULT = 'camera=(), microphone=(), geolocation=(), fullscreen=(), payment=()'
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+
+        # Evita exposição de versão do servidor em headers default do WSGI.
+        response.headers.pop('Server', None)
+        response['Server'] = ''
+
+        # Protege contra Spectre/isolamento de recursos.
+        response.setdefault('Cross-Origin-Resource-Policy', 'same-origin')
+
+        # Restringe APIs sensíveis a permissões explícitas.
+        response.setdefault('Permissions-Policy', self.PERMISSIONS_POLICY_DEFAULT)
+
+        # Evita caching de endpoints sensíveis (ex.: Problem Details, métricas/404 locais).
+        if 'Cache-Control' not in response:
+            response['Cache-Control'] = 'no-store'
 
         return response

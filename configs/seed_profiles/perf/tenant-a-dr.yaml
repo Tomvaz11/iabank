@@ -1,0 +1,60 @@
+metadata:
+  tenant: tenant-a
+  environment: perf
+  profile: dr-recovery
+  version: 2.0.0
+  schema_version: v1
+  salt_version: 2025-q1
+mode: dr
+reference_datetime: '2025-02-10T00:00:00Z'
+window:
+  start_utc: '23:00'
+  end_utc: 04:00
+volumetry:
+  tenant_users:
+    cap: 50
+  customers:
+    cap: 2500
+  addresses:
+    cap: 3750
+  consultants:
+    cap: 150
+  bank_accounts:
+    cap: 3000
+  account_categories:
+    cap: 300
+  suppliers:
+    cap: 750
+  loans:
+    cap: 5000
+  installments:
+    cap: 50000
+  financial_transactions:
+    cap: 100000
+  limits:
+    cap: 2500
+  contracts:
+    cap: 3750
+rate_limit:
+  limit: 960
+  window_seconds: 60
+  burst: 1200
+backoff:
+  base_seconds: 3
+  jitter_factor: 0.45
+  max_retries: 7
+  max_interval_seconds: 60
+budget:
+  cost_cap_brl: 125.0
+  error_budget_pct: 8.0
+ttl:
+  baseline_days: 30
+  carga_days: 7
+  dr_days: 3
+slo:
+  p95_target_ms: 9000
+  p99_target_ms: 13000
+  throughput_target_rps: 16.0
+integrity:
+  manifest_hash: 59b811fe5a8ffa7cdb9df7789aed799de528534fba74198267ecd989edb8b3f7
+  worm_proof: s3://worm-bucket/seed-data/tenant-a/perf/dr/proof.json

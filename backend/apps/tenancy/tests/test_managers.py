@@ -83,3 +83,11 @@ class TenantManagerTest(TestCase):
     def test_raises_error_when_context_is_missing(self) -> None:
         with self.assertRaises(TenantContextError):
             list(TenantThemeToken.objects.all())
+
+    def test_sets_tenant_guc_for_rls(self) -> None:
+        with use_tenant(self.tenant.id):
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT current_setting('iabank.current_tenant_id', true)")
+                value = cursor.fetchone()[0]
+
+        self.assertEqual(str(self.tenant.id), value)

@@ -47,6 +47,15 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
       OTEL_SERVICE_NAME: foundation-backend
       OTEL_RESOURCE_ATTRIBUTES: deployment.environment=local,service.namespace=iabank
+      VAULT_ADDR: ${VAULT_ADDR:-http://vault-dev:8200}
+      VAULT_TOKEN: ${VAULT_TOKEN:-root}
+      VAULT_TRANSIT_PATH: ${VAULT_TRANSIT_PATH:-transit/staging/seed-data}
+      SEEDS_WORM_BUCKET: ${SEEDS_WORM_BUCKET:-worm-bucket}
+      SEEDS_WORM_ROLE_ARN: ${SEEDS_WORM_ROLE_ARN:-arn:aws:iam::000:role/worm}
+      SEEDS_WORM_KMS_KEY_ID: ${SEEDS_WORM_KMS_KEY_ID:-arn:aws:kms:us-east-1:000:key/worm}
+      SEEDS_WORM_RETENTION_DAYS: ${SEEDS_WORM_RETENTION_DAYS:-365}
+      SEED_ALLOWED_ENVIRONMENTS: ${SEED_ALLOWED_ENVIRONMENTS:-dev,homolog,staging,perf}
+      SEED_ALLOWED_ROLES: ${SEED_ALLOWED_ROLES:-seed-runner,seed-admin}
     ports:
       - "${FOUNDATION_STACK_BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -56,6 +65,7 @@ services:
         condition: service_healthy
     volumes:
       - ./../backend:/app/backend
+      - ./../configs:/app/configs:ro
       - ./../contracts:/app/contracts
       - ./../docs:/app/docs
       - ./../observabilidade:/app/observabilidade
@@ -67,6 +77,16 @@ services:
         poetry run python backend/manage.py seed_foundation_tenants &&
         poetry run python backend/manage.py runserver 0.0.0.0:8000
       "
+
+  vault-dev:
+    image: hashicorp/vault:1.15.6
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${VAULT_TOKEN:-root}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
 
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.102.0

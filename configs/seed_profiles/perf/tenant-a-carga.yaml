@@ -1,0 +1,59 @@
+metadata:
+  tenant: tenant-a
+  environment: perf
+  profile: carga
+  version: 1.0.0
+  schema_version: v1
+  salt_version: 2025-q1
+mode: carga
+reference_datetime: '2025-02-01T00:00:00Z'
+window:
+  start_utc: '21:00'
+  end_utc: 05:00
+volumetry:
+  tenant_users:
+    cap: 50
+  customers:
+    cap: 2500
+  addresses:
+    cap: 3750
+  consultants:
+    cap: 150
+  bank_accounts:
+    cap: 3000
+  account_categories:
+    cap: 300
+  suppliers:
+    cap: 750
+  loans:
+    cap: 5000
+  installments:
+    cap: 50000
+  financial_transactions:
+    cap: 100000
+  limits:
+    cap: 2500
+  contracts:
+    cap: 3750
+rate_limit:
+  limit: 960
+  window_seconds: 60
+  burst: 1200
+backoff:
+  base_seconds: 2
+  jitter_factor: 0.45
+  max_retries: 7
+  max_interval_seconds: 60
+budget:
+  cost_cap_brl: 125.0
+  error_budget_pct: 8.0
+ttl:
+  baseline_days: 30
+  carga_days: 7
+  dr_days: 3
+slo:
+  p95_target_ms: 8000
+  p99_target_ms: 12000
+  throughput_target_rps: 20.0
+integrity:
+  manifest_hash: 2248ea9782ed4fa3f3842f87a1f7f8af05394f8160eb903546bf62bd246b2dc2

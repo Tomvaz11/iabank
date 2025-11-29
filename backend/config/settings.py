@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 import structlog
+from kombu import Exchange, Queue
 
 from backend.config.logging_utils import structlog_pii_sanitizer
 from backend.config.sentry import init_sentry
@@ -74,6 +75,7 @@ INSTALLED_APPS = [
     'ratelimit',
     'backend.apps.contracts',
     'backend.apps.tenancy',
+    'backend.apps.banking',
     'backend.apps.foundation',
 ]
 
@@ -81,6 +83,7 @@ MIDDLEWARE = [
     'django_prometheus.middleware.PrometheusBeforeMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'backend.apps.foundation.middleware.security.ContentSecurityPolicyMiddleware',
+    'backend.apps.foundation.middleware.security.SecureHeadersMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -197,6 +200,48 @@ structlog.configure(
     cache_logger_on_first_use=True,
 )
 
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', CELERY_BROKER_URL)
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_DEFAULT_QUEUE = 'seed_data.default'
+CELERY_TASK_DEFAULT_EXCHANGE = 'seed_data'
+CELERY_TASK_DEFAULT_EXCHANGE_TYPE = 'direct'
+CELERY_TASK_DEFAULT_ROUTING_KEY = 'seed_data.default'
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_REJECT_ON_WORKER_LOST = True
+CELERY_TASK_PREFETCH_MULTIPLIER = 1
+CELERY_TASK_ALWAYS_EAGER = os.environ.get(
+    'CELERY_TASK_ALWAYS_EAGER',
+    'true' if DEBUG else 'false',
+).lower() == 'true'
+CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'visibility_timeout': int(os.environ.get('SEED_QUEUE_VISIBILITY_TIMEOUT', '600')),
+}
+CELERY_TASK_QUEUES = (
+    Queue('seed_data.default', Exchange('seed_data'), routing_key='seed_data.default'),
+    Queue('seed_data.load_dr', Exchange('seed_data'), routing_key='seed_data.load_dr'),
+    Queue('seed_data.dlq', Exchange('seed_data'), routing_key='seed_data.dlq'),
+)
+CELERY_TASK_ROUTES = {
+    'seed_data.dispatch_baseline': {
+        'queue': 'seed_data.default',
+        'routing_key': 'seed_data.default',
+    },
+    'seed_data.dispatch_load_dr': {
+        'queue': 'seed_data.load_dr',
+        'routing_key': 'seed_data.load_dr',
+    },
+    'seed_data.handle_dlq': {
+        'queue': 'seed_data.dlq',
+        'routing_key': 'seed_data.dlq',
+    },
+    'seed_data.healthcheck': {
+        'queue': 'seed_data.default',
+        'routing_key': 'seed_data.default',
+    },
+}
+
 if (
     DATABASES.get('postgresql')
     and DATABASES['postgresql'].get('ENGINE') == 'django.db.backends.postgresql'
@@ -255,6 +300,9 @@ FOUNDATION_CSP = {
     'nonce': os.environ.get('FOUNDATION_CSP_NONCE', 'nonce-dev-fallback'),
     'trusted_types_policy': os.environ.get('FOUNDATION_TRUSTED_TYPES_POLICY', 'foundation-ui'),
     'report_uri': os.environ.get('FOUNDATION_CSP_REPORT_URI', 'https://csp-report.iabank.com'),
+    'report_to': _parse_csp_list(os.environ.get('FOUNDATION_CSP_REPORT_TO'), []),
+    'report_to_group': os.environ.get('FOUNDATION_CSP_REPORT_TO_GROUP', 'csp-endpoint'),
+    'report_to_max_age': os.environ.get('FOUNDATION_CSP_REPORT_TO_MAX_AGE', '86400'),
     'report_only_started_at': os.environ.get('FOUNDATION_CSP_REPORT_ONLY_STARTED_AT'),
     'report_only_ttl_days': os.environ.get('FOUNDATION_CSP_REPORT_ONLY_TTL_DAYS', '30'),
     'connect_src': _parse_csp_list(

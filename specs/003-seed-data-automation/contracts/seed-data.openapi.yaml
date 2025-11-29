@@ -1,0 +1,520 @@
+openapi: 3.1.0
+info:
+  title: IABank Seed Data API
+  version: 0.1.1
+  contact:
+    name: IABank Seeds
+    email: seeds@iabank.local
+  description: >
+    Contratos REST para orquestrar execucoes deterministicas de seeds/factories
+    multi-tenant. Operacoes respeitam RateLimit-*, Idempotency-Key, ETag/If-Match
+    e Problem Details RFC 9457. Uso previsto por pipelines GitOps/Argo CD, CI e
+    operacoes de staging (baseline/carga/DR) conforme spec 003-seed-data-automation.
+servers:
+  - url: https://api.iabank.local
+tags:
+  - name: SeedRuns
+    description: Operacoes para criar, consultar e cancelar execucoes de seeds.
+  - name: SeedProfiles
+    description: Operacoes para validar manifestos de seeds.
+paths:
+  /api/v1/seed-runs:
+    post:
+      summary: Inicia execucao de seeds/factories por manifesto
+      description: Cria/enfileira uma execução de seeds determinística com base em um manifesto versionado.
+      operationId: createSeedRun
+      tags: [SeedRuns]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Environment'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeedRunCreateRequest'
+      responses:
+        '201':
+          description: Execucao criada/enfileirada
+          headers:
+            Location:
+              schema:
+                type: string
+              description: URL do recurso `SeedRun`
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Retry-After:
+              schema:
+                type: string
+                description: Intervalo em segundos ou data HTTP para novo tentativa
+            ETag:
+              schema:
+                type: string
+                description: Versao do recurso SeedRun
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeedRunResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Ja existe execucao ativa com o mesmo manifesto/tenant/idempotency-key
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/seed-runs/{seed_run_id}:
+    get:
+      summary: Consulta status e checkpoints de uma execucao
+      description: Retorna o estado atual de uma execução de seeds, incluindo checkpoints e evidências.
+      operationId: getSeedRun
+      tags: [SeedRuns]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Environment'
+        - $ref: '#/components/parameters/SeedRunId'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Detalhes da execucao
+          headers:
+            ETag:
+              schema:
+                type: string
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeedRunResponse'
+        '304':
+          description: Nao modificado (If-None-Match)
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/seed-runs/{seed_run_id}/cancel:
+    post:
+      summary: Solicita cancelamento seguro de uma execucao
+      description: Solicita cancelamento idempotente de uma execução enfileirada/em andamento usando ETag/If-Match.
+      operationId: cancelSeedRun
+      tags: [SeedRuns]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Environment'
+        - $ref: '#/components/parameters/SeedRunId'
+        - $ref: '#/components/parameters/IfMatch'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '202':
+          description: Cancelamento aceito
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeedRunResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Conflito de versao (If-Match)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/seed-profiles/validate:
+    post:
+      summary: Valida manifesto seed profile (schema e caps)
+      description: Valida um manifesto v1 de seeds (JSON Schema 2020-12), retornando issues normalizadas.
+      operationId: validateSeedProfile
+      tags: [SeedProfiles]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Environment'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeedProfileValidationRequest'
+      responses:
+        '200':
+          description: Manifesto valido
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeedProfileValidationResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          description: Manifesto invalido ou schema nao suportado
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+components:
+  parameters:
+    TenantId:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Identificador do tenant para RLS/ABAC.
+    Environment:
+      name: X-Environment
+      in: header
+      required: true
+      schema:
+        type: string
+        enum: [dev, staging, perf, dr, prod]
+      description: Ambiente alvo da execucao.
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Chave de idempotencia com TTL e deduplicacao auditavel.
+    SeedRunId:
+      name: seed_run_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      schema:
+        type: string
+      description: ETag esperado do recurso para evitar write skew.
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      schema:
+        type: string
+      description: Retorna 304 se ETag corresponder.
+
+  headers:
+    RateLimit-Limit:
+      description: Limite de requests por janela definido no manifesto ou plano do tenant.
+      schema:
+        type: integer
+    RateLimit-Remaining:
+      description: Requests restantes na janela.
+      schema:
+        type: integer
+    RateLimit-Reset:
+      description: Instante epoch/segundos ate reset da janela.
+      schema:
+        type: integer
+
+  schemas:
+    SeedProfileManifest:
+      description: Manifesto v1 validado segundo JSON Schema 2020-12.
+      $ref: './seed-profile.schema.json'
+    SeedRunCreateRequest:
+      type: object
+      required: [manifest_ref, mode, reference_datetime]
+      properties:
+        manifest_ref:
+          type: string
+          description: Caminho ou URL GitOps do manifesto (YAML/JSON) versionado.
+        mode:
+          type: string
+          enum: [baseline, carga, dr, canary]
+        reference_datetime:
+          type: string
+          format: date-time
+          description: Timestamp ISO 8601 UTC que ancora dados deterministas.
+        dry_run:
+          type: boolean
+          default: false
+        allow_offpeak_override:
+          type: boolean
+          description: "Permite execucao fora da janela off-peak apenas em ambientes permitidos (ex.: dev)."
+        caps_override:
+          type: object
+          description: Overrides de volumetria para ambientes de teste controlados.
+          additionalProperties:
+            type: integer
+        tags:
+          type: array
+          items:
+            type: string
+          description: Labels para auditoria/FinOps/WORM.
+        canary_scope:
+          description: Escopo canary quando mode=canary.
+          oneOf:
+            - type: object
+              required: [percentage]
+              properties:
+                percentage:
+                  type: number
+                  minimum: 0
+                  maximum: 100
+            - type: object
+              required: [tenants]
+              properties:
+                tenants:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  uniqueItems: true
+    SeedRunResponse:
+      type: object
+      required: [seed_run_id, status, profile_version, mode, reference_datetime]
+      properties:
+        seed_run_id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/SeedRunStatus'
+        environment:
+          type: string
+          enum: [dev, staging, perf, dr, prod]
+        profile_version:
+          type: string
+        mode:
+          type: string
+          enum: [baseline, carga, dr, canary]
+        reference_datetime:
+          type: string
+          format: date-time
+        manifest_ref:
+          type: string
+        manifest_hash_sha256:
+          type: string
+          pattern: "^[a-fA-F0-9]{64}$"
+        dry_run:
+          type: boolean
+        queued_at:
+          type: string
+          format: date-time
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        rate_limit_usage:
+          type: object
+          properties:
+            remaining:
+              type: integer
+            limit:
+              type: integer
+            reset_at:
+              type: string
+              format: date-time
+        checkpoints:
+          type: array
+          items:
+            $ref: '#/components/schemas/Checkpoint'
+        evidence:
+          type: object
+          properties:
+            worm_url:
+              type: string
+              format: uri
+            signature_hash:
+              type: string
+        canary_scope:
+          description: Escopo efetivo usado na execução.
+          oneOf:
+            - type: object
+              required: [percentage]
+              properties:
+                percentage:
+                  type: number
+            - type: object
+              required: [tenants]
+              properties:
+                tenants:
+                  type: array
+                  items:
+                    type: string
+                  minItems: 1
+                  uniqueItems: true
+        problem:
+          $ref: '#/components/schemas/Problem'
+    SeedRunStatus:
+      type: string
+      enum: [queued, running, succeeded, failed, aborted, retry_scheduled, blocked]
+    Checkpoint:
+      type: object
+      properties:
+        entity:
+          type: string
+        hash_estado:
+          type: string
+        progress:
+          type: number
+          format: float
+        last_event_at:
+          type: string
+          format: date-time
+    SeedProfileValidationRequest:
+      type: object
+      required: [manifest]
+      properties:
+        manifest:
+          $ref: '#/components/schemas/SeedProfileManifest'
+          description: Conteudo do manifesto seed profile (v1).
+        strict_version:
+          type: boolean
+          default: true
+        validate_offpeak:
+          type: boolean
+          default: true
+    SeedProfileValidationResult:
+      type: object
+      required: [valid]
+      properties:
+        valid:
+          type: boolean
+        issues:
+          type: array
+          items:
+            type: string
+        normalized_version:
+          type: string
+        caps:
+          type: object
+          description: Caps de volumetria/rate limit extraidos do manifesto.
+          additionalProperties:
+            type: integer
+        manifest_hash:
+          type: string
+          pattern: "^[a-fA-F0-9]{64}$"
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          type: array
+          items:
+            type: string
+        violations:
+          type: array
+          description: Lista de violações específicas de campo/regra.
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+              code:
+                type: string
+
+  responses:
+    BadRequest:
+      description: Requisicao invalida
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Autenticacao requerida ou invalida
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: Identidade nao autorizada para o tenant/ambiente
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Recurso inexistente
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    TooManyRequests:
+      description: Rate limit excedido ou budget estourado
+      headers:
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+        Retry-After:
+          schema:
+            type: string
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    ServiceUnavailable:
+      description: "Dependencia indisponivel (ex.: Vault/WORM/fila)"
+      headers:
+        Retry-After:
+          schema:
+            type: string
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
