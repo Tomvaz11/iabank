@@ -203,6 +203,7 @@ class SeedWormService:
             'tenant_id': str(seed_run.tenant_id),
             'environment': seed_run.environment,
             'mode': seed_run.mode,
+            'manifest_version': seed_run.profile_version,
             'profile_version': seed_run.profile_version,
             'manifest_hash': manifest_hash or seed_run.manifest_hash_sha256,
             'status': status,
@@ -357,4 +358,6 @@ class SeedWormService:
             {'id': 'idempotency_reused', 'description': 'Idempotency-Key registrada com TTL e hash', 'category': 'resilience', 'severity': 'high'},
             {'id': 'rate_limit_respected', 'description': 'RateLimit/backoff aplicados', 'category': 'performance', 'severity': 'medium'},
             {'id': 'slo_met', 'description': 'SLO/SLO budget atendidos', 'category': 'observability', 'severity': 'medium'},
+            {'id': 'audit_labels', 'description': 'Labels obrigatórias presentes (tenant/environment/seed_run/manifest/mode)', 'category': 'observability', 'severity': 'high'},
+            {'id': 'audit_logs_clean', 'description': 'Logs/WORM sem PII e com pii_redacted=true', 'category': 'pii', 'severity': 'critical'},
         ]

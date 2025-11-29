@@ -13,6 +13,7 @@ Reflete os gates constitucionais (v5.2.0) e ADRs 008–012.
 8. **finops-tags**: Script para validar tagging obrigatório (Artigo XVI).
 9. **complexity-gate**: Radon cc ≤ 10 (Python) usando `scripts/ci/check_python_complexity.py` e allowlist controlado.
 10. **seed-data IaC (T083/T084)**: workflow `.github/workflows/ci-argo-seed-data.yml` roda `scripts/ci/validate-opa.sh` (terraform fmt/init/validate + `opa test` em `infra/opa/seed-data`) e renderiza kustomize de `infra/argocd/seed-data/` para garantir drift/rollback/off-peak GitOps.
+11. **seed-data polish gates**: job `Seed Data Polish Gates` roda `scripts/ci/seed-data-dry-run.sh` (simula falha de OTEL/Sentry com `SIMULATE_TELEMETRY_FAILURE=1` → exit 4), valida limpeza de logs/WORM (`scripts/ci/check-audit-cleanliness.sh`) e confere padrões trunk-based/rollback ensaiado no runbook de GameDay.
 
 ## Automação Pendente
 - Revisar periodicamente os scripts em `scripts/` conforme o amadurecimento dos serviços.
@@ -24,6 +25,7 @@ Reflete os gates constitucionais (v5.2.0) e ADRs 008–012.
 - Usar filtros de caminho/monorepo para executar somente jobs impactados por cada PR.
 - Monitorar tempos de execução e ajustar limites de cobertura/thresholds via ADR antes de qualquer alteração.
 - Registrar métricas de sucesso dos jobs para alimentar dashboards DORA/SLO automaticamente.
+- Gate trunk-based: branches curtas (feature/*, release/* ou 3xx-*), squash-only/linear history (branch protection) e verificação de rollback ensaiado (`docs/runbooks/gameday/seed-data.md`) rodam no job `Seed Data Polish Gates`, bloqueando promoção quando violado.
 
 ## Otimizações de CI (2025-11-08)
 - Step-gating por paths mantendo os jobs required sempre presentes:

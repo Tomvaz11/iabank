@@ -351,6 +351,8 @@ Multiplicadores por ambiente (aplicados sobre a tabela acima): dev = 1x, homolog
 
 - Exportadores OTEL/Sentry são gating: falha de export ou redaction reprova SeedRun e pipelines CI/Argo; dry-run em CI injeta falha sintética para provar fail-close.  
 - Logs/WORM devem incluir labels obrigatórios (`tenant_id`, `environment`, `seed_run_id`, `manifest_version`, `mode`) e ausência de PII; ausência de labels ou PII detectada reprova checklist WORM/logs.  
+- Dashboard dedicado (`observabilidade/dashboards/seed-data.json`) consolida spans/metrics/logs com `trace_id/span_id` e métricas `seed_run_duration_ms`, `seed_batch_latency_ms`, `seed_rate_limit_remaining`, `seed_budget_remaining_pct`, `seed_slo_status` (Grafana/Loki/OTEL).  
+- Gate de Polish no CI (`Seed Data Polish Gates`) roda `scripts/ci/seed-data-dry-run.sh` com `SIMULATE_TELEMETRY_FAILURE=1` (fail-close) e `scripts/ci/check-audit-cleanliness.sh` (labels/PII em logs/WORM) além do guardrail trunk-based/rollback ensaiado.  
 - Evidências de falha/sucesso são armazenadas em WORM com assinatura e integridade verificada antes de marcar `integrity_status=verified`.
 
 ## Complexity Tracking

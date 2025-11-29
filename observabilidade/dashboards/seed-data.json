@@ -1,0 +1,116 @@
+{
+  "$schema": "https://grafana.com/schemas/dashboard/v1.json",
+  "title": "Seed Data — Observabilidade",
+  "tags": ["seed_data", "otel", "sre", "sentry"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Seed run duration (p95/p99)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(seed_run_duration_ms_bucket{tenant_id!=\"\",environment!=\"\"}[5m])) by (le,tenant_id,environment,mode,manifest_version))",
+          "legendFormat": "p95 {{tenant_id}}/{{environment}}/{{mode}}/{{manifest_version}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(seed_run_duration_ms_bucket{tenant_id!=\"\",environment!=\"\"}[5m])) by (le,tenant_id,environment,mode,manifest_version))",
+          "legendFormat": "p99 {{tenant_id}}/{{environment}}/{{mode}}/{{manifest_version}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5000 },
+              { "color": "red", "value": 7000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Batches — latency p95",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(seed_batch_latency_ms_bucket{tenant_id!=\"\",environment!=\"\"}[5m])) by (le,tenant_id,environment,entity,mode))",
+          "legendFormat": "p95 {{entity}} {{tenant_id}}/{{environment}}/{{mode}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2000 },
+              { "color": "red", "value": 4000 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Rate limit & error budget",
+      "targets": [
+        {
+          "expr": "min(seed_rate_limit_remaining{tenant_id!=\"\",environment!=\"\"}) by (tenant_id,environment,mode)",
+          "legendFormat": "remaining {{tenant_id}}/{{environment}}/{{mode}}"
+        },
+        {
+          "expr": "max(seed_budget_remaining_pct{tenant_id!=\"\",environment!=\"\"}) by (tenant_id,environment,mode)",
+          "legendFormat": "budget % {{tenant_id}}/{{environment}}/{{mode}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": 0 },
+              { "color": "yellow", "value": 20 },
+              { "color": "green", "value": 50 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "logs",
+      "title": "Logs seed_data (pii_redacted=true)",
+      "datasource": { "type": "loki", "uid": "loki-seed-data" },
+      "targets": [
+        {
+          "expr": "{app=\"seed_data\",pii_redacted=\"true\"}| json | line_format \"{{.tenant_id}}/{{.environment}} {{.seed_run_id}} {{.mode}} {{.manifest_version}}: {{.event}}\""
+        }
+      ],
+      "options": {
+        "showLabels": true,
+        "showTime": true
+      }
+    },
+    {
+      "type": "table",
+      "title": "SLO status por manifest",
+      "targets": [
+        {
+          "expr": "max by (tenant_id,environment,manifest_version,mode) (seed_slo_status)",
+          "legendFormat": "{{tenant_id}}/{{environment}}/{{manifest_version}}/{{mode}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "center"
+          }
+        }
+      }
+    }
+  ]
+}

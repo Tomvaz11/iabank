@@ -7,6 +7,6 @@
 - **Finalidade**: gerar massa de dados deterministica para testes/DR, validar SLO/FinOps e contratos `/api/v1`, produzir evidencias WORM assinadas.
 - **Retencao**: datasets com TTL por modo (baseline/carga/dr); relatorios WORM retidos >=365 dias (`SEEDS_WORM_RETENTION_DAYS`). Checkpoints/datasets limpos antes de reexecucoes de carga/DR.
 - **Compartilhamento**: proibida transferencia externa; stubs Pact/Prism bloqueiam chamadas reais. Outbound real falha em fail-close.
-- **Seguranca**: RLS obrigatorio; RBAC/ABAC minimo (`seed-runner`, `seed-admin`, `seed-read`); Vault Transit FPE; logs/traces com redacao de PII; WORM com assinatura/verificacao; OTEL/Sentry fail-close.
+- **Seguranca**: RLS obrigatorio; RBAC/ABAC minimo (`seed-runner`, `seed-admin`, `seed-read`); Vault Transit FPE; logs/traces com redacao de PII; WORM com assinatura/verificacao; OTEL/Sentry fail-close; gate automático `scripts/ci/check-audit-cleanliness.sh` reprova logs/WORM sem labels (tenant/environment/seed_run/manifest/mode) ou com PII não redigida.
 - **Direitos do titular**: nao aplicavel (dados sinteticos). Caso dados reais sejam inadvertidamente inseridos, fluxo de incident response deve revogar tokens e limpar datasets (ver `docs/runbooks/incident-response.md`).
 - **Evidencias**: relatorios WORM assinados armazenam manifesto, hash, volumetria, uso de rate-limit/budget, Problem Details e versao do cost-model (`configs/finops/seed-data.cost-model.yaml`). CI roda `scripts/ci/validate-finops.sh` e `scripts/ci/check-migrations.sh` como gates de compliance.

@@ -121,3 +121,9 @@ def test_factory_mascaramento(vault_stub):
 - Traces/metricas/logs OTEL (W3C) com labels de tenant/ambiente/seed_run_id; PII sempre mascarada/redact.  
 - Relatorio JSON assinado armazenado em WORM com `trace_id`, manifesto, volumetria, rate-limit usage, erros (Problem Details) e integridade verificada.  
 - Falha em exportar OTEL/Sentry ou escrever WORM bloqueia conclusao e marca execucao como `failed`.
+
+## Polish / Gates finais
+- Simular fail-close de OTEL/Sentry: `SIMULATE_TELEMETRY_FAILURE=1 scripts/ci/seed-data-dry-run.sh` (espera exit code 4). Sem a flag, o script roda o dry-run baseline (stub seguro) com logs rotulados (`tenant_id/environment/seed_run_id/manifest_version/mode`).
+- Validar limpeza de logs/WORM (labels obrigatórias + sem PII):  
+  `scripts/ci/check-audit-cleanliness.sh --logs observabilidade/data/seed-audit.log.jsonl --worm observabilidade/data/seed-worm-report.sample.json`
+- Dashboards OTEL/Loki/Grafana: `observabilidade/dashboards/seed-data.json` (painéis de duração, batch latency, rate-limit/budget e logs `pii_redacted=true`).

@@ -7,6 +7,7 @@ from http import HTTPStatus
 from typing import Any, Dict, Optional
 from uuid import UUID
 
+import structlog
 from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -20,6 +21,8 @@ from backend.apps.tenancy.services.seed_manifest_validator import (
 )
 from backend.apps.tenancy.services.seed_dataset_gc import SeedDatasetGC
 from backend.apps.tenancy.services.seed_queue import QueueDecision, SeedQueueService
+
+logger = structlog.get_logger('seed.telemetry')
 
 
 @dataclass
@@ -64,6 +67,44 @@ class _ManifestParts:
     metadata: Dict[str, Any]
     canary_scope: Any
     manifest_hash: str
+
+
+def _trace_ids_from_context() -> tuple[str, str]:
+    """
+    Retorna trace_id/span_id do contexto OTEL atual, se disponível.
+    Mantém comportamento noop quando OTEL não está instalado.
+    """
+    try:
+        from opentelemetry import trace  # type: ignore
+
+        span = trace.get_current_span()
+        context = span.get_span_context()
+        if context and context.is_valid:
+            trace_id = format(context.trace_id, '032x')
+            span_id = format(context.span_id, '016x')
+            return trace_id, span_id
+    except Exception:
+        return '', ''
+    return '', ''
+
+
+def _seed_log_context(
+    *,
+    seed_profile: SeedProfile,
+    manifest_hash: str,
+    seed_run_id: UUID | None = None,
+    mode: str,
+    dry_run: bool,
+) -> dict[str, object]:
+    return {
+        'tenant_id': str(seed_profile.tenant_id),
+        'environment': seed_profile.environment,
+        'manifest_version': seed_profile.version,
+        'manifest_hash': manifest_hash,
+        'mode': mode,
+        'dry_run': dry_run,
+        'seed_run_id': str(seed_run_id) if seed_run_id else None,
+    }
 
 
 class SeedRunService:
@@ -256,7 +297,8 @@ class SeedRunService:
         parts: _ManifestParts,
         rate_limit_usage: Dict[str, Any] | None,
     ) -> SeedRun:
-        return SeedRun.objects.create(
+        trace_id, span_id = _trace_ids_from_context()
+        seed_run = SeedRun.objects.create(
             seed_profile=seed_profile,
             environment=environment,
             mode=mode,
@@ -271,7 +313,22 @@ class SeedRunService:
             offpeak_window={'start': parts.window_start.isoformat(), 'end': parts.window_end.isoformat()},
             canary_scope_snapshot=parts.canary_scope,
             rate_limit_usage=rate_limit_usage or {},
+            trace_id=trace_id or None,
+            span_id=span_id or None,
         )
+        logger.info(
+            'seed_run_enqueued',
+            **_seed_log_context(
+                seed_profile=seed_profile,
+                manifest_hash=parts.manifest_hash,
+                seed_run_id=seed_run.id,
+                mode=mode,
+                dry_run=dry_run,
+            ),
+            trace_id=trace_id or seed_run.trace_id,
+            span_id=span_id or seed_run.span_id,
+        )
+        return seed_run
 
     def request_slot(
         self,

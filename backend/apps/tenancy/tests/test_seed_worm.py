@@ -80,7 +80,16 @@ def test_emit_skips_when_dry_run() -> None:
     outcome = service.emit(
         seed_run=seed_run,
         manifest={'integrity': {'manifest_hash': 'seed-manifest-hash'}},
-        checklist_results={'pii_masked': True},
+        checklist_results={
+            'pii_masked': True,
+            'rls_enforced': True,
+            'contracts_aligned': True,
+            'idempotency_reused': True,
+            'rate_limit_respected': True,
+            'slo_met': True,
+            'audit_labels': True,
+            'audit_logs_clean': True,
+        },
         retention_days=365,
         cost_estimated_brl=0,
         cost_actual_brl=0,
@@ -130,6 +139,8 @@ def test_emit_persists_report_and_signature() -> None:
             'idempotency_reused': True,
             'rate_limit_respected': True,
             'slo_met': True,
+            'audit_labels': True,
+            'audit_logs_clean': True,
         },
         retention_days=400,
         cost_estimated_brl=12.34,
@@ -142,6 +153,7 @@ def test_emit_persists_report_and_signature() -> None:
     assert outcome.evidence is not None
     assert outcome.evidence.integrity_status == EvidenceWORM.IntegrityStatus.VERIFIED
     assert outcome.report['checklist']['summary']['failed'] == 0
+    assert outcome.report['manifest_version'] == seed_run.profile_version
     stored = storage.retrieve(outcome.evidence.report_url)
     assert stored
     assert tenant.id == outcome.evidence.tenant_id
@@ -156,7 +168,12 @@ def test_emit_returns_problem_when_checklist_fails() -> None:
     outcome = service.emit(
         seed_run=seed_run,
         manifest={},
-        checklist_results={'pii_masked': False, 'rls_enforced': True},
+        checklist_results={
+            'pii_masked': False,
+            'rls_enforced': True,
+            'audit_labels': True,
+            'audit_logs_clean': True,
+        },
         retention_days=365,
         cost_estimated_brl=0,
         cost_actual_brl=0,
@@ -179,7 +196,12 @@ def test_emit_returns_problem_when_signature_invalid() -> None:
     outcome = service.emit(
         seed_run=seed_run,
         manifest={'integrity': {'manifest_hash': 'seed-manifest-hash'}},
-        checklist_results={'pii_masked': True, 'rls_enforced': True},
+        checklist_results={
+            'pii_masked': True,
+            'rls_enforced': True,
+            'audit_labels': True,
+            'audit_logs_clean': True,
+        },
         retention_days=365,
         cost_estimated_brl=0,
         cost_actual_brl=0,

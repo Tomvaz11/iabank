@@ -14,6 +14,7 @@
 - Preparar tenants/manifestos canones e roles (`seed-runner`, `seed-admin`). Validar `scripts/ci/check-migrations.sh` e `scripts/ci/validate-finops.sh` antes do ensaio.
 - Executar cada cenario isoladamente com `Idempotency-Key` unico e registrar spans/logs. Coletar `RateLimit-*`, `Retry-After`, `error_budget_remaining`, `seed_rate_limit_remaining`.
 - Registrar RPO/RTO medidos, Problem Details emitidos e evidencias WORM (quando aplicavel). Falhas devem bloquear promocao/Argo ate ajuste.
+- Registrar plano de rollback ensaiado (quem executa, comando e tempo de reversão) ao final de cada cenário antes de promover changes de carga/DR.
 
 ## Criterios de sucesso
 - Nenhum dataset real escrito; stubs Pact/Prism usados; outbound real bloqueado.

@@ -142,12 +142,12 @@ Critério de teste independente: CLI/API criam seed runs carga/DR respeitando Ra
 Objetivo: Encerrar observabilidade/compliance e amarrar docs/runbooks.  
 Critério de teste independente: pipelines com lint/tests/perf e docs gate verdes; observabilidade/seguranca ativas sem drift.
 
-- [ ] T063 Consolidar spans/metricas/logs OTEL+Sentry/Grafana para seed_data (labels tenant/ambiente/run) (`observabilidade/`, `docs/runbooks/observabilidade.md`)
-- [ ] T064 Atualizar docs/plan/ADRs e rodar `check-docs-needed` para feature (specs/plan/quickstart/runbooks), incluindo ROPA/RIPD LGPD da automação de seeds/factories (`specs/003-seed-data-automation/plan.md`, `specs/003-seed-data-automation/spec.md`, `specs/003-seed-data-automation/quickstart.md`, `docs/compliance/ropa/seed-data.md`, `scripts/ci/check-docs-needed.js`)
-- [ ] T066 Garantir gates de CI (cobertura ≥85%, cc≤10, SAST/DAST/SCA/SBOM, k6 alinhado a SLOs) ativos para a feature (`.github/workflows/`, `docs/pipelines/ci-required-checks.md`)
-- [ ] T067 Gate de observabilidade fail-close: simular falha de export/redaction OTEL/Sentry e bloquear pipeline/execução (`observabilidade/`, `docs/runbooks/observabilidade.md`, `.github/workflows/`)
-- [ ] T068 Gate Trunk-Based/rollback no CI/Argo (branches curtas, squash-only, histórico linear, rollback ensaiado) com bloqueio de promoção quando violado (`.github/workflows/`, `docs/pipelines/ci-required-checks.md`)
-- [ ] T069 Checklist anti-poluição: reprovar se logs/WORM faltarem labels obrigatórios ou conterem PII, com validação automática no CI/Argo e aderente ao fluxo único de WORM (T053) (`backend/apps/tenancy/services/seed_worm.py`, `scripts/ci/check-audit-cleanliness.sh`)
+- [X] T063 Consolidar spans/metricas/logs OTEL+Sentry/Grafana para seed_data (labels tenant/ambiente/run) (`observabilidade/`, `docs/runbooks/observabilidade.md`)
+- [X] T064 Atualizar docs/plan/ADRs e rodar `check-docs-needed` para feature (specs/plan/quickstart/runbooks), incluindo ROPA/RIPD LGPD da automação de seeds/factories (`specs/003-seed-data-automation/plan.md`, `specs/003-seed-data-automation/spec.md`, `specs/003-seed-data-automation/quickstart.md`, `docs/compliance/ropa/seed-data.md`, `scripts/ci/check-docs-needed.js`)
+- [X] T066 Garantir gates de CI (cobertura ≥85%, cc≤10, SAST/DAST/SCA/SBOM, k6 alinhado a SLOs) ativos para a feature (`.github/workflows/`, `docs/pipelines/ci-required-checks.md`)
+- [X] T067 Gate de observabilidade fail-close: simular falha de export/redaction OTEL/Sentry e bloquear pipeline/execução (`observabilidade/`, `docs/runbooks/observabilidade.md`, `.github/workflows/`)
+- [X] T068 Gate Trunk-Based/rollback no CI/Argo (branches curtas, squash-only, histórico linear, rollback ensaiado) com bloqueio de promoção quando violado (`.github/workflows/`, `docs/pipelines/ci-required-checks.md`)
+- [X] T069 Checklist anti-poluição: reprovar se logs/WORM faltarem labels obrigatórios ou conterem PII, com validação automática no CI/Argo e aderente ao fluxo único de WORM (T053) (`backend/apps/tenancy/services/seed_worm.py`, `scripts/ci/check-audit-cleanliness.sh`)
 
 ## Dependencias e ordem de historias
 - Fundacional (T006–T020 + T079 + T083–T086) precede qualquer história; Setup (T001–T005 + T080–T082) pode avançar em paralelo a Fundacional. Convergência obrigatória: threat model (T085), GameDay (T086), ROPA/RIPD LGPD (T079), preflight Vault/WORM (T016) e cap global/TTL fila (T012–T013) antes de validar/rodar baseline.

@@ -1,0 +1,29 @@
+{
+  "seed_run_id": "c0ffee00-0000-4000-8000-000000000001",
+  "tenant_id": "tenant-a",
+  "environment": "staging",
+  "mode": "baseline",
+  "manifest_version": "1.0.0",
+  "profile_version": "1.0.0",
+  "manifest_hash": "hash-123",
+  "status": "succeeded",
+  "dry_run": false,
+  "trace": { "trace_id": "trace-seed-a", "span_id": "span-seed-a" },
+  "rate_limit_usage": { "limit": 120, "remaining": 118, "reset_at": "2025-11-24T00:05:00Z" },
+  "budget": { "cost_model_version": "2025.11", "estimated_brl": 12.34, "actual_brl": 10.1 },
+  "checklist": {
+    "items": [
+      { "id": "pii_masked", "description": "PII mascarada/anonimizada via Vault Transit FPE e sem dados reais em seeds/factories.", "category": "pii", "severity": "critical", "passed": true },
+      { "id": "rls_enforced", "description": "RLS/ABAC ativos, GUC de tenant aplicado e sem consultas cross-tenant.", "category": "security", "severity": "critical", "passed": true },
+      { "id": "contracts_aligned", "description": "Payloads de seeds/factories aderentes aos contratos/serializers `/api/v1` e JSON Schema v1.", "category": "governance", "severity": "high", "passed": true },
+      { "id": "idempotency_reused", "description": "Idempotency-Key com TTL/dedupe ativa e hash do manifesto persistido.", "category": "resilience", "severity": "high", "passed": true },
+      { "id": "rate_limit_respected", "description": "RateLimit-* e backoff/jitter aplicados; limites/budget alinhados ao manifesto.", "category": "performance", "severity": "medium", "passed": true },
+      { "id": "slo_met", "description": "SLO/SLI e error budget atendidos; sem violação de p95/p99/throughput.", "category": "observability", "severity": "medium", "passed": true },
+      { "id": "audit_labels", "description": "Logs/WORM contêm tenant_id, environment, seed_run_id, manifest_version e mode para auditoria.", "category": "observability", "severity": "high", "passed": true },
+      { "id": "audit_logs_clean", "description": "Logs/WORM sem PII (pii_redacted=true) e com trace_id/span_id propagados para OTEL/Sentry.", "category": "pii", "severity": "critical", "passed": true }
+    ],
+    "summary": { "total": 8, "passed": 8, "failed": 0, "failed_ids": [] }
+  },
+  "metadata": { "manifest_path": "configs/seed_profiles/staging/tenant-a.yaml", "git_ref": "refs/heads/003-seed-data-automation" },
+  "generated_at": "2025-11-24T00:10:00Z"
+}
