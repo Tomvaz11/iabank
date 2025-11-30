@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,5 +31,4 @@
 
 ## Notes
 
-- Faltam resoluções para os três marcadores `[NEEDS CLARIFICATION]` em Outstanding Questions & Clarifications: "Qual o fator de MFA obrigatório...", "Qual o prazo/regime de retenção de logs WORM..." e "Tenants de alto risco exigem isolamento adicional...".
-- Items marked incomplete require spec updates before `/speckit.clarify` or `/speckit.plan`
+- Todas as pendências críticas já foram sanadas na seção de Clarifications da spec. Itens marcados como completos refletem o estado atual e permitem seguir para `/speckit.plan`.
