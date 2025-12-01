@@ -515,21 +515,11 @@ class SeedRunService:
         Garante que o manifesto esteja no caminho GitOps esperado para evitar drift no Argo CD.
         """
         expected_prefix = f'configs/seed_profiles/{environment}/'
-        if manifest_path:
-            normalized = Path(manifest_path)
-            parts = normalized.parts
-            for idx in range(len(parts) - 2):
-                if parts[idx] == 'configs' and parts[idx + 1] == 'seed_profiles' and parts[idx + 2] == environment:
-                    return None
-            if normalized.as_posix().startswith(expected_prefix):
-                return None
+        if manifest_path and self._is_gitops_path(manifest_path, environment):
+            return None
 
-        if allow_local_override and manifest_path:
-            lowered = manifest_path.lower()
-            if lowered.startswith('/tmp') or lowered.startswith('tmp/'):
-                return None
-            if '/pytest-' in lowered:
-                return None
+        if allow_local_override and manifest_path and self._is_local_override_allowed(manifest_path):
+            return None
 
         return ProblemDetail(
             status=HTTPStatus.CONFLICT,
@@ -537,6 +527,23 @@ class SeedRunService:
             detail=f'Manifesto deve residir em {expected_prefix}*.yaml para promoção segura/GitOps.',
             type='https://iabank.local/problems/seed/gitops-drift',
         )
+
+    @staticmethod
+    def _is_gitops_path(manifest_path: str, environment: str) -> bool:
+        expected_prefix = f'configs/seed_profiles/{environment}/'
+        normalized = Path(manifest_path)
+        parts = normalized.parts
+        for idx in range(len(parts) - 2):
+            if parts[idx] == 'configs' and parts[idx + 1] == 'seed_profiles' and parts[idx + 2] == environment:
+                return True
+        return normalized.as_posix().startswith(expected_prefix)
+
+    @staticmethod
+    def _is_local_override_allowed(manifest_path: str) -> bool:
+        lowered = manifest_path.lower()
+        if lowered.startswith('/tmp') or lowered.startswith('tmp/'):
+            return True
+        return '/pytest-' in lowered
 
     @staticmethod
     def queue_ttl_for_mode(mode: str) -> timedelta:

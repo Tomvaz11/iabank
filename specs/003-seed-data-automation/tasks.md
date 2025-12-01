@@ -17,7 +17,7 @@ Critério de teste independente: contratos e manifestos canônicos passam lint/d
 - [X] T001 Publicar contratos seed-data e schema para lint/diff (`contracts/seed-data.openapi.yaml`, `contracts/seed-profile.schema.json`)
 - [X] T002 Criar manifestos canônicos baseline/carga/DR por ambiente/tenant (dev/homolog/staging/perf; carga/DR apenas em staging/perf dedicados) validados contra schema v1 (`configs/seed_profiles/<env>/<tenant>.yaml`)
 - [X] T080 Criar alvo CI/Makefile só de lint/diff de contratos/schema/mascaramento (Spectral, oasdiff, caps Q11) consolidado (`Makefile`, `scripts/ci/seed-data-lint.sh`)
-- [X] T081 Criar alvo CI/Makefile para dry-run `seed_data` com Idempotency-Key e stub seguro (não grava WORM/checkpoints) até T031 existir (`Makefile`, `scripts/ci/seed-data-dry-run.sh`)
+- [X] T081 Criar alvo CI/Makefile para dry-run `seed_data` com Idempotency-Key em modo fail-close (erro se faltarem Vault/WORM/poetry/seed_data; sem gravação de WORM/checkpoints) até T031 existir (`Makefile`, `scripts/ci/seed-data-dry-run.sh`)
 - [X] T082 Adicionar gate OTEL/Sentry fail-close para o comando `seed_data` (usa o alvo de dry-run e bloqueia se export/redaction falhar) (`Makefile`, `scripts/ci/seed-data-dry-run.sh`)
 - [X] T004 Ajustar scripts/Make/CI para lint/diff dos contratos e JSON Schema (Spectral/oasdiff) com paths consolidados e gate único (`scripts/ci/validate-seed-contracts.sh`, `Makefile`, `.github/workflows/ci-contracts.yml`)
 - [X] T005 Ajustar scripts Pact/Prism e stub do calculo financeiro para paths dos contratos seed (`scripts/ci/validate-seed-contracts.sh`, `contracts/pacts/financial-calculator.json`)
