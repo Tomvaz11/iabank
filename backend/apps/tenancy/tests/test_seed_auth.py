@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 from django.core.management import call_command
 from django.test import TestCase
@@ -33,9 +35,12 @@ def _set_preflight_env(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.mark.django_db
-def test_seed_data_cli_rejects_seed_read_role(capfd, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_seed_data_cli_rejects_seed_read_role(capfd, monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
     tenant = _create_tenant()
     _set_preflight_env(monkeypatch)
+    manifest = build_manifest(tenant_slug=tenant.slug, environment='staging')
+    manifest_path = tmp_path / 'tenant-auth.json'
+    manifest_path.write_text(json.dumps(manifest))
 
     with pytest.raises(SystemExit) as excinfo:
         call_command(
@@ -44,6 +49,7 @@ def test_seed_data_cli_rejects_seed_read_role(capfd, monkeypatch: pytest.MonkeyP
             environment='staging',
             mode='baseline',
             roles=['seed-read'],
+            manifest_path=str(manifest_path),
         )
 
     err = capfd.readouterr().err

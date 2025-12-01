@@ -47,16 +47,26 @@ for var in VAULT_TRANSIT_PATH SEEDS_WORM_BUCKET SEEDS_WORM_ROLE_ARN SEEDS_WORM_K
 done
 
 if [ "${#MISSING_ENV[@]}" -gt 0 ]; then
-  echo "[seed-data] Variáveis ausentes (${MISSING_ENV[*]}). Usando stub seguro (sem Vault/WORM)."
-elif command -v poetry >/dev/null 2>&1 && [ -f "$ROOT_DIR/backend/manage.py" ]; then
-  if poetry run python "$ROOT_DIR/backend/manage.py" help seed_data >/dev/null 2>&1; then
-    echo "[seed-data] Executando dry-run real (fail-close em OTEL/Sentry)."
-    "${CMD[@]}"
-  else
-    echo "[seed-data] Comando seed_data ainda não disponível; usando stub seguro (sem WORM/checkpoints)."
-  fi
-else
-  echo "[seed-data] Ambiente Python/poetry indisponível; stub aplicado (sem executar comando)."
+  echo "[seed-data] Variáveis obrigatórias ausentes (${MISSING_ENV[*]}). Abortando dry-run."
+  exit 1
 fi
+
+if ! command -v poetry >/dev/null 2>&1; then
+  echo "[seed-data] poetry não encontrado no PATH; impossivel executar seed_data."
+  exit 1
+fi
+
+if [ ! -f "$ROOT_DIR/backend/manage.py" ]; then
+  echo "[seed-data] backend/manage.py não encontrado; verifique checkout do repositório."
+  exit 1
+fi
+
+if ! poetry run python "$ROOT_DIR/backend/manage.py" help seed_data >/dev/null 2>&1; then
+  echo "[seed-data] Comando seed_data indisponível; interrompendo dry-run."
+  exit 1
+fi
+
+echo "[seed-data] Executando dry-run real (fail-close em OTEL/Sentry)."
+"${CMD[@]}"
 
 echo "[seed-data] Dry-run concluído com Idempotency-Key=$IDEMPOTENCY_KEY e manifesto $MANIFEST_PATH"

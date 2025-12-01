@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 from decimal import Decimal
 from http import HTTPStatus
+from pathlib import Path
 from typing import Any, Dict, Optional
 from uuid import UUID
 
@@ -392,7 +393,9 @@ class SeedRunService:
     def _parse_reference_datetime(manifest: Dict[str, Any]) -> datetime:
         raw = manifest.get('reference_datetime') if isinstance(manifest, dict) else None
         parsed = parse_datetime(str(raw)) if raw is not None else None
-        return parsed or timezone.now()
+        if parsed is None or parsed.tzinfo is None:
+            raise ValueError('reference_datetime_missing_or_invalid')
+        return parsed
 
     @staticmethod
     def _in_offpeak_window(reference: datetime, window_start: time, window_end: time) -> bool:
@@ -412,13 +415,18 @@ class SeedRunService:
         mode: str,
     ) -> Optional[ProblemDetail]:
         """
-        Bloqueia execuções fora da janela off-peak declarada no manifesto, exceto se override explícito.
+        Bloqueia execuções fora da janela off-peak declarada no manifesto.
         """
-        if manifest.get('allow_offpeak_override'):
-            return None
-
         window_start, window_end = self._extract_window(manifest)
-        reference = self._parse_reference_datetime(manifest)
+        try:
+            reference = self._parse_reference_datetime(manifest)
+        except ValueError:
+            return ProblemDetail(
+                status=HTTPStatus.UNPROCESSABLE_ENTITY,
+                title='reference_datetime_missing',
+                detail='reference_datetime obrigatório no manifesto (ISO 8601 com timezone).',
+                type='https://iabank.local/problems/seed/reference-datetime-missing',
+            )
         if self._in_offpeak_window(reference, window_start, window_end):
             return None
 
@@ -507,8 +515,14 @@ class SeedRunService:
         Garante que o manifesto esteja no caminho GitOps esperado para evitar drift no Argo CD.
         """
         expected_prefix = f'configs/seed_profiles/{environment}/'
-        if manifest_path and manifest_path.startswith(expected_prefix):
-            return None
+        if manifest_path:
+            normalized = Path(manifest_path)
+            parts = normalized.parts
+            for idx in range(len(parts) - 2):
+                if parts[idx] == 'configs' and parts[idx + 1] == 'seed_profiles' and parts[idx + 2] == environment:
+                    return None
+            if normalized.as_posix().startswith(expected_prefix):
+                return None
 
         if allow_local_override and manifest_path:
             lowered = manifest_path.lower()
