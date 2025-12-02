@@ -8,18 +8,11 @@ TENANT_ID="${SEED_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
 ENVIRONMENT="${SEED_ENVIRONMENT:-staging}"
 MODE="${SEED_MODE:-baseline}"
 IDEMPOTENCY_KEY="${IDEMPOTENCY_KEY:-seed-dry-run-$(uuidgen 2>/dev/null || date +%s)}"
-REFERENCE_DATETIME="${SEED_REFERENCE_DATETIME:-}" # opcional
 REQUESTED_BY="${SEED_REQUESTED_BY:-seed-ci}"
 
 if [ ! -f "$MANIFEST_PATH" ]; then
   echo "Manifesto não encontrado em $MANIFEST_PATH" >&2
   exit 1
-fi
-
-if [ -n "$REFERENCE_DATETIME" ]; then
-  REF_ARGS=(--reference-datetime "$REFERENCE_DATETIME")
-else
-  REF_ARGS=()
 fi
 
 CMD_BASE=(
@@ -32,7 +25,7 @@ CMD_BASE=(
   --requested-by "$REQUESTED_BY"
   --dry-run
 )
-CMD=("${CMD_BASE[@]}" "${REF_ARGS[@]}")
+CMD=("${CMD_BASE[@]}")
 
 if [ "${SIMULATE_TELEMETRY_FAILURE:-0}" = "1" ]; then
   echo "[seed-data] Simulação de falha OTEL/Sentry requisitada; retornando exit 4."
