@@ -48,7 +48,7 @@ seed-data\:lint: ## Lint/diff de contratos seed_data + validação de manifestos
 seed-data\:contracts: ## Gate de contratos seed_data (Spectral/oasdiff + stub Pact)
 	./scripts/ci/validate-seed-contracts.sh
 
-seed-data\:dry-run: ## Dry-run do comando seed_data com stub seguro e fail-close de telemetria
+seed-data\:dry-run: ## Dry-run do comando seed_data em modo fail-close (deps obrigatórias + telemetria)
 	./scripts/ci/seed-data-dry-run.sh
 
 seed-data\:finops: ## Valida cost-model FinOps (schema + tetos por ambiente)

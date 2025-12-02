@@ -18,7 +18,7 @@ from backend.apps.tenancy.managers import _set_tenant_guc, _current_tenant, use_
 from backend.apps.tenancy.models import Tenant
 from backend.apps.tenancy.services.seed_integrations import SeedIntegrationService
 from backend.apps.tenancy.services.seed_idempotency import IdempotencyDecision, SeedIdempotencyService
-from backend.apps.tenancy.services.seed_manifest_validator import SeedManifestValidator, ValidationResult
+from backend.apps.tenancy.services.seed_manifest_validator import SeedManifestValidator
 from backend.apps.tenancy.services.seed_preflight import PreflightContext, SeedPreflightService
 from backend.apps.tenancy.services.seed_queue_gc import SeedQueueGC
 from backend.apps.tenancy.services.seed_runs import ProblemDetail, SeedRunService
@@ -58,13 +58,12 @@ class Command(BaseCommand):
         requested_by, roles, manifest_path = self._preflight_params(options, tenant.slug, environment)
         self._run_preflight(tenant.id, environment, requested_by, roles, manifest_path, dry_run)
 
-        manifest, manifest_hash, mode, reference_datetime, validation, from_file = self._prepare_manifest(
+        manifest, manifest_hash, mode, reference_datetime = self._prepare_manifest(
             manifest_path,
-            tenant.slug,
             environment,
             mode,
         )
-        self._ensure_manifest_matches_tenant(validation, from_file, manifest, tenant.slug)
+        self._ensure_manifest_matches_tenant(manifest, tenant.slug)
 
         service = SeedRunService()
         queue_gc = SeedQueueGC()
@@ -181,19 +180,42 @@ class Command(BaseCommand):
         self._dispatch_batches(creation, mode)
         SeedDORAMetrics().snapshot(seed_run=creation.seed_run)
 
-    def _load_manifest(
-        self,
-        manifest_path: str,
-        tenant_slug: str,
-        environment: str,
-        mode: str,
-    ) -> Tuple[Dict[str, Any], bool]:
+    def _load_manifest(self, manifest_path: str) -> Tuple[Dict[str, Any], bool]:
         path = Path(manifest_path)
-        if path.exists():
+        if not path.exists():
+            self._render_problem(
+                ProblemDetail(
+                    status=HTTPStatus.UNPROCESSABLE_ENTITY,
+                    title='manifest_missing',
+                    detail=f'Manifesto obrigatório não encontrado em {manifest_path}.',
+                    type='https://iabank.local/problems/seed/manifest-missing',
+                ),
+                exit_code=2,
+            )
+        try:
             content = path.read_text(encoding='utf-8')
-            parsed = self._parse_manifest_content(content)
-            return parsed if isinstance(parsed, dict) else {}, True
-        return self._default_manifest(tenant_slug, environment, mode), False
+        except OSError as exc:  # pragma: no cover - erro operacional raro
+            self._render_problem(
+                ProblemDetail(
+                    status=HTTPStatus.UNPROCESSABLE_ENTITY,
+                    title='manifest_unreadable',
+                    detail=f'Não foi possível ler o manifesto em {manifest_path}: {exc}',
+                    type='https://iabank.local/problems/seed/manifest-unreadable',
+                ),
+                exit_code=2,
+            )
+        parsed = self._parse_manifest_content(content)
+        if not isinstance(parsed, dict) or not parsed:
+            self._render_problem(
+                ProblemDetail(
+                    status=HTTPStatus.UNPROCESSABLE_ENTITY,
+                    title='manifest_invalid',
+                    detail=f'Manifesto inválido ou vazio em {manifest_path}.',
+                    type='https://iabank.local/problems/seed/manifest-invalid',
+                ),
+                exit_code=2,
+            )
+        return parsed, True
 
     def _parse_manifest_content(self, content: str) -> Dict[str, Any]:
         try:
@@ -216,36 +238,6 @@ class Command(BaseCommand):
         except json.JSONDecodeError:
             return {}
         return {}
-
-    def _default_manifest(self, tenant_slug: str, environment: str, mode: str) -> Dict[str, Any]:
-        return {
-            'metadata': {
-                'tenant': tenant_slug,
-                'environment': environment,
-                'profile': 'default',
-                'version': '0.0.0',
-                'schema_version': 'v1',
-                'salt_version': 'v1',
-            },
-            'mode': mode or 'baseline',
-            'reference_datetime': '2025-01-01T00:00:00Z',
-            'window': {'start_utc': '00:00', 'end_utc': '06:00'},
-            'volumetry': {},
-            'rate_limit': {'limit': 1, 'window_seconds': 60},
-            'backoff': {'base_seconds': 1, 'jitter_factor': 0.1, 'max_retries': 1, 'max_interval_seconds': 60},
-            'budget': {'cost_cap_brl': 0, 'error_budget_pct': 0},
-            'ttl': {'baseline_days': 0, 'carga_days': 0, 'dr_days': 0},
-            'slo': {'p95_target_ms': 0, 'p99_target_ms': 0, 'throughput_target_rps': 0},
-            'integrity': {'manifest_hash': ''},
-        }
-
-    def _apply_manifest_hash(self, manifest: Dict[str, Any], manifest_hash: str) -> Dict[str, Any]:
-        integrity = manifest.get('integrity') if isinstance(manifest, dict) else None
-        if not isinstance(integrity, dict):
-            manifest['integrity'] = {'manifest_hash': manifest_hash}
-        else:
-            integrity.setdefault('manifest_hash', manifest_hash)
-        return manifest
 
     def _dispatch_batches(self, creation, mode: str) -> None:
         """
@@ -272,37 +264,39 @@ class Command(BaseCommand):
     def _prepare_manifest(
         self,
         manifest_path: str,
-        tenant_slug: str,
         environment: str,
         mode: str,
-    ) -> tuple[Dict[str, Any], str, str, timezone.datetime, ValidationResult, bool]:
-        manifest, from_file = self._load_manifest(manifest_path, tenant_slug, environment, mode)
+    ) -> tuple[Dict[str, Any], str, str, timezone.datetime]:
+        manifest, _ = self._load_manifest(manifest_path)
         validator = SeedManifestValidator()
         validation = validator.validate_manifest(manifest, environment=environment)
-        manifest_hash = validation.manifest_hash
-        manifest = self._apply_manifest_hash(manifest, manifest_hash)
-        resolved_mode = manifest.get('mode', mode) or mode
-        reference_datetime = SeedRunService._parse_reference_datetime(manifest)
-        return manifest, manifest_hash, resolved_mode, reference_datetime, validation, from_file
-
-    def _ensure_manifest_matches_tenant(
-        self,
-        validation: ValidationResult,
-        from_file: bool,
-        manifest: Dict[str, Any],
-        tenant_slug: str,
-    ) -> None:
-        if from_file and not validation.valid:
+        if not validation.valid:
             self._render_problem(
                 ProblemDetail(
                     status=HTTPStatus.UNPROCESSABLE_ENTITY,
                     title='manifest_invalid',
-                    detail='; '.join(validation.issues),
+                    detail='; '.join(validation.issues) or 'Manifesto v1 inválido.',
                     type='https://iabank.local/problems/seed/manifest-invalid',
                 ),
                 exit_code=2,
             )
+        manifest_hash = validation.manifest_hash
+        resolved_mode = manifest.get('mode', mode) or mode
+        try:
+            reference_datetime = SeedRunService._parse_reference_datetime(manifest)
+        except ValueError:
+            self._render_problem(
+                ProblemDetail(
+                    status=HTTPStatus.UNPROCESSABLE_ENTITY,
+                    title='reference_datetime_missing',
+                    detail='reference_datetime obrigatório no manifesto (ISO 8601 com timezone).',
+                    type='https://iabank.local/problems/seed/reference-datetime-missing',
+                ),
+                exit_code=2,
+            )
+        return manifest, manifest_hash, resolved_mode, reference_datetime
 
+    def _ensure_manifest_matches_tenant(self, manifest: Dict[str, Any], tenant_slug: str) -> None:
         tenant_in_manifest = manifest.get('metadata', {}).get('tenant')
         if tenant_in_manifest and tenant_in_manifest != tenant_slug:
             self._render_problem(

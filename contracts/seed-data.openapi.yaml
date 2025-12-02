@@ -275,9 +275,6 @@ components:
         dry_run:
           type: boolean
           default: false
-        allow_offpeak_override:
-          type: boolean
-          description: "Permite execucao fora da janela off-peak apenas em ambientes permitidos (ex.: dev)."
         caps_override:
           type: object
           description: Overrides de volumetria para ambientes de teste controlados.

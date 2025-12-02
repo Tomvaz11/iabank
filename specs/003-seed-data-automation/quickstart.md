@@ -70,7 +70,7 @@ poetry run python backend/manage.py seed_data \
 - Falha em `422` se manifesto/schema/tags divergem ou se o manifesto pertence a outro tenant; usa fallback de `Idempotency-Key` para `seed-data:<manifest_hash>` quando o parâmetro é omitido.  
 - Locks: advisory lock por tenant/ambiente + fila curta com TTL=5 min; conflitos retornam código de saída `3` (cap global) ou `5` (fila pendente).  
 - Determinismo: factories factory-boy e stubs Pact para integrações externas; nenhuma chamada real sai do container.  
-- Reprova se PII não estiver mascarada, se payloads divergirem dos contratos `/api/v1` (Spectral/oasdiff), se caps Q11 do manifesto forem violados (fail-close) ou se `reference_datetime` divergir de checkpoints existentes (código `2` solicitando cleanup/reseed).
+- Reprova se PII não estiver mascarada, se payloads divergirem dos contratos `/api/v1` (Spectral/oasdiff), se caps Q11 do manifesto forem violados (fail-close) ou se `reference_datetime` divergir de checkpoints existentes (código `2` solicitando cleanup/reseed). Manifesto, hash SHA256 e `reference_datetime` são obrigatórios — sem defaults gerados pelo CLI.
 
 ## Execucao em staging/perf (carga/DR)
 ```bash
@@ -98,7 +98,7 @@ def test_factory_mascaramento(vault_stub):
 ## Flags do CLI `seed_data`
 - `--tenant-id <uuid>`: obrigatório; RLS/ABAC são avaliados com esse tenant.  
 - `--environment <ambiente>`: obrigatório (`dev|homolog|staging|perf|dr`).  
-- `--manifest-path <path>`: default `configs/seed_profiles/<env>/<tenant>.yaml`; se ausente, o comando monta um manifesto baseline mínimo para destravar a fila, mas o ideal é apontar para o manifesto versionado.  
+- `--manifest-path <path>`: obrigatório; deve apontar para manifesto versionado em `configs/seed_profiles/<env>/<tenant>.yaml`. Ausência ou manifesto inválido/sem hash/ref_datetime retorna `422`.  
 - `--mode <baseline|carga|dr|canary>`: default = do manifesto ou `baseline` quando não informado.  
 - `--dry-run`: roda sem checkpoints/WORM.  
 - `--idempotency-key <str>`: opcional; fallback para `seed-data:<manifest_hash>`; conflito com manifesto divergente retorna código `2`.  
@@ -123,7 +123,7 @@ def test_factory_mascaramento(vault_stub):
 - Falha em exportar OTEL/Sentry ou escrever WORM bloqueia conclusao e marca execucao como `failed`.
 
 ## Polish / Gates finais
-- Simular fail-close de OTEL/Sentry: `SIMULATE_TELEMETRY_FAILURE=1 scripts/ci/seed-data-dry-run.sh` (espera exit code 4). Sem a flag, o script roda o dry-run baseline (stub seguro) com logs rotulados (`tenant_id/environment/seed_run_id/manifest_version/mode`).
+- Simular fail-close de OTEL/Sentry: `SIMULATE_TELEMETRY_FAILURE=1 scripts/ci/seed-data-dry-run.sh` (espera exit code 4). O script de CI é fail-close: falta de Vault/WORM/poetry/command retorna exit 1; com dependências ok roda o dry-run real (baseline) com logs rotulados (`tenant_id/environment/seed_run_id/manifest_version/mode`).
 - Validar limpeza de logs/WORM (labels obrigatórias + sem PII):  
   `scripts/ci/check-audit-cleanliness.sh --logs observabilidade/data/seed-audit.log.jsonl --worm observabilidade/data/seed-worm-report.sample.json`
 - Dashboards OTEL/Loki/Grafana: `observabilidade/dashboards/seed-data.json` (painéis de duração, batch latency, rate-limit/budget e logs `pii_redacted=true`).

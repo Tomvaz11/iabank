@@ -19,7 +19,7 @@ fi
 
 # Padrão: type[optional scope][!]: subject
 # Types: build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test
-regex='^((build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([a-z0-9._\-\/]+\))?!?:\s.+)$'
+regex='^((build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([A-Za-z0-9._/\-]+\))?!?: .+)$'
 
 if [[ ! "$title" =~ $regex ]]; then
   cat >&2 <<'EOF'
@@ -36,4 +36,3 @@ EOF
 fi
 
 exit 0
-

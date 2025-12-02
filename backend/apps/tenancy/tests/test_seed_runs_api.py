@@ -147,6 +147,27 @@ class SeedRunsAPITest(TestCase):
             self.assertEqual(run.status, SeedRun.Status.ABORTED)
             self.assertGreater(run.finished_at, timezone.now() - timedelta(minutes=5))
 
+    def test_cancel_seed_run_without_if_match_returns_428(self) -> None:
+        manifest = build_manifest(tenant_slug=self.tenant.slug, environment='staging')
+        created = self.client.post(
+            '/api/v1/seed-runs',
+            {'manifest': manifest},
+            format='json',
+            **self._headers(idempotency_key='create-cancel-428'),
+        )
+        seed_run_id = created.json()['seed_run_id']
+
+        cancel = self.client.post(
+            f'/api/v1/seed-runs/{seed_run_id}/cancel',
+            {},
+            format='json',
+            **self._headers(idempotency_key='cancel-missing-if-match', subject='svc-admin'),
+        )
+
+        self.assertEqual(cancel.status_code, 428)
+        problem = cancel.json()
+        self.assertIn('precondition_required', problem.get('title', ''))
+
     def test_blocks_request_outside_offpeak_window(self) -> None:
         manifest = build_manifest(
             tenant_slug=self.tenant.slug,

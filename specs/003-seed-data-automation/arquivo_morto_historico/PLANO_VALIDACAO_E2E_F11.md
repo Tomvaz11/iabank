@@ -18,7 +18,7 @@ Este plano valida ponta‑a‑ponta a automação de seeds/factories (baseline/c
 - Node.js 20 + pnpm 9; Python 3.11 + Poetry 1.8.3.
 - Docker/Compose; Redis/Postgres locais (pgcrypto/RLS ativos).
 - Terraform CLI instalado no PATH (usado em `scripts/ci/validate-opa.sh`).
-- Vault Transit acessível (ou stub seguro para dry-run), WORM disponível para execuções reais.
+- Vault Transit acessível; dry-run falha se dependências de Vault/WORM estiverem ausentes (fail-close).
 - Stubs Pact/Prism para integrações externas (ports 4010/4011/4012).
 - Variáveis sensíveis carregadas (não logar segredos): `VAULT_TRANSIT_PATH`, `SEEDS_WORM_*`.
 
@@ -75,7 +75,7 @@ Artefatos: logs de testes/lint/complexidade.
 SIMULATE_TELEMETRY_FAILURE=0 scripts/ci/seed-data-dry-run.sh
 ```
 - Usa manifesto default `configs/seed_profiles/staging/tenant-a.yaml` (pode sobrepor via env `SEED_PROFILE_PATH`, `SEED_TENANT_ID`, `SEED_ENVIRONMENT`, `SEED_MODE`, `SEED_REFERENCE_DATETIME`).
-- Se variáveis de Vault/WORM ausentes, roda stub seguro.
+- Se variáveis de Vault/WORM ausentes, o script falha (fail-close) para evitar “green” falso.
 Critérios: exit 0; sem drift de `reference_datetime`; caps Q11 respeitados; sem falha OTEL/Sentry/WORM (ou stub).
 Artefatos: log com Idempotency-Key e manifesto usado.
 

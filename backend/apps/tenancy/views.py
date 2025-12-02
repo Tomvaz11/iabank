@@ -27,7 +27,7 @@ from .services.seed_integrations import SeedIntegrationService
 from .services.seed_preflight import PreflightContext, SeedPreflightConfig, SeedPreflightService
 from .services.seed_queue import QueueDecision, SeedQueueService
 from .services.seed_queue_gc import SeedQueueGC
-from .services.seed_runs import SeedRunService
+from .services.seed_runs import ProblemDetail, SeedRunService
 
 logger = structlog.get_logger('backend.apps.tenancy')
 
@@ -615,11 +615,24 @@ class SeedRunViewBase(APIView):
             self._apply_rate_limit_headers(response, rate_decision)
             return response
 
+        try:
+            reference_datetime = self.run_service._parse_reference_datetime(manifest)
+        except ValueError:
+            problem = ProblemDetail(
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                title='reference_datetime_missing',
+                detail='reference_datetime obrigatório no manifesto (ISO 8601 com timezone).',
+                type='https://iabank.local/problems/seed/reference-datetime-missing',
+            )
+            response = Response(problem.as_dict(), status=problem.status)
+            self._apply_rate_limit_headers(response, rate_decision)
+            return response
+
         drift_problem = self.run_service.ensure_reference_drift(
             tenant_id=tenant_id,
             environment=str(environment),
             mode=mode,
-            reference_datetime=self.run_service._parse_reference_datetime(manifest),
+            reference_datetime=reference_datetime,
         )
         if drift_problem:
             response = Response(drift_problem.as_dict(), status=drift_problem.status)
@@ -1259,7 +1272,14 @@ class SeedRunCancelView(SeedRunViewBase):
         assert ctx.seed_run
         etag = self._compute_etag(ctx.seed_run)
         if_match = ctx.request.headers.get('If-Match')
-        if not if_match or if_match != etag:
+        if not if_match:
+            return self._problem_response(
+                status_code=status.HTTP_428_PRECONDITION_REQUIRED,
+                title='precondition_required',
+                detail='Cabeçalho If-Match é obrigatório para cancelamento concorrente seguro.',
+                instance=f'/api/v1/seed-runs/{ctx.seed_run_id}/cancel',
+            )
+        if if_match != etag:
             return self._problem_response(
                 status_code=status.HTTP_412_PRECONDITION_FAILED,
                 title='etag_mismatch',

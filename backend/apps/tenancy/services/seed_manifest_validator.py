@@ -189,7 +189,15 @@ class SeedManifestValidator:
     def _integrity_violations(self, manifest: Dict[str, Any], manifest_hash: str) -> list[dict[str, str]]:
         integrity = manifest.get('integrity') if isinstance(manifest, dict) else None
         integrity_hash = integrity.get('manifest_hash') if isinstance(integrity, dict) else None
-        if integrity_hash and integrity_hash != manifest_hash:
+        if integrity_hash is None or integrity_hash == '':
+            return [
+                {
+                    'field': 'integrity.manifest_hash',
+                    'message': 'Hash do manifesto (sha256) é obrigatório.',
+                    'code': 'manifest_hash_missing',
+                }
+            ]
+        if integrity_hash != manifest_hash:
             return [
                 {
                     'field': 'integrity.manifest_hash',
