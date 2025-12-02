@@ -20,7 +20,12 @@ const tenantLoaders: Record<string, TenantLoader> = {
 
 export const ACTIVE_TENANTS = ['tenant-alfa', 'tenant-beta'] as const;
 
-const DEFAULT_TENANT_FALLBACK = import.meta.env.VITE_TENANT_DEFAULT || 'tenant-default';
+const DEFAULT_TENANT_FALLBACK =
+  (typeof import.meta !== 'undefined' && (import.meta as { env?: Record<string, string> }).env
+    ? (import.meta as { env: Record<string, string> }).env.VITE_TENANT_DEFAULT
+    : undefined) ||
+  (typeof process !== 'undefined' ? process.env.VITE_TENANT_DEFAULT : undefined) ||
+  'tenant-default';
 
 export const supportedTenants = (tenantDefault: string): string[] =>
   Array.from(new Set([tenantDefault, ...Object.keys(tenantLoaders)]));
