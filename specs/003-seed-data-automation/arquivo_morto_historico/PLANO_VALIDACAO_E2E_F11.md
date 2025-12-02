@@ -125,7 +125,7 @@ Artefatos: relatório WORM assinado, logs OTEL/Sentry sem falha, checkpoints.
 - Checklist WORM: `observabilidade/checklists/seed-worm-checklist.json` (itens `pii_masked`, `rls_enforced`, `contracts_aligned`, `idempotency_reused`, `rate_limit_respected`, `slo_met`).
 - Falha de OTEL/Sentry ou WORM → run marcado failed; não promover.
 Critérios adicionais para completar validação: WORM com retenção mínima aplicada e prova assinada (não stub); spans/métricas/logs exportados com labels corretas; coleta dos artefatos gerados pelo exporter/collector.
-Artefatos: relatório WORM (retention ≥ 365 dias em staging/perf), logs de export.
+ Artefatos: relatório WORM (retention ≥ 1855 dias em staging/perf), logs de export.
 
 ## Fase 10 — Segurança (SAST/SCA/DAST + PII)
 ```bash

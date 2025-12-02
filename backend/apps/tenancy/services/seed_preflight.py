@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Optional, Sequence
 
+from backend.apps.tenancy.services.worm_retention import MIN_WORM_RETENTION_DAYS
+
 
 @dataclass
 class PreflightContext:
@@ -35,7 +37,7 @@ class SeedPreflightConfig:
             worm_bucket=os.getenv("SEEDS_WORM_BUCKET", ""),
             worm_role_arn=os.getenv("SEEDS_WORM_ROLE_ARN", ""),
             worm_kms_key_id=os.getenv("SEEDS_WORM_KMS_KEY_ID", ""),
-            worm_retention_days=int(os.getenv("SEEDS_WORM_RETENTION_DAYS", "0")),
+            worm_retention_days=int(os.getenv("SEEDS_WORM_RETENTION_DAYS", str(MIN_WORM_RETENTION_DAYS))),
             allowed_roles=set(os.getenv("SEED_ALLOWED_ROLES", "seed-runner,seed-admin").split(",")),
             allowed_environments=set(
                 os.getenv("SEED_ALLOWED_ENVIRONMENTS", "dev,homolog,staging,perf").split(","),
@@ -68,7 +70,12 @@ class PreflightResult:
 
 
 class SeedPreflightService:
-    def __init__(self, config: Optional[SeedPreflightConfig] = None, *, min_worm_retention_days: int = 365) -> None:
+    def __init__(
+        self,
+        config: Optional[SeedPreflightConfig] = None,
+        *,
+        min_worm_retention_days: int = MIN_WORM_RETENTION_DAYS,
+    ) -> None:
         self.config = config or SeedPreflightConfig.from_env()
         self.min_worm_retention_days = min_worm_retention_days
 

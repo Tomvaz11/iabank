@@ -72,7 +72,7 @@
 
 ## EvidenceWORM
 - **Tabela**: `tenancy_seed_evidence`.  
-- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_run_id` (FK uniq), `report_url` (URI WORM), `signature_hash` (texto), `signature_algo` (texto, ex.: `RSA-PSS-SHA256` ou `Ed25519`), `key_id` (texto), `key_version` (texto), `worm_retention_days` (int ≥ 365), `integrity_status` (`pending|stored|verified|invalid`), `integrity_verified_at` (timestamptz opcional), `cost_model_version` (texto), `cost_estimated_brl` (numeric(14,2)), `cost_actual_brl` (numeric(14,2)), `created_at` (timestamptz).  
+- **Campos**: `id` (UUID PK), `tenant_id` (FK), `seed_run_id` (FK uniq), `report_url` (URI WORM), `signature_hash` (texto), `signature_algo` (texto, ex.: `RSA-PSS-SHA256` ou `Ed25519`), `key_id` (texto), `key_version` (texto), `worm_retention_days` (int ≥ 1855, 30 dias + 5 anos), `integrity_status` (`pending|stored|verified|invalid`), `integrity_verified_at` (timestamptz opcional), `cost_model_version` (texto), `cost_estimated_brl` (numeric(14,2)), `cost_actual_brl` (numeric(14,2)), `created_at` (timestamptz).  
 - **Constraints**: `unique(seed_run_id)`, check retenção mínima; integridade obrigatória; custos ≥ 0.  
 - **RLS**: por tenant; WORM verificado antes de marcar `verified`.
 

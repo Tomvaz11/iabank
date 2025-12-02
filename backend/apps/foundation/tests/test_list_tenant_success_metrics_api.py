@@ -116,10 +116,10 @@ class ListTenantSuccessMetricsApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(
-            response.json()['errors']['X-Tenant-Id'][0],
-            'Cabeçalho X-Tenant-Id inválido ou ausente.',
-        )
+        body = response.json()
+        self.assertEqual(body['title'], 'tenant_header_mismatch')
+        self.assertEqual(body['type'], 'https://iabank.local/problems/foundation/tenant-header')
+        self.assertEqual(body['detail'], 'Cabeçalho X-Tenant-Id inválido ou ausente.')
 
     def test_handles_empty_dataset(self) -> None:
         FeatureTemplateMetric.objects.filter(tenant=self.tenant).delete()

@@ -108,7 +108,52 @@ class TestRegisterFeatureScaffoldAPI:
         )
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert 'Idempotency-Key' in response.json()['errors']
+        body = response.json()
+        assert body['title'] == 'idempotency_key_required'
+        assert body['type'].endswith('/idempotency-key')
+        assert body['status'] == status.HTTP_400_BAD_REQUEST
+
+    def test_returns_problem_details_when_payload_invalid(self) -> None:
+        tenant_id = str(self.tenant.id)
+        idempotency_key = '00000000-0000-4000-8000-000000009999'
+        response = self.client.post(
+            reverse(API_PATH_NAME, kwargs={'tenant_id': tenant_id}),
+            data={'featureSlug': 'loan-tracking'},  # campos obrigatórios ausentes
+            format='json',
+            **{
+                'HTTP_X_TENANT_ID': tenant_id,
+                'HTTP_IDEMPOTENCY_KEY': idempotency_key,
+                'HTTP_TRACEPARENT': '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+            },
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        body = response.json()
+        assert body['title'] == 'invalid_request'
+        assert body['type'] == 'https://iabank.local/problems/foundation/validation'
+        assert isinstance(body.get('invalidParams'), list)
+        assert body['status'] == status.HTTP_400_BAD_REQUEST
+
+    def test_returns_problem_details_when_tenant_not_found(self) -> None:
+        payload = build_payload()
+        missing_tenant = str(uuid.uuid4())
+        idempotency_key = '00000000-0000-4000-8000-000000000321'
+
+        response = self.client.post(
+            reverse(API_PATH_NAME, kwargs={'tenant_id': missing_tenant}),
+            data=payload,
+            format='json',
+            **{
+                'HTTP_X_TENANT_ID': missing_tenant,
+                'HTTP_IDEMPOTENCY_KEY': idempotency_key,
+                'HTTP_TRACEPARENT': '00-cccccccccccccccccccccccccccccccc-dddddddddddddddd-01',
+            },
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        body = response.json()
+        assert body['title'] == 'tenant_not_found'
+        assert body['type'] == 'https://iabank.local/problems/foundation/tenant'
 
     def test_records_sc001_metric(self, monkeypatch: pytest.MonkeyPatch) -> None:
         payload = build_payload()
@@ -212,7 +257,10 @@ class TestRegisterFeatureScaffoldAPI:
         )
 
         assert conflict_response.status_code == status.HTTP_409_CONFLICT
-        assert 'Idempotency-Key' in conflict_response.json().get('errors', {})
+        body = conflict_response.json()
+        assert body['title'] == 'idempotency_conflict'
+        assert body['type'].endswith('/idempotency-replay')
+        assert body['status'] == status.HTTP_409_CONFLICT
 
     def test_if_none_match_returns_not_modified_when_etag_matches(self) -> None:
         payload = build_payload()

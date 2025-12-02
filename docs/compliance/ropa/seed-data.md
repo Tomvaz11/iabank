@@ -5,7 +5,7 @@
 - **Base legal**: teste de sistemas e validacao de resiliencia/DR (interesse legitimo com minimizacao de dados; consentimento nao aplicavel por ser dado sintetico).
 - **Categorias de dados**: identificadores sinteticos de clientes/contas/enderecos/contratos (mascarados via Vault Transit FPE + pgcrypto). Sem dados sensiveis reais.
 - **Finalidade**: gerar massa de dados deterministica para testes/DR, validar SLO/FinOps e contratos `/api/v1`, produzir evidencias WORM assinadas.
-- **Retencao**: datasets com TTL por modo (baseline/carga/dr); relatorios WORM retidos >=365 dias (`SEEDS_WORM_RETENTION_DAYS`). Checkpoints/datasets limpos antes de reexecucoes de carga/DR.
+- **Retencao**: datasets com TTL por modo (baseline/carga/dr); relatorios WORM retidos >=1855 dias (`SEEDS_WORM_RETENTION_DAYS`, 30 dias + 5 anos). Checkpoints/datasets limpos antes de reexecucoes de carga/DR.
 - **Compartilhamento**: proibida transferencia externa; stubs Pact/Prism bloqueiam chamadas reais. Outbound real falha em fail-close.
 - **Seguranca**: RLS obrigatorio; RBAC/ABAC minimo (`seed-runner`, `seed-admin`, `seed-read`); Vault Transit FPE; logs/traces com redacao de PII; WORM com assinatura/verificacao; OTEL/Sentry fail-close; gate automático `scripts/ci/check-audit-cleanliness.sh` reprova logs/WORM sem labels (tenant/environment/seed_run/manifest/mode) ou com PII não redigida.
 - **Direitos do titular**: nao aplicavel (dados sinteticos). Caso dados reais sejam inadvertidamente inseridos, fluxo de incident response deve revogar tokens e limpar datasets (ver `docs/runbooks/incident-response.md`).

@@ -21,7 +21,7 @@
                 "owner": "seed-platform",
                 "managed_by": "terraform",
                 "off_peak_window_utc": "02:00-05:00",
-                "retention_days": "730"
+                "retention_days": "1855"
               }
             }
           },
@@ -71,7 +71,7 @@
                   "default_retention": [
                     {
                       "mode": "COMPLIANCE",
-                      "days": 730
+                      "days": 1855
                     }
                   ]
                 }
@@ -363,7 +363,7 @@
                   "default_retention": [
                     {
                       "mode": "COMPLIANCE",
-                      "days": 365
+                  "days": 1855
                     }
                   ]
                 }
@@ -464,7 +464,7 @@
                   "default_retention": [
                     {
                       "mode": "COMPLIANCE",
-                      "days": 365
+                  "days": 1855
                     }
                   ]
                 }

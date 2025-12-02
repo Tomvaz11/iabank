@@ -15,6 +15,10 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+  # Em CI usamos plano falso/fixture; pular validações de credencial/metadados evita STS em ambientes sem AWS.
+  skip_credentials_validation = true
+  skip_requesting_account_id  = true
+  skip_metadata_api_check     = true
 }
 
 provider "vault" {

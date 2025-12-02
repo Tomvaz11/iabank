@@ -97,3 +97,9 @@ class GetTenantThemeApiTest(APITestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        body = response.json()
+        self.assertEqual(body['title'], 'tenant_theme_not_found')
+        self.assertEqual(body['type'], 'https://iabank.local/problems/foundation/tenant-theme')
+        self.assertIn('RateLimit-Limit', response)
+        self.assertIn('RateLimit-Remaining', response)
+        self.assertIn('RateLimit-Reset', response)
