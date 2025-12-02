@@ -22,7 +22,7 @@ Responsáveis: Frontend Foundation Guild / Platform
 ## Artefatos
 
 - Storybook estático: `frontend/storybook-static/`
-- Chromatic coverage: `frontend/chromatic-coverage.json` (em PR; cobertura por tenant tolerante)
+- Chromatic coverage: `frontend/chromatic-coverage.json` (gate ≥ 95% por tenant ativo em PR/main)
 - Lighthouse (último): `observabilidade/data/lighthouse-latest.json`
 - Lighthouse (resumo usado pelo CI): `artifacts/lighthouse/home.summary.json`
 - k6 smoke (PR): artifact `performance-k6-smoke` (upload-artifact)
@@ -39,12 +39,9 @@ Responsáveis: Frontend Foundation Guild / Platform
 ## Notas de política
 
 - Visual & Performance:
-  - Chromatic roda apenas em PR; cobertura por tenant ≥ 95% será endurecida após a issue #13.
-  - Budgets Lighthouse/k6 tolerantes em PR; endurecer após a issue #14.
-- Segurança:
-- fail‑closed em `main/releases/tags`; PR/dispatch com fail‑open e sumário consolidado.
+  - Chromatic roda em PR com cobertura ≥ 95% para todos os tenants ativos (gate estrito).
+  - Budgets Lighthouse/k6 estão ativos e estritos em PR/main.
+- Segurança: fail‑closed em `main/releases/tags`; PR/dispatch com fail‑open e sumário consolidado.
 
 ## Follow‑ups (hardening)
-
-- #13 — Elevar cobertura Chromatic ≥ 95% por tenant e remover tolerância no PR.
-- #14 — Estabilizar budgets Lighthouse/k6 e tornar os gates de performance rígidos no PR.
+- Nenhum aberto para Chromatic/Lighthouse/k6; manter monitoramento de estabilidade e custos.

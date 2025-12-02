@@ -24,6 +24,7 @@ permissions:
 env:
   PNPM_VERSION: 9.12.2
   NODE_VERSION: 20.17.0
+  VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START: '2025-09-01T00:00:00.000Z'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -695,7 +696,6 @@ jobs:
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
           CHROMATIC_MIN_COVERAGE: '95'
-          CHROMATIC_TENANTS: 'tenant-alfa'
         run: |
           pnpm chromatic:check -- --output chromatic-coverage.json
         working-directory: frontend
@@ -801,7 +801,7 @@ jobs:
         if: ${{ needs.changes.outputs.ui == 'true' }}
         timeout-minutes: 15
         env:
-          LIGHTHOUSE_TARGET_URL: http://localhost:4173/foundation/scaffold?tenant=tenant-alfa&feature=foundation-scaffold
+          LIGHTHOUSE_TARGET_URL: http://tenant-alfa.localhost:4173/foundation/scaffold?feature=foundation-scaffold
         run: pnpm perf:lighthouse
 
       - name: Verificar artefatos Lighthouse

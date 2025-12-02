@@ -24,10 +24,10 @@ A governança segue a política de mudanças descrita na seção 8; qualquer alt
 ## 3. Implementação de Referência (React + Vite + Tailwind CSS)
 
 ### 3.1 Estrutura FSD
-- `src/shared/config/theme/tenants.ts`: valores fundacionais por tenant.
-- `src/shared/config/theme/semantic.ts`: mapeia alias semânticos.
-- `src/shared/ui/tokens.css`: expõe CSS custom properties conforme o tenant ativo.
-- Consumo nos componentes via `className` Tailwind ou `style` por CSS vars, mantendo os imports limitados a `shared/ui` (governança FSD).
+- `src/shared/config/theme/tenants.ts`: valores fundacionais por tenant, gerados a partir de JSON.
+- `src/shared/config/theme/semantic.ts`: mapeia alias semânticos (variam por tenant via CSS vars).
+- Carregamento dinâmico dos tokens JSON em runtime (`registry.ts`), aplicando CSS custom properties no `<html data-tenant="...">` sem materializar CSS global por tenant.
+- Consumo nos componentes via `className` Tailwind (com fallback do tenant default) ou `style` por CSS vars, mantendo os imports limitados a `shared/ui` (governança FSD).
 
 ### 3.2 CSS Variables + Tailwind
 
@@ -43,27 +43,32 @@ export default defineConfig({
 ```
 
 ```ts
-// tailwind.config.cjs
-import tokens from "./src/shared/config/theme/semantic";
+// tailwind.config.ts
+import { defineConfig } from "tailwindcss";
+import { tenantTokens } from "./src/shared/config/theme/tenants";
 
-module.exports = {
+const tokens = tenantTokens["tenant-default"];
+
+export default defineConfig({
   content: ["./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
-      colors: tokens.colors,
-      borderRadius: tokens.radius,
-      boxShadow: tokens.shadows,
-      fontFamily: tokens.fontFamily,
-      zIndex: tokens.zIndex,
-      transitionDuration: tokens.transitionDuration,
-      transitionTimingFunction: tokens.transitionTimingFunction,
-      spacing: tokens.spacing,
-      fontSize: tokens.fontSize,
-      lineHeight: tokens.lineHeight,
+      // Usa CSS vars geradas em runtime; valores do tenant default servem como fallback seguro.
+      colors: {
+        brand: {
+          primary: "var(--color-brand-primary, ${tokens.foundation['color.brand.primary']})",
+        },
+      },
+      spacing: Object.fromEntries(
+        Object.entries(tokens.foundation)
+          .filter(([key]) => key.startsWith("space."))
+          .map(([key, value]) => [key.replace("space.", ""), `var(--${key.replace(/\./g, "-")}, ${value})`])
+      ),
+      // Demais mapas seguem a mesma lógica (radius, shadows, fontSize/lineHeight etc).
     },
   },
   plugins: [],
-};
+});
 ```
 
 ```ts

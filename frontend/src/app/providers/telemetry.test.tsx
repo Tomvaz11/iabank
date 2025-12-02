@@ -13,6 +13,7 @@ vi.mock('../../shared/config/env', () => ({
     },
     FOUNDATION_CSP_NONCE: 'nonce-dev',
     FOUNDATION_TRUSTED_TYPES_POLICY: 'foundation-ui',
+    FOUNDATION_TRUSTED_TYPES_ROLLOUT_START: '2025-09-01T00:00:00.000Z',
     FOUNDATION_PGCRYPTO_KEY: 'dev-only',
   },
 }));
@@ -93,6 +94,36 @@ describe('TelemetryProvider', () => {
     // Desmonta sem lançar exceções apesar da ausência de shutdown
     expect(() => unmount()).not.toThrow();
 
+    telemetryModule.resetTelemetryBootstrap();
+  });
+
+  it('usa fallback de requestIdleCallback quando ativo e executa shutdown no cleanup', async () => {
+    const idleSpy = vi.fn((cb: IdleRequestCallback) => {
+      cb({ didTimeout: false, timeRemaining: () => 0 } as IdleDeadline);
+      return 1;
+    });
+
+    Object.defineProperty(window, 'requestIdleCallback', {
+      value: idleSpy,
+      configurable: true,
+    });
+
+    const telemetryModule = await import('./telemetry');
+    const shutdown = vi.fn();
+    const bootstrapSpy = vi.fn().mockResolvedValue({ shutdown });
+    telemetryModule.setTelemetryBootstrap(bootstrapSpy);
+
+    const { unmount } = render(
+      <telemetryModule.TelemetryProvider>
+        <span>child</span>
+      </telemetryModule.TelemetryProvider>,
+    );
+
+    await waitFor(() => expect(bootstrapSpy).toHaveBeenCalled());
+    expect(idleSpy).not.toHaveBeenCalled(); // bootstrap customizado roda sem fila
+
+    unmount();
+    await waitFor(() => expect(shutdown).toHaveBeenCalled());
     telemetryModule.resetTelemetryBootstrap();
   });
 });

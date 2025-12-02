@@ -58,7 +58,8 @@ export default defineConfig({
   webServer: {
     command: `pnpm preview --host 0.0.0.0 --port ${PORT} --strictPort`,
     url: BASE_URL,
-    reuseExistingServer: !process.env.CI,
+    // Sempre inicia um servidor limpo para evitar reuso com nonce/CSP antigos em dev.
+    reuseExistingServer: false,
     timeout: 180_000
   }
 });

@@ -9,6 +9,7 @@ describe('config/env', () => {
     process.env.VITE_OTEL_RESOURCE_ATTRIBUTES = 'service.namespace=iabank,service.version=0.1.0';
     process.env.VITE_FOUNDATION_CSP_NONCE = 'nonce-value';
     process.env.VITE_FOUNDATION_TRUSTED_TYPES_POLICY = 'foundation-ui';
+    process.env.VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START = '2025-09-01T00:00:00.000Z';
     process.env.VITE_FOUNDATION_PGCRYPTO_KEY = 'pgcrypto-key';
 
     const { createEnv } = await import('./env');
@@ -20,6 +21,7 @@ describe('config/env', () => {
       VITE_OTEL_RESOURCE_ATTRIBUTES: 'service.namespace=iabank,service.version=0.1.0',
       VITE_FOUNDATION_CSP_NONCE: 'nonce-value',
       VITE_FOUNDATION_TRUSTED_TYPES_POLICY: 'foundation-ui',
+      VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START: '2025-09-01T00:00:00.000Z',
       VITE_FOUNDATION_PGCRYPTO_KEY: 'pgcrypto-key',
     });
 
@@ -31,6 +33,7 @@ describe('config/env', () => {
     });
     expect(env.FOUNDATION_CSP_NONCE).toBe('nonce-value');
     expect(env.FOUNDATION_TRUSTED_TYPES_POLICY).toBe('foundation-ui');
+    expect(env.FOUNDATION_TRUSTED_TYPES_ROLLOUT_START).toBe('2025-09-01T00:00:00.000Z');
     expect(env.FOUNDATION_PGCRYPTO_KEY).toBe('pgcrypto-key');
   });
 
@@ -42,6 +45,7 @@ describe('config/env', () => {
     process.env.VITE_OTEL_RESOURCE_ATTRIBUTES = '';
     process.env.VITE_FOUNDATION_CSP_NONCE = 'nonce';
     process.env.VITE_FOUNDATION_TRUSTED_TYPES_POLICY = 'policy';
+    process.env.VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START = '2025-09-01T00:00:00.000Z';
     process.env.VITE_FOUNDATION_PGCRYPTO_KEY = 'key';
 
     const { createEnv } = await import('./env');
@@ -54,6 +58,7 @@ describe('config/env', () => {
         VITE_OTEL_RESOURCE_ATTRIBUTES: '',
         VITE_FOUNDATION_CSP_NONCE: 'nonce',
         VITE_FOUNDATION_TRUSTED_TYPES_POLICY: 'policy',
+        VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START: '2025-09-01T00:00:00.000Z',
         VITE_FOUNDATION_PGCRYPTO_KEY: 'key',
       }),
     ).toThrow(/VITE_API_BASE_URL/);
@@ -69,6 +74,7 @@ describe('config/env', () => {
       VITE_OTEL_RESOURCE_ATTRIBUTES: 'service.namespace=iabank,service.version=0.2.0',
       VITE_FOUNDATION_CSP_NONCE: 'nonce-value',
       VITE_FOUNDATION_TRUSTED_TYPES_POLICY: 'foundation-ui',
+      VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START: '2025-09-01T00:00:00.000Z',
       VITE_FOUNDATION_PGCRYPTO_KEY: 'pgcrypto-key',
       VITE_SENTRY_TRACES_SAMPLE_RATE: '1.5',
       VITE_SENTRY_REPLAYS_SESSION_SAMPLE_RATE: '-2',

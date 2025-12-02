@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   buildTenantQueryKey,
@@ -101,5 +101,54 @@ describe('queryClient', () => {
     expect(options?.retry).toBe(2);
 
     await resetOnTenantChange(client);
+  });
+
+  it('rejeita query keys sem tenant_id', () => {
+    const client = createTenantQueryClient();
+    expect(() =>
+      client.fetchQuery({
+        queryKey: ['themes'],
+        queryFn: async () => ({ data: 'value' }),
+      }),
+    ).toThrow(/tenant_id/);
+  });
+
+  it('setQueriesData aplica updater somente após validar partition key', async () => {
+    const client = createTenantQueryClient();
+    const key = buildTenantQueryKey('tenant-alfa', 'resource');
+    client.setQueryData(key, { value: 1 });
+
+    const updater = vi.fn().mockImplementation((old) => ({ value: (old as { value: number }).value + 1 }));
+    client.setQueriesData({ queryKey: key }, updater);
+
+    expect(updater).toHaveBeenCalled();
+    expect(client.getQueryData(key)).toEqual({ value: 2 });
+  });
+
+  it('rejeita filtros sem tenant_id ao invalidar/refetch/remover queries', () => {
+    const client = createTenantQueryClient();
+
+    expect(() =>
+      client.invalidateQueries({ queryKey: ['themes'] }),
+    ).toThrow(/tenant_id/);
+    expect(() =>
+      client.refetchQueries({ queryKey: ['themes'] }),
+    ).toThrow(/tenant_id/);
+    expect(() =>
+      client.removeQueries({ queryKey: ['themes'] }),
+    ).toThrow(/tenant_id/);
+    expect(() =>
+      client.resetQueries({ queryKey: ['themes'] }),
+    ).toThrow(/tenant_id/);
+  });
+
+  it('permite operações sem filtro explícito e mantém validação em setQueriesData', async () => {
+    const client = createTenantQueryClient();
+
+    await expect(client.cancelQueries()).resolves.toBeUndefined();
+
+    expect(() =>
+      client.setQueriesData({ queryKey: ['themes'] }, () => ({})),
+    ).toThrow(/tenant_id/);
   });
 });

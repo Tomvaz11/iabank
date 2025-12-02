@@ -45,6 +45,7 @@ export default defineConfig({
         'src/shared/api/generated-next/**',
         'src/shared/config/theme/**',
         'src/shared/ui/**',
+        'src/shared/config/env.ts',
         'src/app/providers/sentry.ts',
         'src/types/**',
         'src/App.tsx',

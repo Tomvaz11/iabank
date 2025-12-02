@@ -13,7 +13,7 @@
         },
         "method": "GET",
         "path": "/api/v1/design-system/stories",
-        "query": "componentId=shared%2fui%2fbutton&page=1&page_size=10&tag=critical"
+        "query": "componentId=shared%2fui%2fbutton&page=1&page_size=10&tag=critical&tenant_id=tenant-alfa"
       },
       "response": {
         "body": {

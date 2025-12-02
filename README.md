@@ -90,6 +90,10 @@ pnpm format && \
 Notas:
 - Performance (k6) em modo local usa `FOUNDATION_PERF_VUS=1` por padrão e pode sinalizar status `critical` apenas por throughput. Para um OK completo, use algo como `FOUNDATION_PERF_VUS=50 pnpm perf:smoke:ci` ou ajuste `FOUNDATION_PERF_THROUGHPUT_CRITICAL`.
 - A cobertura visual (Chromatic) requer build prévio do Storybook; o comando acima já executa o build.
+- Trusted Types: defina `VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START` com data fixa (ISO UTC) por ambiente; o fallback (`new Date().toISOString()`) reinicia a janela de 30 dias a cada build e deve ser evitado.
+- Storybook Test Runner: o script já força `STORYBOOK_TT_MODE=report-only` e fixa `VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START=2099-01-01T00:00:00.000Z` para evitar bloqueio do `addScriptTag`; se precisar validar em modo enforce, sobrescreva essas envs ao rodar o comando.
+- Roteamento multi-tenant: produção resolve pelo subdomínio (`https://tenant-alfa...`); em dev/local use o prefixo `/t/:tenant/...` (sem `?tenant=`). Para E2E locais, use `pnpm build --mode e2e && pnpm test:e2e` (consome `.env.e2e`).
+- Theming: tokens são carregados em runtime (JSON + `[data-tenant]` via `ThemeProvider`); o CSS pré-gerado por tenant (`shared/ui/tokens.css`) está obsoleto — não importe esse arquivo em novas páginas/features.
 
 ## TDD & Evidências no PR
 - Siga “vermelho → verde”: registre no PR os commits (ou links de run) do estado vermelho (falha esperada do teste) e do estado verde (após a implementação).
@@ -121,6 +125,17 @@ Notas:
     - Caso contrário, o script aplicará migrações e iniciará `runserver` temporariamente (alvo padrão: `/metrics`).
 
 Notas Lighthouse:
+- Variáveis mínimas para rodar `pnpm perf:lighthouse` localmente (subdomínio de tenant, sem `/t/`):
+  - `VITE_API_BASE_URL=https://api.iabank.test`
+  - `VITE_TENANT_DEFAULT=tenant-alfa`
+  - `VITE_OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`
+  - `VITE_OTEL_SERVICE_NAME=frontend-foundation`
+  - `VITE_OTEL_RESOURCE_ATTRIBUTES=service.namespace=iabank,service.version=0.1.0,environment=local`
+  - `VITE_FOUNDATION_CSP_NONCE=cli-nonce`
+  - `VITE_FOUNDATION_TRUSTED_TYPES_POLICY=foundation-ui`
+  - `VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START=2025-09-01T00:00:00.000Z`
+  - `VITE_FOUNDATION_PGCRYPTO_KEY=dev-only`
+  - `LIGHTHOUSE_TARGET_URL=http://tenant-alfa.localhost:4173/foundation/scaffold?feature=foundation-scaffold`
 - Para execuções locais mais estáveis, use warmup e rodadas extras: `LIGHTHOUSE_RUNS=3 LIGHTHOUSE_WARMUP_DELAY_MS=8000 pnpm --filter @iabank/frontend-foundation test:lighthouse`.
 
 ## Observabilidade local (Prometheus, Grafana, OTEL)

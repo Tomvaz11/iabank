@@ -1,4 +1,5 @@
 import { env } from '../../shared/config/env';
+import type { TrustedTypesDisposition } from '../../shared/security/trustedTypes';
 
 type TrustedTypesPolicy = {
   name: string;
@@ -26,9 +27,6 @@ type Props = {
   children: React.ReactNode;
 };
 
-type TrustedTypesDisposition = 'report-only' | 'enforce';
-
-const REPORT_ONLY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const TRUSTED_TYPES_DIRECTIVE = 'trusted-types';
 
 let cachedPolicy: TrustedTypesPolicy | null = null;
@@ -85,20 +83,6 @@ export const resetTrustedTypesPolicy = () => {
   cachedPolicy = null;
 };
 
-export const resolveTrustedTypesDisposition = ({
-  startedAt,
-  now,
-}: {
-  startedAt: string;
-  now: Date;
-}): { mode: TrustedTypesDisposition; expiresAt: Date } => {
-  const start = Number.isNaN(Date.parse(startedAt)) ? new Date() : new Date(startedAt);
-  const expiresAt = new Date(start.getTime() + REPORT_ONLY_WINDOW_MS);
-  const mode: TrustedTypesDisposition = now < expiresAt ? 'report-only' : 'enforce';
-
-  return { mode, expiresAt };
-};
-
 type ViolationHandler = (event: SecurityPolicyViolationEvent) => void;
 
 type SecurityViolationReporterOptions = {
@@ -144,3 +128,5 @@ export const SecurityProvider = ({ children }: Props) => {
   ensureTrustedTypesPolicy();
   return <>{children}</>;
 };
+
+export { resolveTrustedTypesDisposition } from '../../shared/security/trustedTypes';

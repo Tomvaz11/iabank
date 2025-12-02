@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import process from 'node:process';
 
-import { tenantTokens } from '../../src/shared/config/theme/tenants';
+import { ACTIVE_TENANTS } from '../../src/shared/config/theme/registry';
 
 type StoryIndexEntry = {
   id: string;
@@ -38,7 +38,7 @@ const parseArgs = (argv: string[]): CLIOptions => {
   const options: CLIOptions = {
     storiesPath: 'storybook-static/stories.json',
     minCoverage: DEFAULT_MIN_COVERAGE,
-    expectedTenants: Object.keys(tenantTokens),
+    expectedTenants: [...ACTIVE_TENANTS],
     verbose: false,
   };
 
@@ -283,8 +283,19 @@ const main = () => {
     const results = computeCoverage(options);
 
     const failures = results.filter((result) => result.percentage < options.minCoverage);
+    const missingTenants = results
+      .filter((result) => result.covered === 0)
+      .map((result) => result.tenant)
+      .filter((tenant) => options.expectedTenants.includes(tenant));
 
-    if (failures.length > 0) {
+    if (failures.length > 0 || missingTenants.length > 0) {
+      if (missingTenants.length > 0) {
+        missingTenants.forEach((tenant) => {
+          // eslint-disable-next-line no-console
+          console.error(`Tenant esperado sem stories renderizadas: ${tenant}. Cobertura calculada como 0%.`);
+        });
+      }
+
       for (const failure of failures) {
         const missingList =
           failure.missingComponents.length > 0

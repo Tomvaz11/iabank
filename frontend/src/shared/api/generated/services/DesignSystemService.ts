@@ -27,7 +27,7 @@ export class DesignSystemService {
          * Tenant solicitado; se omitido usa o tenant default do subdomínio. Em desenvolvimento/local sem subdomínio, o fallback é `tenant-default` (configuração de ambiente). Em staging/prod, o subdomínio prevalece e o header é apenas filtro/otimização.
          *
          */
-        xTenantId?: string,
+        xTenantId: string,
         /**
          * Página solicitada (1-indexed).
          */
@@ -64,6 +64,7 @@ export class DesignSystemService {
             query: {
                 'page': page,
                 'per_page': perPage,
+                'tenant_id': xTenantId,
                 'componentId': componentId,
                 'tag': tag,
             },

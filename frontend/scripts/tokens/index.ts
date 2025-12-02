@@ -28,7 +28,6 @@ type PullTenantTokensOptions = {
 type BuildTenantArtifactsOptions = {
   cacheDir?: string;
   tenantsConfigPath?: string;
-  tokensCssPath?: string;
 };
 
 // Raiz do pacote "frontend" (independente de onde o processo foi iniciado)
@@ -43,7 +42,6 @@ const DEFAULT_TENANTS_PATH = path.join(
   'theme',
   'tenants.ts',
 );
-const DEFAULT_CSS_PATH = path.join(projectRoot, 'src', 'shared', 'ui', 'tokens.css');
 
 const formatZodIssues = (error: ZodError): string =>
   error.issues
@@ -218,13 +216,6 @@ export const pullTenantTokens = async (
   return cached;
 };
 
-const normalizeValue = (value: unknown): string => {
-  if (value == null) {
-    return '';
-  }
-  return String(value);
-};
-
 const formatTsObject = (
   data: Record<string, TokenCategories>,
   versions: Record<string, string>,
@@ -281,35 +272,6 @@ const formatTsObject = (
   return `${lines.join('\n')}`;
 };
 
-const toCssVariable = (token: string): string => `--${token.replace(/\./g, '-')}`;
-
-const formatCss = (data: Array<{ alias: string; categories: TokenCategories }>): string => {
-  const blocks = data.map(({ alias, categories }) => {
-    const flattened = Object.values(categories).reduce<Record<string, string>>((acc, current) => {
-      Object.entries(current).forEach(([token, value]) => {
-        acc[token] = value;
-      });
-      return acc;
-    }, {});
-
-    const lines = Object.entries(flattened)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([token, value]) => `  ${toCssVariable(token)}: ${normalizeValue(value)};`)
-      .join('\n');
-
-    return `html[data-tenant="${alias}"] {\n${lines}\n}`;
-  });
-
-  if (blocks.length === 0) {
-    return '/* Nenhum tenant disponível para tokens. */\n';
-  }
-
-  return (
-    ['/* Auto-gerado por foundation:tokens. Não editar manualmente. */', ...blocks].join('\n\n') +
-    '\n'
-  );
-};
-
 const cleanupLegacyArtifacts = async (): Promise<void> => {
   // Apenas remove uma duplicação acidental "frontend/frontend" dentro do pacote,
   // nunca a raiz real do projeto.
@@ -349,11 +311,9 @@ export const buildTenantArtifacts = async (
 ): Promise<void> => {
   const cacheDir = getCacheDir(options.cacheDir);
   const tenantsConfigPath = options.tenantsConfigPath ?? DEFAULT_TENANTS_PATH;
-  const tokensCssPath = options.tokensCssPath ?? DEFAULT_CSS_PATH;
 
   await mkdir(cacheDir, { recursive: true });
   await mkdir(path.dirname(tenantsConfigPath), { recursive: true });
-  await mkdir(path.dirname(tokensCssPath), { recursive: true });
 
   const files = await readdir(cacheDir);
   const tenants: CachedTenantTokens[] = [];
@@ -386,11 +346,6 @@ export const buildTenantArtifacts = async (
 
   const tsContent = formatTsObject(categoriesByAlias, versionsByAlias, idsByAlias);
   await writeFile(tenantsConfigPath, `${tsContent}\n`, 'utf-8');
-
-  const cssPayload = formatCss(
-    tenants.map((tenant) => ({ alias: tenant.alias, categories: tenant.payload.categories })),
-  );
-  await writeFile(tokensCssPath, cssPayload, 'utf-8');
 
   await cleanupLegacyArtifacts();
 };
