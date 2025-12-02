@@ -1,33 +1,23 @@
 import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
 
 import { env } from '../../shared/config/env';
+import { supportedTenants as resolveSupportedTenants } from '../../shared/config/theme/registry';
 import { useAppStore } from '../store';
 
-type LocationState = {
-  pathname: string;
-  searchParams: URLSearchParams;
-};
-
-const FALLBACK_TENANTS = ['tenant-alfa', 'tenant-beta'] as const;
-
-const SUPPORTED_TENANTS = Array.from(
-  new Set<string>([env.TENANT_DEFAULT, ...FALLBACK_TENANTS]),
-);
+const SUPPORTED_TENANTS = resolveSupportedTenants(env.TENANT_DEFAULT);
 
 const DEFAULT_FEATURE = 'foundation-scaffold';
 
-const parseLocation = (): LocationState => {
-  if (typeof window === 'undefined') {
-    return {
-      pathname: '/foundation/scaffold',
-      searchParams: new URLSearchParams(),
-    };
-  }
+type TenantResolution = 'hostname' | 'path' | 'fallback';
 
-  return {
-    pathname: window.location.pathname,
-    searchParams: new URLSearchParams(window.location.search),
-  };
+type LocationState = {
+  routePathname: string;
+  searchParams: URLSearchParams;
+  tenantId: string;
+  tenantResolution: TenantResolution;
+  hostname: string;
+  isLocal: boolean;
+  pathTenantId: string | null;
 };
 
 const ensureTenant = (value: string | null): string => {
@@ -42,6 +32,87 @@ const ensureFeature = (value: string | null): string => {
     return value;
   }
   return DEFAULT_FEATURE;
+};
+
+const normalizeRoutePathname = (value: string): string => {
+  if (!value) return '/';
+  return value.startsWith('/') ? value : `/${value}`;
+};
+
+const isLocalHost = (hostname: string): boolean =>
+  hostname === 'localhost' ||
+  hostname === '127.0.0.1' ||
+  hostname === '::1' ||
+  hostname.endsWith('.local');
+
+const extractTenantFromHostname = (hostname: string): string | null => {
+  const parts = hostname.split('.');
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const [maybeTenant] = parts;
+  return maybeTenant || null;
+};
+
+const extractTenantFromPath = (
+  pathname: string,
+): { tenantId: string; routePathname: string } | null => {
+  const match = pathname.match(/^\/t\/([^/]+)(\/.*)?$/);
+  if (!match) {
+    return null;
+  }
+
+  const [, tenantId, rest] = match;
+  return {
+    tenantId,
+    routePathname: normalizeRoutePathname(rest ?? '/'),
+  };
+};
+
+const parseLocation = (): LocationState => {
+  if (typeof window === 'undefined') {
+    return {
+      routePathname: '/foundation/scaffold',
+      searchParams: new URLSearchParams(),
+      tenantId: env.TENANT_DEFAULT,
+      tenantResolution: 'fallback',
+      hostname: 'localhost',
+      isLocal: true,
+      pathTenantId: null,
+    };
+  }
+
+  const { pathname, search, hostname } = window.location;
+  const searchParams = new URLSearchParams(search);
+  const pathTenant = extractTenantFromPath(pathname);
+  const tenantFromHost = extractTenantFromHostname(hostname);
+  const isLocal = isLocalHost(hostname);
+
+  let tenantId = env.TENANT_DEFAULT;
+  let tenantResolution: TenantResolution = 'fallback';
+
+  if (!isLocal && tenantFromHost) {
+    tenantId = ensureTenant(tenantFromHost);
+    tenantResolution = 'hostname';
+  } else if (isLocal && pathTenant?.tenantId) {
+    tenantId = ensureTenant(pathTenant.tenantId);
+    tenantResolution = 'path';
+  }
+
+  const routePathname = normalizeRoutePathname(
+    pathTenant?.routePathname ?? pathname ?? '/foundation/scaffold',
+  );
+
+  return {
+    routePathname,
+    searchParams,
+    tenantId,
+    tenantResolution,
+    hostname,
+    isLocal,
+    pathTenantId: pathTenant?.tenantId ?? null,
+  };
 };
 
 const formatFeatureTitle = (slug: string): string =>
@@ -134,33 +205,47 @@ export const RouterProvider = (): JSX.Element => {
     };
   }, []);
 
-  const tenantId = ensureTenant(locationState.searchParams.get('tenant'));
+  const tenantId = ensureTenant(locationState.tenantId);
   const featureSlug = ensureFeature(locationState.searchParams.get('feature'));
+
+  const buildTenantAwarePathname = useCallback(
+    (tenant: string) => {
+      if (locationState.isLocal) {
+        return `/t/${tenant}${normalizeRoutePathname(locationState.routePathname)}`;
+      }
+      return normalizeRoutePathname(locationState.routePathname);
+    },
+    [locationState.isLocal, locationState.routePathname],
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(locationState.searchParams);
     let mutated = false;
-
-    if (params.get('tenant') !== tenantId) {
-      params.set('tenant', tenantId);
-      mutated = true;
-    }
 
     if (params.get('feature') !== featureSlug) {
       params.set('feature', featureSlug);
       mutated = true;
     }
 
-    if (mutated && typeof window !== 'undefined') {
-      const queryString = params.toString();
-      const nextUrl = `${locationState.pathname}${queryString ? `?${queryString}` : ''}`;
-      window.history.replaceState(window.history.state, '', nextUrl);
-      setLocationState({
-        pathname: locationState.pathname,
-        searchParams: params,
-      });
+    if (params.has('tenant')) {
+      params.delete('tenant');
+      mutated = true;
     }
-  }, [featureSlug, locationState.pathname, locationState.searchParams, tenantId]);
+
+    const nextPathname = buildTenantAwarePathname(tenantId);
+
+    const currentUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.pathname}${window.location.search}`
+        : '';
+    const nextQueryString = params.toString();
+    const nextUrl = `${nextPathname}${nextQueryString ? `?${nextQueryString}` : ''}`;
+
+    if ((mutated || nextUrl !== currentUrl) && typeof window !== 'undefined') {
+      window.history.replaceState(window.history.state, '', nextUrl);
+      setLocationState(parseLocation());
+    }
+  }, [buildTenantAwarePathname, featureSlug, locationState.searchParams, tenantId]);
 
   useEffect(() => {
     void setTenant(tenantId);
@@ -179,24 +264,40 @@ export const RouterProvider = (): JSX.Element => {
   const handleTenantChange = useCallback(
     (nextTenant: string) => {
       const params = new URLSearchParams(locationState.searchParams);
-      params.set('tenant', ensureTenant(nextTenant));
+      params.delete('tenant');
       params.set('feature', featureSlug);
+      const nextTenantId = ensureTenant(nextTenant);
+      const queryString = params.toString();
 
       if (typeof window !== 'undefined') {
-        const queryString = params.toString();
-        const nextUrl = `/foundation/scaffold${queryString ? `?${queryString}` : ''}`;
+        const tenantPath = buildTenantAwarePathname(nextTenantId);
+        if (!locationState.isLocal && locationState.hostname.includes('.')) {
+          const [, ...rest] = locationState.hostname.split('.');
+          if (rest.length > 0) {
+            const domain = rest.join('.');
+            const nextHost = `${nextTenantId}.${domain}`;
+            const nextUrl = `${window.location.protocol}//${nextHost}${tenantPath}${queryString ? `?${queryString}` : ''}`;
+            window.location.assign(nextUrl);
+            return;
+          }
+        }
+
+        const nextUrl = `${tenantPath}${queryString ? `?${queryString}` : ''}`;
         window.history.replaceState(window.history.state, '', nextUrl);
       }
 
-      setLocationState({
-        pathname: '/foundation/scaffold',
-        searchParams: params,
-      });
+      setLocationState(parseLocation());
     },
-    [featureSlug, locationState.searchParams],
+    [
+      buildTenantAwarePathname,
+      featureSlug,
+      locationState.hostname,
+      locationState.isLocal,
+      locationState.searchParams,
+    ],
   );
 
-  if (locationState.pathname !== '/foundation/scaffold') {
+  if (locationState.routePathname !== '/foundation/scaffold') {
     return <LandingRoute />;
   }
 

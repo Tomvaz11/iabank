@@ -3,6 +3,7 @@ import type { Decorator, Preview } from '@storybook/react';
 import '../src/styles.css';
 
 import type { TenantAlias } from '../src/shared/config/theme/tenants';
+import { applyTenantTheme } from '../src/shared/config/theme/registry';
 import { tenantTokens } from '../src/shared/config/theme/tenants';
 
 const DEFAULT_TENANT: TenantAlias = 'tenant-default';
@@ -13,7 +14,14 @@ const formatTenantLabel = (tenant: TenantAlias): string =>
 
 const withTenant: Decorator = (Story, context) => {
   const tenant = (context.parameters.tenant ?? context.globals.tenant ?? DEFAULT_TENANT) as TenantAlias;
-  document.documentElement.setAttribute('data-tenant', tenant);
+  const categories = tenantTokens[tenant] ?? tenantTokens[DEFAULT_TENANT];
+
+  applyTenantTheme({
+    tenantId: tenant,
+    version: 'storybook-preview',
+    categories,
+  });
+
   return Story();
 };
 

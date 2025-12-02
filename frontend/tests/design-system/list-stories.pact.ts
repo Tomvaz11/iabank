@@ -31,6 +31,7 @@ describe('@SC-002 @SC-004 Design system stories API contract', () => {
           query: {
             page: '1',
             page_size: '10',
+            tenant_id: TENANT_ID,
             componentId: 'shared/ui/button',
             tag: 'critical',
           },

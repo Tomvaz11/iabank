@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -123,7 +123,7 @@ describe('@SC-002 foundation:tokens script', () => {
     warnSpy.mockRestore();
   });
 
-  it('buildTenantArtifacts gera arquivos TypeScript e CSS', async () => {
+  it('buildTenantArtifacts gera arquivo TypeScript e não materializa CSS global', async () => {
     const cacheFile = path.join(tempDir, `${SAMPLE_RESPONSE.tenantId}.json`);
     writeFileSync(
       cacheFile,
@@ -146,7 +146,6 @@ describe('@SC-002 foundation:tokens script', () => {
     await buildTenantArtifacts({
       cacheDir: tempDir,
       tenantsConfigPath: configPath,
-      tokensCssPath: cssPath,
     });
 
     const tsContent = readFileSync(configPath, 'utf-8');
@@ -154,10 +153,7 @@ describe('@SC-002 foundation:tokens script', () => {
     expect(tsContent).toContain("'color.brand.primary': '#1E3A8A'");
     expect(tsContent).toContain("'button.primary.bg': '#1E3A8A'");
 
-    const cssContent = readFileSync(cssPath, 'utf-8');
-    expect(cssContent).toContain('html[data-tenant="tenant-alfa"]');
-    expect(cssContent).toContain('--color-brand-primary: #1E3A8A;');
-    expect(cssContent).toContain('--button-primary-bg: #1E3A8A;');
+    expect(existsSync(cssPath)).toBe(false);
   });
 
   it('rejeita payload sem categorias válidas', async () => {

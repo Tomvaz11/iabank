@@ -17,7 +17,7 @@ test.describe('@SC-001 @SC-005 Fluxo E2E de scaffolding multi-tenant', () => {
 
     const startedAt = Date.now();
 
-    await page.goto('/foundation/scaffold?tenant=tenant-alfa&feature=loan-tracking');
+    await page.goto('/t/tenant-alfa/foundation/scaffold?feature=loan-tracking');
 
     await expect(page.getByRole('heading', { name: /loan tracking/i })).toBeVisible();
     await expect(page.getByTestId('scaffold-summary')).toContainText('loan-tracking');
@@ -29,7 +29,7 @@ test.describe('@SC-001 @SC-005 Fluxo E2E de scaffolding multi-tenant', () => {
 
     await page.getByTestId('tenant-switcher').selectOption('tenant-beta');
     await expect(page.locator('html')).toHaveAttribute('data-tenant', 'tenant-beta');
-    await expect(page).toHaveURL(/tenant=tenant-beta/);
+    await expect(page).toHaveURL(/\/t\/tenant-beta\/foundation\/scaffold/);
 
     const currentUrl = page.url();
     PII_PATTERNS.forEach((pattern) => {

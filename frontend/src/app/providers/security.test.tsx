@@ -13,6 +13,7 @@ vi.mock('../../shared/config/env', () => ({
     },
     FOUNDATION_CSP_NONCE: 'nonce-dev',
     FOUNDATION_TRUSTED_TYPES_POLICY: 'foundation-ui',
+    FOUNDATION_TRUSTED_TYPES_ROLLOUT_START: '2025-09-01T00:00:00.000Z',
     FOUNDATION_PGCRYPTO_KEY: 'dev-only',
   },
 }));

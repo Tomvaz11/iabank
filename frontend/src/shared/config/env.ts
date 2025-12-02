@@ -9,6 +9,7 @@ const schema = z.object({
   VITE_CONFIGCAT_SDK_KEY: z.string().optional(),
   VITE_FOUNDATION_CSP_NONCE: z.string().min(1),
   VITE_FOUNDATION_TRUSTED_TYPES_POLICY: z.string().min(1),
+  VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START: z.string().datetime(),
   VITE_FOUNDATION_PGCRYPTO_KEY: z.string().min(1),
   VITE_SENTRY_DSN: z.union([z.string().url(), z.literal('')]).optional(),
   VITE_SENTRY_ENVIRONMENT: z.string().min(1).default('local'),
@@ -29,6 +30,7 @@ export type AppEnv = {
   CONFIGCAT_SDK_KEY?: string;
   FOUNDATION_CSP_NONCE: string;
   FOUNDATION_TRUSTED_TYPES_POLICY: string;
+  FOUNDATION_TRUSTED_TYPES_ROLLOUT_START: string;
   FOUNDATION_PGCRYPTO_KEY: string;
   SENTRY_DSN?: string;
   SENTRY_ENVIRONMENT: string;
@@ -101,6 +103,8 @@ export const createEnv = (raw: Partial<Record<keyof RawEnv, unknown>>): AppEnv =
     CONFIGCAT_SDK_KEY: result.data.VITE_CONFIGCAT_SDK_KEY?.trim() || undefined,
     FOUNDATION_CSP_NONCE: result.data.VITE_FOUNDATION_CSP_NONCE.trim(),
     FOUNDATION_TRUSTED_TYPES_POLICY: result.data.VITE_FOUNDATION_TRUSTED_TYPES_POLICY.trim(),
+    FOUNDATION_TRUSTED_TYPES_ROLLOUT_START:
+      result.data.VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START.trim(),
     FOUNDATION_PGCRYPTO_KEY: result.data.VITE_FOUNDATION_PGCRYPTO_KEY.trim(),
     SENTRY_DSN: sanitizeOptional(result.data.VITE_SENTRY_DSN),
     SENTRY_ENVIRONMENT: result.data.VITE_SENTRY_ENVIRONMENT,

@@ -9,6 +9,40 @@ import type { ApiRequestOptions } from './generated/core/ApiRequestOptions';
 import { OpenAPI } from './generated/core/OpenAPI';
 import { request as openApiRequest } from './generated/core/request';
 
+const isLocalHost = (hostname: string): boolean =>
+  hostname === 'localhost' ||
+  hostname === '127.0.0.1' ||
+  hostname === '::1' ||
+  hostname.endsWith('.local');
+
+const sanitizeBaseUrl = (value: string): string => value.replace(/\/+$/, '');
+
+const resolveApiBaseUrl = (): string => {
+  if (typeof window === 'undefined') {
+    return env.API_BASE_URL;
+  }
+
+  const { hostname, port } = window.location;
+
+  if (!hostname || isLocalHost(hostname) || !hostname.includes('.')) {
+    return env.API_BASE_URL;
+  }
+
+  try {
+    const baseUrl = new URL(env.API_BASE_URL);
+    baseUrl.hostname = hostname;
+
+    if (port && port !== '80' && port !== '443') {
+      baseUrl.port = port;
+    }
+
+    return sanitizeBaseUrl(baseUrl.toString());
+  } catch {
+    // Em caso de URL inválida no env, mantém o base original para evitar quebra do client.
+    return env.API_BASE_URL;
+  }
+};
+
 export type TraceContext = {
   traceparent: string;
   tracestate?: string;
@@ -45,7 +79,7 @@ const buildHeaders = (
 };
 
 const execute = <T>(options: ApiRequestOptions) => {
-  OpenAPI.BASE = env.API_BASE_URL;
+  OpenAPI.BASE = resolveApiBaseUrl();
   return openApiRequest<T>(OpenAPI, options);
 };
 
@@ -115,7 +149,7 @@ export const listTenantSuccessMetrics = ({
   });
 
 export type ListDesignSystemStoriesParams = {
-  tenantId?: string;
+  tenantId: string;
   page: number;
   pageSize: number;
   traceContext: TraceContext;
@@ -132,23 +166,12 @@ export const listDesignSystemStories = ({
   traceContext,
   filters,
 }: ListDesignSystemStoriesParams): Promise<DesignSystemStoryPage> => {
-  const headers: Record<string, string> = {
-    traceparent: traceContext.traceparent,
-  };
-
-  if (traceContext.tracestate) {
-    headers.tracestate = traceContext.tracestate;
-  }
-
-  if (tenantId) {
-    headers['X-Tenant-Id'] = tenantId;
-  }
-
   return execute<DesignSystemStoryPage>({
     method: 'GET',
     url: '/api/v1/design-system/stories',
-    headers,
+    headers: buildHeaders(tenantId, traceContext),
     query: {
+      tenant_id: tenantId,
       page,
       page_size: pageSize,
       ...(filters?.componentId ? { componentId: filters.componentId } : {}),

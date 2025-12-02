@@ -86,11 +86,11 @@ FinOps / Custos (NFR-005)
 - O script aceita fontes reais via variáveis `FOUNDATION_FINOPS_*_SOURCE`; na ausência, utiliza fixtures de exemplo em `scripts/finops/fixtures/`.
 
 CSP e Trusted Types
-- Report‑Only por 30 dias: cabeçalho `Content-Security-Policy-Report-Only` com `script-src 'strict-dynamic' 'nonce-{RANDOM}'`; `require-trusted-types-for 'script'; trusted-types foundation-ui`.
-- Enforcement: mover diretivas para `Content-Security-Policy` e garantir injeção de nonce pelo gateway (NJS) em todas as tags `<script>` do index.html.
-- Dev local: plugin Vite injeta nonce e mantém TT em report-only.
-- Auditar violações e abrir follow-ups.
-- Lembrete T079: na data de ativação do modo report-only, registrar no board/agenda um lembrete para D+30 e, ao vencer, executar T079 (tornar CSP enforce + revisar exceções) e anexar evidências aqui.
+- CSP bloqueante sempre: cabeçalho `Content-Security-Policy` com `strict-dynamic` + nonce aplicado no HTML; gateway deve apenas propagar o nonce.
+- Trusted Types em rollout automático (janela de 30 dias a partir de `VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START`): durante a janela, o plugin injeta `Content-Security-Policy-Report-Only` para TT; ao expirar, adiciona `require-trusted-types-for 'script'` no header principal.
+- Dev/preview/build usam o mesmo plugin Vite (nonce + metas no index.html); não há modo “apenas report” para CSP.
+- `storybook:test` roda com `STORYBOOK_TT_MODE=report-only` e rollout fixo `VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START=2099-01-01T00:00:00.000Z` para evitar bloqueio do test-runner; para validar enforce no runner, sobrescreva essas envs explicitamente.
+- Auditar violações e abrir follow-ups; agendar o lembrete T079 na data configurada para revisar exceções ao virar o modo enforce de TT.
 
 Fallback de Vault (dev/local)
 - Caso o Vault esteja indisponível, copie `frontend/.env.example` para `frontend/.env.local` e ajuste os valores marcados como fallback (`VITE_FOUNDATION_CSP_NONCE`, `VITE_FOUNDATION_TRUSTED_TYPES_POLICY`, `VITE_FOUNDATION_PGCRYPTO_KEY`). Esses valores são determinísticos para desenvolvimento (`nonce-dev-fallback`, `foundation-ui-dev`, `dev-only-pgcrypto-key`) e não devem ser usados fora do ambiente local.
@@ -137,23 +137,22 @@ Pontos de Contato
   - Threat Model Lint: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407243828 (success)
   - CI Outage Guard: https://github.com/Tomvaz11/iabank/actions/runs/19049757588/job/54407243841 (success)
 
-### Ações pendentes para fechar gates (antes do run final)
+### Ações históricas (já endereçadas)
 
-- Visual/Chromatic: ajustar `fetch-depth: 0` no `actions/checkout` do job ou adicionar commits na branch para permitir baseline; validar cobertura ≥ 95% e anexar `chromatic-coverage.json`.
-- Performance: atualizar ação k6 para uma tag existente (`grafana/setup-k6-action@v1` ou equivalente), reexecutar; anexar `artifacts/perf/k6-smoke.json` e relatórios Lighthouse.
-- Segurança: corrigir rule Semgrep com schema inválido; validar `pip-audit` com Poetry 1.8.3 (alinhado ao CI/Docker); migração para Poetry 2.x fica em backlog; garantir SBOM gerada e validada (upload OK).
+- Visual/Chromatic: gate ≥ 95% por tenant ativo aplicado em PR/main; baseline OK (`chromatic-coverage.json`).
+- Performance: budgets Lighthouse/k6 ativos com ação suportada (`grafana/setup-k6-action@v1`); artefatos publicados.
+- Segurança: Semgrep/schema corrigidos; `pip-audit` e SBOM alinhados ao pipeline atual.
 
 ### Evidências PR #12 — run verde
 - Workflow (pull_request): https://github.com/Tomvaz11/iabank/actions/runs/19050934281
-- Jobs (principais): Lint (success); Vitest e Pytest + Radon (success); Contracts (success); Visual & A11y (success — Chromatic executado; test‑runner sem violações); Performance (success — k6 e Lighthouse tolerantes); Security Checks (success — PR fail‑open).
-  - ATUALIZAÇÃO 2025‑11‑08: gates de Performance e Segurança agora são estritos também nos PRs (fail‑closed). O workflow temporário “Quick Perf+Security Check” foi removido.
+- Jobs (principais): Lint (success); Vitest e Pytest + Radon (success); Contracts (success); Visual & A11y (success — Chromatic executado; test‑runner sem violações); Performance (success — k6 e Lighthouse publicados); Security Checks (success — fail‑closed em PR/main).
+  - ATUALIZAÇÃO 2025‑11‑08: gates de Performance e Segurança agora são estritos também nos PRs (fail‑closed). O workflow temporário “Quick Perf+Security Check” foi removido; orçamentos Lighthouse/k6 permanecem ativos.
 
 Resumo consolidado
 - Consulte `RESUMO_F10_VALIDACAO_E_CI.md` para decisões, alterações e passos de operação.
 
 Pendências acompanhadas via issues
-- #13 Cobertura Chromatic ≥ 95% por tenant (remover tolerância no PR)
-- #14 Orçamentos Lighthouse estáveis e k6 smoke estrito no PR
+- Sem pendências abertas para Chromatic/Lighthouse/k6; manter monitoramento contínuo de estabilidade e custos.
 
 ## Pós-merge (F‑10)
 

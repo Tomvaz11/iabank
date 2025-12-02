@@ -9,6 +9,17 @@ import { createFoundationCspPlugin } from './vite.csp.middleware';
 const trustedTypesPolicy = process.env.VITE_FOUNDATION_TRUSTED_TYPES_POLICY ?? 'foundation-ui';
 const nonce = process.env.VITE_FOUNDATION_CSP_NONCE ?? 'nonce-dev-fallback';
 const reportUri = process.env.VITE_FOUNDATION_CSP_REPORT_URI ?? 'https://csp-report.iabank.com';
+const trustedTypesRolloutStart = process.env.VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START;
+if (!trustedTypesRolloutStart) {
+  throw new Error(
+    'VITE_FOUNDATION_TRUSTED_TYPES_ROLLOUT_START é obrigatório para o rollout de Trusted Types.',
+  );
+}
+const trustedTypesModeEnv = process.env.STORYBOOK_TT_MODE;
+const trustedTypesModeOverride =
+  trustedTypesModeEnv === 'report-only' || trustedTypesModeEnv === 'enforce'
+    ? trustedTypesModeEnv
+    : undefined;
 const apiBaseUrl = process.env.VITE_API_BASE_URL ?? 'https://api.iabank.test';
 const previewHost = process.env.FOUNDATION_PERF_HOST ?? '127.0.0.1';
 const previewPort = Number(process.env.FOUNDATION_PERF_PORT ?? '4173');
@@ -22,7 +33,9 @@ export default defineConfig({
       nonce,
       trustedTypesPolicy,
       reportUri,
+      trustedTypesRolloutStart,
       connectSrc: ["'self'", apiBaseUrl].filter(Boolean),
+      trustedTypesModeOverride,
     }),
   ],
   resolve: {
