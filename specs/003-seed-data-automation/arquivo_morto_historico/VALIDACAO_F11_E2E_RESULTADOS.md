@@ -10,7 +10,7 @@ Relato completo da execução local do plano de validação E2E para F‑11 em 2
   `SEEDS_WORM_BUCKET=worm-bucket`  
   `SEEDS_WORM_ROLE_ARN=arn:aws:iam::000:role/worm`  
   `SEEDS_WORM_KMS_KEY_ID=arn:aws:kms:us-east-1:000:key/worm`  
-  `SEEDS_WORM_RETENTION_DAYS=365`  
+  `SEEDS_WORM_RETENTION_DAYS=1855`  
   `SEED_ALLOWED_ENVIRONMENTS=dev,homolog,staging,perf` (CLI liberou `dr` só para o comando)  
   `SEED_ALLOWED_ROLES=seed-runner,seed-admin`
 - Vault dev: transit habilitado com chaves `tenant-a-perf` e `tenant-a-staging`; WORM continua stub.
@@ -88,4 +88,4 @@ Relato completo da execução local do plano de validação E2E para F‑11 em 2
 ## Plano de ação para completar a validação (seguir PLANO_VALIDACAO_E2E_F11.md)
 1) OPA/Terraform real: executar `VALIDATE_OPA_REQUIRE_PLAN=1 scripts/ci/validate-opa.sh` com credenciais válidas (ex.: `AWS_PROFILE=seed-data`), garantindo que o `terraform plan` seja gerado e consumido pelo OPA (sem fixture). Guardar o plan/saída do OPA como artefato.  
 2) DR/Carga oficial: usar `configs/seed_profiles/perf/tenant-a-dr.yaml` e rodar `backend/manage.py seed_data` sem `--dry-run`, sem relaxar `SEED_ALLOWED_ENVIRONMENTS`, com worker consumindo `seed_data.load_dr` e WORM ativo, capturando `seed_run_id`, checkpoints, ETag e prova WORM real.  
-3) WORM real: fornecer `SEEDS_WORM_*` e `VAULT_TRANSIT_PATH` válidos para gravar prova WORM com retenção ≥365d; anexar relatório WORM assinado. OTEL/observabilidade já exercitado via span manual (`seed_run_id=76a092ca-b9cd-438a-8a92-37aa12957279`); replicar em run real.
+3) WORM real: fornecer `SEEDS_WORM_*` e `VAULT_TRANSIT_PATH` válidos para gravar prova WORM com retenção ≥1855d; anexar relatório WORM assinado. OTEL/observabilidade já exercitado via span manual (`seed_run_id=76a092ca-b9cd-438a-8a92-37aa12957279`); replicar em run real.

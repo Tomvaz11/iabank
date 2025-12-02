@@ -93,17 +93,19 @@ const getHeaderValue = (headers, headerName) => {
 
 // isLocalMode já definido acima
 
+// Baseline alinhado ao spec (p95 600 ms / p99 1 s); 500 ms é registrado como stretch informativo.
+const stretchP95Threshold = () => ({ threshold: 'p(95)<500', abortOnFail: false });
 const ciThresholds = {
   http_req_failed: ['rate<0.01'],
-  http_req_duration: ['p(95)<500'],
-  foundation_frontend_response_ms: ['p(95)<300'],
+  http_req_duration: ['p(95)<600', 'p(99)<1000', stretchP95Threshold()],
+  foundation_frontend_response_ms: ['p(95)<600', 'p(99)<1000', stretchP95Threshold()],
 };
 
 // Em ambiente local (ex.: WSL/CPU limitada), limiar mais brando para evitar falsos negativos.
 const localThresholds = {
   http_req_failed: ['rate<0.05'],
-  http_req_duration: ['p(95)<3000'],
-  foundation_frontend_response_ms: ['p(95)<2500'],
+  http_req_duration: ['p(95)<1500', 'p(99)<2500'],
+  foundation_frontend_response_ms: ['p(95)<1500', 'p(99)<2500'],
 };
 
 export const options = {

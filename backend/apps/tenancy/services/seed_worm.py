@@ -13,6 +13,7 @@ from django.utils import timezone
 from backend.apps.tenancy.managers import use_tenant
 from backend.apps.tenancy.models import EvidenceWORM, SeedRun
 from backend.apps.tenancy.services.seed_runs import ProblemDetail
+from backend.apps.tenancy.services.worm_retention import MIN_WORM_RETENTION_DAYS
 
 DEFAULT_CHECKLIST_PATH = Path(__file__).resolve().parents[4] / 'observabilidade' / 'checklists' / 'seed-worm-checklist.json'
 
@@ -103,7 +104,7 @@ class SeedWormService:
         *,
         storage: WormStorage | None = None,
         signer: WormSigner | None = None,
-        min_retention_days: int = 365,
+        min_retention_days: int = MIN_WORM_RETENTION_DAYS,
         enforce_on_dry_run: bool = False,
         checklist_path: Path | None = None,
     ) -> None:

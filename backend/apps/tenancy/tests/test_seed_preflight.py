@@ -11,6 +11,7 @@ from backend.apps.tenancy.services.seed_preflight import (
     SeedPreflightConfig,
     SeedPreflightService,
 )
+from backend.apps.tenancy.services.worm_retention import MIN_WORM_RETENTION_DAYS
 
 
 class SeedPreflightServiceTest(SimpleTestCase):
@@ -20,7 +21,7 @@ class SeedPreflightServiceTest(SimpleTestCase):
             worm_bucket='worm-seeds',
             worm_role_arn='arn:aws:iam::123456789012:role/worm',
             worm_kms_key_id='arn:aws:kms:us-east-1:123456789012:key/seeds',
-            worm_retention_days=365,
+            worm_retention_days=MIN_WORM_RETENTION_DAYS,
             allowed_roles={'seed-runner', 'seed-admin'},
             allowed_environments={'dev', 'homolog', 'staging', 'perf'},
         )
@@ -56,7 +57,7 @@ class SeedPreflightServiceTest(SimpleTestCase):
             worm_bucket='',
             worm_role_arn='',
             worm_kms_key_id='',
-            worm_retention_days=100,
+            worm_retention_days=MIN_WORM_RETENTION_DAYS,
             allowed_roles={'seed-runner', 'seed-admin'},
             allowed_environments={'staging'},
         )
@@ -110,7 +111,7 @@ class SeedPreflightServiceTest(SimpleTestCase):
             worm_bucket='worm-seeds',
             worm_role_arn='arn:aws:iam::123456789012:role/worm',
             worm_kms_key_id='arn:aws:kms:us-east-1:123456789012:key/seeds',
-            worm_retention_days=365,
+            worm_retention_days=MIN_WORM_RETENTION_DAYS,
             allowed_roles={'seed-runner'},
             allowed_environments={'staging'},
         )
@@ -146,7 +147,7 @@ class SeedPreflightServiceTest(SimpleTestCase):
             allowed_roles={'seed-runner'},
             allowed_environments={'staging'},
         )
-        service = SeedPreflightService(config=config, min_worm_retention_days=365)
+        service = SeedPreflightService(config=config, min_worm_retention_days=MIN_WORM_RETENTION_DAYS)
         context = self._context()
 
         result = service.check(context)
@@ -161,7 +162,7 @@ class SeedPreflightServiceTest(SimpleTestCase):
             worm_bucket='',
             worm_role_arn='',
             worm_kms_key_id='',
-            worm_retention_days=365,
+            worm_retention_days=MIN_WORM_RETENTION_DAYS,
             allowed_roles={'seed-runner'},
             allowed_environments={'staging'},
             enforce_worm_on_dry_run=True,
@@ -183,7 +184,7 @@ class SeedPreflightServiceTest(SimpleTestCase):
             'SEEDS_WORM_BUCKET': 'worm-env',
             'SEEDS_WORM_ROLE_ARN': 'arn:role/env',
             'SEEDS_WORM_KMS_KEY_ID': 'arn:kms/env',
-            'SEEDS_WORM_RETENTION_DAYS': '365',
+            'SEEDS_WORM_RETENTION_DAYS': str(MIN_WORM_RETENTION_DAYS),
             'SEED_ALLOWED_ROLES': 'seed-runner,seed-admin',
             'SEED_ALLOWED_ENVIRONMENTS': 'dev,staging',
             'SEED_ENFORCE_WORM_ON_DRY_RUN': 'true',

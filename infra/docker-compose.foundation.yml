@@ -53,7 +53,7 @@ services:
       SEEDS_WORM_BUCKET: ${SEEDS_WORM_BUCKET:-worm-bucket}
       SEEDS_WORM_ROLE_ARN: ${SEEDS_WORM_ROLE_ARN:-arn:aws:iam::000:role/worm}
       SEEDS_WORM_KMS_KEY_ID: ${SEEDS_WORM_KMS_KEY_ID:-arn:aws:kms:us-east-1:000:key/worm}
-      SEEDS_WORM_RETENTION_DAYS: ${SEEDS_WORM_RETENTION_DAYS:-365}
+      SEEDS_WORM_RETENTION_DAYS: ${SEEDS_WORM_RETENTION_DAYS:-1855}
       SEED_ALLOWED_ENVIRONMENTS: ${SEED_ALLOWED_ENVIRONMENTS:-dev,homolog,staging,perf}
       SEED_ALLOWED_ROLES: ${SEED_ALLOWED_ROLES:-seed-runner,seed-admin}
     ports:

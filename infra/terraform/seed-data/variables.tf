@@ -34,11 +34,11 @@ variable "worm_bucket_name" {
 variable "worm_retention_days" {
   type        = number
   description = "Retenção mínima do Object Lock (dias)."
-  default     = 365
+  default     = 1855
 
   validation {
-    condition     = var.worm_retention_days >= 365
-    error_message = "Retenção WORM deve ser >= 365 dias."
+    condition     = var.worm_retention_days >= 1855
+    error_message = "Retenção WORM deve ser >= 1855 dias (30 dias + 5 anos)."
   }
 }
 

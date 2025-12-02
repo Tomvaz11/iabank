@@ -11,6 +11,7 @@ from django.utils import timezone
 from backend.apps.tenancy.managers import use_tenant
 from backend.apps.tenancy.models import EvidenceWORM, SeedProfile, SeedRun, Tenant
 from backend.apps.tenancy.services.seed_worm import InMemoryWormStorage, LocalWormSigner, SeedWormService
+from backend.apps.tenancy.services.worm_retention import MIN_WORM_RETENTION_DAYS
 
 
 class RejectSigner(LocalWormSigner):
@@ -90,7 +91,7 @@ def test_emit_skips_when_dry_run() -> None:
             'audit_labels': True,
             'audit_logs_clean': True,
         },
-        retention_days=365,
+        retention_days=MIN_WORM_RETENTION_DAYS,
         cost_estimated_brl=0,
         cost_actual_brl=0,
         cost_model_version='v1',
@@ -105,7 +106,7 @@ def test_emit_skips_when_dry_run() -> None:
 @pytest.mark.django_db
 def test_emit_blocks_when_retention_below_minimum() -> None:
     _, seed_run = _create_seed_run()
-    service = SeedWormService(min_retention_days=365, enforce_on_dry_run=True)
+    service = SeedWormService(min_retention_days=MIN_WORM_RETENTION_DAYS, enforce_on_dry_run=True)
 
     outcome = service.emit(
         seed_run=seed_run,
@@ -142,7 +143,7 @@ def test_emit_persists_report_and_signature() -> None:
             'audit_labels': True,
             'audit_logs_clean': True,
         },
-        retention_days=400,
+        retention_days=MIN_WORM_RETENTION_DAYS,
         cost_estimated_brl=12.34,
         cost_actual_brl=10.00,
         cost_model_version='2025.01',
@@ -174,7 +175,7 @@ def test_emit_returns_problem_when_checklist_fails() -> None:
             'audit_labels': True,
             'audit_logs_clean': True,
         },
-        retention_days=365,
+        retention_days=MIN_WORM_RETENTION_DAYS,
         cost_estimated_brl=0,
         cost_actual_brl=0,
         cost_model_version='v1',
@@ -202,7 +203,7 @@ def test_emit_returns_problem_when_signature_invalid() -> None:
             'audit_labels': True,
             'audit_logs_clean': True,
         },
-        retention_days=365,
+        retention_days=MIN_WORM_RETENTION_DAYS,
         cost_estimated_brl=0,
         cost_actual_brl=0,
         cost_model_version='v1',
@@ -234,7 +235,7 @@ def test_fallback_checklist_used_when_template_missing() -> None:
         seed_run=seed_run,
         manifest={'integrity': {'manifest_hash': 'seed-manifest-hash'}},
         checklist_results=all_true_results,
-        retention_days=365,
+        retention_days=MIN_WORM_RETENTION_DAYS,
         cost_estimated_brl=1.0,
         cost_actual_brl=0.5,
         cost_model_version='v1',

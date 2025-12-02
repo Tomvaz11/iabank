@@ -89,7 +89,7 @@ deny[msg] {
 deny[msg] {
 	bucket := seed_buckets[_]
 	not lock_retention_ok(bucket.values.bucket)
-	msg := sprintf("%s deve ter Object Lock COMPLIANCE >=365 dias.", [bucket.values.bucket])
+	msg := sprintf("%s deve ter Object Lock COMPLIANCE >=1855 dias (30 dias + 5 anos).", [bucket.values.bucket])
 }
 
 deny[msg] {
@@ -215,7 +215,7 @@ lock_retention_ok(bucket_name) {
 	some r in lock.values.rule
 	some dr in r.default_retention
 	lower(dr.mode) == "compliance"
-	dr.days >= 365
+	dr.days >= 1855
 }
 
 parse_off_peak(window) = {"start": s, "end": e} {

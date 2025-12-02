@@ -18,7 +18,7 @@ Assegurar que PII esteja criptografada em nível de campo e que todos os segredo
    - Audite políticas do Vault para cada ambiente (`vault policy read <env>`).
    - Confirme que aplicações usam credenciais efêmeras (`vault auth list`).
 4. **Preflight de seed_data (Vault/WORM fail-close)**
-   - Confirme variáveis obrigatórias antes de qualquer execução: `VAULT_TRANSIT_PATH`, `SEEDS_WORM_BUCKET`, `SEEDS_WORM_ROLE_ARN`, `SEEDS_WORM_KMS_KEY_ID`, `SEEDS_WORM_RETENTION_DAYS>=365`.
+   - Confirme variáveis obrigatórias antes de qualquer execução: `VAULT_TRANSIT_PATH`, `SEEDS_WORM_BUCKET`, `SEEDS_WORM_ROLE_ARN`, `SEEDS_WORM_KMS_KEY_ID`, `SEEDS_WORM_RETENTION_DAYS>=1855` (30 dias + 5 anos).
    - RBAC/ABAC: apenas `seed-runner` e `seed-admin` podem prosseguir; ambientes permitidos: dev/homolog/staging/perf. Fora disso, bloqueie com Problem Details `seed_preflight_forbidden`.
    - Dry-run: pode pular WORM apenas quando `SEED_ENFORCE_WORM_ON_DRY_RUN=false`; demais modos exigem WORM ativo (falha 503).
    - Auditoria sem PII: fingerprint de manifesto/paths ao invés de valores literais. Exemplo de checagem local:

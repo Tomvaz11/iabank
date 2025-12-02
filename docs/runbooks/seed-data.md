@@ -17,7 +17,7 @@
 Criterios de sucesso: zero vazamento cross-tenant, nenhum outbound real, RPO<=5m/RTO<=60m em staging/perf, checklist PII/WORM aprovado e cost-model alinhado (budget alert em 80%, abort em 100%).
 
 ## Operacao e gates
-- **Preflight**: `backend.apps.tenancy.services.seed_preflight.SeedPreflightService` (CLI/API) bloqueia falta de Vault/WORM/RBAC/ambiente. Variaveis exigidas: `VAULT_TRANSIT_PATH`, `SEEDS_WORM_BUCKET`, `SEEDS_WORM_ROLE_ARN`, `SEEDS_WORM_KMS_KEY_ID`, `SEEDS_WORM_RETENTION_DAYS>=365`.
+- **Preflight**: `backend.apps.tenancy.services.seed_preflight.SeedPreflightService` (CLI/API) bloqueia falta de Vault/WORM/RBAC/ambiente. Variaveis exigidas: `VAULT_TRANSIT_PATH`, `SEEDS_WORM_BUCKET`, `SEEDS_WORM_ROLE_ARN`, `SEEDS_WORM_KMS_KEY_ID`, `SEEDS_WORM_RETENTION_DAYS>=1855` (30 dias + 5 anos).
 - **Manifesto obrigatório**: CLI/API falham em `422` sem manifesto válido, sem `integrity.manifest_hash` ou sem `reference_datetime` (ISO 8601 UTC). Não há manifesto default; `manifest_path` deve apontar para `configs/seed_profiles/<env>/<tenant>.yaml`. Off-peak sempre é imposto (sem override).
 - **Integrações externas**: `backend.apps.tenancy.services.seed_integrations.SeedIntegrationService` recusa hosts fora da allowlist (`localhost/127.0.0.1/prism/pact/stub`); configure `SEED_STUB_BASE` ou URLs explícitas (`SEED_KYC_URL`, `SEED_ANTIFRAUDE_URL`, `SEED_PAGAMENTOS_URL`, `SEED_NOTIFICACOES_URL`) para os Pact stubs (`contracts/pacts/*.json`). Qualquer endpoint real retorna Problem Details `external_calls_blocked`.
 - **CI/Argo**: rodar `scripts/ci/check-migrations.sh` (expand/contract sem DROP) e `scripts/ci/validate-finops.sh` (schema/caps FinOps). K6 smoke: `observabilidade/k6/seed-data-smoke.js` com thresholds p95<5s, p99<7s, erro<2%.

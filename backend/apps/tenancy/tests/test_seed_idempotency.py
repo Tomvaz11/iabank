@@ -11,6 +11,7 @@ from backend.apps.tenancy.managers import use_tenant
 from backend.apps.tenancy.models import SeedIdempotency, SeedRBAC, SeedRun, Tenant
 from backend.apps.tenancy.services.seed_idempotency import SeedIdempotencyService
 from backend.apps.tenancy.tests.seed_profile_test_utils import build_manifest
+from backend.apps.tenancy.services.worm_retention import MIN_WORM_RETENTION_DAYS
 
 
 def _set_preflight_env() -> None:
@@ -20,7 +21,7 @@ def _set_preflight_env() -> None:
             'SEEDS_WORM_BUCKET': 'worm-bucket',
             'SEEDS_WORM_ROLE_ARN': 'arn:aws:iam::123:role/worm',
             'SEEDS_WORM_KMS_KEY_ID': 'arn:aws:kms:us-east-1:123:key/worm',
-            'SEEDS_WORM_RETENTION_DAYS': '365',
+            'SEEDS_WORM_RETENTION_DAYS': str(MIN_WORM_RETENTION_DAYS),
             'SEED_ALLOWED_ENVIRONMENTS': 'dev,homolog,staging,perf',
             'SEED_ALLOWED_ROLES': 'seed-runner,seed-admin',
         }

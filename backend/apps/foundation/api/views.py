@@ -10,10 +10,11 @@ import uuid
 from django.core.cache import cache
 from django.core.paginator import EmptyPage, Paginator
 from django.db import connection, models
-from django.http import HttpRequest
+from django.http import Http404, HttpRequest
 from django.shortcuts import get_object_or_404
 from django.utils.decorators import method_decorator
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ViewSet
@@ -34,6 +35,8 @@ from backend.apps.tenancy.managers import use_tenant
 from backend.apps.tenancy.models import Tenant, TenantThemeToken
 from backend.apps.foundation.models import DesignSystemStory, FeatureTemplateMetric
 from ratelimit.decorators import ratelimit
+
+PROBLEM_TYPE_BASE = 'https://iabank.local/problems/foundation'
 
 
 def _update_rate_limit(cache_key: str, *, limit: int, window: int, increment: bool) -> dict[str, str]:
@@ -63,32 +66,107 @@ def _update_rate_limit(cache_key: str, *, limit: int, window: int, increment: bo
 
 
 # Helpers para reduzir complexidade ciclomática em endpoints
+def _problem_detail_response(
+    request: HttpRequest,
+    *,
+    status_code: int,
+    title: str,
+    detail: str,
+    type_suffix: str,
+    extra: dict[str, Any] | None = None,
+) -> Response:
+    body: dict[str, Any] = {
+        'type': f'{PROBLEM_TYPE_BASE}/{type_suffix}',
+        'title': title,
+        'status': status_code,
+        'detail': detail,
+        'instance': request.get_full_path(),
+    }
+    if extra:
+        body.update(extra)
+    return Response(body, status=status_code)
+
+
+def _invalid_params_from_validation_error(error: ValidationError) -> list[dict[str, str]]:
+    invalid: list[dict[str, str]] = []
+    detail = error.detail
+
+    if isinstance(detail, dict):
+        for field, reasons in detail.items():
+            if isinstance(reasons, (list, tuple)):
+                reason_text = '; '.join([str(reason) for reason in reasons])
+            else:
+                reason_text = str(reasons)
+            invalid.append({'name': str(field), 'reason': reason_text})
+    elif isinstance(detail, list):
+        for idx, item in enumerate(detail):
+            invalid.append({'name': f'item[{idx}]', 'reason': str(item)})
+    else:
+        invalid.append({'name': 'non_field_errors', 'reason': str(detail)})
+    return invalid
+
+
+def _validation_problem_response(request: HttpRequest, exc: ValidationError) -> Response:
+    return _problem_detail_response(
+        request,
+        status_code=status.HTTP_400_BAD_REQUEST,
+        title='invalid_request',
+        detail='Payload inválido.',
+        type_suffix='validation',
+        extra={'invalidParams': _invalid_params_from_validation_error(exc)},
+    )
+
+
 def _parse_pagination(request: HttpRequest) -> tuple[int, int] | Response:
     try:
         page = int(request.query_params.get('page', 1))
         page_size = int(request.query_params.get('page_size', 25))
     except ValueError:
-        return Response(
-            {'errors': {'pagination': ['Parâmetros de paginação inválidos.']}},
-            status=status.HTTP_400_BAD_REQUEST,
+        return _problem_detail_response(
+            request,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            title='invalid_pagination',
+            detail='Parâmetros de paginação inválidos.',
+            type_suffix='pagination',
+            extra={
+                'invalidParams': [
+                    {'name': 'page', 'reason': 'Use inteiros positivos.'},
+                    {'name': 'page_size', 'reason': 'Use inteiros positivos.'},
+                ]
+            },
         )
     if page < 1 or page_size < 1 or page_size > 100:
-        return Response(
-            {'errors': {'pagination': ['Parâmetros de paginação fora do intervalo permitido.']}},
-            status=status.HTTP_400_BAD_REQUEST,
+        return _problem_detail_response(
+            request,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            title='pagination_out_of_range',
+            detail='Parâmetros de paginação fora do intervalo permitido.',
+            type_suffix='pagination',
+            extra={
+                'invalidParams': [
+                    {
+                        'name': 'page_size',
+                        'reason': 'Use valores entre 1 e 100.',
+                    }
+                ]
+            },
         )
     return page, page_size
 
 
-def _parse_optional_tenant_header(header_value: str | None) -> UUID | None | Response:
+def _parse_optional_tenant_header(request: HttpRequest, header_value: str | None) -> UUID | None | Response:
     if not header_value:
         return None
     try:
         return uuid.UUID(header_value)
     except ValueError:
-        return Response(
-            {'errors': {'X-Tenant-Id': ['Cabeçalho X-Tenant-Id inválido.']}},
-            status=status.HTTP_400_BAD_REQUEST,
+        return _problem_detail_response(
+            request,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            title='invalid_tenant_header',
+            detail='Cabeçalho X-Tenant-Id inválido.',
+            type_suffix='tenant-header',
+            extra={'invalidParams': [{'name': 'X-Tenant-Id', 'reason': 'Use um UUID válido ou omita o cabeçalho.'}]},
         )
 
 
@@ -146,9 +224,13 @@ def _precondition_response_if_needed(
         return None
     requested_etags = {token.strip() for token in raw_if_none_match.split(',') if token.strip()}
     if '*' in requested_etags:
-        precondition = Response(
-            {'errors': {'If-None-Match': ['Registro de scaffolding já existe para esta feature.']}},
-            status=status.HTTP_412_PRECONDITION_FAILED,
+        precondition = _problem_detail_response(
+            request,
+            status_code=status.HTTP_412_PRECONDITION_FAILED,
+            title='precondition_failed',
+            detail='Registro de scaffolding já existe para esta feature.',
+            type_suffix='precondition',
+            extra={'idempotencyKey': idempotency_key},
         )
         precondition['Idempotency-Key'] = idempotency_key
         precondition['ETag'] = etag_value
@@ -161,6 +243,20 @@ def _precondition_response_if_needed(
         not_modified['Location'] = location
         return not_modified
     return None
+
+
+def _validate_required_tenant_header(request: HttpRequest, expected_tenant_id: str) -> Response | None:
+    header_value = request.headers.get('X-Tenant-Id')
+    if header_value == expected_tenant_id:
+        return None
+    return _problem_detail_response(
+        request,
+        status_code=status.HTTP_400_BAD_REQUEST,
+        title='tenant_header_mismatch',
+        detail='Cabeçalho X-Tenant-Id inválido ou ausente.',
+        type_suffix='tenant-header',
+        extra={'invalidParams': [{'name': 'X-Tenant-Id', 'reason': 'Forneça o UUID do tenant correspondente.'}]},
+    )
 
 
 @method_decorator(
@@ -182,9 +278,13 @@ class RegisterFeatureScaffoldView(APIView):
         # Rate limit (não bloquear setup de headers de limite ao exceder)
         if getattr(request, 'limited', False):
             headers = _update_rate_limit(cache_key, limit=rate_limit, window=window_seconds, increment=False)
-            resp = Response(
-                {'errors': {'rateLimit': ['Limite de 30 requisições por minuto excedido para este tenant.']}},
-                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            resp = _problem_detail_response(
+                request,
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                title='rate_limit_exceeded',
+                detail='Limite de 30 requisições por minuto excedido para este tenant.',
+                type_suffix='rate-limit',
+                extra={'rateLimit': {'limit': rate_limit, 'windowSeconds': window_seconds}},
             )
             resp['Retry-After'] = headers['RateLimit-Reset']
             for k, v in headers.items():
@@ -194,26 +294,48 @@ class RegisterFeatureScaffoldView(APIView):
         # Valida cabeçalhos obrigatórios
         idempotency_key = request.headers.get('Idempotency-Key')
         if not idempotency_key:
-            return Response({'errors': {'Idempotency-Key': ['Cabeçalho obrigatório.']}}, status=status.HTTP_400_BAD_REQUEST)
-
-        if request.headers.get('X-Tenant-Id') != tenant_uuid:
-            return Response(
-                {'errors': {'X-Tenant-Id': ['Cabeçalho X-Tenant-Id inválido ou ausente.']}},
-                status=status.HTTP_400_BAD_REQUEST,
+            return _problem_detail_response(
+                request,
+                status_code=status.HTTP_400_BAD_REQUEST,
+                title='idempotency_key_required',
+                detail='Cabeçalho obrigatório.',
+                type_suffix='idempotency-key',
+                extra={'invalidParams': [{'name': 'Idempotency-Key', 'reason': 'Envie um UUID único por requisição.'}]},
             )
 
+        tenant_header_problem = _validate_required_tenant_header(request, tenant_uuid)
+        if tenant_header_problem is not None:
+            return tenant_header_problem
+
         # Payload + idempotência
-        tenant = get_object_or_404(Tenant, id=tenant_id)
+        try:
+            tenant = get_object_or_404(Tenant, id=tenant_id)
+        except Http404:
+            return _problem_detail_response(
+                request,
+                status_code=status.HTTP_404_NOT_FOUND,
+                title='tenant_not_found',
+                detail='Tenant não encontrado.',
+                type_suffix='tenant',
+            )
+
         request_serializer = FeatureScaffoldRequestSerializer(data=request.data)
-        request_serializer.is_valid(raise_exception=True)
+        try:
+            request_serializer.is_valid(raise_exception=True)
+        except ValidationError as exc:
+            return _validation_problem_response(request, exc)
         payload = request_serializer.validated_data
 
         scope = ScaffoldIdempotencyScope(tenant_id=tenant_uuid, feature_slug=payload['featureSlug'])
         registry = ScaffoldIdempotencyRegistry()
         if registry.should_block(scope, idempotency_key):
-            return Response(
-                {'errors': {'Idempotency-Key': ['Outro Idempotency-Key já foi utilizado para esta feature nas últimas 24 horas.']}},
-                status=status.HTTP_409_CONFLICT,
+            return _problem_detail_response(
+                request,
+                status_code=status.HTTP_409_CONFLICT,
+                title='idempotency_conflict',
+                detail='Outro Idempotency-Key já foi utilizado para esta feature nas últimas 24 horas.',
+                type_suffix='idempotency-replay',
+                extra={'idempotencyKey': idempotency_key},
             )
 
         registrar = ScaffoldRegistrar(tenant=tenant)
@@ -258,7 +380,7 @@ class DesignSystemStoryViewSet(ViewSet):
             return pagination
         page, page_size = pagination
 
-        parsed = _parse_optional_tenant_header(request.headers.get('X-Tenant-Id'))
+        parsed = _parse_optional_tenant_header(request, request.headers.get('X-Tenant-Id'))
         if isinstance(parsed, Response):
             return parsed
         tenant_filter = parsed
@@ -310,21 +432,39 @@ class TenantThemeView(APIView):
         tenant_uuid = str(tenant_id)
         cache_key = f'foundation:tenant-theme:ratelimit:{tenant_uuid}'
 
-        if request.headers.get('X-Tenant-Id') != tenant_uuid:
-            return Response(
-                {'errors': {'X-Tenant-Id': ['Cabeçalho X-Tenant-Id inválido ou ausente.']}},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        tenant_header_problem = _validate_required_tenant_header(request, tenant_uuid)
+        if tenant_header_problem is not None:
+            return tenant_header_problem
 
         if getattr(request, 'limited', False):
             headers = _update_rate_limit(cache_key, limit=rate_limit, window=window_seconds, increment=False)
-            resp = Response({'errors': {'rateLimit': ['Limite de 60 requisições por minuto excedido.']}}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            resp = _problem_detail_response(
+                request,
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                title='rate_limit_exceeded',
+                detail='Limite de 60 requisições por minuto excedido.',
+                type_suffix='rate-limit',
+                extra={'rateLimit': {'limit': rate_limit, 'windowSeconds': window_seconds}},
+            )
             resp['Retry-After'] = headers['RateLimit-Reset']
             for k, v in headers.items():
                 resp[k] = v
             return resp
 
-        tenant = get_object_or_404(Tenant, id=tenant_id)
+        try:
+            tenant = get_object_or_404(Tenant, id=tenant_id)
+        except Http404:
+            resp = _problem_detail_response(
+                request,
+                status_code=status.HTTP_404_NOT_FOUND,
+                title='tenant_not_found',
+                detail='Tenant não encontrado.',
+                type_suffix='tenant',
+            )
+            rate_headers = _update_rate_limit(cache_key, limit=rate_limit, window=window_seconds, increment=False)
+            for k, v in rate_headers.items():
+                resp[k] = v
+            return resp
 
         with use_tenant(tenant.id):
             scoped = TenantThemeToken.objects.scoped(tenant.id)
@@ -334,7 +474,17 @@ class TenantThemeView(APIView):
             )
 
             if default_token is None:
-                return Response(status=status.HTTP_404_NOT_FOUND)
+                resp = _problem_detail_response(
+                    request,
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    title='tenant_theme_not_found',
+                    detail='Tema não encontrado para este tenant.',
+                    type_suffix='tenant-theme',
+                )
+                rate_headers = _update_rate_limit(cache_key, limit=rate_limit, window=window_seconds, increment=False)
+                for k, v in rate_headers.items():
+                    resp[k] = v
+                return resp
 
             tokens = list(scoped.filter(version=default_token.version))
 
@@ -375,15 +525,20 @@ class TenantSuccessMetricListView(APIView):
         tenant_uuid = str(tenant_id)
         cache_key = f'foundation:tenant-metrics:ratelimit:{tenant_uuid}'
 
-        if request.headers.get('X-Tenant-Id') != tenant_uuid:
-            return Response(
-                {'errors': {'X-Tenant-Id': ['Cabeçalho X-Tenant-Id inválido ou ausente.']}},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        tenant_header_problem = _validate_required_tenant_header(request, tenant_uuid)
+        if tenant_header_problem is not None:
+            return tenant_header_problem
 
         if getattr(request, 'limited', False):
             headers = _update_rate_limit(cache_key, limit=rate_limit, window=window_seconds, increment=False)
-            resp = Response({'errors': {'rateLimit': ['Limite de 60 requisições por minuto excedido.']}}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+            resp = _problem_detail_response(
+                request,
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                title='rate_limit_exceeded',
+                detail='Limite de 60 requisições por minuto excedido.',
+                type_suffix='rate-limit',
+                extra={'rateLimit': {'limit': rate_limit, 'windowSeconds': window_seconds}},
+            )
             resp['Retry-After'] = headers['RateLimit-Reset']
             for k, v in headers.items():
                 resp[k] = v
@@ -421,5 +576,5 @@ class TenantSuccessMetricListView(APIView):
         rate_headers = _update_rate_limit(cache_key, limit=rate_limit, window=window_seconds, increment=True)
         for k, v in rate_headers.items():
             response[k] = v
-        
+
         return response
