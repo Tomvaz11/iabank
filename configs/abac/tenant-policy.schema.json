@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tenant ABAC Policy (Parametrizável por tenant)",
+  "description": "Schema baseline de atributos obrigatórios (unit, classification, region, resource_type) e custom por tenant. Os catálogos de valores devem ser preenchidos por tenant/política.",
+  "type": "object",
+  "properties": {
+    "policy_version": {
+      "type": "string",
+      "description": "Versão declarada da política ABAC (SemVer)."
+    },
+    "baseline": {
+      "type": "object",
+      "properties": {
+        "unit": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Valores permitidos de unidade (catálogo definido por tenant/política)."
+        },
+        "classification": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Valores permitidos de classificação (ex.: public/internal/restricted/confidential)."
+        },
+        "region": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Valores permitidos de região (ISO-3166-2 ou DC)."
+        },
+        "resource_type": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "Catálogo de tipos de recurso autorizados."
+        }
+      },
+      "required": ["unit", "classification", "region", "resource_type"],
+      "additionalProperties": false
+    },
+    "custom_attributes": {
+      "type": "object",
+      "description": "Atributos customizados aprovados para este tenant/política.",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" },
+        "minItems": 1
+      }
+    }
+  },
+  "required": ["policy_version", "baseline"],
+  "additionalProperties": false
+}
