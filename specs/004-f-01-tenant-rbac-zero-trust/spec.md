@@ -29,6 +29,10 @@ Instituicao multi-tenant precisa garantir isolamento zero-trust entre clientes c
 - Q: Qual a estratégia de identidade/SSO por tenant (IdP externo vs. credenciais locais)? → A: Exigir IdP externo por tenant (OIDC/SAML) com MFA no IdP, SSO obrigatório, JIT/SCIM para provisionamento e break-glass controlado.
 - Q: Quais dados mínimos obrigatórios no payload para criação/ativação de um tenant? → A: Nome/slug, domínios permitidos, metadados IdP OIDC/SAML, contatos de segurança/operacionais, classificação de risco/segmento, fuso/região padrão e política de retenção WORM aplicada.
 
+### Session 2025-12-03
+
+- Q: Definir parâmetros do HMAC para `X-Tenant-Id` (algoritmo, tamanho/rotação de chave, escopo por ambiente e auditoria de uso)? → A: HMAC-SHA256 com chave raiz por ambiente em Vault/KMS, derivação HKDF por tenant e rotação a cada 90 dias com auditoria de uso por tenant.
+
 ## User Scenarios & Testing *(mandatorio)*
 
 *As historias DEVEM ser fatias verticais independentes (INVEST) e testaveis de forma isolada. Mantenha o foco na jornada do usuario/persona e descreva como cada cenario prova o valor entregue.*
@@ -44,6 +48,7 @@ Instituicao multi-tenant precisa garantir isolamento zero-trust entre clientes c
 **Acceptance Scenarios (BDD)**:
 1. **Dado** um tenant criado mas ainda pendente, **Quando** o admin solicita ativacao via `/api/v1/tenants/{id}` com `If-Match` atual e atributos obrigatorios, **Entao** o tenant fica ativo com RLS aplicada por `CREATE POLICY` e binding de sessao registrado, gerando auditoria WORM e contratos atualizados.  
 2. **Dado** um usuario autenticado de outro tenant, **Quando** tenta acessar recurso fora do seu `tenant_id`, **Entao** recebe Problem Details (RFC 9457) com 403/404, auditoria em WORM e nenhum dado cruzado e o evento e rejeitado por RLS.
+3. **Dado** um usuario autenticado com sessao do tenant A, **Quando** envia requisicao com `X-Tenant-Id` adulterado para o tenant B ou payload/path contendo `tenant_id` diferente, **Entao** o middleware aplica `SET LOCAL` com o `tenant_id` da sessao, o manager ignora overrides, a RLS bloqueia com Problem Details 403/404, a tentativa e registrada em WORM e o teste automatizado prova que o bypass foi impedido.
 
 ### User Story 2 - Versionar roles com RBAC+ABAC (Prioridade: P2)
 
@@ -118,14 +123,14 @@ Remova linhas nao aplicaveis apenas se justificar o motivo. Itens pendentes fica
 
 ### Functional Requirements
 
-- **FR-001**: Toda requisição `/api/v1` deve exigir `tenant_id` vinculado à sessão; origem canônica é `X-Tenant-Id` enviado pelo cliente e validado contra claim/session (ou HMAC opcional), com falha fechada e Problem Details em caso de ausência/divergência; modelos multi-tenant usam base única com unicidade por tenant e managers que injetam `tenant_id` por padrão, ignorando overrides de path/body/header; RLS configurada com `CREATE POLICY` e binding de sessão é versionada e coberta por testes automatizados.  
+- **FR-001**: Toda requisição `/api/v1` deve exigir `tenant_id` vinculado à sessão; origem canônica é `X-Tenant-Id` enviado pelo cliente e validado contra claim/session ou HMAC-SHA256 (chave raiz por ambiente em Vault/KMS, derivação HKDF por tenant, rotação 90 dias com auditoria de uso por tenant), com falha fechada e Problem Details em caso de ausência/divergência; modelos multi-tenant usam base única com unicidade por tenant e managers que injetam `tenant_id` por padrão, ignorando overrides de path/body/header; binding de sessão é aplicado por middleware que seta `SET LOCAL iabank.tenant_id` (ou equivalente) a partir da sessão antes de qualquer query e é coberto por testes de bypass (alterar header/body/path ou trocar `X-Tenant-Id` não sobrescreve o valor da sessão); RLS configurada com `CREATE POLICY` é versionada e coberta por testes automatizados.  
 - **FR-002**: Lifecycle de tenant é `Pending -> Active -> Suspended -> Blocked -> Decommissioned` com transições unidirecionais; `Suspended` opera read-only (sem novas mutações, novos tokens ou writes de sessões ativas); `Blocked` nega tudo, revoga tokens e pausa jobs/filas; `Decommissioned` é acesso zero com leitura apenas de WORM para auditoria após cumprir retenções WORM/LGPD; todas as mudanças respeitam controle otimista (`ETag`/`If-Match`) e registram auditoria WORM com status, actor e motivo.  
 - **FR-002.1**: Payload mínimo para criar/ativar tenant DEVE incluir nome/slug, domínios permitidos, metadados do IdP OIDC/SAML, contatos de segurança/operacionais, classificação de risco/segmento, fuso/região padrão e política de retenção WORM aplicada na criação; rejeitar ativação sem esses campos com Problem Details.  
 - **FR-003**: Engine de RBAC+ABAC deve avaliar roles versionadas por tenant; matriz de autorizacao e testes de autorizacao (unitarios, contrato, object-level) devem impedir acessos excessivos e suportar rollback seguro.  
 - **FR-004**: Decisões de autorização devem considerar atributos do usuário/recurso (ex.: unidade, classificacao, sensibilidade) além de roles, retornando Problem Details padronizado em caso de negativa e refletindo o contrato OpenAPI 3.1; baseline de atributos obrigatórios: unidade, classificação, região e tipo de recurso; atributos customizados por tenant só podem ser adicionados com aprovação de segurança e versionamento de esquema de autorização por tenant.  
 - **FR-005**: MFA é obrigatória para qualquer sessão interativa; fator padrão é TOTP conforme blueprint, aplicado no mínimo a perfis administrativos/operacoes críticas; sem MFA, tokens de acesso/refresh não são emitidos; exceções apenas via helpdesk com códigos de recuperação auditados e validade curta.  
 - **FR-006**: Refresh tokens devem ser emitidos apenas com flags `HttpOnly`, `Secure` e `SameSite=Strict`, possuir rotação e revogação em caso de reuse detectado, e serem testados automaticamente.  
-- **FR-007**: Modelos e registros críticos (tenant, roles, sessoes) devem manter histórico/versionamento auditável alinhado ao Blueprint §6.2, com capacidade de rollback e verificação de integridade (ex.: hash/chain de eventos), além de logs imutáveis com Object Lock, retencao mínima conforme política (baseline >=365 dias), verificação de hash/assinatura pós-upload (fail-close em caso de falha) e políticas de acesso/retencao definidas; versionamento/politicas RLS nao podem ser interrompidos por migrações expand/contract.  
+- **FR-007**: Modelos e registros críticos (tenant, roles, sessoes) devem manter histórico/versionamento auditável usando `django-simple-history` conforme Blueprint §6.2 (sem stack adicional), com capacidade de rollback e verificação de integridade (hash/chain de eventos) complementando a trilha; logs imutáveis com Object Lock, retencao mínima conforme política (baseline >=365 dias), verificação de hash/assinatura pós-upload (fail-close em caso de falha) e políticas de acesso/retencao definidas; versionamento/politicas RLS nao podem ser interrompidos por migrações expand/contract.  
 - **FR-008**: Todas respostas de erro devem seguir Problem Details (RFC 9457) incluindo correlação e remedio; contratos OpenAPI 3.1/Pact devem ser validados por lint/diff e falhar o pipeline em caso de divergencia.  
 - **FR-009**: Operações mutáveis devem exigir `Idempotency-Key` com TTL/deduplicação auditavel e persistente; faltas retornam 428, chaves expiradas ou reusadas retornam 409/422 com Problem Details e trilha; excessos de rate limit por tenant retornam 429 com `Retry-After` e headers `RateLimit-*`, com recomendações de backoff/jitter; ameaças modeladas (STRIDE/LINDDUN) recebem mitigações explícitas e são revisitadas em GameDays.  
 - **FR-010**: LGPD e privacidade: garantir ROPA/RIPD por tenant, retenção/expurgo para dados de auditoria/sessão e direito ao esquecimento onde aplicável, sem violar integridade WORM.  
@@ -134,7 +139,7 @@ Remova linhas nao aplicaveis apenas se justificar o motivo. Itens pendentes fica
 - **FR-010.3**: `Idempotency-Key` deve ter TTL de 24h com deduplicação persistente, rejeitando reuso fora da janela e retornando Problem Details conforme ADR-011.  
 - **FR-011**: Frontend/telemetria devem evitar PII em URLs e adicionar proteções (CSP com nonce/hash); Trusted Types deve ser habilitado quando suportado e, onde não houver suporte, é obrigatório documentar a exceção, reforçar sanitização nos sinks críticos e manter testes automatizados que provem a mitigação; alinhado ao adição #13, com evidencias de testes de rendering/telemetria sem PII.  
 - **FR-012**: Estrategia de dados multi-tenant deve incluir índices tenant-first e unicidade por tenant nos modelos críticos, com testes que provem ausência de cross-tenant leak e regressão de performance.  
-- **FR-013**: Migrações que afetem roles/RLS/políticas devem seguir expand/contract para zero-downtime e não podem reduzir isolamento durante transições.  
+- **FR-013**: Migrações que afetem roles/RLS/políticas devem seguir expand/contract para zero-downtime: adicionar colunas nulas e índices com `CREATE INDEX CONCURRENTLY`, constraints `NOT VALID` + `VALIDATE`, backfill assistido, dual-write/dual-read ou feature flag até cutover, remoção somente após validação; testes de migração devem provar que RLS e políticas permanecem ativas e que isolamento não é reduzido durante a transição.  
 - **FR-014**: PII sensível deve suportar criptografia de campo e governança de segredos com rotação e escopo por ambiente/tenant, conforme política de segurança.  
 - **FR-015**: Governanca via IaC/GitOps (Art. XIV) deve versionar politicas de RLS, rate limiting, Idempotency-Key e WORM (retencao/acesso), com validacao OPA e trilha auditavel de mudancas antes de aplicar em qualquer ambiente.
 - **FR-016**: Acesso headless via service accounts ou API keys long-lived é proibido; integrações devem usar delegação/impersonação de usuário com MFA ativa, avaliação ABAC e auditoria WORM; caso haja automação inevitável, deve seguir delegação com escopo mínimo e expiração curta, sem `client_credentials`.
@@ -163,7 +168,7 @@ Remova linhas nao aplicaveis apenas se justificar o motivo. Itens pendentes fica
 
 ### Metricas Mensuraveis
 
-- **SC-001**: 100% das requisições `/api/v1` sem `tenant_id` válido ou com `tenant_id` divergente são bloqueadas com Problem Details e auditadas em WORM; validação por testes de contrato e dashboard de rejeições.  
+- **SC-001**: 100% das requisições `/api/v1` sem `tenant_id` válido ou com `tenant_id` divergente são bloqueadas com Problem Details e auditadas em WORM; validação por testes de contrato, dashboard de rejeições e teste automatizado de binding `SET LOCAL` que prova que overrides de header/body/path são ignorados.  
 - **SC-002**: 95% dos tenants são ativados ou bloqueados com sucesso em < 5 minutos, mantendo histórico versionado e auditável; validação por monitor de rollout e consulta de trilhas WORM.  
 - **SC-003**: 100% das alterações de roles geram nova versão com `If-Match` validado e testes automatizados cobrindo RBAC+ABAC (incluindo object-level) executados no pipeline; validação por suites de autorização e lint/diff de contrato.  
 - **SC-004**: 100% das sessões exigem MFA antes de emissão de tokens; taxa de reuse de refresh tokens detectada e revogada em 100% dos casos com alerta registrado; validação por testes de autenticação e painéis de alertas de segurança.  
@@ -178,4 +183,4 @@ Associe cada criterio aos testes ou dashboards que validam o resultado.
 
 ## Outstanding Questions & Clarifications
 
-*(Nenhuma pendência registrada para esta sessão.)*
+*(Nenhuma pendencia no momento.)*

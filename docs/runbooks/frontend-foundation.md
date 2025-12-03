@@ -13,6 +13,10 @@ Pré-requisitos
   - `frontend/src/shared/api/client.ts` centraliza o fetch multi-tenant. Sempre use essas funções para preservar cabeçalhos obrigatórios (`X-Tenant-Id`, `traceparent`, `tracestate`) e idempotência.
   - Variáveis de ambiente são tipadas em `frontend/src/shared/config/env.ts`; configure-as via `.env` ou provider secreto antes de rodar `pnpm dev/test`.
   - O stub de OTEL (`frontend/src/app/providers/telemetry.tsx`) inicializa o cliente e garante `shutdown` limpo. Integrações reais plugarão nesse ponto.
+- HMAC do `X-Tenant-Id` (chamadas privilegiadas):
+  - Política: HMAC-SHA256; chave raiz por ambiente em Vault/KMS; derivação HKDF por tenant; rotação obrigatória a cada 90 dias; auditoria de uso por tenant.
+  - Uso: chamadas privilegiadas devem incluir `X-Tenant-Id` + assinatura HMAC (header dedicado conforme gateway); backend valida contra claim/session e falha fechado (Problem Details) em mismatch/ausência.
+  - Operação: registrar rota/tenant no log de auditoria; ao rotacionar a raiz em Vault/KMS, emitir nova derivação HKDF por tenant, atualizar secrets do gateway/backend e validar com smoke test (`foundation:otel verify` ou endpoint health) antes de liberar.
 - RLS e pgcrypto:
   - Migração `backend/apps/tenancy/migrations/0025_enable_rls_frontend.py` habilita `pgcrypto` e aciona `SELECT iabank.apply_tenant_rls_policies()` definido em `backend/apps/tenancy/sql/rls_policies.sql`.
   - Use `backend.apps.tenancy.managers.use_tenant()` para escopar operações ORM. Managers injetam `tenant_id` automaticamente e levantam `TenantContextError` se usados sem contexto.

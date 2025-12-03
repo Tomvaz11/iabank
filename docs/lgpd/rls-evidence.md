@@ -7,6 +7,7 @@ Este playbook garante conformidade com Art. XIII (LGPD) e ADR-010, mantendo evid
 - [ ] Políticas RLS habilitadas (`ENABLE ROW LEVEL SECURITY`) e `CREATE POLICY` revisados para todas as tabelas/views expostas ao frontend (`backend/apps/tenancy/sql/rls_policies.sql`).
 - [ ] Managers/QuerySets injetam `tenant_id` automaticamente (ex.: `backend/apps/tenancy/managers.py`) e bloqueiam uso fora do contexto.
 - [ ] Suite `pytest backend/apps/tenancy/tests/test_rls_enforcement.py -q` executada com sucesso.
+- [ ] Chamadas privilegiadas validam assinatura HMAC-SHA256 do `X-Tenant-Id` (chave raiz por ambiente em Vault/KMS, HKDF por tenant, rotação 90d) com evidência de auditoria por tenant.
 - [ ] `TenantThemeToken` e demais colunas sensíveis protegidas por `pgcrypto` (`pgp_sym_encrypt/pgp_sym_decrypt`) e auditadas no migration diff.
 - [ ] Telemetria/Logs mascaram PII (verifique `scripts/observability/check_structlog.py` e spans OTEL).
 - [ ] Baseline PII verificada (CPF, CNPJ, email, telefone, endereço, nome completo, data de nascimento, documento oficial, geolocalização precisa, IDs de cliente).
