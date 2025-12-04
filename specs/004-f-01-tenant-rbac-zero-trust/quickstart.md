@@ -8,6 +8,14 @@
 - Contratos OpenAPI/Pact gerados em `/home/pizzaplanet/meus_projetos/iabank/specs/004-f-01-tenant-rbac-zero-trust/contracts/` e lintados (Spectral/oasdiff).
 - Schema ABAC parametrizável por tenant em `configs/abac/tenant-policy.schema.json` (baseline obrigatória + atributos custom aprovados).
 
+## Mapeamento de headers no frontend
+- Onboarding/gestão de tenant (create/transition/security profile): `X-Tenant-Id` + assinatura HMAC, `Idempotency-Key` em mutações, `If-Match` em transições; expor `RateLimit-*`/`Retry-After`.
+- Roles/versions/bindings/subject-attributes: `X-Tenant-Id` + assinatura, `Idempotency-Key` em mutações, `If-Match` em PATCH/versions.
+- Auth token/refresh/revoke: `X-Tenant-Id` + assinatura, `Idempotency-Key`, fingerprint de device reduzida (hash no cliente) e sem PII em URL.
+- Leituras (GET/HEAD): apenas `X-Tenant-Id` + assinatura; nada de PII em query/path.
+- TanStack Query: chaves `['tenant', ...]`, `resetOnTenantChange=true`, invalidação de mutações por tenant; desabilitar cache para rotas `high_risk` e revalidar após 201/204 ou 409/412; `retry=false` para 4xx esperados (429/412/409).
+- CSP/Trusted Types: nonce por request em scripts/styles; policy única `iabankPolicy`; fallback sem Trusted Types usa sanitização reforçada e bloqueia inline sem nonce.
+
 ## Assinar `X-Tenant-Id` (HMAC-SHA256 + HKDF)
 ```bash
 TENANT_ID="tenant-a"

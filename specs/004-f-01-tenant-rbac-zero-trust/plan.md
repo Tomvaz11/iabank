@@ -35,14 +35,15 @@ Entregar isolamento zero-trust multi-tenant com Django 4.2/DRF 3.15 sobre Postgr
 **Restrições Operacionais**: Fluxo Spec-Driven (Art. XVIII); controle de concorrencia via `ETag/If-Match`; Idempotency-Key obrigatória em mutações; expand/contract preservando RLS; WORM não pode ser desativado; tokens em cookie HttpOnly/Secure/SameSite=Strict; headers `RateLimit-*`/`Retry-After` em GET/POST; evidências WORM assinadas e verificadas pós-upload.  
 **Escopo/Impacto**: Apps `backend/apps/tenancy` (gestao tenant, RLS, managers), `backend/apps/foundation` (auth/MFA/SSO), `backend/apps/contracts` (OpenAPI/Pact), `frontend` (consumo seguro), `observabilidade` (dashboards); integração com Vault/KMS para HMAC, Redis para rate limit; nenhum `[NEEDS CLARIFICATION]` pendente.
 
-## Constitution Check
+## Constitution Check (planejado para tasks)
 
-- [ ] **Art. III - TDD**: Planejar primeiros testes em `/home/pizzaplanet/meus_projetos/iabank/backend/apps/tenancy/tests` e `/home/pizzaplanet/meus_projetos/iabank/backend/apps/foundation/tests` cobrindo binding `SET LOCAL`, políticas RLS nomeadas (SELECT/INSERT/UPDATE/DELETE), MFA/refresh (rotação/reuse) e ABAC schema/cache antes de código.  
-- [ ] **Art. VIII - Lancamento Seguro**: Feature flags/canary via `backend/apps/tenancy/feature_flags.py`, rollback versionado de roles/tenant e monitoramento de error budget por tenant; flag para rotas auth/ABAC, rollback Argo/GitOps, checkpoints WORM.  
-- [ ] **Art. IX - Pipeline CI**: Cobertura >=85%, complexidade<=10, SAST/DAST/SCA/SBOM, lint/diff OpenAPI/Pact, `scripts/api/check_rate_headers.sh`, k6 para auth/ABAC/MFA; `scripts/ci/check-audit-cleanliness.sh` para logs/WORM e PII; referenciar `Makefile`/CI existentes.  
-- [ ] **Art. XI - Governanca de API**: Contratos `/api/v1` em `/home/pizzaplanet/meus_projetos/iabank/specs/004-f-01-tenant-rbac-zero-trust/contracts/`, Spectral/oasdiff, Pact, erros RFC 9457, versionamento `/api/v1`, `RateLimit-*`/`Retry-After` em GET/POST, `Idempotency-Key` em mutações, `ETag/If-Match` em recursos versionados.  
-- [ ] **Art. XIII - Multi-tenant & LGPD**: RLS com `CREATE POLICY` nomeadas e default deny `tenant_id = current_setting('iabank.tenant_id')::uuid`, managers tenant-first, middleware `X-Tenant-Id` validando HMAC/HKDF (salt por tenant) e `SET LOCAL`, testes de bypass e RIPD/ROPA por tenant.  
-- [ ] **Art. XVIII - Fluxo Spec-Driven**: Artefatos `/specs/004-f-01-tenant-rbac-zero-trust/` alinhados; pendencias em `/clarify` se surgirem; `tasks.md` refletirá estes gates e evidências WORM/observabilidade.
+- [ ] **Art. III - TDD**: criar testes primeiro em `backend/apps/tenancy/tests` e `backend/apps/foundation/tests` (binding `SET LOCAL`, RLS nomeadas, MFA/refresh reuse, ABAC/cache) + Pact/Spectral/oasdiff; gates no CI.
+- [ ] **Art. VIII - Lançamento Seguro**: flags/canary, rollback Argo/GitOps, error budget por tenant; checkpoints WORM; owners definidos nas tasks.
+- [ ] **Art. IX - Pipeline CI**: cobertura ≥85%, complexidade≤10, SAST/DAST/SCA/SBOM, Spectral/oasdiff/Pact, `scripts/api/check_rate_headers.sh`, k6 auth/ABAC/MFA, `scripts/ci/check-audit-cleanliness.sh`.
+- [ ] **Art. XI - Governança de API**: OpenAPI/Pact atualizados (rota→segmento, fingerprints), Problem Details, `RateLimit-*`/`Retry-After`, `Idempotency-Key`, `ETag/If-Match`; tasks alinham codegen e validações.
+- [ ] **Art. XIII - Multi-tenant & LGPD**: RLS `CREATE POLICY` default deny, managers tenant-first, middleware HMAC/HKDF + `SET LOCAL`, testes de bypass, pgcrypto e RIPD/ROPA por tenant.
+- [ ] **Art. XVIII - Fluxo Spec-Driven**: Sem pendências em `/clarify`; `tasks.md` refletirá gates e evidências WORM/observabilidade.
+- Estado: checklist será fechado na fase `/tasks`, com owners tenancy/foundation/contracts/frontend/observabilidade assumindo evidências para cada Artigo.
 
 ## Project Structure
 
@@ -68,8 +69,53 @@ Entregar isolamento zero-trust multi-tenant com Django 4.2/DRF 3.15 sobre Postgr
 
 **Structure Decision**: Mantemos monolito modular com apps dedicados (Art. I/II), evitando novos módulos ao reutilizar `backend/apps/tenancy` e `backend/apps/foundation` como SSOT para isolamento/autenticação; contratos ficam em `backend/apps/contracts` para alinhar fluxo contrato-primeiro. Infra/observabilidade/front apenas recebem ajustes para headers e políticas, sem violar simplicidade.
 
+## Fases, Gates e Owners
+
+- **Fase 0 – Contratos/Testes Primeiro**: atualizar OpenAPI/Pact com rota→segmento de rate limit, fingerprints de idempotência, headers obrigatórios; criar testes vermelhos (pytest/DRF + Pact + Spectral/oasdiff) para RLS/binding/ABAC/MFA/refresh/idempotência/rate-limit.
+- **Fase 1 – Migrações/RLS/pgcrypto**: migrar Tenant/TenantStateTransition/TenantSecurityProfile/Role/RoleVersion/RoleBinding/SubjectAttribute/IdempotencyKeyRecord/AuthRefreshToken/AuthorizationDecisionLog com expand/contract, RLS default deny (`*_tenant_select/insert/update/delete`), índices tenant-first, pgcrypto em campos sensíveis; scripts SQL versionados.
+- **Fase 2 – Middleware/Serviços**: middleware `X-Tenant-Id` + HMAC/HKDF (ordem após auth), binding GUC para Celery/cron (`with_tenant`), rate limiting/idempotência (Redis + Postgres), engine RBAC/ABAC + cache/invalidação, OIDC/SAML + MFA TOTP + refresh chain, WORM publisher.
+- **Fase 3 – Observabilidade/Frontend**: métricas/alertas específicos (auth_mfa_latency, abac_eval_latency, rate_limit_hits, idempotency_conflicts, rls_blocked_requests, refresh_reuse_detected), dashboards/alertas, testes e2e front (headers HMAC, Idempotency-Key, If-Match, Problem Details, CSP/TT, PII-free URLs), integração com collectors.
+- **Gates CI**: Spectral + oasdiff + Pact; pytest (RLS/ABAC/MFA/refresh/idempotência/rate-limit); k6 auth/ABAC p95<400ms; `scripts/api/check_rate_headers.sh`; `scripts/ci/check-audit-cleanliness.sh`; cobertura ≥85%.
+- **Owners**: tenancy (RLS/lifecycle/managers), foundation (auth/MFA/refresh/idempotência/rate limit), contracts (OpenAPI/Pact), frontend (headers/CSP/TT), observabilidade (métricas/alertas/WORM), infra (Terraform/OPA).
+
+## Decisões Detalhadas a Aplicar
+
+### Rate Limiting e Idempotência
+- Redis `rl:{segment}:{tenant}` com segmentos `public` 50 rps (burst 2x), `private` 200 rps (burst 2x), `high_risk` multiplicado por `high_risk_multiplier` (default 0.5); falha de Redis em `private/high_risk` → 503 fail-close; `RateLimit-*`/`Retry-After` sempre.
+- Mapa rota→segmento: `private` para GET/HEAD/OPTIONS de tenants/roles/bindings/subject-attributes e `GET /auth/refresh` (estado); `high_risk` para mutações (criar/patch/transicionar tenant, roles/versions/bindings/subject-attributes, auth token/refresh/revoke, uploads ABAC); `public` apenas health/discovery se exposto.
+- Idempotência: Redis + Postgres (RLS) com `idempotency_key`, `key_hash`, `payload_hash`, `tenant_id`, `endpoint`, `response_snapshot`, `expires_at` (24h); replays iguais retornam resposta, divergentes → 409/422; GC via cron/beat.
+- Fingerprints: `POST /tenants` hash `method+path+{slug,allowed_domains,idp_metadata,contacts,risk_classification,region,retention_policy}`; `PATCH/transition tenants` inclui `If-Match`; roles/bindings/subject-attributes `method+path+sorted(body)` (+ `If-Match` se houver); `POST /auth/token` `tenant_id+hash(idp_assertion)+hash(device_fp|ua)+mfa_level`; `POST /auth/refresh|/revoke` `tenant_id+session_id+hash(refresh_token HMAC)`.
+
+### Identidade, MFA e Refresh
+- OIDC: `mozilla-django-oidc` (Auth Code + PKCE); SAML: `python3-saml` com `idp_metadata` cifrado via pgcrypto por tenant; MFA TOTP: `django-otp`/`django-otp-totp` (segredo cifrado).
+- Refresh opaco `AuthRefreshToken` (hash HMAC-SHA256, `session_id`, status `active|rotated|revoked|reused`, `replaced_by`, `fingerprint_hash`, `ip_masked`, `expires_at`); cookie `HttpOnly; Secure; SameSite=Strict; Path=/api/v1/auth/refresh`.
+- Reuse detection: cada uso gera novo ativo, anterior vira `rotated`; se token antigo reaparece, marca `reused`, revoga cadeia por `session_id`, grava WORM e alerta. `suspended` bloqueia emissão/refresh; `blocked` revoga e nega tudo.
+
+### Binding Multi-tenant e RLS
+- Middleware `X-Tenant-Id` + `X-Tenant-Signature` (HMAC HKDF por tenant) compara com sessão/claim, seta GUC `iabank.tenant_id` antes de qualquer query; ordem: após auth, antes de acesso a DB.
+- Helpers `with_tenant` para Celery/cron/shell setarem GUC e ContextVar; testes de bypass (header/body/path) garantem `SET LOCAL` e RLS bloqueando cross-tenant.
+- RLS nomeadas `*_tenant_select/insert/update/delete` default deny, aplicadas a todas as tabelas novas e existentes com `tenant_id`.
+- Migrações expand/contract: (1) criar tabelas/colunas novas com defaults e RLS desabilitada; (2) preencher dados/ajustes de nullability; (3) criar índices únicos por tenant (`tenant_id, slug/display_name/...`) `CONCURRENTLY`; (4) habilitar RLS e políticas USING/WITH CHECK por operação com `tenant_id = current_setting('iabank.tenant_id')::uuid`; (5) VALIDATE CONSTRAINT/FOREIGN KEY; (6) remover colunas legadas. Pgcrypto em `Tenant.idp_metadata`, contatos (`security_contacts`, `ops_contacts`), segredos MFA (`django-otp`), device/user-agent fingerprints; colunas auxiliares de hash (`*_hash`) para unicidade e busca sem expor PII (ex.: `contact_email_hash`, `device_fingerprint_hash`).
+
+### RBAC/ABAC
+- Permissions no formato `resource:action`; serviço `abac.py` valida `configs/abac/tenant-policy.schema.json`, cache Redis `abac:{tenant}:{role}:{policy_version}`, invalidação em RoleVersion/RoleBinding/SubjectAttribute, registro em `AuthorizationDecisionLog` (mascarado).
+- DRF permission class combinando RBAC+ABAC; testes object-level allow/deny e cache miss/mismatch.
+
+### WORM e Auditoria
+- Payload mínimo: tipo (tenant_transition|role_version|auth_refresh_reuse|abac_denied), tenant_id, actor_id, trace/span, etag_before/after, status, hash. Assinatura SHA-256 + KMS/Vault, verificação pós-upload (fail-close), retenção ≥365d.
+- Publisher dedicado para eventos críticos; falha de upload → 503 e rollback da mutação.
+
+### Observabilidade e SLO
+- Buckets WORM e telemetria: `worm-f01-{env}` com retenção dev/stage 365d e prod 730d; ingestão só com checksum SHA-256 + assinatura KMS/Vault (hex) e verificação pós-upload (fail-close). Logs/spans métricos exportam `pii_redacted=true`; se collector falhar → aborta mutação crítica.
+- Métricas/spans nomeadas: `auth_mfa_latency` (p95<=400ms, p99<=600ms), `abac_eval_latency` (p95<=400ms), `rate_limit_hits` (labels segment/tenant), `idempotency_conflicts`, `rls_blocked_requests`, `refresh_reuse_detected`, `worm_upload_failures`, `error_budget_burn`. Alertas: p95 acima do alvo por 5m; `refresh_reuse_detected>0`; 403/404 cross-tenant spike; 412/429 acima de limiar; falha de verificação WORM >0.
+- Dashboards/alertas alinhados a OTEL/Prometheus; error budget por tenant 0.5% mensal com auditoria de queima e ação de redução de blast radius.
+
+### Frontend
+- Interceptors sempre com `X-Tenant-Id`, assinatura HMAC quando aplicável, `traceparent/tracestate`, `Idempotency-Key` em mutações, `If-Match` onde exigido; CSP strict-dynamic + Trusted Types (fallback documentado) e2e cobrindo Problem Details e ausência de PII em URLs.
+- Mapeamento de páginas/requests: onboarding de tenant (create/transition) e gestão de segurança usam `X-Tenant-Id`+assinatura e `Idempotency-Key`; gestão de roles/versions/bindings usa `If-Match` e Idempotency-Key; auth token/refresh/revoke usa Idempotency-Key e fingerprint de device (hash lado cliente) sem PII em URL; telas de leitura usam apenas `X-Tenant-Id`. Cache TanStack Query: chaves `['tenant', ...]`, `resetOnTenantChange=true`, invalidação de mutações por tenant; desabilitar cache para mutações `high_risk` e revalidar após 201/204. CSP/Trusted Types: nonce por request, policy única (`iabankPolicy`), nenhum inline script/style sem nonce, quedas de Trusted Types caem para sanitização reforçada.
+
 ## Complexity Tracking
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| | | |
+| N/A | Nenhuma violação planejada | Mantemos simplicidade e aderência à Constituição |
