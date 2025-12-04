@@ -1,0 +1,974 @@
+openapi: 3.1.0
+info:
+  title: IABank Tenant Governance API
+  version: 0.1.0
+  contact:
+    name: IABank Platform
+    email: platform@iabank.local
+  description: >
+    Governança de tenants e RBAC+ABAC zero-trust sobre PostgreSQL 15 com RLS, `SET LOCAL`
+    e validação HMAC de `X-Tenant-Id`. Contratos contract-first (OpenAPI 3.1), Problem
+    Details (RFC 9457), controle otimista (`ETag/If-Match`), idempotência (`Idempotency-Key`
+    TTL 24h com dedupe primária em Redis e trilha auditável sob RLS) e rate limiting por
+    tenant (público 50 rps, privado 200 rps, alto risco 50%).
+servers:
+  - url: https://api.iabank.local
+tags:
+  - name: Tenants
+    description: Criação, leitura e transições de lifecycle (Pending→Active→Suspended→Blocked→Decommissioned).
+  - name: Roles
+    description: Catálogo RBAC+ABAC versionado por tenant.
+  - name: Auth
+    description: Fluxo de tokens com MFA obrigatória e refresh seguro.
+security:
+  - OAuth2MfaBearer: []
+  - RefreshCookie: []
+paths:
+  /api/v1/tenants:
+    post:
+      x-rate-limit-segment: high_risk
+      x-rate-limit-limit: 100     # 200 base * 0.5 multiplier
+      x-rate-limit-burst: 2
+      summary: Cria tenant em estado pending
+      description: Criação idempotente de tenant com metadados de IdP, contatos e política de retenção WORM. Idempotência (TTL 24h, escopo tenant/endpoint) com fingerprint `method+path+{slug,allowed_domains,idp_metadata,contacts,risk_classification,region,retention_policy}`.
+      operationId: createTenant
+      tags: [Tenants]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TenantSignature'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantCreateRequest'
+      responses:
+        '201':
+          description: Tenant criado (state=pending)
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Idempotency-Key:
+              $ref: '#/components/headers/IdempotencyKey'
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/IdempotencyConflict'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/tenants/{tenant_id}:
+    get:
+      x-rate-limit-segment: private
+      x-rate-limit-limit: 200
+      x-rate-limit-burst: 2
+      summary: Consulta tenant com ETag
+      description: Retorna os metadados do tenant, usando ETag para caching condicional.
+      operationId: getTenant
+      tags: [Tenants]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TenantSignature'
+        - $ref: '#/components/parameters/TenantPathId'
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Detalhe do tenant
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '304':
+          description: Não modificado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    patch:
+      x-rate-limit-segment: high_risk
+      x-rate-limit-limit: 100     # 200 base * 0.5 multiplier
+      x-rate-limit-burst: 2
+      summary: Atualiza metadados do tenant (p.ex. contatos ou domínios) usando ETag
+      description: Atualiza campos do tenant com controle otimista via ETag/If-Match.
+      operationId: updateTenant
+      tags: [Tenants]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TenantSignature'
+        - $ref: '#/components/parameters/TenantPathId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantUpdateRequest'
+      responses:
+        '200':
+          description: Tenant atualizado
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Idempotency-Key:
+              $ref: '#/components/headers/IdempotencyKey'
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/tenants/{tenant_id}/transitions:
+    post:
+      x-rate-limit-segment: high_risk
+      x-rate-limit-limit: 100     # 200 base * 0.5 multiplier
+      x-rate-limit-burst: 2
+      summary: Transiciona tenant (Pending→Active→Suspended→Blocked→Decommissioned)
+      description: Altera o estado do tenant com ETag/If-Match e idempotência.
+      operationId: transitionTenant
+      tags: [Tenants]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TenantSignature'
+        - $ref: '#/components/parameters/TenantPathId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantTransitionRequest'
+      responses:
+        '200':
+          description: Estado atualizado
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+            Idempotency-Key:
+              $ref: '#/components/headers/IdempotencyKey'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Transição inválida ou bloqueio de auditoria
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/roles:
+    post:
+      x-rate-limit-segment: high_risk
+      x-rate-limit-limit: 100     # 200 base * 0.5 multiplier
+      x-rate-limit-burst: 2
+      summary: Cria role com versão inicial
+      description: Criação idempotente da role (versão 1) com ABAC validado. Idempotência (TTL 24h, escopo tenant/endpoint) com fingerprint `method+path+sorted(body)`.
+      operationId: createRole
+      tags: [Roles]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TenantSignature'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleCreateRequest'
+      responses:
+        '201':
+          description: Role criada (versão 1 publicada)
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Idempotency-Key:
+              $ref: '#/components/headers/IdempotencyKey'
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/IdempotencyConflict'
+        '422':
+          description: Atributos ABAC ausentes/inválidos
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/roles/{role_id}:
+    get:
+      x-rate-limit-segment: private
+      x-rate-limit-limit: 200
+      x-rate-limit-burst: 2
+      summary: Consulta role (versão atual ou específica)
+      description: Consulta role e versão, com ETag e cabeçalhos de rate limit.
+      operationId: getRole
+      tags: [Roles]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TenantSignature'
+        - $ref: '#/components/parameters/RoleId'
+        - in: query
+          name: version
+          schema:
+            type: integer
+            minimum: 1
+          description: Versão específica; se omitido, retorna versão atual.
+      responses:
+        '200':
+          description: Role encontrada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/roles/{role_id}/versions:
+    post:
+      x-rate-limit-segment: high_risk
+      x-rate-limit-limit: 100     # 200 base * 0.5 multiplier
+      x-rate-limit-burst: 2
+      summary: Publica nova versão de uma role
+      description: Publica RoleVersion com controle otimista (If-Match) e Idempotency-Key (TTL 24h, escopo tenant/endpoint) com fingerprint `method+path+sorted(body)+If-Match`.
+      operationId: createRoleVersion
+      tags: [Roles]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TenantSignature'
+        - $ref: '#/components/parameters/RoleId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RoleVersionRequest'
+      responses:
+        '201':
+          description: Nova versão publicada
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Idempotency-Key:
+              $ref: '#/components/headers/IdempotencyKey'
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '422':
+          description: Atributos ABAC inválidos ou baseline ausente
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problem'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /api/v1/auth/token:
+    post:
+      x-rate-limit-segment: high_risk
+      x-rate-limit-limit: 100     # 200 base * 0.5 multiplier
+      x-rate-limit-burst: 2
+      summary: Emite access token com MFA obrigatória e refresh seguro
+      description: Valida assertion OIDC/SAML, exige MFA TOTP, aplica rate limiting/Idempotency-Key (TTL 24h) e retorna access token; refresh token vai em cookie HttpOnly/Secure/SameSite=Strict.
+      operationId: issueToken
+      tags: [Auth]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TenantSignature'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+      responses:
+        '200':
+          description: Token emitido (refresh em cookie HttpOnly/Secure/SameSite=Strict)
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+            Set-Cookie:
+              description: Refresh token rotativo com HttpOnly; Secure; SameSite=Strict
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/auth/refresh:
+    post:
+      x-rate-limit-segment: high_risk
+      x-rate-limit-limit: 100     # 200 base * 0.5 multiplier
+      x-rate-limit-burst: 2
+      summary: Rotaciona refresh token opaco e reemite access token
+      description: Valida refresh opaco (cookie HttpOnly/Secure/SameSite=Strict), aplica idempotência (TTL 24h) e rotaciona a cadeia (`session_id`); reuse marca cadeia como `reused` e revoga tudo, registrando auditoria WORM.
+      operationId: refreshToken
+      tags: [Auth]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TenantSignature'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Tokens reemitidos (refresh rotacionado em cookie HttpOnly/Secure/SameSite=Strict)
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+            Set-Cookie:
+              description: Refresh token opaco rotacionado com HttpOnly; Secure; SameSite=Strict
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /api/v1/auth/revoke:
+    post:
+      x-rate-limit-segment: high_risk
+      x-rate-limit-limit: 100     # 200 base * 0.5 multiplier
+      x-rate-limit-burst: 2
+      summary: Revoga cadeia de refresh tokens e sessões
+      description: Revoga o refresh ativo e a cadeia (`session_id`), registrando auditoria WORM; exige Idempotency-Key (TTL 24h).
+      operationId: revokeRefresh
+      tags: [Auth]
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/TenantSignature'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '204':
+          description: Cadeia revogada com sucesso
+          headers:
+            RateLimit-Limit:
+              $ref: '#/components/headers/RateLimit-Limit'
+            RateLimit-Remaining:
+              $ref: '#/components/headers/RateLimit-Remaining'
+            RateLimit-Reset:
+              $ref: '#/components/headers/RateLimit-Reset'
+            Retry-After:
+              $ref: '#/components/headers/Retry-After'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+components:
+  securitySchemes:
+    OAuth2MfaBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Access token curto emitido após MFA TOTP (Authorization: Bearer)."
+    RefreshCookie:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+      description: Token de refresh opaco rotativo, `HttpOnly; Secure; SameSite=Strict`.
+  parameters:
+    TenantId:
+      in: header
+      name: X-Tenant-Id
+      required: true
+      schema:
+        type: string
+        description: Identificador canônico do tenant validado via sessão/HMAC.
+    TenantSignature:
+      in: header
+      name: X-Tenant-Signature
+      required: true
+      schema:
+        type: string
+        description: HMAC-SHA256 do `X-Tenant-Id` usando chave derivada (HKDF) por tenant.
+    TenantPathId:
+      in: path
+      name: tenant_id
+      required: true
+      schema:
+        type: string
+        description: Slug ou UUID do tenant alvo.
+    RoleId:
+      in: path
+      name: role_id
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema:
+        type: string
+      description: Chave de deduplicação (TTL 24h, escopo por tenant/endpoint).
+    IfMatch:
+      in: header
+      name: If-Match
+      required: true
+      schema:
+        type: string
+    IfNoneMatch:
+      in: header
+      name: If-None-Match
+      required: false
+      schema:
+        type: string
+  headers:
+    ETag:
+      schema:
+        type: string
+      description: Versão atual do recurso para controle otimista.
+    RateLimit-Limit:
+      schema:
+        type: integer
+      description: Limite aplicado na janela atual.
+    RateLimit-Remaining:
+      schema:
+        type: integer
+      description: Requests restantes na janela.
+    RateLimit-Reset:
+      schema:
+        type: string
+        description: Tempo até reset em segundos ou timestamp HTTP-date.
+    Retry-After:
+      schema:
+        type: string
+        description: Valor recomendado para retry (segundos ou HTTP-date).
+    IdempotencyKey:
+      schema:
+        type: string
+      description: Chave de idempotência ecoada na resposta.
+  responses:
+    BadRequest:
+      description: Requisição inválida
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Não autenticado ou MFA ausente
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: Acesso negado (RBAC/ABAC/RLS)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Recurso não encontrado ou protegido por RLS
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    IdempotencyConflict:
+      description: Conflito de Idempotency-Key (payload divergente)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    PreconditionFailed:
+      description: "`If-Match`/`ETag` desatualizado"
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    PreconditionRequired:
+      description: "Cabeçalho `If-Match`/`Idempotency-Key` ausente"
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    TooManyRequests:
+      description: Rate limit excedido
+      headers:
+        Retry-After:
+          $ref: '#/components/headers/Retry-After'
+        RateLimit-Limit:
+          $ref: '#/components/headers/RateLimit-Limit'
+        RateLimit-Remaining:
+          $ref: '#/components/headers/RateLimit-Remaining'
+        RateLimit-Reset:
+          $ref: '#/components/headers/RateLimit-Reset'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UnprocessableEntity:
+      description: "Dados válidos mas semanticamente inválidos (ex.: MFA inválida)"
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    ServiceUnavailable:
+      description: "Dependência crítica indisponível (IdP/Vault/WORM/Redis)"
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+  schemas:
+    TenantCreateRequest:
+      type: object
+      required:
+        - slug
+        - display_name
+        - allowed_domains
+        - risk_classification
+        - region
+        - retention_policy_days
+        - idp_provider
+        - idp_metadata
+        - security_contacts
+        - ops_contacts
+      properties:
+        slug:
+          type: string
+          pattern: "^[a-z0-9-]+$"
+        display_name:
+          type: string
+          maxLength: 128
+        allowed_domains:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: hostname
+        risk_classification:
+          type: string
+          enum: [low, medium, high]
+        region:
+          type: string
+          description: TZ IANA ou região ISO-3166
+        retention_policy_days:
+          type: integer
+          minimum: 365
+        idp_provider:
+          type: string
+          enum: [oidc, saml]
+        idp_metadata:
+          type: object
+          description: Metadados do IdP (issuer, endpoints, certs, jwks)
+        security_contacts:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: email
+        ops_contacts:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: email
+    TenantUpdateRequest:
+      type: object
+      properties:
+        allowed_domains:
+          $ref: '#/components/schemas/TenantCreateRequest/properties/allowed_domains'
+        security_contacts:
+          $ref: '#/components/schemas/TenantCreateRequest/properties/security_contacts'
+        ops_contacts:
+          $ref: '#/components/schemas/TenantCreateRequest/properties/ops_contacts'
+        retention_policy_days:
+          $ref: '#/components/schemas/TenantCreateRequest/properties/retention_policy_days'
+    TenantResponse:
+      type: object
+      required:
+        - id
+        - slug
+        - display_name
+        - allowed_domains
+        - state
+        - risk_classification
+        - region
+        - retention_policy_days
+        - idp_provider
+        - security_contacts
+        - ops_contacts
+        - etag
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        display_name:
+          type: string
+        allowed_domains:
+          type: array
+          items:
+            type: string
+            format: hostname
+        state:
+          type: string
+          enum: [pending, active, suspended, blocked, decommissioned]
+        risk_classification:
+          type: string
+          enum: [low, medium, high]
+        region:
+          type: string
+        retention_policy_days:
+          type: integer
+        idp_provider:
+          type: string
+          enum: [oidc, saml]
+        security_contacts:
+          type: array
+          items:
+            type: string
+            format: email
+        ops_contacts:
+          type: array
+          items:
+            type: string
+            format: email
+        etag:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    TenantTransitionRequest:
+      type: object
+      required:
+        - target_state
+        - reason
+      properties:
+        target_state:
+          type: string
+          enum: [active, suspended, blocked, decommissioned]
+        reason:
+          type: string
+          minLength: 5
+    RoleCreateRequest:
+      type: object
+      required:
+        - slug
+        - display_name
+        - permissions
+        - abac_rules
+      properties:
+        slug:
+          type: string
+          pattern: "^[a-z0-9-:]+$"
+        display_name:
+          type: string
+          maxLength: 128
+        permissions:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        abac_rules:
+          $ref: '#/components/schemas/AbacRules'
+    RoleVersionRequest:
+      type: object
+      required:
+        - permissions
+        - abac_rules
+      properties:
+        permissions:
+          type: array
+          minItems: 1
+          items:
+            type: string
+        abac_rules:
+          $ref: '#/components/schemas/AbacRules'
+    RoleResponse:
+      type: object
+      required:
+        - id
+        - slug
+        - display_name
+        - current_version
+        - permissions
+        - abac_rules
+        - etag
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        display_name:
+          type: string
+        current_version:
+          type: integer
+        permissions:
+          type: array
+          items:
+            type: string
+        abac_rules:
+          $ref: '#/components/schemas/AbacRules'
+        etag:
+          type: string
+        published_at:
+          type: string
+          format: date-time
+    AbacRules:
+      type: object
+      description: Baseline obrigatória (unidade, classificação, região, tipo de recurso) + atributos custom aprovados; validar contra `configs/abac/tenant-policy.schema.json` parametrizável por tenant.
+      properties:
+        baseline:
+          type: object
+          properties:
+            unit:
+              type: array
+              items:
+                type: string
+              minItems: 1
+            classification:
+              type: array
+              items:
+                type: string
+              minItems: 1
+            region:
+              type: array
+              items:
+                type: string
+              minItems: 1
+            resource_type:
+              type: array
+              items:
+                type: string
+              minItems: 1
+          required: [unit, classification, region, resource_type]
+          additionalProperties: false
+        custom:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    TokenRequest:
+      type: object
+      required:
+        - grant_type
+        - idp_assertion
+        - mfa_code
+      properties:
+        grant_type:
+          type: string
+          enum: [urn:ietf:params:oauth:grant-type:jwt-bearer]
+        idp_assertion:
+          type: string
+          description: JWT/SAML assertion emitido pelo IdP externo.
+        mfa_code:
+          type: string
+          description: Código TOTP válido.
+        device_fingerprint:
+          type: string
+          description: Opcional para detecção de fraude.
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+        - expires_in
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+          enum: [Bearer]
+        expires_in:
+          type: integer
+          description: Validade em segundos (curta).
+        mfa_enforced:
+          type: boolean
+          description: Sempre true; incluso para auditoria.
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+          description: Código interno de erro.
+        correlation_id:
+          type: string
+        remediation:
+          type: string
