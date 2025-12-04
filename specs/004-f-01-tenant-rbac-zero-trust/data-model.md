@@ -58,6 +58,7 @@ Modelo multi-tenant em PostgreSQL 15 com RLS (`CREATE POLICY`) e binding `SET LO
 - **Regras**:
   - Sempre referenciado em validação do middleware `X-Tenant-Id`/signature.
   - Rate limit aplicado por tenant e segmento (public/private) com Redis; alta criticidade aplica multiplicador.
+  - Rotação HMAC: cache `hmac:{tenant}:{version}` invalidado ao atualizar `hmac_key_version`/`hmac_salt_version`; aceitar chave antiga apenas por janela de graça curta (~24h); auditoria da rotação.
 
 ### Role
 - **Descrição**: Catálogo de roles por tenant, com versionamento e rollback seguro.  
@@ -93,6 +94,7 @@ Modelo multi-tenant em PostgreSQL 15 com RLS (`CREATE POLICY`) e binding `SET LO
   - Nova versão exige `If-Match` da versão atual e gera histórico WORM.
   - Avaliação ABAC falha fechado (Problem Details 403/404) e registra evento mascarado.
   - Cache Redis `abac:{tenant_id}:{role_id}:{policy_version}` com TTL curto e verificação de `policy_checksum`; mismatch esvazia cache e recarrega do Postgres.
+  - UNIQUE `(role_id, version)` e `checksum` obrigatório para integridade.
 
 ### RoleBinding
 - **Descrição**: Associação normalizada de sujeito a role/versionamento.  
@@ -102,12 +104,14 @@ Modelo multi-tenant em PostgreSQL 15 com RLS (`CREATE POLICY`) e binding `SET LO
   - `subject_id` (UUID) — usuário/sujeito do IdP.
   - `role_id` (FK → Role.id).
   - `role_version` (int) — versão aplicada ao binding.
+  - `role_version_id` (FK → RoleVersion.id, opcional se usar FK composta).
   - `status` (enum: `active`, `revoked`).
   - `etag` (string).
   - `created_at` / `updated_at` (timestamptz).
 - **Regras**:
   - RLS por `tenant_id`; `status=revoked` impede uso mesmo que Role esteja ativa.
   - Atualizações exigem `If-Match`; histórico auditável via WORM/histórico versionado.
+  - UNIQUE `(tenant_id, subject_id, role_version_id)` (ou `(tenant_id, subject_id, role_id, role_version)`); mudanças invalidam cache ABAC.
 
 ### SubjectAttribute
 - **Descrição**: Atributos do sujeito usados no ABAC baseline/custom.  
@@ -122,22 +126,26 @@ Modelo multi-tenant em PostgreSQL 15 com RLS (`CREATE POLICY`) e binding `SET LO
 - **Regras**:
   - RLS por tenant; somente chaves/valores válidos pelo JSON Schema do tenant.
   - Atualização de atributos exige recálculo do cache ABAC e invalidação via `policy_checksum`.
+  - UNIQUE `(tenant_id, subject_id, key)`; chaves devem existir no catálogo ABAC do tenant; mudanças invalidam cache.
 
 ### IdempotencyKeyRecord
 - **Descrição**: Registro persistente de deduplicação para operações mutáveis.  
 - **Campos**:
   - `id` (UUID, PK).
   - `tenant_id` (FK → Tenant.id).
-  - `key` (string, unique).
-  - `request_fingerprint` (string, hash do payload relevante).
+  - `endpoint` (string) — identificador lógico da rota/ação.
+  - `idempotency_key` (string, length <=128).
+  - `key_hash` (string) — hash normalizado da chave.
+  - `payload_hash` (string) — hash do payload relevante.
+  - `response_snapshot` (JSONB, máx. ~16KB) — última resposta retornada.
   - `status` (enum: `pending`, `completed`, `failed`).
   - `response_code` (int) — última resposta associada.
   - `expires_at` (timestamptz, default now()+24h).
   - `created_at` (timestamptz).
 - **Regras**:
-  - Deduplicação primária em Redis (`idemp:{tenant}:{env}:{hash(key)}`) com TTL 24h; Postgres mantém trilha/auditoria sob RLS.
-  - Reuso com fingerprint divergente retorna conflito (409/422).
-  - RLS por `tenant_id`; usado por endpoints de tenant/role/auth.
+  - Deduplicação primária em Redis (`idemp:{tenant}:{endpoint}:{key_hash}`) com TTL alinhado a `expires_at` (mín. 24h); Postgres mantém trilha/auditoria sob RLS.
+  - Replay com `payload_hash` igual retorna `response_snapshot`; divergente retorna 409/422.
+  - RLS por `tenant_id`; índices recomendados `(tenant_id, endpoint)` e `(tenant_id, key_hash)`; GC periódico remove expirados.
 
 ### AuthorizationDecisionLog
 - **Descrição**: Evento de decisão RBAC+ABAC com MFA e RLS, enviado para WORM/telemetria.  
@@ -155,7 +163,7 @@ Modelo multi-tenant em PostgreSQL 15 com RLS (`CREATE POLICY`) e binding `SET LO
   - Exportado para WORM com hash/assinatura; fail-close se integridade falhar.
   - Usado para dashboards por tenant e alerta de anomalias (reuse de refresh, 42x/429).
 
-### RefreshToken
+### AuthRefreshToken
 - **Descrição**: Token de refresh opaco, rotativo e auditável por tenant.  
 - **Campos**:
   - `id` (UUID, PK).
@@ -166,8 +174,8 @@ Modelo multi-tenant em PostgreSQL 15 com RLS (`CREATE POLICY`) e binding `SET LO
   - `status` (enum: `active`, `rotated`, `revoked`, `reused`).
   - `issued_at` / `expires_at` (timestamptz, default expiração 7 dias configurável).
   - `last_used_at` (timestamptz).
-  - `replaced_by` (UUID FK → RefreshToken.id, opcional).
-  - `fingerprint_hash` (string, opcional) — dispositivo/UA reduzido.
+  - `replaced_by` (UUID FK → AuthRefreshToken.id, opcional).
+  - `fingerprint_hash` (string, opcional) — dispositivo/UA reduzido (pgcrypto opcional).
   - `ip_masked` (inet, opcional, mascarado).
   - `mfa_level` (enum: `totp`, `exception-code`).
 - **Regras**:
